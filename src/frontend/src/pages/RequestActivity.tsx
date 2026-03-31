@@ -1,22 +1,32 @@
 import { useState, useMemo } from 'react'
-import { ArrowLeft, AlertCircle, Check } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ArrowLeft, AlertCircle, Check, Loader } from 'lucide-react'
 import {
   calculateActivityPoints,
   COMPENSATIONS,
   getBalanceColor,
 } from '@utils/pointsCalculator'
 import type { PointsConfig } from '@utils/pointsCalculator'
+import { apiClient } from '../services/apiClient'
 
 export default function RequestActivity({ onBack }: { onBack?: () => void }) {
+  const navigate = useNavigate()
+
   // Form state
   const [activityType, setActivityType] = useState('cena')
   const [startDate, setStartDate] = useState('')
   const [startTime, setStartTime] = useState('19:30')
   const [endTime, setEndTime] = useState('23:30')
+  const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [compensation, setCompensation] = useState('none')
   const [activityCategory, setActivityCategory] = useState('ocio')
   const [hasKids, setHasKids] = useState(false)
+
+  // Submission state
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitSuccess, setSubmitSuccess] = useState(false)
 
   // Calculate duration
   const duration = useMemo(() => {
@@ -47,6 +57,58 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
     return calculateActivityPoints(activityType, startHour, duration, config, compensation)
   }, [activityType, startTime, duration, hasKids, activityCategory, compensation, startHour])
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!pointsCalc || !startDate) {
+      setSubmitError('Por favor completa todos los campos')
+      return
+    }
+
+    setIsSubmitting(true)
+    setSubmitError(null)
+
+    try {
+      // Create event
+      const dateStart = new Date(`${startDate}T${startTime}:00Z`)
+      const dateEnd = new Date(`${startDate}T${endTime}:00Z`)
+
+      const eventResponse = await apiClient.events.create({
+        type: activityType,
+        title: title || `${activityType.charAt(0).toUpperCase() + activityType.slice(1)}`,
+        description,
+        dateStart: dateStart.toISOString(),
+        dateEnd: dateEnd.toISOString(),
+        hasChildren: hasKids,
+        numChildren: hasKids ? 2 : 0,
+        pointsBase: pointsCalc.total,
+        compensation: compensation !== 'none' ? compensation : undefined,
+        compensationDiscount: pointsCalc.compensation?.discount ? 1 - pointsCalc.compensation.discount : 1.0,
+      })
+
+      const eventId = eventResponse.event.id
+
+      // Create negotiation (propose the activity)
+      await apiClient.negotiations.create({
+        eventId,
+        pointsProposed: pointsCalc.total,
+        message: description || 'Nueva solicitud de actividad',
+      })
+
+      setSubmitSuccess(true)
+
+      // Redirect after 2 seconds
+      setTimeout(() => {
+        navigate('/dashboard')
+      }, 2000)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al enviar la solicitud'
+      setSubmitError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const activityTypes = [
     { value: 'cena', label: 'Cena + copas', base: 8 },
     { value: 'desayuno', label: 'Desayuno/brunch', base: 2.5 },
@@ -64,6 +126,26 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
   ]
 
   const balanceColor = pointsCalc ? getBalanceColor(pointsCalc.total) : 'warning'
+
+  // Success view
+  if (submitSuccess) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="max-w-md w-full card text-center py-12">
+          <div className="flex justify-center mb-4">
+            <div className="w-16 h-16 bg-success bg-opacity-10 rounded-full flex items-center justify-center">
+              <Check className="w-8 h-8 text-success" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">¡Solicitud Enviada!</h2>
+          <p className="text-gray-600 mb-4">
+            Tu solicitud de actividad ha sido creada y enviada a tu pareja para que la revise.
+          </p>
+          <p className="text-sm text-gray-500">Redirigiendo al dashboard...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -84,8 +166,15 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Form */}
           <div className="lg:col-span-2">
-            <div className="card space-y-6">
+            <form onSubmit={handleSubmit} className="card space-y-6">
               <h2 className="text-lg font-bold text-gray-900">Detalles de la Solicitud</h2>
+
+              {/* Error Alert */}
+              {submitError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  {submitError}
+                </div>
+              )}
 
               {/* Tipo de Actividad */}
               <div>
@@ -96,90 +185,82 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
                   value={activityType}
                   onChange={(e) => setActivityType(e.target.value)}
                   className="input-field"
+                  disabled={isSubmitting}
                 >
                   {activityTypes.map((type) => (
                     <option key={type.value} value={type.value}>
-                      {type.label} ({type.base} pts base)
+                      {type.label}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Fecha y Hora */}
+              {/* Título */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  2. Fecha y Hora
+                  2. Título (Opcional)
                 </label>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs text-gray-600">Fecha</label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="input-field mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600">Hora Inicio</label>
-                    <input
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      className="input-field mt-1"
-                    />
-                  </div>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Ej: Cena con amigos en el restaurante"
+                  className="input-field"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              {/* Fecha */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  3. Fecha
+                </label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="input-field"
+                  disabled={isSubmitting}
+                  required
+                />
+              </div>
+
+              {/* Horario */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Hora Inicio
+                  </label>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="input-field"
+                    disabled={isSubmitting}
+                  />
                 </div>
-                <div className="mt-3">
-                  <label className="text-xs text-gray-600">Hora Fin</label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Hora Final
+                  </label>
                   <input
                     type="time"
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
-                    className="input-field mt-1"
+                    className="input-field"
+                    disabled={isSubmitting}
                   />
                 </div>
-                {duration > 0 && (
-                  <p className="text-sm text-gray-600 mt-2">
-                    ⏱️ Duración: <strong>{duration.toFixed(1)} horas</strong>
-                  </p>
-                )}
               </div>
 
-              {/* Contexto */}
+              {/* Categoría */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  3. Contexto Familiar
-                </label>
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={hasKids}
-                      onChange={(e) => setHasKids(e.target.checked)}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm">Con hijos</span>
-                  </label>
-                  {hasKids && (
-                    <span className="text-sm text-gray-600">
-                      (Multiplicador: 2 hijos = ×1.8)
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Categoría de Actividad */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
                   4. Categoría
                 </label>
                 <div className="space-y-2">
                   {categories.map((cat) => (
-                    <label
-                      key={cat.value}
-                      className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50"
-                    >
+                    <label key={cat.value} className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                       <input
                         type="radio"
                         name="category"
@@ -187,14 +268,31 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
                         checked={activityCategory === cat.value}
                         onChange={(e) => setActivityCategory(e.target.value)}
                         className="mt-1"
+                        disabled={isSubmitting}
                       />
                       <div>
                         <div className="font-medium text-gray-900">{cat.label}</div>
-                        <div className="text-xs text-gray-600">{cat.desc}</div>
+                        <div className="text-sm text-gray-600">{cat.desc}</div>
                       </div>
                     </label>
                   ))}
                 </div>
+              </div>
+
+              {/* Hijos */}
+              <div>
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={hasKids}
+                    onChange={(e) => setHasKids(e.target.checked)}
+                    disabled={isSubmitting}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    ¿Con 2 hijos a cargo?
+                  </span>
+                </label>
               </div>
 
               {/* Justificación */}
@@ -207,6 +305,7 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Cuenta por qué quieres hacer esta actividad..."
                   className="input-field h-24"
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -219,6 +318,7 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
                   value={compensation}
                   onChange={(e) => setCompensation(e.target.value)}
                   className="input-field"
+                  disabled={isSubmitting}
                 >
                   {COMPENSATIONS.map((comp) => (
                     <option key={comp.id} value={comp.id}>
@@ -232,19 +332,29 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
               {/* Botones */}
               <div className="flex gap-3 pt-4">
                 <button
+                  type="button"
                   onClick={onBack}
                   className="btn-secondary flex-1"
+                  disabled={isSubmitting}
                 >
                   Cancelar
                 </button>
                 <button
-                  disabled={!pointsCalc || !startDate}
-                  className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="submit"
+                  disabled={!pointsCalc || !startDate || isSubmitting}
+                  className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Enviar Solicitud
+                  {isSubmitting ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    'Enviar Solicitud'
+                  )}
                 </button>
               </div>
-            </div>
+            </form>
           </div>
 
           {/* Cálculo en Tiempo Real */}

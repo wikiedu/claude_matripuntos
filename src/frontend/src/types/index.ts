@@ -12,6 +12,7 @@ export interface Couple {
   id: string
   numChildren: number
   language: string
+  users?: User[]
 }
 
 export interface Event {
