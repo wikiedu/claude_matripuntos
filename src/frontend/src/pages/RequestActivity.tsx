@@ -4,7 +4,6 @@ import {
   calculateActivityPoints,
   COMPENSATIONS,
   getBalanceColor,
-  ACTIVITY_BASE_POINTS,
 } from '@utils/pointsCalculator'
 import type { PointsConfig } from '@utils/pointsCalculator'
 
@@ -18,14 +17,6 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
   const [compensation, setCompensation] = useState('none')
   const [activityCategory, setActivityCategory] = useState('ocio')
   const [hasKids, setHasKids] = useState(false)
-
-  // Mock couple config
-  const coupleConfig: PointsConfig = {
-    numChildren: 2 as 0 | 1 | 2 | 3,
-    activityType: activityCategory as any,
-    timeSlot: 'noche',
-    duration: 4,
-  }
 
   // Calculate duration
   const duration = useMemo(() => {
