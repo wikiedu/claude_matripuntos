@@ -12,7 +12,14 @@
       "Bash(python3 -m json.tool)",
       "Bash(curl -s:*)",
       "Bash(git commit -m \"docs: add comprehensive changelog for MVP release:*)",
-      "Bash(git commit -m \"chore: update settings:*)"
+      "Bash(git commit -m \"chore: update settings:*)",
+      "Bash(npm install:*)",
+      "Bash(npx prisma:*)",
+      "Bash(sqlite3 prisma/dev.db \".tables\")",
+      "Bash(cat prisma/migrations/*/migration.sql)",
+      "Bash(npm run:*)",
+      "Bash(timeout 5 npm start)",
+      "Bash(timeout 8 npm start)"
     ]
   }
 }

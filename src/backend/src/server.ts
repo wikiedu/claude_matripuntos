@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import authRoutes from './routes/authRoutes.js'
 
 dotenv.config()
 
@@ -19,10 +20,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
-// Routes (TODO: Add more routes)
-app.use('/api/auth', (req, res) => {
-  res.json({ message: 'Auth routes not yet implemented' })
-})
+// Routes
+app.use('/api/auth', authRoutes)
 
 // 404 handler
 app.use((req, res) => {

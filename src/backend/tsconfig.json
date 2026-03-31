@@ -25,6 +25,14 @@
       "@types/*": ["src/types/*"]
     }
   },
+  "ts-node": {
+    "esm": true,
+    "experimentalEsm": true,
+    "transpileOnly": true,
+    "compilerOptions": {
+      "module": "ESNext"
+    }
+  },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]
 }

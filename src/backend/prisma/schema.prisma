@@ -6,16 +6,16 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 // Couples - Represents a couple registered in the app
 model Couple {
   id                    String                   @id @default(cuid())
-  secretKey             String                   @unique @db.VarChar(32)
+  secretKey             String                   @unique
   numChildren           Int                      @default(0)
-  language              String                   @default("es") @db.VarChar(5)
+  language              String                   @default("es")
   notificationsEnabled  Boolean                  @default(true)
 
   // Relations
@@ -84,16 +84,16 @@ model Event {
   hasChildren           Boolean                  @default(false)
   numChildren           Int                      @default(0)
 
-  pointsBase            Decimal                  @db.Decimal(5, 2)
-  pointsCalculated      Decimal                  @db.Decimal(5, 2)
-  pointsAgreed          Decimal?                 @db.Decimal(5, 2)
+  pointsBase            Decimal
+  pointsCalculated      Decimal
+  pointsAgreed          Decimal?
 
   status                String                   @default("draft")
   negotiationRound      Int                      @default(0)
   maxFreeRounds         Int                      @default(2)
 
   compensation          String?
-  compensationDiscount  Decimal                  @default(1.0) @db.Decimal(3, 2)
+  compensationDiscount  Decimal                  @default(1.0)
 
   // Relations
   couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
@@ -119,12 +119,13 @@ model Task {
   description           String?
   category              String                   // cocina, limpieza, baños, compra, logística, cuidado
 
-  pointsBase            Decimal                  @db.Decimal(5, 2) @default(1.0)
+  pointsBase            Decimal                  @default(1.0)
   isDefault             Boolean                  @default(false)
 
   // Relations
   couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
   logs                  TaskLog[]
+  compensations         Compensation[]
 
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
@@ -140,12 +141,12 @@ model TaskLog {
   taskId                String
   completedBy           String?
 
-  date                  DateTime                 @db.Date
+  date                  DateTime
 
-  pointsBase            Decimal                  @db.Decimal(5, 2)
+  pointsBase            Decimal
   modifier              String?
-  modifierValue         Decimal                  @default(0) @db.Decimal(3, 2)
-  pointsFinal           Decimal                  @db.Decimal(5, 2)
+  modifierValue         Decimal                  @default(0)
+  pointsFinal           Decimal
 
   status                String                   @default("pending")
   verifiedBy            String?
@@ -153,7 +154,7 @@ model TaskLog {
 
   disputeReason         String?
   disputedAt            DateTime?
-  pointsDisputed        Decimal?                 @db.Decimal(5, 2)
+  pointsDisputed        Decimal?
 
   // Relations
   couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
@@ -179,7 +180,7 @@ model Negotiation {
   roundNumber           Int
 
   proposedBy            String?
-  pointsProposed        Decimal                  @db.Decimal(5, 2)
+  pointsProposed        Decimal
   message               String?
 
   responseType          String?                  // accepted, rejected, counter_proposed, awaiting, forced
@@ -205,10 +206,10 @@ model PointsTransaction {
   userId                String?
 
   type                  String                   // event_accepted, task_completed, donation, forced_payment, etc.
-  relatedEventId        String?
-  relatedTaskLogId      String?
+  relatedEventId        String?                  @unique
+  relatedTaskLogId      String?                  @unique
 
-  amount                Decimal                  @db.Decimal(6, 2)
+  amount                Decimal
   description           String?
 
   // Relations
@@ -234,19 +235,19 @@ model Compensation {
   type                  String                   // cocina, canguro, levantarse, tarea_futura, etc.
   description           String?
 
-  discountAmount        Decimal                  @db.Decimal(5, 2)
-  discountPercent       Decimal?                 @db.Decimal(3, 2)
+  discountAmount        Decimal
+  discountPercent       Decimal?
 
   status                String                   @default("pending")
 
   linkedTaskId          String?
-  dueDate               DateTime?                @db.Date
+  dueDate               DateTime?
   completedAt           DateTime?
 
   // Relations
   event                 Event                    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
-  task                  Task?                    @relation(fields: [linkedTaskId], references: [id], onDelete: SetNull)
+  linkedTask            Task?                    @relation(fields: [linkedTaskId], references: [id], onDelete: SetNull)
 
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
@@ -260,9 +261,9 @@ model Configuration {
   id                    String                   @id @default(cuid())
   coupleId              String                   @unique
 
-  tasksConfig           Json                     @default("{}")
-  multipliersConfig     Json                     @default("{}")
-  activityTypes         Json                     @default("{}")
+  tasksConfig           String                   @default("{}")
+  multipliersConfig     String                   @default("{}")
+  activityTypes         String                   @default("{}")
 
   // Relations
   couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
