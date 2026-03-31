@@ -1,0 +1,16 @@
+/* Main app styles */
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Smooth transitions */
+* {
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+button,
+a {
+  transition: all 0.2s;
+}

@@ -1,0 +1,323 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Couples - Represents a couple registered in the app
+model Couple {
+  id                    String                   @id @default(cuid())
+  secretKey             String                   @unique @db.VarChar(32)
+  numChildren           Int                      @default(0)
+  language              String                   @default("es") @db.VarChar(5)
+  notificationsEnabled  Boolean                  @default(true)
+
+  // Relations
+  users                 User[]
+  events                Event[]
+  tasks                 Task[]
+  taskLogs              TaskLog[]
+  pointsTransactions    PointsTransaction[]
+  compensations         Compensation[]
+  configurations        Configuration?
+  notifications         Notification[]
+  subscriptions         Subscription?
+
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@index([secretKey])
+}
+
+// Users - Individual members of a couple
+model User {
+  id                    String                   @id @default(cuid())
+  coupleId              String
+  email                 String                   @unique
+  passwordHash          String
+  emailVerified         Boolean                  @default(false)
+  verifiedAt            DateTime?
+
+  name                  String
+  role                  String                   @default("user")
+  timezone              String                   @default("Europe/Madrid")
+  notificationsPush     Boolean                  @default(true)
+  notificationsEmail    Boolean                  @default(true)
+
+  // Relations
+  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  eventsCreated         Event[]                  @relation("createdBy")
+  tasksCompleted        TaskLog[]                @relation("completedBy")
+  tasksVerified         TaskLog[]                @relation("verifiedBy")
+  negotiationsProposed  Negotiation[]            @relation("proposedBy")
+  negotiationsResponded Negotiation[]            @relation("respondedBy")
+  pointsTransactions    PointsTransaction[]
+  notifications         Notification[]
+
+  lastLogin             DateTime?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@index([coupleId])
+  @@index([email])
+}
+
+// Events - Actividades puntuales (ausencias/eventos)
+model Event {
+  id                    String                   @id @default(cuid())
+  coupleId              String
+  createdBy             String?
+
+  type                  String                   // cena, viaje, despedida, etc.
+  title                 String?
+  description           String?
+
+  dateStart             DateTime
+  dateEnd               DateTime
+
+  hasChildren           Boolean                  @default(false)
+  numChildren           Int                      @default(0)
+
+  pointsBase            Decimal                  @db.Decimal(5, 2)
+  pointsCalculated      Decimal                  @db.Decimal(5, 2)
+  pointsAgreed          Decimal?                 @db.Decimal(5, 2)
+
+  status                String                   @default("draft")
+  negotiationRound      Int                      @default(0)
+  maxFreeRounds         Int                      @default(2)
+
+  compensation          String?
+  compensationDiscount  Decimal                  @default(1.0) @db.Decimal(3, 2)
+
+  // Relations
+  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  creator               User?                    @relation("createdBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  negotiations          Negotiation[]
+  compensations         Compensation[]
+  pointsTransaction     PointsTransaction?
+
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@index([coupleId])
+  @@index([createdBy])
+  @@index([status])
+  @@index([dateStart])
+}
+
+// Tasks - Tareas recurrentes diarias
+model Task {
+  id                    String                   @id @default(cuid())
+  coupleId              String
+  name                  String
+  description           String?
+  category              String                   // cocina, limpieza, baños, compra, logística, cuidado
+
+  pointsBase            Decimal                  @db.Decimal(5, 2) @default(1.0)
+  isDefault             Boolean                  @default(false)
+
+  // Relations
+  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  logs                  TaskLog[]
+
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@index([coupleId])
+  @@index([category])
+}
+
+// TaskLogs - Registro de tareas completadas
+model TaskLog {
+  id                    String                   @id @default(cuid())
+  coupleId              String
+  taskId                String
+  completedBy           String?
+
+  date                  DateTime                 @db.Date
+
+  pointsBase            Decimal                  @db.Decimal(5, 2)
+  modifier              String?
+  modifierValue         Decimal                  @default(0) @db.Decimal(3, 2)
+  pointsFinal           Decimal                  @db.Decimal(5, 2)
+
+  status                String                   @default("pending")
+  verifiedBy            String?
+  verifiedAt            DateTime?
+
+  disputeReason         String?
+  disputedAt            DateTime?
+  pointsDisputed        Decimal?                 @db.Decimal(5, 2)
+
+  // Relations
+  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  task                  Task                     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  completedByUser       User?                    @relation("completedBy", fields: [completedBy], references: [id], onDelete: SetNull)
+  verifiedByUser        User?                    @relation("verifiedBy", fields: [verifiedBy], references: [id], onDelete: SetNull)
+  pointsTransaction     PointsTransaction?
+
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@unique([coupleId, taskId, date, completedBy])
+  @@index([coupleId])
+  @@index([completedBy])
+  @@index([date])
+  @@index([status])
+}
+
+// Negotiations - Historial de negociaciones
+model Negotiation {
+  id                    String                   @id @default(cuid())
+  eventId               String
+  roundNumber           Int
+
+  proposedBy            String?
+  pointsProposed        Decimal                  @db.Decimal(5, 2)
+  message               String?
+
+  responseType          String?                  // accepted, rejected, counter_proposed, awaiting, forced
+  respondedBy           String?
+  respondedAt           DateTime?
+
+  // Relations
+  event                 Event                    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  proposer              User?                    @relation("proposedBy", fields: [proposedBy], references: [id], onDelete: SetNull)
+  responder             User?                    @relation("respondedBy", fields: [respondedBy], references: [id], onDelete: SetNull)
+
+  createdAt             DateTime                 @default(now())
+
+  @@index([eventId])
+  @@index([proposedBy])
+  @@index([roundNumber])
+}
+
+// PointsTransactions - Ledger of all points changes
+model PointsTransaction {
+  id                    String                   @id @default(cuid())
+  coupleId              String
+  userId                String?
+
+  type                  String                   // event_accepted, task_completed, donation, forced_payment, etc.
+  relatedEventId        String?
+  relatedTaskLogId      String?
+
+  amount                Decimal                  @db.Decimal(6, 2)
+  description           String?
+
+  // Relations
+  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  user                  User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  event                 Event?                   @relation(fields: [relatedEventId], references: [id], onDelete: SetNull)
+  taskLog               TaskLog?                 @relation(fields: [relatedTaskLogId], references: [id], onDelete: SetNull)
+
+  createdAt             DateTime                 @default(now())
+
+  @@index([coupleId])
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// Compensations - Descuentos y compensaciones
+model Compensation {
+  id                    String                   @id @default(cuid())
+  eventId               String
+  coupleId              String
+
+  type                  String                   // cocina, canguro, levantarse, tarea_futura, etc.
+  description           String?
+
+  discountAmount        Decimal                  @db.Decimal(5, 2)
+  discountPercent       Decimal?                 @db.Decimal(3, 2)
+
+  status                String                   @default("pending")
+
+  linkedTaskId          String?
+  dueDate               DateTime?                @db.Date
+  completedAt           DateTime?
+
+  // Relations
+  event                 Event                    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  task                  Task?                    @relation(fields: [linkedTaskId], references: [id], onDelete: SetNull)
+
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@index([eventId])
+  @@index([status])
+}
+
+// Configurations - Per-couple settings
+model Configuration {
+  id                    String                   @id @default(cuid())
+  coupleId              String                   @unique
+
+  tasksConfig           Json                     @default("{}")
+  multipliersConfig     Json                     @default("{}")
+  activityTypes         Json                     @default("{}")
+
+  // Relations
+  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@index([coupleId])
+}
+
+// Notifications - In-app notification inbox
+model Notification {
+  id                    String                   @id @default(cuid())
+  coupleId              String
+  userId                String
+
+  type                  String
+  title                 String
+  message               String
+
+  relatedEventId        String?
+  relatedTaskLogId      String?
+
+  isRead                Boolean                  @default(false)
+  readAt                DateTime?
+
+  // Relations
+  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime                 @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+// Subscriptions - Plan premium
+model Subscription {
+  id                    String                   @id @default(cuid())
+  coupleId              String                   @unique
+
+  plan                  String                   @default("free")
+
+  startedAt             DateTime                 @default(now())
+  endsAt                DateTime?
+
+  stripeId              String?
+
+  // Relations
+  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@index([coupleId])
+  @@index([endsAt])
+}

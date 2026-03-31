@@ -1,0 +1,38 @@
+{
+  "name": "matripuntos",
+  "version": "0.0.1",
+  "description": "App para parejas que gamifica la equidad en responsabilidades del hogar",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=frontend && npm run build --workspace=backend",
+    "start": "npm run start --workspace=backend",
+    "lint": "npm run lint --workspace=frontend && npm run lint --workspace=backend",
+    "type-check": "npm run type-check --workspace=frontend && npm run type-check --workspace=backend",
+    "test": "npm run test --workspace=frontend && npm run test --workspace=backend",
+    "db:migrate": "npm run migrate --workspace=database",
+    "db:studio": "npm run studio --workspace=database"
+  },
+  "workspaces": [
+    "src/frontend",
+    "src/backend",
+    "src/database"
+  ],
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "couples",
+    "gamification",
+    "household",
+    "equity",
+    "tasks",
+    "points"
+  ],
+  "author": "Eduardo Calderón",
+  "license": "MIT"
+}

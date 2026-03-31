@@ -1,0 +1,21 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Frontend - Vite",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "src/frontend",
+      "port": 5173,
+      "description": "React dev server con Vite"
+    },
+    {
+      "name": "Backend - Express",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "server"],
+      "cwd": "src/backend",
+      "port": 3000,
+      "description": "Express API server"
+    }
+  ]
+}
