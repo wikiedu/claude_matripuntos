@@ -5,7 +5,14 @@
       "Bash(git config:*)",
       "Bash(git add:*)",
       "Bash(git commit -m \"🚀 Matripuntos MVP - Initial commit:*)",
-      "Bash(wc -l src/frontend/src/utils/pointsCalculator.ts src/frontend/src/pages/*.tsx docs/*.md)"
+      "Bash(wc -l src/frontend/src/utils/pointsCalculator.ts src/frontend/src/pages/*.tsx docs/*.md)",
+      "Bash(git remote:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s:*)",
+      "Bash(git commit -m \"docs: add comprehensive changelog for MVP release:*)",
+      "Bash(git commit -m \"chore: update settings:*)"
     ]
   }
 }
