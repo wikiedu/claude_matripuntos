@@ -1,0 +1,332 @@
+import express, { Request, Response } from 'express'
+import { PrismaClient } from '@prisma/client'
+import { authMiddleware } from '../middleware/authMiddleware.js'
+import { z } from 'zod'
+import { Decimal } from '@prisma/client/runtime/library'
+
+const router = express.Router()
+const prisma = new PrismaClient()
+
+// Validation schemas
+const createTaskSchema = z.object({
+  name: z.string().min(1, 'Task name is required'),
+  description: z.string().optional(),
+  category: z.enum(['cocina', 'baños', 'limpieza', 'compra', 'logistica', 'cuidado']),
+  pointsBase: z.number().positive('Points must be positive').optional().default(1.0),
+  isDefault: z.boolean().optional().default(false),
+})
+
+const createTaskLogSchema = z.object({
+  taskId: z.string().cuid('Invalid task ID'),
+  date: z.string().date(),
+  pointsBase: z.number().positive('Points must be positive'),
+  modifier: z.string().optional(),
+  modifierValue: z.number().optional().default(0),
+  pointsFinal: z.number().positive('Final points must be positive'),
+})
+
+const updateTaskLogSchema = z.object({
+  status: z.enum(['pending', 'verified', 'disputed']).optional(),
+  verifiedBy: z.string().optional(),
+  disputeReason: z.string().optional(),
+  pointsDisputed: z.number().optional(),
+})
+
+// Create task
+router.post('/', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.coupleId) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
+    }
+
+    const data = createTaskSchema.parse(req.body)
+
+    const task = await prisma.task.create({
+      data: {
+        coupleId: req.coupleId,
+        name: data.name,
+        description: data.description,
+        category: data.category,
+        pointsBase: new Decimal(data.pointsBase),
+        isDefault: data.isDefault,
+      },
+    })
+
+    res.status(201).json({
+      message: 'Task created',
+      task: {
+        id: task.id,
+        name: task.name,
+        category: task.category,
+        pointsBase: task.pointsBase.toString(),
+      },
+    })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        error: 'Validation error',
+        details: error.errors.map(e => ({
+          path: e.path.join('.'),
+          message: e.message,
+        })),
+      })
+      return
+    }
+    const message = error instanceof Error ? error.message : 'Failed to create task'
+    res.status(400).json({ error: message })
+  }
+})
+
+// Get all tasks for couple
+router.get('/', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.coupleId) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
+    }
+
+    const tasks = await prisma.task.findMany({
+      where: { coupleId: req.coupleId },
+      orderBy: [{ category: 'asc' }, { name: 'asc' }],
+    })
+
+    res.json({
+      tasks: tasks.map(t => ({
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        category: t.category,
+        pointsBase: t.pointsBase.toString(),
+        isDefault: t.isDefault,
+      })),
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch tasks'
+    res.status(400).json({ error: message })
+  }
+})
+
+// Create task log (mark task as done)
+router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.coupleId || !req.userId) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
+    }
+
+    const data = createTaskLogSchema.parse(req.body)
+
+    // Verify task belongs to couple
+    const task = await prisma.task.findFirst({
+      where: {
+        id: data.taskId,
+        coupleId: req.coupleId,
+      },
+    })
+
+    if (!task) {
+      res.status(404).json({ error: 'Task not found' })
+      return
+    }
+
+    const taskLog = await prisma.taskLog.create({
+      data: {
+        coupleId: req.coupleId,
+        taskId: data.taskId,
+        completedBy: req.userId,
+        date: new Date(data.date),
+        pointsBase: new Decimal(data.pointsBase),
+        modifier: data.modifier,
+        modifierValue: new Decimal(data.modifierValue),
+        pointsFinal: new Decimal(data.pointsFinal),
+        status: 'pending',
+      },
+    })
+
+    // Create points transaction
+    await prisma.pointsTransaction.create({
+      data: {
+        coupleId: req.coupleId,
+        userId: req.userId,
+        type: 'task_completed',
+        relatedTaskLogId: taskLog.id,
+        amount: new Decimal(data.pointsFinal),
+        description: `Completed task: ${task.name}`,
+      },
+    })
+
+    res.status(201).json({
+      message: 'Task logged',
+      taskLog: {
+        id: taskLog.id,
+        taskId: taskLog.taskId,
+        date: taskLog.date,
+        pointsFinal: taskLog.pointsFinal.toString(),
+        status: taskLog.status,
+      },
+    })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        error: 'Validation error',
+        details: error.errors,
+      })
+      return
+    }
+    const message = error instanceof Error ? error.message : 'Failed to create task log'
+    res.status(400).json({ error: message })
+  }
+})
+
+// Get task logs for a task (with optional date filtering)
+router.get('/:taskId/logs', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.coupleId) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
+    }
+
+    const startDate = req.query.startDate as string | undefined
+    const endDate = req.query.endDate as string | undefined
+
+    const where: any = {
+      taskId: req.params.taskId,
+      coupleId: req.coupleId,
+    }
+
+    if (startDate && endDate) {
+      where.date = {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      }
+    }
+
+    const logs = await prisma.taskLog.findMany({
+      where,
+      include: {
+        completedByUser: true,
+        verifiedByUser: true,
+      },
+      orderBy: { date: 'desc' },
+    })
+
+    res.json({
+      logs: logs.map(l => ({
+        id: l.id,
+        date: l.date,
+        pointsFinal: l.pointsFinal.toString(),
+        status: l.status,
+        completedBy: l.completedByUser ? {
+          id: l.completedByUser.id,
+          name: l.completedByUser.name,
+        } : null,
+        verifiedBy: l.verifiedByUser ? {
+          id: l.verifiedByUser.id,
+          name: l.verifiedByUser.name,
+        } : null,
+      })),
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch task logs'
+    res.status(400).json({ error: message })
+  }
+})
+
+// Verify task log
+router.put('/:taskId/logs/:logId/verify', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.coupleId || !req.userId) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
+    }
+
+    const taskLog = await prisma.taskLog.findFirst({
+      where: {
+        id: req.params.logId,
+        taskId: req.params.taskId,
+        coupleId: req.coupleId,
+      },
+    })
+
+    if (!taskLog) {
+      res.status(404).json({ error: 'Task log not found' })
+      return
+    }
+
+    const updated = await prisma.taskLog.update({
+      where: { id: req.params.logId },
+      data: {
+        status: 'verified',
+        verifiedBy: req.userId,
+        verifiedAt: new Date(),
+      },
+    })
+
+    res.json({
+      message: 'Task log verified',
+      taskLog: {
+        id: updated.id,
+        status: updated.status,
+        verifiedAt: updated.verifiedAt,
+      },
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to verify task log'
+    res.status(400).json({ error: message })
+  }
+})
+
+// Dispute task log
+router.put('/:taskId/logs/:logId/dispute', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.coupleId || !req.userId) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
+    }
+
+    const data = updateTaskLogSchema.parse(req.body)
+
+    const taskLog = await prisma.taskLog.findFirst({
+      where: {
+        id: req.params.logId,
+        taskId: req.params.taskId,
+        coupleId: req.coupleId,
+      },
+    })
+
+    if (!taskLog) {
+      res.status(404).json({ error: 'Task log not found' })
+      return
+    }
+
+    const updated = await prisma.taskLog.update({
+      where: { id: req.params.logId },
+      data: {
+        status: 'disputed',
+        verifiedBy: req.userId,
+        verifiedAt: new Date(),
+        disputeReason: data.disputeReason,
+        pointsDisputed: data.pointsDisputed ? new Decimal(data.pointsDisputed) : undefined,
+      },
+    })
+
+    res.json({
+      message: 'Task log disputed',
+      taskLog: {
+        id: updated.id,
+        status: updated.status,
+        pointsDisputed: updated.pointsDisputed?.toString(),
+      },
+    })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation error', details: error.errors })
+      return
+    }
+    const message = error instanceof Error ? error.message : 'Failed to dispute task log'
+    res.status(400).json({ error: message })
+  }
+})
+
+export default router
