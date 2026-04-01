@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
 import { Decimal } from '@prisma/client/runtime/library'
+import { notifyTaskCompleted, notifyTaskDisputed } from '../services/notificationService.js'
 
 const router = express.Router()
 const prisma = new PrismaClient()
@@ -156,6 +157,14 @@ router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response):
       },
     })
 
+    // Send notification to partner
+    await notifyTaskCompleted(
+      taskLog.id,
+      req.coupleId,
+      req.userId,
+      task.name
+    )
+
     res.status(201).json({
       message: 'Task logged',
       taskLog: {
@@ -300,6 +309,11 @@ router.put('/:taskId/logs/:logId/dispute', authMiddleware, async (req: Request, 
       return
     }
 
+    // Get task name for notification
+    const task = await prisma.task.findUnique({
+      where: { id: req.params.taskId },
+    })
+
     const updated = await prisma.taskLog.update({
       where: { id: req.params.logId },
       data: {
@@ -310,6 +324,17 @@ router.put('/:taskId/logs/:logId/dispute', authMiddleware, async (req: Request, 
         pointsDisputed: data.pointsDisputed ? new Decimal(data.pointsDisputed) : undefined,
       },
     })
+
+    // Send notification to the person who completed the task
+    if (task) {
+      await notifyTaskDisputed(
+        req.params.logId,
+        req.coupleId,
+        req.userId,
+        task.name,
+        data.disputeReason || 'No reason provided'
+      )
+    }
 
     res.json({
       message: 'Task log disputed',

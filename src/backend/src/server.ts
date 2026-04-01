@@ -5,6 +5,9 @@ import authRoutes from './routes/authRoutes.js'
 import eventRoutes from './routes/eventRoutes.js'
 import taskRoutes from './routes/taskRoutes.js'
 import negotiationRoutes from './routes/negotiationRoutes.js'
+import pointsRoutes from './routes/pointsRoutes.js'
+import configurationRoutes from './routes/configurationRoutes.js'
+import notificationRoutes from './routes/notificationRoutes.js'
 
 dotenv.config()
 
@@ -28,6 +31,9 @@ app.use('/api/auth', authRoutes)
 app.use('/api/events', eventRoutes)
 app.use('/api/tasks', taskRoutes)
 app.use('/api/negotiations', negotiationRoutes)
+app.use('/api/points', pointsRoutes)
+app.use('/api/configuration', configurationRoutes)
+app.use('/api/notifications', notificationRoutes)
 
 // 404 handler
 app.use((req, res) => {

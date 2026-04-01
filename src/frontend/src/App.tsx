@@ -7,6 +7,9 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import RequestActivity from './pages/RequestActivity'
 import RequestInbox from './pages/RequestInbox'
+import Tasks from './pages/Tasks'
+import History from './pages/History'
+import Settings from './pages/Settings'
 import NotFound from './pages/NotFound'
 import './App.css'
 
@@ -71,6 +74,33 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <RequestInbox />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/tasks"
+        element={
+          <ProtectedRoute>
+            <Tasks />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/history"
+        element={
+          <ProtectedRoute>
+            <History />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <Settings />
           </ProtectedRoute>
         }
       />

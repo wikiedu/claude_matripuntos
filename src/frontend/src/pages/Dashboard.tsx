@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { BarChart3, Plus, Settings, LogOut, TrendingUp, TrendingDown, Loader } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
+import { NotificationBell } from '../components/NotificationBell'
 import RequestActivity from './RequestActivity'
 import RequestInbox from './RequestInbox'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
@@ -101,7 +102,11 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold text-gray-900">Matripuntos</h1>
           </div>
           <div className="flex items-center gap-3">
-            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <NotificationBell />
+            <button
+              onClick={() => navigate('/settings')}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
               <Settings className="w-5 h-5 text-gray-600" />
             </button>
             <button

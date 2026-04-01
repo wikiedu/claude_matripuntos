@@ -202,6 +202,94 @@ class ApiClient {
         method: 'POST',
       }),
   }
+
+  // Points endpoints
+  points = {
+    getHistory: (filters?: {
+      startDate?: string
+      endDate?: string
+      type?: string
+      userId?: string
+      limit?: number
+      offset?: number
+    }) => {
+      const params = new URLSearchParams()
+      if (filters?.startDate) params.append('startDate', filters.startDate)
+      if (filters?.endDate) params.append('endDate', filters.endDate)
+      if (filters?.type) params.append('type', filters.type)
+      if (filters?.userId) params.append('userId', filters.userId)
+      if (filters?.limit) params.append('limit', filters.limit.toString())
+      if (filters?.offset) params.append('offset', filters.offset.toString())
+
+      const query = params.toString() ? `?${params.toString()}` : ''
+      return this.request(`/points/history${query}`)
+    },
+
+    getBalance: () => this.request('/points/balance'),
+
+    getStats: () => this.request('/points/stats'),
+
+    getTransaction: (id: string) => this.request(`/points/transactions/${id}`),
+  }
+
+  // Configuration endpoints
+  configuration = {
+    get: () => this.request('/configuration'),
+
+    update: (data: {
+      tasksConfig?: { [key: string]: number }
+      multipliersConfig?: any
+      activityTypes?: any
+    }) =>
+      this.request('/configuration', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    reset: () =>
+      this.request('/configuration/reset', {
+        method: 'POST',
+      }),
+  }
+
+  // Notification endpoints
+  notifications = {
+    getAll: (filters?: {
+      limit?: number
+      offset?: number
+      unreadOnly?: boolean
+    }) => {
+      const params = new URLSearchParams()
+      if (filters?.limit) params.append('limit', filters.limit.toString())
+      if (filters?.offset) params.append('offset', filters.offset.toString())
+      if (filters?.unreadOnly) params.append('unreadOnly', 'true')
+
+      const query = params.toString() ? `?${params.toString()}` : ''
+      return this.request(`/notifications${query}`)
+    },
+
+    getUnreadCount: () => this.request('/notifications/unread-count'),
+
+    markAsRead: (id: string) =>
+      this.request(`/notifications/${id}/read`, {
+        method: 'PUT',
+      }),
+
+    markAllAsRead: () =>
+      this.request('/notifications/read-all', {
+        method: 'PUT',
+      }),
+
+    delete: (id: string) =>
+      this.request(`/notifications/${id}`, {
+        method: 'DELETE',
+      }),
+
+    deleteAll: () =>
+      this.request('/notifications', {
+        method: 'DELETE',
+      }),
+  }
 }
 
 export const apiClient = new ApiClient()

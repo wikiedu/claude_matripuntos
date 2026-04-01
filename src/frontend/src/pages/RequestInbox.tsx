@@ -1,5 +1,33 @@
-import { useState } from 'react'
-import { ArrowLeft, Check, X, Edit, Calendar } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ArrowLeft, Check, X, Edit, Calendar, Loader } from 'lucide-react'
+import { apiClient } from '../services/apiClient'
+import { useAppStore } from '../store/useAppStore'
+
+interface Negotiation {
+  id: string
+  roundNumber: number
+  pointsProposed: string
+  message?: string
+  responseType?: string
+  proposer?: { id: string; name: string }
+  responder?: { id: string; name: string }
+  respondedAt?: string
+}
+
+interface Event {
+  id: string
+  type: string
+  title?: string
+  description?: string
+  dateStart: string
+  dateEnd: string
+  pointsBase: string
+  pointsCalculated: string
+  status: string
+  negotiationRound: number
+  creator?: { id: string; name: string }
+  negotiations: Negotiation[]
+}
 
 interface Request {
   id: string
@@ -20,53 +48,161 @@ interface Request {
     message: string
     time: string
   }[]
+  originalEvent?: Event
 }
 
 export default function RequestInbox({ onBack }: { onBack?: () => void }) {
+  const { user, couple } = useAppStore()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [counterOffer, setCounterOffer] = useState('')
-  const [counterPoints, setCounterPoints] = useState(11)
+  const [counterPoints, setCounterPoints] = useState(0)
+  const [requests, setRequests] = useState<Request[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isResponding, setIsResponding] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  // Mock requests
-  const requests: Request[] = [
-    {
-      id: '1',
-      from: 'María García',
-      type: 'Cena con amigas',
-      date: '31 Mar',
-      time: '19:30 - 23:30',
-      duration: '4 horas',
-      pointsProposed: 9,
-      description: 'Hace meses que no salgo con mis amigas. Es mi momento para relajarme.',
-      compensation: 'Cocina hecha (-10%)',
-      status: 'pending',
-      round: 0,
-      negotiations: [],
-    },
-    {
-      id: '2',
-      from: 'María García',
-      type: 'Deporte - Yoga',
-      date: '1 Abr',
-      time: '08:00 - 10:00',
-      duration: '2 horas',
-      pointsProposed: 3,
-      description: 'Necesito un tiempo para mí mismo.',
-      status: 'negotiating',
-      round: 1,
-      negotiations: [
-        {
-          round: 1,
-          from: 'Juan',
-          points: 3.5,
-          message: 'Está bien, pero ese día tengo reunión importante. ¿Vale 3.5 pts por la compensación?',
-          time: '2 horas atrás',
-        },
-      ],
-    },
-  ]
+  // Load events and map to requests
+  useEffect(() => {
+    const loadRequests = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        // Fetch all events
+        const eventsResponse = await apiClient.events.getAll()
+        const events = eventsResponse.events || []
+
+        // Map events to requests (filter for those not created by current user)
+        const mappedRequests: Request[] = events
+          .filter((event: Event) => event.creator?.id !== user?.id)
+          .map((event: Event) => {
+            const dateStart = new Date(event.dateStart)
+            const dateEnd = new Date(event.dateEnd)
+            const durationHours = Math.round((dateEnd.getTime() - dateStart.getTime()) / (1000 * 60 * 60))
+            const otherUser = couple?.users?.find(_u => _u.id !== user?.id)
+
+            const transformedNegotiations = (event.negotiations || []).map(neg => ({
+              round: neg.roundNumber,
+              from: neg.proposer?.name || neg.responder?.name || 'Unknown',
+              points: Number(neg.pointsProposed),
+              message: neg.message || '',
+              time: neg.respondedAt
+                ? new Date(neg.respondedAt).toLocaleDateString('es-ES')
+                : 'Pendiente',
+            }))
+
+            return {
+              id: event.id,
+              from: event.creator?.name || otherUser?.name || 'Partner',
+              type: event.title || event.type,
+              date: dateStart.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
+              time: `${dateStart.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} - ${dateEnd.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`,
+              duration: `${durationHours} horas`,
+              pointsProposed: Number(event.pointsCalculated),
+              description: event.description || `Actividad de tipo ${event.type}`,
+              status: (event.negotiations && event.negotiations.length > 1) ? 'negotiating' : 'pending' as const,
+              round: event.negotiationRound,
+              negotiations: transformedNegotiations,
+              originalEvent: event,
+            }
+          })
+
+        setRequests(mappedRequests)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to load requests'
+        setError(message)
+        console.error('Failed to load requests:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (user?.id && couple?.id) {
+      loadRequests()
+    }
+  }, [user?.id, couple?.id])
 
   const selected = requests.find(r => r.id === selectedId)
+
+  // Set initial counter points when selecting a request
+  useEffect(() => {
+    if (selected) {
+      setCounterPoints(selected.pointsProposed)
+      setCounterOffer('')
+    }
+  }, [selectedId, selected])
+
+  const handleRespond = async (responseType: 'accepted' | 'rejected' | 'counter_proposed') => {
+    if (!selected?.originalEvent) {
+      setError('Unable to respond: event not found')
+      return
+    }
+
+    try {
+      setIsResponding(true)
+
+      // Get the first negotiation (usually only one exists for draft events)
+      const negotiationId = selected.originalEvent.negotiations[0]?.id
+      if (!negotiationId) {
+        setError('Unable to respond: negotiation not found')
+        return
+      }
+
+      // Respond to the negotiation
+      const response = await apiClient.negotiations.respond(negotiationId, {
+        responseType,
+        pointsProposed: responseType !== 'rejected' ? counterPoints : undefined,
+        message: counterOffer || undefined,
+      })
+
+      // Reload the requests after responding
+      const eventsResponse = await apiClient.events.getAll()
+      const events = eventsResponse.events || []
+
+      const mappedRequests: Request[] = events
+        .filter((event: Event) => event.creator?.id !== user?.id)
+        .map((event: Event) => {
+          const dateStart = new Date(event.dateStart)
+          const dateEnd = new Date(event.dateEnd)
+          const durationHours = Math.round((dateEnd.getTime() - dateStart.getTime()) / (1000 * 60 * 60))
+          const otherUser = couple?.users?.find(_u => _u.id !== user?.id)
+
+          const transformedNegotiations = (event.negotiations || []).map(neg => ({
+            round: neg.roundNumber,
+            from: neg.proposer?.name || neg.responder?.name || 'Unknown',
+            points: Number(neg.pointsProposed),
+            message: neg.message || '',
+            time: neg.respondedAt
+              ? new Date(neg.respondedAt).toLocaleDateString('es-ES')
+              : 'Pendiente',
+          }))
+
+          return {
+            id: event.id,
+            from: event.creator?.name || otherUser?.name || 'Partner',
+            type: event.title || event.type,
+            date: dateStart.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
+            time: `${dateStart.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} - ${dateEnd.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`,
+            duration: `${durationHours} horas`,
+            pointsProposed: Number(event.pointsCalculated),
+            description: event.description || `Actividad de tipo ${event.type}`,
+            status: (event.negotiations && event.negotiations.length > 1) ? 'negotiating' : 'pending' as const,
+            round: event.negotiationRound,
+            negotiations: transformedNegotiations,
+            originalEvent: event,
+          }
+        })
+
+      setRequests(mappedRequests)
+      setSelectedId(null)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to respond to request'
+      setError(message)
+      console.error('Failed to respond:', err)
+    } finally {
+      setIsResponding(false)
+    }
+  }
 
   if (selectedId && selected) {
     return (
@@ -195,23 +331,42 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
                   <div className="flex gap-3 pt-4">
                     <button
                       onClick={() => setSelectedId(null)}
-                      className="btn-secondary flex-1"
+                      disabled={isResponding}
+                      className="btn-secondary flex-1 disabled:opacity-50"
                     >
                       Cancelar
                     </button>
-                    <button className="btn-danger flex-1">
-                      <X className="w-4 h-4 inline mr-2" />
+                    <button
+                      onClick={() => handleRespond('rejected')}
+                      disabled={isResponding}
+                      className="btn-danger flex-1 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isResponding ? (
+                        <Loader size={16} className="animate-spin" />
+                      ) : (
+                        <X className="w-4 h-4" />
+                      )}
                       Rechazar
                     </button>
-                    <button className="btn-primary flex-1">
-                      {counterPoints === selected.pointsProposed ? (
+                    <button
+                      onClick={() =>
+                        handleRespond(
+                          counterPoints === selected.pointsProposed ? 'accepted' : 'counter_proposed'
+                        )
+                      }
+                      disabled={isResponding}
+                      className="btn-primary flex-1 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isResponding ? (
+                        <Loader size={16} className="animate-spin" />
+                      ) : counterPoints === selected.pointsProposed ? (
                         <>
-                          <Check className="w-4 h-4 inline mr-2" />
+                          <Check className="w-4 h-4" />
                           Aceptar
                         </>
                       ) : (
                         <>
-                          <Edit className="w-4 h-4 inline mr-2" />
+                          <Edit className="w-4 h-4" />
                           Contrapropuesta
                         </>
                       )}
@@ -280,8 +435,22 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
-        <div className="space-y-4">
-          {requests.map((request) => (
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+            {error}
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader className="w-8 h-8 text-primary animate-spin" />
+            <span className="ml-2 text-gray-600">Cargando solicitudes...</span>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {requests.map((request) => (
             <button
               key={request.id}
               onClick={() => setSelectedId(request.id)}
@@ -329,12 +498,13 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
                 </div>
               )}
             </button>
-          ))}
-        </div>
+            ))}
 
-        {requests.length === 0 && (
-          <div className="card text-center py-12">
-            <p className="text-gray-600">No hay solicitudes pendientes</p>
+            {requests.length === 0 && !isLoading && (
+              <div className="card text-center py-12">
+                <p className="text-gray-600">No hay solicitudes pendientes</p>
+              </div>
+            )}
           </div>
         )}
       </main>
