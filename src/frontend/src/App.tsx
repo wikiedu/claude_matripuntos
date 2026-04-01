@@ -10,6 +10,7 @@ import RequestInbox from './pages/RequestInbox'
 import Tasks from './pages/Tasks'
 import History from './pages/History'
 import Settings from './pages/Settings'
+import Analytics from './pages/Analytics'
 import NotFound from './pages/NotFound'
 import './App.css'
 
@@ -101,6 +102,15 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Settings />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/analytics"
+        element={
+          <ProtectedRoute>
+            <Analytics />
           </ProtectedRoute>
         }
       />

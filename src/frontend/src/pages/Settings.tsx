@@ -68,16 +68,48 @@ export default function Settings({ onBack }: PageProps) {
 
   const otherUser = couple?.users?.find((u) => u.id !== user?.id)
 
+  // Load configuration from API on mount
+  useEffect(() => {
+    const loadConfiguration = async () => {
+      try {
+        setIsLoading(true)
+        const response = await apiClient.configuration.get()
+
+        if (response.configuration) {
+          const configData = response.configuration
+          setConfig({
+            numChildren: configData.numChildren || couple?.numChildren || 0,
+            timezone: configData.timezone || 'Europe/Madrid',
+            language: configData.language || 'es',
+            tasksConfig: configData.tasksConfig || {},
+            multipliersConfig: configData.multipliersConfig || {},
+          })
+        }
+      } catch (err) {
+        console.error('Failed to load configuration:', err)
+        // Use defaults if load fails
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (couple?.id) {
+      loadConfiguration()
+    }
+  }, [couple?.id])
+
   const handleSave = async () => {
     setIsSaving(true)
     setError(null)
     setSuccess(null)
 
     try {
-      // In a real app, would call:
-      // await apiClient.configuration.update(config)
+      await apiClient.configuration.update({
+        tasksConfig: config.tasksConfig,
+        multipliersConfig: config.multipliersConfig,
+      })
 
-      setSuccess('Settings saved successfully!')
+      setSuccess('¡Configuración guardada con éxito!')
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save settings'
@@ -87,21 +119,32 @@ export default function Settings({ onBack }: PageProps) {
     }
   }
 
-  const handleResetDefaults = () => {
-    if (confirm('Are you sure you want to reset all settings to defaults?')) {
-      setConfig((prev) => ({
-        ...prev,
-        tasksConfig: {
-          cocina: 2.0,
-          limpieza: 1.5,
-          compra: 1.5,
-          logistica: 1.5,
-          cuidado: 2.5,
-          baños: 1.0,
-        },
-      }))
-      setSuccess('Settings reset to defaults!')
-      setTimeout(() => setSuccess(null), 3000)
+  const handleResetDefaults = async () => {
+    if (confirm('¿Estás seguro de que quieres restaurar la configuración predeterminada?')) {
+      try {
+        setIsSaving(true)
+        await apiClient.configuration.reset()
+
+        // Reload configuration
+        const response = await apiClient.configuration.get()
+        if (response.configuration) {
+          setConfig({
+            numChildren: response.configuration.numChildren || couple?.numChildren || 0,
+            timezone: response.configuration.timezone || 'Europe/Madrid',
+            language: response.configuration.language || 'es',
+            tasksConfig: response.configuration.tasksConfig || {},
+            multipliersConfig: response.configuration.multipliersConfig || {},
+          })
+        }
+
+        setSuccess('¡Configuración restaurada a valores predeterminados!')
+        setTimeout(() => setSuccess(null), 3000)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to reset settings'
+        setError(message)
+      } finally {
+        setIsSaving(false)
+      }
     }
   }
 
@@ -123,13 +166,13 @@ export default function Settings({ onBack }: PageProps) {
             <h1 className="text-2xl font-bold text-gray-900">Configuración</h1>
           </div>
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={handleResetDefaults}>
+            <Button variant="secondary" size="sm" onClick={handleResetDefaults} disabled={isSaving}>
               <RotateCcw className="w-4 h-4" />
-              Restore Defaults
+              Restaurar Predeterminados
             </Button>
             <Button variant="primary" size="sm" onClick={handleSave} isLoading={isSaving}>
               <Save className="w-4 h-4" />
-              Save Changes
+              Guardar Cambios
             </Button>
           </div>
         </div>

@@ -20,7 +20,22 @@
       "Bash(npm run:*)",
       "Bash(timeout 5 npm start)",
       "Bash(timeout 8 npm start)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(cd /Users/edu/Web development/Claude/Matripuntos/src/frontend)",
+      "Bash(npm --version)",
+      "Bash(cd /Users/edu/Web development/Claude/Matripuntos/src/backend)",
+      "Bash(/usr/local/bin/npm run:*)",
+      "Bash(/usr/local/bin/npm install:*)",
+      "Bash(chmod +x /usr/local/bin/npm-wrapper.sh)",
+      "Bash(/usr/local/bin/npm-wrapper.sh --version)",
+      "Bash(/usr/local/bin/npm-wrapper.sh install:*)",
+      "Bash(/usr/local/bin/npm --version)",
+      "Bash(bash /usr/local/bin/npm-wrapper.sh --version)",
+      "Bash(export PATH=\"/usr/local/bin:$PATH\")",
+      "Bash(bash /usr/local/bin/npm-wrapper.sh install)",
+      "Bash(/usr/local/bin/npm cache:*)",
+      "Bash(node_modules/.bin/tsc -p src/backend)"
     ]
   }
 }

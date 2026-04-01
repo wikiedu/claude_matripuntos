@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BarChart3, Plus, Settings, LogOut, TrendingUp, TrendingDown, Loader } from 'lucide-react'
+import { BarChart3, Plus, Settings, LogOut, TrendingUp, TrendingDown, Loader, PieChart } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
 import { NotificationBell } from '../components/NotificationBell'
@@ -23,6 +23,22 @@ interface ChartPoint {
   [key: string]: string | number
 }
 
+interface PointsTransaction {
+  id: string
+  type: string
+  amount: string
+  description: string
+  createdAt: string
+  user?: { id: string; name: string }
+}
+
+interface BalanceData {
+  you: { id: string; name: string; balance: number }
+  partner: { id: string; name: string; balance: number }
+  difference: number
+  isBalanced: boolean
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user, couple, logout } = useAppStore()
@@ -31,8 +47,10 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [chartData, setChartData] = useState<ChartPoint[]>([])
+  const [balance, setBalance] = useState<BalanceData | null>(null)
+  const [transactions, setTransactions] = useState<PointsTransaction[]>([])
 
-  // Load events and transactions on mount
+  // Load events, balance, and transactions on mount
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -43,21 +61,67 @@ export default function Dashboard() {
         const eventsResponse = await apiClient.events.getAll()
         setEvents(eventsResponse.events || [])
 
-        // Generate mock chart data for now (in real app, would fetch transactions)
+        // Fetch balance data
+        const balanceResponse = await apiClient.points.getBalance()
+        setBalance(balanceResponse)
+
+        // Fetch transaction history for the last 60 days
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 60)
+
+        const historyResponse = await apiClient.points.getHistory({
+          startDate: thirtyDaysAgo.toISOString(),
+          endDate: new Date().toISOString(),
+          limit: 100,
+        })
+        const allTransactions = historyResponse.transactions || []
+        setTransactions(allTransactions)
+
+        // Generate chart data from transactions
         const otherUser = couple?.users?.find(_u => _u.id !== user?.id)
         const userName = user?.name || 'User 1'
         const partnerName = otherUser?.name || 'User 2'
 
-        const mockChart: ChartPoint[] = [
-          { date: '1 Mar', [userName]: 10, [partnerName]: 5 },
-          { date: '5 Mar', [userName]: 15, [partnerName]: 12 },
-          { date: '10 Mar', [userName]: 20, [partnerName]: 8 },
-          { date: '15 Mar', [userName]: 25, [partnerName]: 15 },
-          { date: '20 Mar', [userName]: 30, [partnerName]: 18 },
-          { date: '25 Mar', [userName]: 35.5, [partnerName]: 35 },
-          { date: '31 Mar', [userName]: 35.5, [partnerName]: -12 },
-        ]
-        setChartData(mockChart)
+        // Group transactions by date and accumulate balances
+        const balanceByDate: { [key: string]: { [key: string]: number } } = {}
+        let userBalance = 0
+        let partnerBalance = 0
+
+        // Sort transactions by date (oldest first) to accumulate properly
+        const sortedTransactions = [...allTransactions].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        )
+
+        sortedTransactions.forEach(transaction => {
+          const date = new Date(transaction.createdAt)
+          const dateKey = date.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })
+
+          if (transaction.user?.id === user?.id) {
+            userBalance += Number(transaction.amount)
+          } else {
+            partnerBalance += Number(transaction.amount)
+          }
+
+          if (!balanceByDate[dateKey]) {
+            balanceByDate[dateKey] = {}
+          }
+          balanceByDate[dateKey][userName] = userBalance
+          balanceByDate[dateKey][partnerName] = partnerBalance
+        })
+
+        // If no transactions, create initial chart data
+        if (Object.keys(balanceByDate).length === 0) {
+          const mockChart: ChartPoint[] = [
+            { date: 'Hoy', [userName]: 0, [partnerName]: 0 },
+          ]
+          setChartData(mockChart)
+        } else {
+          // Convert to array and limit to last 10 dates
+          const chartArray = Object.entries(balanceByDate)
+            .map(([date, balances]) => ({ date, ...balances }))
+            .slice(-10)
+          setChartData(chartArray)
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load data'
         setError(message)
@@ -67,8 +131,10 @@ export default function Dashboard() {
       }
     }
 
-    loadData()
-  }, [user?.id, couple?.users])
+    if (user?.id && couple?.id) {
+      loadData()
+    }
+  }, [user?.id, couple?.id])
 
   const handleLogout = () => {
     logout()
@@ -140,22 +206,30 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               {/* Your Balance */}
               <div className="card">
-                <p className="text-gray-600 text-sm font-medium mb-2">TÚ ({userName})</p>
+                <p className="text-gray-600 text-sm font-medium mb-2">TÚ ({balance?.you.name || userName})</p>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-success">35.5</span>
+                  <span className={`text-4xl font-bold ${(balance?.you.balance || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
+                    {balance?.you.balance !== undefined ? balance.you.balance.toFixed(1) : '0.0'}
+                  </span>
                   <span className="text-gray-600">MATRIPUNTOS</span>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">Cambio (30 días): ↗️ +15.5 pts</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  {balance && balance.you.balance >= 0 ? '↗️' : '↘️'} {balance?.you.balance !== undefined ? Math.abs(balance.you.balance).toFixed(1) : '0.0'} pts
+                </p>
               </div>
 
               {/* Partner Balance */}
               <div className="card">
-                <p className="text-gray-600 text-sm font-medium mb-2">ÉL/ELLA ({partnerName})</p>
+                <p className="text-gray-600 text-sm font-medium mb-2">ÉL/ELLA ({balance?.partner.name || partnerName})</p>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-danger">-12.0</span>
+                  <span className={`text-4xl font-bold ${(balance?.partner.balance || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
+                    {balance?.partner.balance !== undefined ? balance.partner.balance.toFixed(1) : '0.0'}
+                  </span>
                   <span className="text-gray-600">MATRIPUNTOS</span>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">Cambio (30 días): ↘️ -5.0 pts</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  {balance && balance.partner.balance >= 0 ? '↗️' : '↘️'} {balance?.partner.balance !== undefined ? Math.abs(balance.partner.balance).toFixed(1) : '0.0'} pts
+                </p>
               </div>
             </div>
 
@@ -174,6 +248,13 @@ export default function Dashboard() {
                 <button className="w-full btn-primary flex items-center justify-center gap-2 py-3">
                   <Plus className="w-5 h-5" />
                   Registrar Tarea Hoy
+                </button>
+                <button
+                  onClick={() => navigate('/analytics')}
+                  className="w-full btn-secondary flex items-center justify-center gap-2 py-3 hover:shadow-md"
+                >
+                  <PieChart className="w-5 h-5" />
+                  Ver Estadísticas
                 </button>
                 <button
                   onClick={() => setCurrentView('inbox')}
@@ -251,17 +332,29 @@ export default function Dashboard() {
                 {/* Stats below chart */}
                 <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-gray-200">
                   <div className="flex items-center gap-3">
-                    <TrendingUp className="w-5 h-5 text-success" />
+                    {(balance?.you.balance || 0) >= 0 ? (
+                      <TrendingUp className="w-5 h-5 text-success" />
+                    ) : (
+                      <TrendingDown className="w-5 h-5 text-danger" />
+                    )}
                     <div>
                       <p className="text-xs text-gray-600">{userName}</p>
-                      <p className="font-bold text-success">+15.5 pts</p>
+                      <p className={`font-bold ${(balance?.you.balance || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
+                        {(balance?.you.balance || 0) >= 0 ? '+' : ''}{balance?.you.balance.toFixed(1) || '0.0'} pts
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <TrendingDown className="w-5 h-5 text-danger" />
+                    {(balance?.partner.balance || 0) >= 0 ? (
+                      <TrendingUp className="w-5 h-5 text-success" />
+                    ) : (
+                      <TrendingDown className="w-5 h-5 text-danger" />
+                    )}
                     <div>
                       <p className="text-xs text-gray-600">{partnerName}</p>
-                      <p className="font-bold text-danger">-5.0 pts</p>
+                      <p className={`font-bold ${(balance?.partner.balance || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
+                        {(balance?.partner.balance || 0) >= 0 ? '+' : ''}{balance?.partner.balance.toFixed(1) || '0.0'} pts
+                      </p>
                     </div>
                   </div>
                 </div>
