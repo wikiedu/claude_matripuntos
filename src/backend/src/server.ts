@@ -17,6 +17,7 @@ import negotiationV2Routes from './routes/negotiation.js'
 import achievementRoutes from './routes/achievements.js'
 import calendarRoutes from './routes/calendar.js'
 import analyticsRoutes from './routes/analytics.js'
+import activityRoutes from './routes/activityRoutes.js'
 
 dotenv.config()
 
@@ -60,6 +61,9 @@ app.use('/api/calendar', calendarRoutes)
 
 // Analytics Routes (FASE 6)
 app.use('/api/analytics', analyticsRoutes)
+
+// Activity Routes
+app.use('/api/recent-activity', activityRoutes)
 
 // 404 handler
 app.use((req, res) => {
