@@ -123,6 +123,83 @@ router.get('/history', authMiddleware, async (req: Request, res: Response): Prom
   }
 })
 
+// GET /api/points/chart-data - Daily cumulative balance for last N days (default 30)
+router.get('/chart-data', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.coupleId || !req.userId) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
+    }
+
+    const days = Math.min(parseInt(req.query.days as string || '30', 10), 90)
+
+    const couple = await prisma.couple.findUnique({
+      where: { id: req.coupleId },
+      include: { users: { select: { id: true, name: true } } },
+    })
+    if (!couple || couple.users.length < 2) {
+      res.json({ chartData: [], youName: 'Yo', partnerName: 'Pareja' })
+      return
+    }
+
+    const you = couple.users.find(u => u.id === req.userId)!
+    const partner = couple.users.find(u => u.id !== req.userId)!
+
+    // Fetch ALL transactions for this couple (no date filter — need full history for cumulative)
+    const allTx = await prisma.pointsTransaction.findMany({
+      where: { coupleId: req.coupleId },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    const windowStart = new Date()
+    windowStart.setDate(windowStart.getDate() - (days - 1))
+    windowStart.setHours(0, 0, 0, 0)
+
+    // Pre-seed: cumulative sum of everything BEFORE the window
+    let youRunning = 0
+    let partnerRunning = 0
+    for (const t of allTx) {
+      if (new Date(t.createdAt) < windowStart) {
+        if (t.userId === you.id) youRunning += Number(t.amount)
+        else if (t.userId === partner.id) partnerRunning += Number(t.amount)
+      }
+    }
+
+    // Build per-day delta maps
+    const youDelta: Record<string, number> = {}
+    const partnerDelta: Record<string, number> = {}
+    for (const t of allTx) {
+      const d = new Date(t.createdAt)
+      if (d < windowStart) continue
+      const key = d.toISOString().split('T')[0]
+      if (t.userId === you.id) youDelta[key] = (youDelta[key] || 0) + Number(t.amount)
+      else if (t.userId === partner.id) partnerDelta[key] = (partnerDelta[key] || 0) + Number(t.amount)
+    }
+
+    // Generate one entry per day
+    const chartData = []
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      d.setHours(0, 0, 0, 0)
+      const key = d.toISOString().split('T')[0]
+      youRunning += youDelta[key] || 0
+      partnerRunning += partnerDelta[key] || 0
+      chartData.push({
+        idx: days - 1 - i,
+        label: i === 0 ? 'Hoy' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
+        [you.name]: Math.round(youRunning),
+        [partner.name]: Math.round(partnerRunning),
+      })
+    }
+
+    res.json({ chartData, youName: you.name, partnerName: partner.name })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch chart data'
+    res.status(400).json({ error: message })
+  }
+})
+
 // GET /api/points/balance - Get current balance for both users
 router.get('/balance', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {

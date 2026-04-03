@@ -54,98 +54,37 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [chartData, setChartData] = useState<ChartPoint[]>([])
+  const [chartNames, setChartNames] = useState<{ you: string; partner: string }>({ you: 'Yo', partner: 'Pareja' })
   const [balance, setBalance] = useState<BalanceData | null>(null)
   const [transactions, setTransactions] = useState<PointsTransaction[]>([])
 
-  // Load events, balance, and transactions on mount
   useEffect(() => {
     const loadData = async () => {
       try {
         setIsLoading(true)
         setError(null)
 
-        // Fetch all events + pending task logs in parallel
-        const [eventsResponse, taskLogsResponse] = await Promise.all([
+        const [eventsResponse, taskLogsResponse, balanceResponse, chartResponse, historyResponse] = await Promise.all([
           apiClient.events.getAll(),
           apiClient.tasks.getAllLogs('pending'),
+          apiClient.points.getBalance(),
+          apiClient.points.getChartData(30),
+          apiClient.points.getHistory({ limit: 50 }),
         ])
-        const allEvents: Event[] = eventsResponse.events || []
-        setEvents(allEvents)
 
-        // Count partner's pending task logs (tasks I need to verify)
+        setEvents(eventsResponse.events || [])
+
         const allPendingLogs = taskLogsResponse.logs || []
-        const partnerPending = allPendingLogs.filter(
+        setPendingTaskCount(allPendingLogs.filter(
           (l: { completedBy?: { id: string } }) => l.completedBy?.id !== user?.id
-        )
-        setPendingTaskCount(partnerPending.length)
+        ).length)
 
-        // Fetch balance data
-        const balanceResponse = await apiClient.points.getBalance()
         setBalance(balanceResponse)
+        setTransactions(historyResponse.transactions || [])
 
-        // Fetch ALL transaction history to compute cumulative balances
-        const allTimeResponse = await apiClient.points.getHistory({
-          limit: 100,
-        })
-        const allTransactions = allTimeResponse.transactions || []
-        setTransactions(allTransactions)
-
-        const otherUser = couple?.users?.find(_u => _u.id !== user?.id)
-        const userName = user?.name || 'Yo'
-        const partnerName = otherUser?.name || 'Pareja'
-
-        // Build a day-by-day cumulative chart for the last 30 days
-        // First compute cumulative balance BEFORE the 30-day window
-        const windowStart = new Date()
-        windowStart.setDate(windowStart.getDate() - 29)
-        windowStart.setHours(0, 0, 0, 0)
-
-        const sorted = [...allTransactions].sort(
-          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        )
-
-        // Running totals from all time
-        let userRunning = 0
-        let partnerRunning = 0
-        // Pre-seed: sum everything before our window
-        sorted.forEach(t => {
-          if (new Date(t.createdAt) < windowStart) {
-            if (t.user?.id === user?.id) userRunning += Number(t.amount)
-            else partnerRunning += Number(t.amount)
-          }
-        })
-
-        // Build per-day delta map for the last 30 days
-        const deltaMap: { [dateStr: string]: { user: number; partner: number } } = {}
-        sorted.forEach(t => {
-          const d = new Date(t.createdAt)
-          if (d < windowStart) return
-          const key = d.toISOString().split('T')[0]
-          if (!deltaMap[key]) deltaMap[key] = { user: 0, partner: 0 }
-          if (t.user?.id === user?.id) deltaMap[key].user += Number(t.amount)
-          else deltaMap[key].partner += Number(t.amount)
-        })
-
-        // Generate one entry per day for the last 30 days (idx 0 = oldest, 29 = today)
-        const chartArray: ChartPoint[] = []
-        for (let i = 29; i >= 0; i--) {
-          const d = new Date()
-          d.setDate(d.getDate() - i)
-          d.setHours(0, 0, 0, 0)
-          const key = d.toISOString().split('T')[0]
-          const delta = deltaMap[key] || { user: 0, partner: 0 }
-          userRunning += delta.user
-          partnerRunning += delta.partner
-          const idx = 29 - i  // 0 = 29 days ago, 29 = today
-          const dateLabel = i === 0 ? 'Hoy' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
-          chartArray.push({
-            idx,
-            date: dateLabel,
-            [userName]: Math.round(userRunning),
-            [partnerName]: Math.round(partnerRunning),
-          })
-        }
-        setChartData(chartArray)
+        // Chart data comes ready from the server — no client-side processing needed
+        setChartData(chartResponse.chartData || [])
+        setChartNames({ you: chartResponse.youName || 'Yo', partner: chartResponse.partnerName || 'Pareja' })
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load data'
         setError(message)
@@ -165,9 +104,8 @@ export default function Dashboard() {
     navigate('/login')
   }
 
-  const otherUser = couple?.users?.find(_u => _u.id !== user?.id)
-  const userName = user?.name || 'User 1'
-  const partnerName = otherUser?.name || 'User 2'
+  const userName = chartNames.you
+  const partnerName = chartNames.partner
 
   // Numeric tick positions for 30-day chart; 29 = today
   const CHART_TICKS = [0, 5, 10, 15, 20, 25, 29]

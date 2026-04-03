@@ -235,6 +235,8 @@ class ApiClient {
       return this.request(`/points/history${query}`)
     },
 
+    getChartData: (days = 30) => this.request(`/points/chart-data?days=${days}`),
+
     getBalance: () => this.request('/points/balance'),
 
     getStats: () => this.request('/points/stats'),
