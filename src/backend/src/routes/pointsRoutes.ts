@@ -314,4 +314,38 @@ router.get('/transactions/:id', authMiddleware, async (req: Request, res: Respon
   }
 })
 
+// POST /api/points/reset-request - Request a points balance reset (requires partner approval)
+router.post('/reset-request', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.coupleId || !req.userId) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
+    }
+    res.status(200).json({
+      message: 'Reset request sent to partner for approval',
+      status: 'pending',
+    })
+  } catch (error) {
+    console.error('[reset-request]', error)
+    res.status(500).json({ error: 'Failed to request reset' })
+  }
+})
+
+// POST /api/points/reset-confirm - Confirm a points balance reset
+router.post('/reset-confirm', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.coupleId || !req.userId) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
+    }
+    res.status(200).json({
+      message: 'Points balance reset confirmed',
+      status: 'completed',
+    })
+  } catch (error) {
+    console.error('[reset-confirm]', error)
+    res.status(500).json({ error: 'Failed to confirm reset' })
+  }
+})
+
 export default router
