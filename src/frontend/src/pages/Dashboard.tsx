@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { BarChart3, Plus, Settings, LogOut, TrendingUp, TrendingDown, Loader, PieChart, Calendar } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
@@ -42,8 +42,12 @@ interface BalanceData {
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, couple, logout } = useAppStore()
-  const [currentView, setCurrentView] = useState<'dashboard' | 'request' | 'inbox' | 'tasks'>('dashboard')
+  const [currentView, setCurrentView] = useState<'dashboard' | 'request' | 'inbox' | 'tasks'>(
+    (location.state as any)?.openInbox ? 'inbox' : 'dashboard'
+  )
+  const [refreshCounter, setRefreshCounter] = useState(0)
   const [events, setEvents] = useState<Event[]>([])
   const [pendingTaskCount, setPendingTaskCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
@@ -152,7 +156,7 @@ export default function Dashboard() {
     if (user?.id && couple?.id) {
       loadData()
     }
-  }, [user?.id, couple?.id])
+  }, [user?.id, couple?.id, refreshCounter])
 
   const handleLogout = () => {
     logout()
@@ -163,17 +167,28 @@ export default function Dashboard() {
   const userName = user?.name || 'User 1'
   const partnerName = otherUser?.name || 'User 2'
 
-  // Get recent events (last 3)
+  // Indexes to show on the 30-day chart X axis (always include 29 = today)
+  const chartTicks = [0, 5, 10, 15, 20, 25, 29]
+  const chartTickFormatter = (value: string, index: number) => {
+    if (index === 29) return 'Hoy'
+    return value
+  }
+
+  const handleBack = (dirty = true) => {
+    setCurrentView('dashboard')
+    if (dirty) setRefreshCounter(c => c + 1)
+  }
+
   if (currentView === 'request') {
-    return <RequestActivity onBack={() => setCurrentView('dashboard')} />
+    return <RequestActivity onBack={() => handleBack()} />
   }
 
   if (currentView === 'inbox') {
-    return <RequestInbox onBack={() => setCurrentView('dashboard')} />
+    return <RequestInbox onBack={() => handleBack()} />
   }
 
   if (currentView === 'tasks') {
-    return <Tasks onBack={() => setCurrentView('dashboard')} />
+    return <Tasks onBack={() => handleBack()} />
   }
 
   return (
@@ -366,7 +381,8 @@ export default function Dashboard() {
                         dataKey="date"
                         stroke="#9ca3af"
                         tick={{ fontSize: 11 }}
-                        interval={4}
+                        ticks={chartTicks.map(i => chartData[i]?.date).filter(Boolean)}
+                        tickFormatter={chartTickFormatter}
                       />
                       <YAxis stroke="#9ca3af" tick={{ fontSize: 11 }} width={40} />
                       <Tooltip

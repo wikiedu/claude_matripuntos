@@ -321,6 +321,29 @@ router.post('/reset-request', authMiddleware, async (req: Request, res: Response
       res.status(401).json({ error: 'Authentication required' })
       return
     }
+
+    // Find the partner
+    const users = await prisma.user.findMany({ where: { coupleId: req.coupleId } })
+    const partner = users.find(u => u.id !== req.userId)
+    if (!partner) {
+      res.status(400).json({ error: 'No partner found in this couple' })
+      return
+    }
+
+    const requester = users.find(u => u.id === req.userId)
+
+    // Create a notification for the partner
+    await prisma.notification.create({
+      data: {
+        coupleId: req.coupleId,
+        userId: partner.id,
+        type: 'reset_requested',
+        title: 'Reset de puntos solicitado',
+        message: `${requester?.name || 'Tu pareja'} quiere resetear el saldo de puntos a cero. Acepta en Configuración → Tu Pareja.`,
+        isRead: false,
+      },
+    })
+
     res.status(200).json({
       message: 'Reset request sent to partner for approval',
       status: 'pending',
@@ -331,15 +354,25 @@ router.post('/reset-request', authMiddleware, async (req: Request, res: Response
   }
 })
 
-// POST /api/points/reset-confirm - Confirm a points balance reset
+// POST /api/points/reset-confirm - Confirm a points balance reset (called by the partner)
 router.post('/reset-confirm', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.coupleId || !req.userId) {
       res.status(401).json({ error: 'Authentication required' })
       return
     }
+
+    // Delete all PointsTransactions for the couple (real reset)
+    await prisma.pointsTransaction.deleteMany({ where: { coupleId: req.coupleId } })
+
+    // Mark any pending reset_requested notifications as read
+    await prisma.notification.updateMany({
+      where: { coupleId: req.coupleId, type: 'reset_requested', isRead: false },
+      data: { isRead: true },
+    })
+
     res.status(200).json({
-      message: 'Points balance reset confirmed',
+      message: 'Points balance reset confirmed. All transactions deleted.',
       status: 'completed',
     })
   } catch (error) {

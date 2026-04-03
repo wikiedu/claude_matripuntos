@@ -69,46 +69,51 @@ const COMPENSATIONS = [
 ]
 
 const FALLBACK_CATEGORIES: Category[] = [
-  { id: 'gastro', name: 'Gastronomía', emoji: '🍽️', type: 'event', basePoints: 15, subcategories: [
-    { id: 's1', name: 'Cena romántica (los dos solos)', basePointsModifier: 5 },
-    { id: 's2', name: 'Celebración especial', basePointsModifier: 8 },
-    { id: 's3', name: 'Brunch / vermut', basePointsModifier: -2 },
-    { id: 's4', name: 'Cena con amigos', basePointsModifier: -3 },
-    { id: 's5', name: 'Cena familiar', basePointsModifier: -5 },
-    { id: 's6', name: 'Copas / after', basePointsModifier: -6 },
+  { id: 'salida', name: 'Salida (amigos/social)', emoji: '🍻', type: 'event', basePoints: 8, subcategories: [
+    { id: 's1', name: 'Noche de fiesta / copas', basePointsModifier: 3 },
+    { id: 's2', name: 'Cena con amigos', basePointsModifier: 1 },
+    { id: 's3', name: 'Afterwork / vermut', basePointsModifier: 0 },
+    { id: 's4', name: 'Reunión familiar', basePointsModifier: -2 },
   ]},
-  { id: 'travel', name: 'Escapadas & Viajes', emoji: '✈️', type: 'event', basePoints: 25, subcategories: [
-    { id: 's7', name: 'Viaje largo +4 días', basePointsModifier: 15 },
-    { id: 's8', name: 'Fin de semana escapada', basePointsModifier: 5 },
-    { id: 's9', name: 'Día fuera de la ciudad', basePointsModifier: -5 },
-    { id: 's10', name: 'Viaje de trabajo', basePointsModifier: -12 },
+  { id: 'evento', name: 'Evento especial', emoji: '🎉', type: 'event', basePoints: 12, subcategories: [
+    { id: 's5', name: 'Boda / comunión', basePointsModifier: 5 },
+    { id: 's6', name: 'Despedida de soltero/a', basePointsModifier: 4 },
+    { id: 's7', name: 'Concierto / festival', basePointsModifier: 2 },
+    { id: 's8', name: 'Cumpleaños / celebración', basePointsModifier: 0 },
+    { id: 's9', name: 'Teatro / ópera / cine', basePointsModifier: -2 },
   ]},
-  { id: 'culture', name: 'Ocio & Cultura', emoji: '🎭', type: 'event', basePoints: 12, subcategories: [
-    { id: 's11', name: 'Concierto / festival', basePointsModifier: 3 },
-    { id: 's12', name: 'Teatro / ópera', basePointsModifier: 2 },
-    { id: 's13', name: 'Exposición / museo', basePointsModifier: -2 },
-    { id: 's14', name: 'Cine', basePointsModifier: -4 },
-    { id: 's15', name: 'Evento deportivo (espectador)', basePointsModifier: -2 },
+  { id: 'viaje', name: 'Viaje', emoji: '✈️', type: 'event', basePoints: 10, subcategories: [
+    { id: 's10', name: 'Viaje personal / amigos', basePointsModifier: 3 },
+    { id: 's11', name: 'Viaje de trabajo', basePointsModifier: -3 },
+    { id: 's12', name: 'Día fuera', basePointsModifier: -4 },
   ]},
-  { id: 'sport', name: 'Deporte & Bienestar', emoji: '🏋️', type: 'event', basePoints: 10, subcategories: [
-    { id: 's16', name: 'Spa / masaje', basePointsModifier: 3 },
-    { id: 's17', name: 'Deporte en equipo', basePointsModifier: 0 },
-    { id: 's18', name: 'Yoga / pilates', basePointsModifier: -1 },
-    { id: 's19', name: 'Running / ciclismo', basePointsModifier: -2 },
-    { id: 's20', name: 'Gym / fitness', basePointsModifier: -3 },
+  { id: 'escapada', name: 'Escapada en pareja', emoji: '💑', type: 'event', basePoints: 6, subcategories: [
+    { id: 's13', name: 'Fin de semana romántico', basePointsModifier: 2 },
+    { id: 's14', name: 'Escapada con amigos (juntos)', basePointsModifier: 0 },
+    { id: 's15', name: 'Día de excursión', basePointsModifier: -2 },
   ]},
-  { id: 'social', name: 'Social', emoji: '🎉', type: 'event', basePoints: 18, subcategories: [
-    { id: 's21', name: 'Boda / comunión', basePointsModifier: 8 },
-    { id: 's22', name: 'Despedida de soltero/a', basePointsModifier: 5 },
-    { id: 's23', name: 'Cumpleaños amigo/a', basePointsModifier: 0 },
-    { id: 's24', name: 'Reunión familiar', basePointsModifier: -5 },
-    { id: 's25', name: 'Afterwork / copas', basePointsModifier: -3 },
+  { id: 'deporte', name: 'Deporte / hobby', emoji: '🏃', type: 'event', basePoints: 4, subcategories: [
+    { id: 's16', name: 'Deporte de equipo / partido', basePointsModifier: 2 },
+    { id: 's17', name: 'Hobby personal', basePointsModifier: 1 },
+    { id: 's18', name: 'Gym / yoga / running', basePointsModifier: -1 },
+    { id: 's19', name: 'Spa / bienestar', basePointsModifier: 2 },
   ]},
-  { id: 'leisure', name: 'Ocio Personal', emoji: '🎮', type: 'event', basePoints: 8, subcategories: [
-    { id: 's26', name: 'Hobbies propios', basePointsModifier: 0 },
-    { id: 's27', name: 'Videojuegos / series', basePointsModifier: -2 },
-    { id: 's28', name: 'Lectura / descanso', basePointsModifier: -3 },
+  { id: 'trabajo', name: 'Trabajo / formación', emoji: '💼', type: 'event', basePoints: 5, subcategories: [
+    { id: 's20', name: 'Overtime / reunión fuera', basePointsModifier: 2 },
+    { id: 's21', name: 'Curso / formación', basePointsModifier: 0 },
+    { id: 's22', name: 'Comida de trabajo', basePointsModifier: -1 },
   ]},
+  { id: 'salud', name: 'Salud / médico', emoji: '🏥', type: 'event', basePoints: 3, subcategories: [
+    { id: 's23', name: 'Urgencias / hospital', basePointsModifier: 1 },
+    { id: 's24', name: 'Consulta médica', basePointsModifier: 0 },
+    { id: 's25', name: 'Farmacia / gestión médica', basePointsModifier: -1 },
+  ]},
+  { id: 'tramite', name: 'Trámite / gestión', emoji: '📋', type: 'event', basePoints: 3, subcategories: [
+    { id: 's26', name: 'Banco / notaría', basePointsModifier: 1 },
+    { id: 's27', name: 'Administración / papelería', basePointsModifier: 0 },
+    { id: 's28', name: 'Recado rápido', basePointsModifier: -1 },
+  ]},
+  { id: 'otro', name: 'Otro', emoji: '📌', type: 'event', basePoints: 5, subcategories: [] },
 ]
 
 // Calculate duration multiplier based on number of days

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { TrendingUp, Users, Target, Trophy, BarChart3 } from 'lucide-react'
+import { TrendingUp, Users, Target, Trophy, BarChart3, ArrowLeft } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
 import { AnalyticsChart } from './AnalyticsChart'
@@ -33,11 +34,12 @@ interface NegotiationStats {
   averageRounds: number
 }
 
-type PeriodType = 'week' | 'month' | 'custom'
+type PeriodType = 'this_week' | 'this_month' | 'prev_week' | 'prev_month'
 
 export const AnalyticsDashboard: React.FC = () => {
+  const navigate = useNavigate()
   const { isAuthenticated } = useAppStore()
-  const [period, setPeriod] = useState<PeriodType>('month')
+  const [period, setPeriod] = useState<PeriodType>('this_month')
   const [metrics, setMetrics] = useState<CoupleMetrics | null>(null)
   const [userStats, setUserStats] = useState<UserStat[]>([])
   const [negotiationStats, setNegotiationStats] = useState<NegotiationStats | null>(null)
@@ -52,13 +54,35 @@ export const AnalyticsDashboard: React.FC = () => {
   }, [period, isAuthenticated])
 
   const getDateRange = () => {
-    const endDate = new Date()
-    const startDate = new Date()
+    const now = new Date()
+    let startDate: Date
+    let endDate: Date
 
-    if (period === 'week') {
-      startDate.setDate(endDate.getDate() - 7)
-    } else if (period === 'month') {
-      startDate.setMonth(endDate.getMonth() - 1)
+    if (period === 'this_week') {
+      // Monday of current week to today
+      const day = now.getDay()
+      const diff = day === 0 ? 6 : day - 1
+      startDate = new Date(now)
+      startDate.setDate(now.getDate() - diff)
+      startDate.setHours(0, 0, 0, 0)
+      endDate = new Date(now)
+    } else if (period === 'this_month') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+      endDate = new Date(now)
+    } else if (period === 'prev_week') {
+      // Full previous Mon–Sun
+      const day = now.getDay()
+      const diff = day === 0 ? 6 : day - 1
+      endDate = new Date(now)
+      endDate.setDate(now.getDate() - diff - 1)
+      endDate.setHours(23, 59, 59, 999)
+      startDate = new Date(endDate)
+      startDate.setDate(endDate.getDate() - 6)
+      startDate.setHours(0, 0, 0, 0)
+    } else {
+      // prev_month: full previous calendar month
+      startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
     }
 
     return {
@@ -106,24 +130,38 @@ export const AnalyticsDashboard: React.FC = () => {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Analytics</h1>
-          <p className="text-gray-600">Análisis detallado de tu relación en números</p>
+        <div className="mb-8 flex items-center gap-4">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="p-2 hover:bg-gray-200 rounded-lg transition-colors flex-shrink-0"
+            aria-label="Volver al inicio"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900">Analytics Avanzado</h1>
+            <p className="text-gray-600">Análisis detallado de tu relación en números</p>
+          </div>
         </div>
 
         {/* Period selector */}
-        <div className="flex gap-2 mb-8">
-          {(['week', 'month'] as const).map(p => (
+        <div className="flex flex-wrap gap-2 mb-8">
+          {([
+            { key: 'this_week', label: 'Esta semana' },
+            { key: 'this_month', label: 'Este mes' },
+            { key: 'prev_week', label: 'Semana anterior' },
+            { key: 'prev_month', label: 'Mes anterior' },
+          ] as const).map(({ key, label }) => (
             <button
-              key={p}
-              onClick={() => setPeriod(p)}
+              key={key}
+              onClick={() => setPeriod(key)}
               className={`px-4 py-2 rounded-lg font-bold transition ${
-                period === p
+                period === key
                   ? 'bg-blue-500 text-white'
                   : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
               }`}
             >
-              {p === 'week' ? 'Última semana' : 'Último mes'}
+              {label}
             </button>
           ))}
         </div>

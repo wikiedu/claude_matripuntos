@@ -46,8 +46,9 @@ export default function Settings({ onBack }: PageProps) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [resetState, setResetState] = useState<'idle' | 'requesting' | 'confirming'>('idle')
+  const [resetState, setResetState] = useState<'idle' | 'requesting'>('idle')
   const [isResetting, setIsResetting] = useState(false)
+  const [hasPendingResetFromPartner, setHasPendingResetFromPartner] = useState(false)
 
   const [config, setConfig] = useState<ConfigData>({
     numChildren: couple?.numChildren || 0,
@@ -107,7 +108,15 @@ export default function Settings({ onBack }: PageProps) {
         setIsLoading(false)
       }
     }
-    if (couple?.id) loadConfiguration()
+    if (couple?.id) {
+      loadConfiguration()
+      // Check for pending reset request from partner
+      apiClient.notifications.getAll({ unreadOnly: true }).then((res: any) => {
+        const notifications = res.notifications || res || []
+        const pending = notifications.some((n: any) => n.type === 'reset_requested' && n.userId === user?.id)
+        setHasPendingResetFromPartner(pending)
+      }).catch(() => {/* silent */})
+    }
   }, [couple?.id])
 
   const handleSave = async () => {
@@ -173,6 +182,7 @@ export default function Settings({ onBack }: PageProps) {
     setError(null)
     try {
       await apiClient.points.confirmReset()
+      setHasPendingResetFromPartner(false)
       setResetState('idle')
       setSuccess('🔄 ¡Puntos reseteados a cero! El saldo de ambos empieza desde cero.')
       setTimeout(() => setSuccess(null), 6000)
@@ -488,76 +498,82 @@ export default function Settings({ onBack }: PageProps) {
                     </p>
                   </div>
 
-                  {/* Reset de puntos */}
-                  <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl">
-                    <div className="flex items-start gap-3 mb-3">
-                      <RefreshCw className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-semibold text-orange-800">Solicitar reset de puntos</p>
-                        <p className="text-xs text-orange-700 mt-1">
-                          Reinicia todos los saldos a cero. Requiere que <strong>{otherUser?.name}</strong> también lo confirme desde su app.
-                        </p>
+                  {/* Reset de puntos — partner has pending request */}
+                  {hasPendingResetFromPartner && (
+                    <div className="p-4 bg-red-50 border border-red-300 rounded-xl">
+                      <div className="flex items-start gap-3 mb-3">
+                        <RefreshCw className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-red-800">Tu pareja quiere resetear los puntos</p>
+                          <p className="text-xs text-red-700 mt-1">
+                            <strong>{otherUser?.name}</strong> ha solicitado resetear todos los saldos a cero. ¿Confirmas?
+                          </p>
+                        </div>
                       </div>
-                    </div>
-
-                    {resetState === 'idle' && (
-                      <button
-                        onClick={() => setResetState('requesting')}
-                        className="w-full py-2.5 px-4 border-2 border-orange-400 text-orange-700 rounded-xl text-sm font-medium hover:bg-orange-100 transition-colors flex items-center justify-center gap-2"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                        Solicitar reset de puntos
-                      </button>
-                    )}
-
-                    {resetState === 'requesting' && (
-                      <div className="space-y-3">
-                        <div className="p-3 bg-orange-100 rounded-lg text-xs text-orange-800">
-                          ⚠️ Esto enviará una notificación a <strong>{otherUser?.name}</strong>. Solo cuando ambos hayáis confirmado, los puntos se resetearán a cero permanentemente.
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => setResetState('idle')} className="flex-1 py-2 px-3 border border-gray-300 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50">
-                            Cancelar
-                          </button>
-                          <button
-                            onClick={handleRequestReset}
-                            disabled={isResetting}
-                            className="flex-1 py-2 px-3 bg-orange-500 text-white rounded-xl text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
-                          >
-                            {isResetting ? <Loader className="w-3 h-3 animate-spin" /> : null}
-                            Enviar solicitud
-                          </button>
-                        </div>
+                      <div className="p-3 bg-red-100 border border-red-200 rounded-lg text-xs text-red-800 mb-3">
+                        🚨 <strong>Acción irreversible.</strong> Al confirmar, todos los puntos de los dos se eliminarán permanentemente.
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => setHasPendingResetFromPartner(false)} className="flex-1 py-2 px-3 border border-gray-300 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50">
+                          Rechazar
+                        </button>
                         <button
-                          onClick={() => setResetState('confirming')}
-                          className="w-full py-2 px-3 text-xs text-gray-500 hover:text-gray-700 underline"
+                          onClick={handleConfirmReset}
+                          disabled={isResetting}
+                          className="flex-1 py-2 px-3 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
                         >
-                          Mi pareja ya ha solicitado el reset → confirmar aquí
+                          {isResetting ? <Loader className="w-3 h-3 animate-spin" /> : '🗑️'}
+                          Confirmar reset
                         </button>
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                    {resetState === 'confirming' && (
-                      <div className="space-y-3">
-                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800">
-                          🚨 <strong>Acción irreversible.</strong> Al confirmar, todos los puntos de los dos se eliminarán permanentemente. No hay vuelta atrás.
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => setResetState('idle')} className="flex-1 py-2 px-3 border border-gray-300 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50">
-                            Cancelar
-                          </button>
-                          <button
-                            onClick={handleConfirmReset}
-                            disabled={isResetting}
-                            className="flex-1 py-2 px-3 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
-                          >
-                            {isResetting ? <Loader className="w-3 h-3 animate-spin" /> : '🗑️'}
-                            Confirmar reset
-                          </button>
+                  {/* Reset de puntos — request */}
+                  {!hasPendingResetFromPartner && (
+                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl">
+                      <div className="flex items-start gap-3 mb-3">
+                        <RefreshCw className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-orange-800">Solicitar reset de puntos</p>
+                          <p className="text-xs text-orange-700 mt-1">
+                            Reinicia todos los saldos a cero. Se enviará una notificación a <strong>{otherUser?.name}</strong> para que confirme.
+                          </p>
                         </div>
                       </div>
-                    )}
-                  </div>
+
+                      {resetState === 'idle' && (
+                        <button
+                          onClick={() => setResetState('requesting')}
+                          className="w-full py-2.5 px-4 border-2 border-orange-400 text-orange-700 rounded-xl text-sm font-medium hover:bg-orange-100 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                          Solicitar reset de puntos
+                        </button>
+                      )}
+
+                      {resetState === 'requesting' && (
+                        <div className="space-y-3">
+                          <div className="p-3 bg-orange-100 rounded-lg text-xs text-orange-800">
+                            ⚠️ Se enviará una notificación a <strong>{otherUser?.name}</strong>. Cuando acepte en su app, los puntos se resetearán.
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => setResetState('idle')} className="flex-1 py-2 px-3 border border-gray-300 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50">
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={handleRequestReset}
+                              disabled={isResetting}
+                              className="flex-1 py-2 px-3 bg-orange-500 text-white rounded-xl text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                            >
+                              {isResetting ? <Loader className="w-3 h-3 animate-spin" /> : null}
+                              Enviar solicitud
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div>
                     <p className="text-sm font-medium text-gray-700 mb-3">Zona de peligro</p>

@@ -243,9 +243,10 @@ export const CalendarDashboard: React.FC = () => {
                 ) : (
                   <div className="space-y-2">
                     {selectedDayEvents.map(event => (
-                      <div
+                      <button
                         key={event.id}
-                        className={`flex items-start gap-3 p-3 rounded-xl border-l-4 ${
+                        onClick={() => navigate('/dashboard', { state: { openInbox: true, eventId: event.id } })}
+                        className={`w-full text-left flex items-start gap-3 p-3 rounded-xl border-l-4 transition-opacity hover:opacity-80 ${
                           event.status === 'accepted' ? 'bg-green-50 border-green-400' :
                           event.status === 'rejected' ? 'bg-red-50 border-red-400' :
                           'bg-yellow-50 border-yellow-400'
@@ -260,6 +261,9 @@ export const CalendarDashboard: React.FC = () => {
                           </p>
                           {event.creator && (
                             <p className="text-xs text-gray-400 mt-0.5">Por {event.creator.name}</p>
+                          )}
+                          {(event.status === 'pending' || event.status === 'draft') && (
+                            <p className="text-xs font-medium text-yellow-700 mt-1">→ Toca para gestionar</p>
                           )}
                         </div>
                         <div className="text-right flex-shrink-0">
@@ -276,7 +280,7 @@ export const CalendarDashboard: React.FC = () => {
                             </p>
                           )}
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}

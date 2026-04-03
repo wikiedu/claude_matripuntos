@@ -31,7 +31,7 @@ export const AnalyticsChart: React.FC<AnalyticsChartProps> = ({ data, type }) =>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis dataKey="week" stroke="#6b7280" tick={{ fontSize: 11 }} label={{ value: 'Semana', position: 'insideBottom', offset: -2, fill: '#9ca3af', fontSize: 11 }} />
+          <XAxis dataKey="label" stroke="#6b7280" tick={{ fontSize: 11 }} />
           <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} label={{ value: 'Cantidad', angle: -90, position: 'insideLeft', fill: '#9ca3af', fontSize: 11 }} />
           <Tooltip
             contentStyle={{

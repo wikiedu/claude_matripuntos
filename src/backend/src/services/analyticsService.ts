@@ -265,7 +265,7 @@ export async function getPointsByCategory(
 export async function getWeeklyTrends(
   coupleId: string,
   numberOfWeeks: number = 8
-): Promise<Array<{ week: number; events: number; points: number }>> {
+): Promise<Array<{ label: string; events: number; points: number }>> {
   const today = new Date()
   const trends = []
 
@@ -283,10 +283,10 @@ export async function getWeeklyTrends(
     })
 
     const points = events.reduce((sum, e) => sum + Number(e.pointsCalculated), 0)
-    const weekNumber = getWeekNumber(weekEnd)
+    const label = weekStart.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
 
     trends.push({
-      week: weekNumber,
+      label,
       events: events.length,
       points,
     })
