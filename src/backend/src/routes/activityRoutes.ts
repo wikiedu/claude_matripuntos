@@ -13,7 +13,7 @@ const router = express.Router()
 router.get('/', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   let prisma: PrismaClient | null = null
   try {
-    const coupleId = (req as any).coupleId
+    const coupleId = req.coupleId
 
     if (!coupleId) {
       res.status(401).json({ error: 'Couple ID not found in token' })
