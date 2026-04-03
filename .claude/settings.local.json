@@ -83,7 +83,28 @@
       "Bash(export PATH=\"/usr/local/bin:$PATH\" cd \"/Users/edu/Web development/Claude/Matripuntos/src/frontend\")",
       "Bash(ls -la *.md *.txt *.sh *.bat *.js)",
       "Bash(ls archive/*.md)",
-      "Bash(xargs -I {} basename {})"
+      "Bash(xargs -I {} basename {})",
+      "Bash([ -d archive/DOCS_COMPLETAS ])",
+      "Bash([ -f \"archive/$f\" ])",
+      "Bash(claude mcp:*)",
+      "Skill(compound-engineering:agent-browser)",
+      "Skill(compound-engineering:agent-browser:*)",
+      "Bash(echo \"Backend PID: $!\")",
+      "Bash(echo \"Frontend PID: $!\")",
+      "Bash(npx ts-node:*)",
+      "Bash(node --loader ts-node/esm prisma/seed.ts)",
+      "Bash(node --loader ts-node/esm -e ':*)",
+      "Bash(grep -v \"Use \\\\`node\")",
+      "Read(//Users/edu/.npm/bin/**)",
+      "Read(//usr/local/bin/**)",
+      "Bash(pkill -f \"agent-browser\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Task created:', d.get\\('task',{}\\).get\\('id','?'\\), d.get\\('task',{}\\).get\\('name','?'\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, indent=2\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d[:2] if isinstance\\(d,list\\) else d, indent=2\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; r=json.load\\(sys.stdin\\); [print\\(c['command'][0], ':', c.get\\('result',{}\\).get\\('url',''\\) or c.get\\('result',{}\\).get\\('path',''\\) or c.get\\('error','ok'\\)\\) for c in r]\")",
+      "Bash(python3 -c \"import sys,json; r=json.load\\(sys.stdin\\); [print\\(c['command'][0], ':', c.get\\('result',{}\\).get\\('url',''\\) or c.get\\('result',{}\\).get\\('path',''\\) or str\\(c.get\\('error',''\\)\\)\\) for c in r]\")",
+      "Bash(python3 -c \"import sys,json; r=json.load\\(sys.stdin\\); print\\(r[-1]['result']['snapshot']\\)\")",
+      "Bash(agent-browser open:*)"
     ]
   }
 }
