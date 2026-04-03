@@ -62,7 +62,7 @@ export async function getCoupleAnalytics(
 
   const negotiations = await prisma.negotiation.findMany({
     where: {
-      event: { coupleId },
+      event: { coupleId, dateStart: { gte: startDate, lte: endDate } },
     },
   })
 
