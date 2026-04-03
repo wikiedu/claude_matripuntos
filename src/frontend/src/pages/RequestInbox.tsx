@@ -286,7 +286,7 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <p className="text-gray-500 mb-1 flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> Fecha</p>
                 <p className="font-medium">

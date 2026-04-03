@@ -180,6 +180,33 @@ export const EventNegotiationCard = ({
         </span>
       </div>
 
+      {/* Turn indicator */}
+      {(status.status === 'proposed' || status.status === 'counter_proposal') && (
+        <div className={`flex items-center gap-2 py-2 px-3 rounded-lg text-sm mb-3 ${
+          isCreator && status.status === 'proposed'
+            ? 'bg-blue-50 border border-blue-200 text-blue-700'
+            : isResponder && status.status === 'proposed'
+            ? 'bg-amber-50 border border-amber-200 text-amber-700'
+            : isCreator && status.status === 'counter_proposal'
+            ? 'bg-amber-50 border border-amber-200 text-amber-700'
+            : 'bg-blue-50 border border-blue-200 text-blue-700'
+        }`}>
+          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+            (isCreator && status.status === 'proposed') || (isResponder && status.status === 'counter_proposal')
+              ? 'bg-blue-400'
+              : 'bg-amber-400 animate-pulse'
+          }`} />
+          <span className="font-medium">
+            {(isCreator && status.status === 'proposed') || (isResponder && status.status === 'counter_proposal')
+              ? 'Esperando respuesta del partner'
+              : 'Tu turno de responder'}
+          </span>
+          <span className="ml-auto opacity-70 text-xs flex-shrink-0">
+            Ronda {status.currentRound}/{status.maxRounds}
+          </span>
+        </div>
+      )}
+
       {error && <div className="text-red-600 text-sm mb-4 bg-red-50 p-3 rounded">{error}</div>}
 
       {/* Status Info */}
