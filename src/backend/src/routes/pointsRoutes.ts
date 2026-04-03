@@ -137,7 +137,7 @@ router.get('/chart-data', authMiddleware, async (req: Request, res: Response): P
       where: { id: req.coupleId },
       include: { users: { select: { id: true, name: true } } },
     })
-    if (!couple || couple.users.length < 2) {
+    if (!couple || !couple.users || couple.users.length < 2) {
       res.json({ chartData: [], youName: 'Yo', partnerName: 'Pareja' })
       return
     }
