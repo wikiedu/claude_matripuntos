@@ -566,3 +566,67 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient()
+
+/**
+ * Fetch the 5 most recent activities for the user's couple.
+ * @returns {Promise<any>} The recent activity data
+ */
+export async function fetchRecentActivity() {
+  try {
+    const response = await apiClient.request('/recent-activity')
+    return response
+  } catch (error) {
+    console.error('Error fetching recent activity:', error)
+    throw error
+  }
+}
+
+/**
+ * Fetch all pending task logs for the user's couple.
+ * @returns {Promise<any>} Array of pending task logs
+ */
+export async function fetchPendingTaskLogs() {
+  try {
+    const response = await apiClient.request('/tasks/logs?status=pending')
+    return response
+  } catch (error) {
+    console.error('Error fetching pending task logs:', error)
+    throw error
+  }
+}
+
+/**
+ * Verify a task log by ID.
+ * @param {string} taskLogId - The ID of the task log to verify
+ * @returns {Promise<any>} The verified task log data
+ */
+export async function verifyTaskLog(taskLogId: string) {
+  try {
+    const response = await apiClient.request(`/tasks/logs/${taskLogId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'verified' }),
+    })
+    return response
+  } catch (error) {
+    console.error('Error verifying task log:', error)
+    throw error
+  }
+}
+
+/**
+ * Reject/dispute a task log by ID.
+ * @param {string} taskLogId - The ID of the task log to reject
+ * @returns {Promise<any>} The disputed task log data
+ */
+export async function rejectTaskLog(taskLogId: string) {
+  try {
+    const response = await apiClient.request(`/tasks/logs/${taskLogId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'disputed' }),
+    })
+    return response
+  } catch (error) {
+    console.error('Error rejecting task log:', error)
+    throw error
+  }
+}
