@@ -108,6 +108,83 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
   }
 })
 
+// Get all task logs for couple (cross-task, used by dashboard)
+router.get('/all-logs', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.coupleId) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
+    }
+
+    const status = req.query.status as string | undefined
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200)
+    const offset = parseInt(req.query.offset as string) || 0
+
+    const where: any = {
+      coupleId: req.coupleId,
+    }
+
+    if (status) {
+      where.status = status
+    }
+
+    const [logs, total] = await prisma.$transaction([
+      prisma.taskLog.findMany({
+        where,
+        include: {
+          task: {
+            select: { id: true, name: true, category: true },
+          },
+          completedByUser: {
+            select: { id: true, name: true },
+          },
+          verifiedByUser: {
+            select: { id: true, name: true },
+          },
+        },
+        orderBy: { date: 'desc' },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.taskLog.count({ where }),
+    ])
+
+    res.json({
+      logs: logs.map(l => ({
+        id: l.id,
+        taskId: l.taskId,
+        task: l.task,
+        date: l.date,
+        pointsBase: l.pointsBase.toString(),
+        modifier: l.modifier,
+        modifierValue: l.modifierValue.toString(),
+        pointsFinal: l.pointsFinal.toString(),
+        status: l.status,
+        verifiedAt: l.verifiedAt,
+        disputeReason: l.disputeReason,
+        completedBy: l.completedByUser ? {
+          id: l.completedByUser.id,
+          name: l.completedByUser.name,
+        } : null,
+        verifiedBy: l.verifiedByUser ? {
+          id: l.verifiedByUser.id,
+          name: l.verifiedByUser.name,
+        } : null,
+        createdAt: l.createdAt,
+      })),
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasMore: offset + limit < total,
+      },
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch task logs'
+    res.status(400).json({ error: message })
+  }
+})
+
 // Create task log (mark task as done)
 router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
