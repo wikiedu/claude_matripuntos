@@ -1,354 +1,288 @@
-import { PrismaClient, Achievement, UserAchievement } from '@prisma/client'
-
-const prisma = new PrismaClient()
-
-/**
- * Achievement Engine Service
- * Manages achievements, tracking, and gamification logic
- */
-
-export interface AchievementCondition {
-  type: 'events_accepted' | 'points_earned' | 'negotiation_rounds' | 'consecutive_days' | 'custom'
-  threshold: number
-  description: string
-}
-
-export interface UserAchievementWithDetails extends UserAchievement {
-  achievement?: Achievement
-}
+import { PrismaClient } from '@prisma/client'
 
 export class AchievementEngine {
-  /**
-   * Get all achievements available
-   */
-  async getAllAchievements(): Promise<Achievement[]> {
-    try {
-      return await prisma.achievement.findMany({
-        orderBy: { rarity: 'asc' },
-      })
-    } catch (error) {
-      console.error('Error getting achievements:', error)
-      throw error
-    }
+  private prisma: PrismaClient
+
+  constructor(prisma: PrismaClient) {
+    this.prisma = prisma
   }
 
-  /**
-   * Get user's unlocked achievements
-   */
-  async getUserAchievements(userId: string): Promise<UserAchievementWithDetails[]> {
-    try {
-      const achievements = await prisma.userAchievement.findMany({
-        where: { userId },
-        include: { achievement: true },
-        orderBy: { unlockedAt: 'desc' },
-      })
-      return achievements
-    } catch (error) {
-      console.error('Error getting user achievements:', error)
-      throw error
+  async checkAchievements(
+    userId: string,
+    coupleId: string,
+    trigger: { type: 'event_accepted' | 'task_verified' | 'manual_check'; eventId?: string; taskLogId?: string }
+  ): Promise<any[]> {
+    const newAchievements: any[] = []
+    const pointAchievements = await this.checkPointMilestones(userId, coupleId)
+    newAchievements.push(...pointAchievements)
+    const behaviorAchievements = await this.checkBehaviorAchievements(userId, coupleId, trigger)
+    newAchievements.push(...behaviorAchievements)
+    if (trigger.type === 'manual_check') {
+      const streakAchievements = await this.checkStreakAchievements(userId, coupleId)
+      newAchievements.push(...streakAchievements)
     }
+    for (const achievement of newAchievements) {
+      await this.updateCoupleScore(coupleId, achievement)
+    }
+    return newAchievements
   }
 
-  /**
-   * Check if user qualifies for any new achievements
-   */
-  async checkAndUnlockAchievements(userId: string): Promise<Achievement[]> {
-    try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        include: { couple: { include: { events: true } } },
-      })
-
-      if (!user?.couple) return []
-
-      const unlockedAchievements: Achievement[] = []
-      const allAchievements = await this.getAllAchievements()
-
-      for (const achievement of allAchievements) {
-        // Check if already unlocked
-        const existing = await prisma.userAchievement.findUnique({
-          where: { userId_achievementId: { userId, achievementId: achievement.id } },
+  async checkPointMilestones(userId: string, coupleId: string): Promise<any[]> {
+    const newAchievements: any[] = []
+    const totalPoints = await this.prisma.pointsTransaction.aggregate({
+      where: { userId, coupleId },
+      _sum: { amount: true }
+    })
+    const points = totalPoints._sum.amount?.toNumber() || 0
+    const milestones = [
+      { threshold: 50, name: 'Primeros pasos' },
+      { threshold: 250, name: 'Centinela' },
+      { threshold: 500, name: 'Maestro de equilibrio' }
+    ]
+    for (const milestone of milestones) {
+      if (points >= milestone.threshold) {
+        const achievement = await this.prisma.achievement.findFirst({
+          where: { coupleId, name: milestone.name }
         })
-
-        if (existing) continue
-
-        // Check condition
-        const qualifies = await this.checkAchievementCondition(userId, achievement.condition as string)
-
-        if (qualifies) {
-          await prisma.userAchievement.create({
-            data: {
-              userId,
-              achievementId: achievement.id,
-              unlockedAt: new Date(),
-            },
+        if (achievement) {
+          const already = await this.prisma.userAchievement.findUnique({
+            where: { userId_achievementId: { userId, achievementId: achievement.id } }
           })
-
-          unlockedAchievements.push(achievement)
+          if (!already) {
+            await this.prisma.userAchievement.create({
+              data: { userId, achievementId: achievement.id }
+            })
+            newAchievements.push(achievement)
+          }
         }
       }
-
-      return unlockedAchievements
-    } catch (error) {
-      console.error('Error checking achievements:', error)
-      throw error
     }
+    return newAchievements
   }
 
-  /**
-   * Check if user meets achievement condition
-   */
-  private async checkAchievementCondition(userId: string, condition: string): Promise<boolean> {
-    try {
-      const conditionObj = JSON.parse(condition)
-
-      switch (conditionObj.type) {
-        case 'events_accepted':
-          return await this.checkEventsAccepted(userId, conditionObj.threshold)
-
-        case 'points_earned':
-          return await this.checkPointsEarned(userId, conditionObj.threshold)
-
-        case 'negotiation_rounds':
-          return await this.checkNegotiationRounds(userId, conditionObj.threshold)
-
-        case 'consecutive_days':
-          return await this.checkConsecutiveDays(userId, conditionObj.threshold)
-
-        default:
-          return false
-      }
-    } catch (error) {
-      console.error('Error checking achievement condition:', error)
-      return false
-    }
-  }
-
-  /**
-   * Check: User has accepted N events
-   */
-  private async checkEventsAccepted(userId: string, threshold: number): Promise<boolean> {
-    const count = await prisma.event.count({
-      where: {
-        couple: { users: { some: { id: userId } } },
-        status: 'accepted',
-      },
-    })
-    return count >= threshold
-  }
-
-  /**
-   * Check: User has earned N total points
-   */
-  private async checkPointsEarned(userId: string, threshold: number): Promise<boolean> {
-    const result = await prisma.event.aggregate({
-      where: {
-        couple: { users: { some: { id: userId } } },
-        status: 'accepted',
-      },
-      _sum: { pointsAgreed: true },
-    })
-    return Number(result._sum.pointsAgreed || 0) >= threshold
-  }
-
-  /**
-   * Check: User has participated in N negotiation rounds
-   */
-  private async checkNegotiationRounds(userId: string, threshold: number): Promise<boolean> {
-    const count = await prisma.negotiation.count({
-      where: {
-        OR: [{ proposedBy: userId }, { respondedBy: userId }],
-      },
-    })
-    return count >= threshold
-  }
-
-  /**
-   * Check: User has been active N consecutive days
-   */
-  private async checkConsecutiveDays(userId: string, threshold: number): Promise<boolean> {
-    const events = await prisma.event.findMany({
-      where: { couple: { users: { some: { id: userId } } } },
-      select: { createdAt: true },
-      orderBy: { createdAt: 'desc' },
-    })
-
-    if (events.length === 0) return false
-
-    let consecutiveDays = 1
-    let currentDate = new Date(events[0].createdAt)
-    currentDate.setHours(0, 0, 0, 0)
-
-    for (let i = 1; i < events.length; i++) {
-      const eventDate = new Date(events[i].createdAt)
-      eventDate.setHours(0, 0, 0, 0)
-
-      const diffTime = currentDate.getTime() - eventDate.getTime()
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-
-      if (diffDays === 1) {
-        consecutiveDays++
-        currentDate = eventDate
-      } else if (diffDays > 1) {
-        break
-      }
-    }
-
-    return consecutiveDays >= threshold
-  }
-
-  /**
-   * Get couple score (total points agreed)
-   */
-  async getCoupleScore(coupleId: string): Promise<number> {
-    try {
-      const result = await prisma.event.aggregate({
-        where: {
-          coupleId,
-          status: 'accepted',
-        },
-        _sum: { pointsAgreed: true },
+  async checkBehaviorAchievements(userId: string, coupleId: string, trigger: any): Promise<any[]> {
+    const newAchievements: any[] = []
+    // Pacifista check
+    if (trigger.type === 'event_accepted' && trigger.eventId) {
+      const event = await this.prisma.event.findUnique({
+        where: { id: trigger.eventId },
+        include: { negotiations: true }
       })
-      return Number(result._sum.pointsAgreed || 0)
-    } catch (error) {
-      console.error('Error getting couple score:', error)
-      throw error
-    }
-  }
-
-  /**
-   * Get couple stats for dashboard
-   */
-  async getCoupleStats(coupleId: string): Promise<{
-    totalScore: number
-    eventsAccepted: number
-    eventsRejected: number
-    eventsNegotiated: number
-    avgPointsPerEvent: number
-  }> {
-    try {
-      const couple = await prisma.couple.findUnique({
-        where: { id: coupleId },
-        include: {
-          events: {
-            where: { status: { in: ['accepted', 'rejected'] } },
-          },
-        },
-      })
-
-      if (!couple) {
-        return {
-          totalScore: 0,
-          eventsAccepted: 0,
-          eventsRejected: 0,
-          eventsNegotiated: 0,
-          avgPointsPerEvent: 0,
+      if (event && event.negotiations.length === 0) {
+        const achievement = await this.prisma.achievement.findFirst({
+          where: { coupleId, name: 'Pacifista' }
+        })
+        if (achievement) {
+          const already = await this.prisma.userAchievement.findUnique({
+            where: { userId_achievementId: { userId, achievementId: achievement.id } }
+          })
+          if (!already) {
+            await this.prisma.userAchievement.create({
+              data: { userId, achievementId: achievement.id }
+            })
+            newAchievements.push(achievement)
+          }
         }
       }
-
-      const accepted = couple.events.filter((e) => e.status === 'accepted')
-      const rejected = couple.events.filter((e) => e.status === 'rejected')
-      const totalScore = accepted.reduce((sum, e) => sum + Number(e.pointsAgreed || 0), 0)
-
-      return {
-        totalScore,
-        eventsAccepted: accepted.length,
-        eventsRejected: rejected.length,
-        eventsNegotiated: couple.events.length,
-        avgPointsPerEvent: accepted.length > 0 ? Math.round(totalScore / accepted.length) : 0,
-      }
-    } catch (error) {
-      console.error('Error getting couple stats:', error)
-      throw error
     }
-  }
 
-  /**
-   * Get leaderboard (top couples by score)
-   */
-  async getLeaderboard(limit: number = 10): Promise<
-    Array<{
-      coupleId: string
-      coupleName: string
-      totalScore: number
-      eventsAccepted: number
-      rank: number
-    }>
-  > {
-    try {
-      const couples = await prisma.couple.findMany({
-        select: {
-          id: true,
-          events: {
-            where: { status: 'accepted' },
-            select: { pointsAgreed: true },
-          },
-        },
-        take: limit,
+    // Consenso perfecto check
+    const recentEvents = await this.prisma.event.findMany({
+      where: {
+        coupleId,
+        createdBy: userId,
+        status: 'accepted',
+        negotiations: { none: { responseType: 'counter_proposed' } }
+      },
+      orderBy: { dateStart: 'desc' },
+      take: 5
+    })
+    if (recentEvents.length >= 5) {
+      const achievement = await this.prisma.achievement.findFirst({
+        where: { coupleId, name: 'Consenso perfecto' }
       })
-
-      const leaderboard = couples
-        .map((couple) => ({
-          coupleId: couple.id,
-          coupleName: 'Sin nombre',
-          totalScore: couple.events.reduce((sum, e) => sum + Number(e.pointsAgreed || 0), 0),
-          eventsAccepted: couple.events.length,
-        }))
-        .sort((a, b) => b.totalScore - a.totalScore)
-        .map((entry, index) => ({
-          ...entry,
-          rank: index + 1,
-        }))
-
-      return leaderboard
-    } catch (error) {
-      console.error('Error getting leaderboard:', error)
-      throw error
+      if (achievement) {
+        const already = await this.prisma.userAchievement.findUnique({
+          where: { userId_achievementId: { userId, achievementId: achievement.id } }
+        })
+        if (!already) {
+          await this.prisma.userAchievement.create({
+            data: { userId, achievementId: achievement.id }
+          })
+          newAchievements.push(achievement)
+        }
+      }
     }
+
+    // Velocidad check
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    const tasksThisWeek = await this.prisma.taskLog.count({
+      where: {
+        coupleId,
+        completedBy: userId,
+        date: { gte: weekAgo }
+      }
+    })
+    if (tasksThisWeek >= 10) {
+      const achievement = await this.prisma.achievement.findFirst({
+        where: { coupleId, name: 'Velocidad' }
+      })
+      if (achievement) {
+        const already = await this.prisma.userAchievement.findUnique({
+          where: { userId_achievementId: { userId, achievementId: achievement.id } }
+        })
+        if (!already) {
+          await this.prisma.userAchievement.create({
+            data: { userId, achievementId: achievement.id }
+          })
+          newAchievements.push(achievement)
+        }
+      }
+    }
+
+    // Confianza check
+    const verifiedTasks = await this.prisma.taskLog.count({
+      where: {
+        coupleId,
+        verifiedBy: userId,
+        status: 'verified',
+        disputeReason: null
+      }
+    })
+    if (verifiedTasks >= 20) {
+      const achievement = await this.prisma.achievement.findFirst({
+        where: { coupleId, name: 'Confianza' }
+      })
+      if (achievement) {
+        const already = await this.prisma.userAchievement.findUnique({
+          where: { userId_achievementId: { userId, achievementId: achievement.id } }
+        })
+        if (!already) {
+          await this.prisma.userAchievement.create({
+            data: { userId, achievementId: achievement.id }
+          })
+          newAchievements.push(achievement)
+        }
+      }
+    }
+
+    return newAchievements
   }
 
-  /**
-   * Get weekly summary
-   */
-  async getWeeklySummary(coupleId: string): Promise<{
-    week: string
-    eventsCreated: number
-    eventsAccepted: number
-    pointsEarned: number
-    avgPointsPerEvent: number
-  }> {
-    try {
-      const today = new Date()
-      const weekStart = new Date(today)
-      weekStart.setDate(today.getDate() - today.getDay())
-      weekStart.setHours(0, 0, 0, 0)
+  async checkStreakAchievements(userId: string, coupleId: string): Promise<any[]> {
+    const newAchievements: any[] = []
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    const disputesLast7 = await this.prisma.taskLog.count({
+      where: {
+        coupleId,
+        date: { gte: sevenDaysAgo },
+        status: 'disputed'
+      }
+    })
+    if (disputesLast7 === 0) {
+      const achievement = await this.prisma.achievement.findFirst({
+        where: { coupleId, name: 'Semana tranquila' }
+      })
+      if (achievement) {
+        const already = await this.prisma.userAchievement.findUnique({
+          where: { userId_achievementId: { userId, achievementId: achievement.id } }
+        })
+        if (!already) {
+          await this.prisma.userAchievement.create({
+            data: { userId, achievementId: achievement.id }
+          })
+          newAchievements.push(achievement)
+        }
+      }
+    }
 
-      const weekEnd = new Date(weekStart)
-      weekEnd.setDate(weekStart.getDate() + 6)
-      weekEnd.setHours(23, 59, 59, 999)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    const disputesLast30 = await this.prisma.taskLog.count({
+      where: {
+        coupleId,
+        date: { gte: thirtyDaysAgo },
+        status: 'disputed'
+      }
+    })
+    if (disputesLast30 === 0) {
+      const achievement = await this.prisma.achievement.findFirst({
+        where: { coupleId, name: 'Mes armonioso' }
+      })
+      if (achievement) {
+        const already = await this.prisma.userAchievement.findUnique({
+          where: { userId_achievementId: { userId, achievementId: achievement.id } }
+        })
+        if (!already) {
+          await this.prisma.userAchievement.create({
+            data: { userId, achievementId: achievement.id }
+          })
+          newAchievements.push(achievement)
+        }
+      }
+    }
+    return newAchievements
+  }
 
-      const events = await prisma.event.findMany({
-        where: {
+  private async updateCoupleScore(coupleId: string, achievement: any): Promise<void> {
+    const weekStart = this.getWeekStart(new Date())
+    let coupleScore = await this.prisma.coupleScore.findUnique({
+      where: { coupleId_weekStartDate: { coupleId, weekStartDate: weekStart } }
+    })
+    if (!coupleScore) {
+      coupleScore = await this.prisma.coupleScore.create({
+        data: {
           coupleId,
-          createdAt: { gte: weekStart, lte: weekEnd },
-        },
+          weekStartDate: weekStart,
+          user1Score: 0,
+          user2Score: 0,
+          equilibrium: 50,
+          activity: 50,
+          consensus: 50,
+          constancy: 50
+        }
       })
-
-      const accepted = events.filter((e) => e.status === 'accepted')
-      const pointsEarned = accepted.reduce((sum, e) => sum + Number(e.pointsAgreed || 0), 0)
-
-      return {
-        week: `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`,
-        eventsCreated: events.length,
-        eventsAccepted: accepted.length,
-        pointsEarned,
-        avgPointsPerEvent: accepted.length > 0 ? Math.round(pointsEarned / accepted.length) : 0,
-      }
-    } catch (error) {
-      console.error('Error getting weekly summary:', error)
-      throw error
     }
+    const rarityBoosts: { [key: string]: number } = {
+      'common': 1,
+      'rare': 2,
+      'epic': 3,
+      'legendary': 5
+    }
+    const boost = rarityBoosts[achievement.rarity] || 1
+    const updates: any = {}
+    if (achievement.rarity === 'legendary') {
+      const equil = coupleScore.equilibrium instanceof Object ? Number(coupleScore.equilibrium) : coupleScore.equilibrium
+      const activ = coupleScore.activity instanceof Object ? Number(coupleScore.activity) : coupleScore.activity
+      const cons = coupleScore.consensus instanceof Object ? Number(coupleScore.consensus) : coupleScore.consensus
+      const const_ = coupleScore.constancy instanceof Object ? Number(coupleScore.constancy) : coupleScore.constancy
+      updates.equilibrium = Math.min(100, equil + boost)
+      updates.activity = Math.min(100, activ + boost)
+      updates.consensus = Math.min(100, cons + boost)
+      updates.constancy = Math.min(100, const_ + boost)
+    } else {
+      const activ = coupleScore.activity instanceof Object ? Number(coupleScore.activity) : coupleScore.activity
+      const cons = coupleScore.consensus instanceof Object ? Number(coupleScore.consensus) : coupleScore.consensus
+      const const_ = coupleScore.constancy instanceof Object ? Number(coupleScore.constancy) : coupleScore.constancy
+      if (['Primeros pasos', 'Centinela', 'Pacifista', 'Velocidad'].includes(achievement.name)) {
+        updates.activity = Math.min(100, activ + boost)
+      } else if (['Consenso perfecto', 'Confianza', 'Generoso'].includes(achievement.name)) {
+        updates.consensus = Math.min(100, cons + boost)
+      } else {
+        updates.constancy = Math.min(100, const_ + boost)
+      }
+    }
+    await this.prisma.coupleScore.update({
+      where: { id: coupleScore.id },
+      data: updates
+    })
+  }
+
+  private getWeekStart(date: Date): Date {
+    const d = new Date(date)
+    const day = d.getUTCDay()
+    const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1)
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff, 0, 0, 0, 0))
   }
 }
 
-export const achievementEngine = new AchievementEngine()
+export const achievementEngine = new AchievementEngine(new PrismaClient())
