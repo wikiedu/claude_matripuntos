@@ -1,0 +1,266 @@
+# CLAUDE.md — Matripuntos
+
+## 1. PROYECTO
+App web gamificada para parejas: gestión equitativa de responsabilidades del hogar mediante puntos negociables. MVP funcional. Branch activo: `feature/matripuntos-mvp`. Repo: https://github.com/wikiedu/claude_matripuntos
+
+## 2. STACK TÉCNICO
+
+**Frontend** (`src/frontend/`) — Puerto 5173
+- React 18 + TypeScript + Vite
+- Tailwind CSS + Lucide React
+- Zustand (global state) · React Query (server state)
+- Recharts (analytics charts)
+
+**Backend** (`src/backend/`) — Puerto 3000
+- Node.js + Express + TypeScript
+- Prisma ORM · Zod (validation) · JWT (auth)
+- SQLite local → PostgreSQL/Supabase en producción
+
+**Deploy:** Vercel (frontend) · Railway/Render (backend) · Supabase (DB prod)
+
+## 3. ESTRUCTURA DE CÓDIGO
+
+```
+src/
+├── frontend/src/
+│   ├── pages/           # Login, Dashboard, Tasks, Calendar, Analytics, AnalyticsPage,
+│   │                    # History, Settings, Onboarding, RequestActivity, RequestInbox, NotFound
+│   ├── components/      # AchievementsPanel, AnalyticsDashboard, CalendarDashboard,
+│   │                    # CalendarDay/Month/Week, CategoryManager, CounterProposalForm,
+│   │                    # EventNegotiationCard, GamificationDashboard, NegotiationHistory,
+│   │                    # NotificationBell, PointsBreakdown, StatCard, TaskVerificationCard
+│   │                    # UI: Alert, Button, Card, AchievementBadge
+│   ├── components/onboarding/  # OnboardingStep1-4, OnboardingJoinFlow
+│   ├── store/           # useAppStore.ts — Zustand (auth, user, couple)
+│   ├── services/        # apiClient.ts — axios con JWT interceptor
+│   ├── hooks/           # useAuth.ts
+│   ├── types/           # index.ts, analytics.ts, calendar.ts
+│   └── utils/           # pointsCalculator.ts — fórmula de puntos en frontend
+│
+└── backend/src/
+    ├── server.ts         # Express app, montaje de rutas, middleware
+    ├── routes/           # authRoutes, eventRoutes, taskRoutes, negotiationRoutes,
+    │                     # pointsRoutes, configurationRoutes, notificationRoutes,
+    │                     # profile, family, invitations, categories, pointsV2,
+    │                     # negotiation (V2), achievements, calendar, analytics
+    ├── services/         # authService, pointsCalculator, negotiationEngine,
+    │                     # achievementEngine, notificationService, analyticsService, calendarService
+    ├── middleware/        # authMiddleware.ts — JWT → req.userId + req.coupleId
+    ├── schemas/          # authSchemas.ts (Zod)
+    └── types/            # v2.ts
+```
+
+## 4. CÓMO ARRANCAR
+
+```bash
+# Backend (SQLite — no setup adicional)
+cd src/backend && npm install && npm run dev    # → localhost:3000
+
+# Frontend
+cd src/frontend && npm install && npm run dev   # → localhost:5173
+
+# Utilidades DB
+cd src/backend
+npx prisma studio                               # Browser de BD
+npx prisma migrate dev                          # Aplicar migraciones
+npx ts-node prisma/seed.ts                      # Datos de prueba
+```
+
+Health check: `GET http://localhost:3000/api/health`
+
+## 5. BASE DE DATOS
+
+Schema: `src/backend/prisma/schema.prisma` · DB local: `src/backend/prisma/dev.db`
+
+**Modelos core:**
+```
+Couple     id, secretKey(unique), numChildren, language
+           → User[], Event[], Task[], Configuration(1), Subscription(1)
+
+User       id, coupleId→Couple, email(unique), passwordHash, name,
+           roleInHome, hasCompletedOnboarding
+
+Event      id, coupleId, createdBy→User, type, dateStart, dateEnd,
+           numChildren, pointsBase, pointsCalculated, pointsAgreed?,
+           status(draft/pending/accepted/rejected/forced),
+           negotiationRound, maxFreeRounds(def:2),
+           lastProposedBy?, lastProposedPoints?,
+           negotiationHistory(JSON), compensation?, compensationDiscount
+
+Task       id, coupleId, name, category(cocina/baños/limpieza/compra/
+           logistica/cuidado/mantenimiento/jardineria/mascotas),
+           pointsBase, isDefault
+
+TaskLog    id, coupleId, taskId, completedBy?, date,
+           pointsBase, modifier?, modifierValue, pointsFinal,
+           status(pending/verified/disputed),
+           verifiedBy?, verifiedAt?
+
+Negotiation id, eventId, roundNumber, proposedBy?, pointsProposed,
+            message?, responseType(accepted/rejected/counter_proposed/
+            awaiting/forced), respondedBy?, respondedAt?
+
+PointsTransaction id, coupleId, userId?, type(event_accepted/
+                  task_completed/donation/forced_payment),
+                  amount, relatedEventId?(unique), relatedTaskLogId?(unique)
+
+Compensation  id, eventId, coupleId, type, discountAmount,
+              discountPercent?, status(pending/completed)
+
+Configuration id, coupleId(unique), tasksConfig(JSON),
+              multipliersConfig(JSON), activityTypes(JSON)
+
+Notification  id, coupleId, userId, type, title, message, isRead
+Subscription  id, coupleId(unique), plan(free/premium/pro), stripeId?
+```
+
+**Modelos V2:**
+```
+UserProfile    userId(unique) → surname, profilePhotoUrl, weeklyWorkHours,
+               workMode, taskPreferencesLoves(JSON), taskPreferencesDislikes(JSON)
+CoupleProfile  coupleId(unique) → homeType, homeSizeM2, externalServices(JSON)
+Child          coupleId → name, dateOfBirth, livesWithUser1/2, hasSpecialNeeds
+Pet            coupleId → name, type, quantity
+Invitation     coupleId → inviteeEmail, token(unique), status(pending/accepted/rejected), expiresAt
+Category       coupleId → name, emoji, type(event/chore/service), basePoints,
+               isCustom, isActive → Subcategory[]
+Achievement    coupleId → type(solo/couple), name, rarity(common/rare/epic/legendary)
+UserAchievement userId+achievementId(unique) → unlockedAt
+CoupleScore    coupleId+weekStartDate(unique) → user1Score, user2Score, overallScore,
+               equilibrium, activity, consensus, constancy
+CalendarEntry  coupleId → type(event/task/service/birthday/holiday), title, date
+```
+
+## 6. API ROUTES
+
+Todas requieren `Authorization: Bearer <JWT>` salvo `/auth/register` y `/auth/login`.
+
+```
+/api/auth
+  POST /register          { email, password, name, coupleSecretKey? }
+  POST /login             { email, password } → { token, user, couple }
+  POST /invite            { inviteeEmail }
+  POST /join-couple       { token }
+
+/api/events
+  GET  /                  ?status=pending&limit=20
+  POST /                  { type, dateStart, dateEnd, numChildren, pointsBase, compensation? }
+  GET  /:id               → event + negotiations[]
+  PUT  /:id / DELETE /:id
+  POST /:id/accept        Partner acepta → crea PointsTransaction
+  POST /:id/reject        Partner rechaza
+  POST /:id/counter       { pointsProposed, message? } — bloqueado si rondas agotadas
+  POST /:id/force         Proposer fuerza, paga de su propio saldo
+
+/api/tasks
+  GET|POST /              CRUD de tareas de la pareja
+  PUT|DELETE /:id
+  GET  /logs              ?date=2026-04-01&userId=xxx
+  POST /logs              { taskId, date, pointsBase, pointsFinal }
+  PUT  /logs/:id          { status: 'verified'|'disputed' }
+  POST /logs/:id/dispute  { reason }
+
+/api/points
+  GET  /balance           → { user1: {name,balance}, user2: {name,balance}, net }
+  GET  /history           ?limit=50&offset=0
+  GET  /leaderboard       ?period=week|month
+
+/api/negotiations
+  GET  /pending           Eventos esperando respuesta del usuario actual
+
+/api/notifications
+  GET  /                  ?unread=true
+  PUT  /:id/read
+  PUT  /read-all
+
+/api/configuration
+  GET|PUT /               { tasksConfig?, multipliersConfig?, activityTypes? }
+
+/api/profile
+  GET|PUT /me
+
+/api  (family)
+  GET|POST /children      { name, dateOfBirth, livesWithUser1?, livesWithUser2? }
+  DELETE   /children/:id
+  GET|POST /pets          { name, type, quantity? }
+  DELETE   /pets/:id
+
+/api/categories           CRUD + subcategories
+/api/achievements         GET / · GET /user
+/api/calendar             GET ?month=4&year=2026 · POST
+/api/analytics            GET /overview · /trends · /equity
+```
+
+## 7. SISTEMA DE PUNTOS
+
+```
+Puntos = PuntosBase × FactorTipo × FactorFranja × FactorDuración × FactorHijos
+```
+
+```
+FactorTipo:     Necesaria ×0.7 · Salud ×0.85 · Ocio ×1.0 · Alto impacto ×1.2
+FactorFranja:   07-09:30 ×1.4 · 09:30-17:30 ×1.0 · 17:30-21:30 ×1.5 · 21:30-01 ×1.2 · 01-07 ×1.6
+FactorDuración: 0-3h ×1.0 · 3-8h ×1.1 · 8-24h ×1.25 · 24h+ ×1.35
+FactorHijos:    0 ×1.0 · 1 ×1.4 · 2 ×1.8 · 3+ ×2.2
+```
+
+Redondeo al 0.5 más próximo. Ejemplo: cena 4h noche 1 hijo = 8 × 1.0 × 1.2 × 1.0 × 1.4 = **13.5 pts**
+
+Tareas recurrentes (base fija): Cocina 2.0 · Baños+niños 1.5 · Limpieza 1.5 · Compra 1.0 · Logística 1.0 · Cuidado 1.5
+
+Ver referencia completa: `docs/PUNTOS.md`
+
+## 8. REGLAS DE NEGOCIO
+
+**Negociación:**
+- Free: máx 2 rondas. Premium: ilimitadas.
+- Flujo: proponer → partner acepta/rechaza/contraoferta → nueva ronda
+- Sin acuerdo: proposer puede "forzar" (paga de su propio saldo)
+- Rutas V1 (`/api/negotiations`) y V2 (`/api/events/:id/counter`) coexisten
+
+**Tareas:**
+- Auto-accept de TaskLog: 24h sin respuesta → status=verified automático
+- Disputa: partner marca como disputed, pueden renegociar puntos
+
+**Compensaciones:** Reducen puntos del evento. `compensationDiscount` es multiplicador (ej: 0.8 = 20% descuento). Estado: pending→completed.
+
+**Saldo:** Suma de `PointsTransaction.amount` por usuario. Positivo = a favor. Negativo = debe.
+
+**Hijos:** Se usa `Event.numChildren` (cuántos hijos afectados en esa ausencia concreta), no el total de la pareja.
+
+## 9. ESTADO ACTUAL
+
+**MVP completo en `feature/matripuntos-mvp`:**
+- Auth + invitaciones + onboarding (4 steps)
+- Eventos: CRUD, negociación, forzar
+- Tareas: CRUD, logs, verificación, disputa
+- Puntos: balance, historial, transacciones
+- Configuración editable (tareas, multiplicadores, tipos)
+- Notificaciones in-app
+- Perfiles + familia (V2)
+- Categorías personalizadas (V2)
+- Logros/Achievements (V2)
+- Calendario (V2)
+- Analytics: overview, trends, equity (V2)
+
+**Pendiente (roadmap):**
+- Stripe: plan premium con pagos reales
+- App móvil (React Native)
+- Google Calendar integration
+- Notificaciones push
+- Export de datos
+
+## 10. CONVENCIONES
+
+- **Auth:** `authMiddleware` inyecta `req.userId` y `req.coupleId` en cada request protegido
+- **Prisma:** `new PrismaClient()` por archivo de ruta (no instancia compartida)
+- **Tipos numéricos:** Usar `Decimal` de `@prisma/client/runtime/library` para puntos
+- **Errores:** `res.status(4xx).json({ error: 'mensaje legible' })`
+- **JSON en SQLite:** negotiationHistory, tasksConfig, etc. son strings. Parsear con `JSON.parse()`/`JSON.stringify()`
+- **V1 vs V2:** Las rutas V1 (MVP básico) y V2 (extended) coexisten en `server.ts`; no eliminar V1
+- **Frontend state:** Zustand para auth/couple global, React Query para datos del servidor
+- **Commits:** `feat:` · `fix:` · `chore:` · `docs:` convencionales
+
+---
+
+*Docs de referencia: `docs/PUNTOS.md` · `docs/API.md` · `docs/FLUJOS.md` · `docs/DATOS.md`*
