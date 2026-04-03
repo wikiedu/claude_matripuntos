@@ -96,7 +96,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response): Promise<v
         email: user.email,
         name: user.name,
         coupleId: user.coupleId,
-        role: user.role,
+        roleInHome: user.roleInHome,
         timezone: user.timezone,
         notificationsPush: user.notificationsPush,
         notificationsEmail: user.notificationsEmail,

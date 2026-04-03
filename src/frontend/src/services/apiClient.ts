@@ -142,10 +142,15 @@ class ApiClient {
       modifier?: string
       modifierValue?: number
       pointsFinal: number
+      notes?: string
     }) =>
       this.request(`/tasks/${taskId}/log`, {
         method: 'POST',
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          // Backend expects YYYY-MM-DD (z.string().min(1))
+          date: data.date.includes('T') ? data.date.split('T')[0] : data.date,
+        }),
       }),
 
     getLogs: (taskId: string, startDate?: string, endDate?: string) => {
@@ -153,6 +158,11 @@ class ApiClient {
         ? `?startDate=${startDate}&endDate=${endDate}`
         : ''
       return this.request(`/tasks/${taskId}/logs${query}`)
+    },
+
+    getAllLogs: (status?: string) => {
+      const query = status ? `?status=${status}` : ''
+      return this.request(`/tasks/all-logs${query}`)
     },
 
     verifyLog: (taskId: string, logId: string) =>
@@ -230,6 +240,12 @@ class ApiClient {
     getStats: () => this.request('/points/stats'),
 
     getTransaction: (id: string) => this.request(`/points/transactions/${id}`),
+
+    requestReset: () =>
+      this.request('/points/reset-request', { method: 'POST' }),
+
+    confirmReset: () =>
+      this.request('/points/reset-confirm', { method: 'POST' }),
   }
 
   // Configuration endpoints
@@ -289,6 +305,261 @@ class ApiClient {
       this.request('/notifications', {
         method: 'DELETE',
       }),
+  }
+
+  // Profile endpoints (V2)
+  profile = {
+    completeUserProfile: (data: any) =>
+      this.request('/profile/user', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    getUserProfile: (userId: string) =>
+      this.request(`/profile/user/${userId}`),
+
+    createCoupleProfile: (data: any) =>
+      this.request('/profile/couple', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    getCoupleProfile: () =>
+      this.request('/profile/couple'),
+  }
+
+  // Family endpoints (V2)
+  family = {
+    addChild: (data: any) =>
+      this.request('/children', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    getChildren: () =>
+      this.request('/children'),
+
+    updateChild: (childId: string, data: any) =>
+      this.request(`/children/${childId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    deleteChild: (childId: string) =>
+      this.request(`/children/${childId}`, {
+        method: 'DELETE',
+      }),
+
+    addPet: (data: any) =>
+      this.request('/pets', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    getPets: () =>
+      this.request('/pets'),
+
+    updatePet: (petId: string, data: any) =>
+      this.request(`/pets/${petId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    deletePet: (petId: string) =>
+      this.request(`/pets/${petId}`, {
+        method: 'DELETE',
+      }),
+  }
+
+  // Invitation endpoints (V2)
+  invitations = {
+    invitePartner: (data: { inviteeEmail: string }) =>
+      this.request('/auth/invite-partner', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    validateToken: (token: string) =>
+      this.request(`/auth/invitation/${token}`),
+
+    acceptInvitation: (token: string) =>
+      this.request('/auth/accept-invitation', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      }),
+
+    registerWithInvitation: (data: any) =>
+      this.request('/auth/register-with-invitation', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  }
+
+  // Category endpoints (V2)
+  categories = {
+    getAll: () =>
+      this.request('/categories'),
+
+    getDefault: () =>
+      this.request('/categories/default'),
+
+    getCategory: (categoryId: string) =>
+      this.request(`/categories/${categoryId}`),
+
+    create: (data: any) =>
+      this.request('/categories', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    update: (categoryId: string, data: any) =>
+      this.request(`/categories/${categoryId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    delete: (categoryId: string) =>
+      this.request(`/categories/${categoryId}`, {
+        method: 'DELETE',
+      }),
+
+    addSubcategory: (categoryId: string, data: any) =>
+      this.request(`/categories/${categoryId}/subcategories`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  }
+
+  // Points V2 endpoints
+  pointsV2 = {
+    calculateBreakdown: (eventId: string) =>
+      this.request('/points/calculate', {
+        method: 'POST',
+        body: JSON.stringify({ eventId }),
+      }),
+
+    recalculate: (eventId: string) =>
+      this.request(`/points/recalculate/${eventId}`, {
+        method: 'POST',
+      }),
+
+    getCategoryPoints: (categoryId: string) =>
+      this.request(`/points/category/${categoryId}`),
+  }
+
+  // Negotiation endpoints (V2 - PHASE 3)
+  negotiation = {
+    proposeEvent: (eventId: string, message?: string) =>
+      this.request(`/events/${eventId}/propose`, {
+        method: 'POST',
+        body: JSON.stringify({ message }),
+      }),
+
+    respondToProposal: (eventId: string, action: 'accept' | 'reject' | 'counter_propose' | 'pending_conversation', pointsProposed?: number, message?: string) =>
+      this.request(`/events/${eventId}/respond`, {
+        method: 'POST',
+        body: JSON.stringify({ action, pointsProposed, message }),
+      }),
+
+    getNegotiationStatus: (eventId: string) =>
+      this.request(`/events/${eventId}/negotiation`),
+
+    getNegotiationHistory: (eventId: string) =>
+      this.request(`/events/${eventId}/negotiation/history`),
+
+    getPendingNegotiations: () =>
+      this.request('/events/user/pending'),
+  }
+
+  // Gamification endpoints (V2 - FASE 4)
+  gamification = {
+    getAllAchievements: () =>
+      this.request('/achievements'),
+
+    getUserAchievements: () =>
+      this.request('/achievements/user/my-achievements'),
+
+    checkAchievements: () =>
+      this.request('/achievements/check', {
+        method: 'POST',
+      }),
+
+    getCoupleStats: () =>
+      this.request('/achievements/couple/stats'),
+
+    getCoupleScore: () =>
+      this.request('/achievements/couple/score'),
+
+    getLeaderboard: (limit: number = 10) =>
+      this.request(`/achievements/leaderboard?limit=${limit}`),
+
+    getWeeklySummary: () =>
+      this.request('/achievements/weekly-summary'),
+  }
+
+  // Calendar endpoints (FASE 5)
+  calendar = {
+    getMonth: (year: number, month: number) =>
+      this.request(`/calendar/month/${year}/${month}`),
+
+    getWeek: (year: number, week: number) =>
+      this.request(`/calendar/week/${year}/${week}`),
+
+    getDay: (date: string) =>
+      this.request(`/calendar/day/${date}`),
+
+    getUpcoming: () =>
+      this.request('/calendar/upcoming'),
+
+    getSpecialDates: () =>
+      this.request('/calendar/special-dates'),
+
+    createEntry: (data: any) =>
+      this.request('/calendar/entry', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    updateEntry: (entryId: string, data: any) =>
+      this.request(`/calendar/entry/${entryId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    deleteEntry: (entryId: string) =>
+      this.request(`/calendar/entry/${entryId}`, {
+        method: 'DELETE',
+      }),
+
+    getByType: (type: string, startDate?: string, endDate?: string) =>
+      this.request(`/calendar/by-type/${type}${startDate ? `?startDate=${startDate}&endDate=${endDate}` : ''}`),
+  }
+
+  // Analytics endpoints (FASE 6)
+  analytics = {
+    getCouple: (startDate: string, endDate: string) =>
+      this.request(`/analytics/couple?startDate=${startDate}&endDate=${endDate}`),
+
+    getUsers: (startDate: string, endDate: string) =>
+      this.request(`/analytics/users?startDate=${startDate}&endDate=${endDate}`),
+
+    getDailyActivity: (startDate: string, endDate: string) =>
+      this.request(`/analytics/daily-activity?startDate=${startDate}&endDate=${endDate}`),
+
+    getNegotiations: (startDate: string, endDate: string) =>
+      this.request(`/analytics/negotiations?startDate=${startDate}&endDate=${endDate}`),
+
+    getPointsByCategory: (startDate: string, endDate: string) =>
+      this.request(`/analytics/points-by-category?startDate=${startDate}&endDate=${endDate}`),
+
+    getWeeklyTrends: (weeks?: number) =>
+      this.request(`/analytics/weekly-trends${weeks ? `?weeks=${weeks}` : ''}`),
+
+    getMonthly: (year: number, month: number) =>
+      this.request(`/analytics/monthly/${year}/${month}`),
+
+    getYearly: (year: number) =>
+      this.request(`/analytics/yearly/${year}`),
   }
 }
 

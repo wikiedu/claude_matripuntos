@@ -78,13 +78,11 @@ export const signupCouple = async (
               email: email1,
               passwordHash: await hashPassword(password1),
               name: name1,
-              role: 'user',
             },
             {
               email: email2,
               passwordHash: await hashPassword(password2),
               name: name2,
-              role: 'user',
             }
           ]
         },

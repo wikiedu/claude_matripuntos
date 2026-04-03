@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, TrendingUp, Award, Zap, Target, Lock } from 'lucide-react'
+import { ArrowLeft, TrendingUp, Award, Zap, Target } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
-import { Card, CardTitle, CardContent } from '../components/Card'
 import { Alert } from '../components/Alert'
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { Loader } from 'lucide-react'
 
 interface StatsData {
@@ -34,7 +33,6 @@ export default function Analytics() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isPremium, setIsPremium] = useState(false)
 
   useEffect(() => {
     const loadAnalytics = async () => {
@@ -42,28 +40,26 @@ export default function Analytics() {
         setIsLoading(true)
         setError(null)
 
-        // Try to load stats (might fail if not premium)
+        // Load stats
         try {
           const statsResponse = await apiClient.points.getStats()
           setStats(statsResponse)
-          setIsPremium(true)
         } catch (err) {
-          // Not premium, show upgrade message
-          setIsPremium(false)
+          console.warn('Stats not available:', err)
         }
 
-        // Load transaction history
+        // Load transaction history (last 90 days) — limit max is 100
         const ninetyDaysAgo = new Date()
         ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
 
         const historyResponse = await apiClient.points.getHistory({
           startDate: ninetyDaysAgo.toISOString(),
           endDate: new Date().toISOString(),
-          limit: 200,
+          limit: 100,
         })
         setTransactions(historyResponse.transactions || [])
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to load analytics'
+        const message = err instanceof Error ? err.message : 'Error cargando estadísticas'
         setError(message)
       } finally {
         setIsLoading(false)
@@ -75,36 +71,37 @@ export default function Analytics() {
     }
   }, [user?.id, couple?.id])
 
-  // Generate chart data from transactions
+  // Generate chart data from transactions (grouped by month)
   const generateChartData = () => {
     const groupedByMonth: { [key: string]: { [key: string]: number } } = {}
 
     transactions.forEach(transaction => {
       const date = new Date(transaction.createdAt)
       const monthKey = date.toLocaleDateString('es-ES', { month: 'short', year: '2-digit' })
-      const userName = transaction.user?.name || 'Unknown'
+      const userName = transaction.user?.name || 'Desconocido'
 
-      if (!groupedByMonth[monthKey]) {
-        groupedByMonth[monthKey] = {}
-      }
-
+      if (!groupedByMonth[monthKey]) groupedByMonth[monthKey] = {}
       groupedByMonth[monthKey][userName] = (groupedByMonth[monthKey][userName] || 0) + Number(transaction.amount)
     })
 
     return Object.entries(groupedByMonth)
       .map(([month, data]) => ({ month, ...data }))
-      .slice(-6) // Last 6 months
+      .slice(-6)
   }
 
-  // Get transaction types distribution
+  // Get transaction types distribution (only positive transactions so it makes sense)
   const getTransactionTypes = () => {
     const types: { [key: string]: number } = {}
-    transactions.forEach(t => {
-      types[t.type] = (types[t.type] || 0) + 1
+    transactions.filter(t => Number(t.amount) > 0).forEach(t => {
+      const label =
+        t.type === 'task_completed' ? '🏠 Tareas' :
+        t.type === 'event_accepted_credit' ? '🎯 Actividades aceptadas' :
+        t.type === 'manual_adjustment' ? '✏️ Ajuste manual' :
+        t.type === 'forced_payment' ? '⚡ Pagos forzados' : t.type
+      types[label] = (types[label] || 0) + Math.abs(Number(t.amount))
     })
-
     return Object.entries(types)
-      .map(([type, count]) => ({ name: type, value: count }))
+      .map(([type, value]) => ({ name: type, value: Math.round(value) }))
       .sort((a, b) => b.value - a.value)
   }
 
@@ -134,57 +131,38 @@ export default function Analytics() {
           >
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">Analytics & Estadísticas</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Estadísticas Básicas</h1>
+            <p className="text-sm text-gray-500">Últimos 90 días</p>
+          </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-8">
         {error && (
           <Alert type="error" message={error} onClose={() => setError(null)} />
         )}
 
-        {!isPremium && (
-          <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
-            <div className="flex items-start gap-4">
-              <Lock className="w-6 h-6 text-purple-600 flex-shrink-0 mt-1" />
-              <div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Función Premium</h3>
-                <p className="text-gray-700 mb-4">
-                  Las estadísticas avanzadas están disponibles en la versión Premium. Actualiza tu plan para acceder a análisis detallados, predicciones y más.
-                </p>
-                <button className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors font-medium">
-                  Actualizar a Premium
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Stats Cards */}
-        {stats && isPremium && (
+        {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {/* Equity Score */}
             <div className="card">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <p className="text-gray-600 text-sm font-medium">Equity Score</p>
-                  <p className="text-3xl font-bold text-primary mt-2">{stats.equityScore}</p>
+                  <p className="text-gray-600 text-sm font-medium">Equidad</p>
+                  <p className="text-3xl font-bold text-primary mt-2">{stats.equityScore}<span className="text-lg">/100</span></p>
                 </div>
-                <Award className="w-8 h-8 text-primary" />
+                <Award className="w-8 h-8 text-primary opacity-70" />
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className="bg-primary h-2 rounded-full transition-all"
-                  style={{ width: `${stats.equityScore}%` }}
+                  style={{ width: `${Math.min(stats.equityScore, 100)}%` }}
                 />
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                {stats.equityScore >= 80
-                  ? '¡Perfectamente equilibrado!'
-                  : stats.equityScore >= 60
-                    ? 'Bastante equilibrado'
-                    : 'Requiere más balance'}
+                {stats.equityScore >= 80 ? '¡Muy equilibrado!' : stats.equityScore >= 60 ? 'Bastante equilibrado' : 'Necesita más balance'}
               </p>
             </div>
 
@@ -195,19 +173,19 @@ export default function Analytics() {
                   <p className="text-gray-600 text-sm font-medium">Transacciones</p>
                   <p className="text-3xl font-bold text-success mt-2">{stats.totalTransactions}</p>
                 </div>
-                <TrendingUp className="w-8 h-8 text-success" />
+                <TrendingUp className="w-8 h-8 text-success opacity-70" />
               </div>
-              <p className="text-xs text-gray-500 mt-4">En total</p>
+              <p className="text-xs text-gray-500 mt-4">Total registradas</p>
             </div>
 
             {/* Average Transaction */}
             <div className="card">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm font-medium">Transacción Promedio</p>
+                  <p className="text-gray-600 text-sm font-medium">Media por transacción</p>
                   <p className="text-3xl font-bold text-warning mt-2">{stats.averageTransactionSize.toFixed(1)}</p>
                 </div>
-                <Zap className="w-8 h-8 text-warning" />
+                <Zap className="w-8 h-8 text-warning opacity-70" />
               </div>
               <p className="text-xs text-gray-500 mt-4">Puntos promedio</p>
             </div>
@@ -216,55 +194,65 @@ export default function Analytics() {
             <div className="card">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm font-medium">Puntos Intercambiados</p>
+                  <p className="text-gray-600 text-sm font-medium">Puntos Totales</p>
                   <p className="text-3xl font-bold text-info mt-2">{stats.totalPointsExchanged}</p>
                 </div>
-                <Target className="w-8 h-8 text-info" />
+                <Target className="w-8 h-8 text-info opacity-70" />
               </div>
-              <p className="text-xs text-gray-500 mt-4">En total</p>
+              <p className="text-xs text-gray-500 mt-4">Intercambiados en total</p>
             </div>
           </div>
         )}
 
+        {/* Empty state for stats */}
+        {!stats && !isLoading && (
+          <div className="mb-8 p-6 bg-blue-50 border border-blue-200 rounded-xl">
+            <p className="text-blue-700 text-sm">
+              💡 Las métricas detalladas estarán disponibles cuando haya más actividad registrada.
+            </p>
+          </div>
+        )}
+
         {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Balance Over Time */}
-          {chartData.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Balance by Month */}
+          {chartData.length > 0 ? (
             <div className="card">
-              <h3 className="text-lg font-bold text-gray-900 mb-6">Balance Histórico (últimos 6 meses)</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Puntos netos por mes (últimos 6 meses)</h3>
+              <p className="text-xs text-gray-400 mb-4">Suma de todas las transacciones (+tareas, −actividades) por persona</p>
               <div className="w-full h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
+                  <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
-                    <YAxis stroke="#6b7280" fontSize={12} />
+                    <XAxis dataKey="month" stroke="#6b7280" fontSize={12} tick={{ fill: '#6b7280' }} />
+                    <YAxis stroke="#6b7280" fontSize={12} tick={{ fill: '#6b7280' }} label={{ value: 'Puntos', angle: -90, position: 'insideLeft', fill: '#9ca3af', fontSize: 11 }} />
                     <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#ffffff',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                      }}
+                      contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                      formatter={(value: number, name: string) => [`${value > 0 ? '+' : ''}${value} pts`, name]}
                     />
-                    <Legend />
-                    {Array.from(new Set(chartData.flatMap(d => Object.keys(d)))).map((key, idx) => {
-                      if (key !== 'month') {
-                        return (
-                          <Bar key={key} dataKey={key} fill={COLORS[idx % COLORS.length]} />
-                        )
-                      }
-                      return null
-                    })}
+                    <Legend wrapperStyle={{ fontSize: '12px' }} />
+                    {Array.from(new Set(chartData.flatMap(d => Object.keys(d).filter(k => k !== 'month')))).map((key, idx) => (
+                      <Bar key={key} dataKey={key} fill={COLORS[idx % COLORS.length]} radius={[4, 4, 0, 0]} />
+                    ))}
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
+          ) : (
+            <div className="card flex items-center justify-center py-16 text-center">
+              <div>
+                <div className="text-4xl mb-3">📊</div>
+                <p className="font-semibold text-gray-700">Sin datos todavía</p>
+                <p className="text-sm text-gray-500">El gráfico aparecerá con más actividad</p>
+              </div>
+            </div>
           )}
 
-          {/* Transaction Types */}
-          {transactionTypes.length > 0 && (
+          {/* Transaction Types Pie */}
+          {transactionTypes.length > 0 ? (
             <div className="card">
-              <h3 className="text-lg font-bold text-gray-900 mb-6">Tipos de Transacciones</h3>
-              <div className="w-full h-64 flex items-center justify-center">
+              <h3 className="text-lg font-bold text-gray-900 mb-6">Distribución por tipo</h3>
+              <div className="w-full h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -272,12 +260,11 @@ export default function Analytics() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                       outerRadius={80}
-                      fill="#8884d8"
                       dataKey="value"
                     >
-                      {transactionTypes.map((entry, index) => (
+                      {transactionTypes.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -286,40 +273,41 @@ export default function Analytics() {
                 </ResponsiveContainer>
               </div>
             </div>
+          ) : (
+            <div className="card flex items-center justify-center py-16 text-center">
+              <div>
+                <div className="text-4xl mb-3">🥧</div>
+                <p className="font-semibold text-gray-700">Sin transacciones</p>
+                <p className="text-sm text-gray-500">Empieza a registrar tareas y actividades</p>
+              </div>
+            </div>
           )}
         </div>
 
         {/* User Distribution */}
-        {stats && isPremium && (
+        {stats && (
           <div className="card">
-            <h3 className="text-lg font-bold text-gray-900 mb-6">Distribución de Puntos</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-6">Distribución de puntos entre los dos</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <p className="font-medium text-gray-900">{stats.user1.name}</p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-semibold text-gray-900">{stats.user1.name}</p>
                   <span className="text-2xl font-bold text-primary">{stats.user1.percentage}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-primary h-3 rounded-full transition-all"
-                    style={{ width: `${stats.user1.percentage}%` }}
-                  />
+                <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+                  <div className="bg-primary h-3 rounded-full transition-all" style={{ width: `${stats.user1.percentage}%` }} />
                 </div>
-                <p className="text-sm text-gray-600 mt-2">Balance: {stats.user1.balance.toFixed(1)} pts</p>
+                <p className="text-sm text-gray-600">Saldo: <span className={`font-bold ${stats.user1.balance >= 0 ? 'text-success' : 'text-danger'}`}>{stats.user1.balance.toFixed(1)} pts</span></p>
               </div>
-
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <p className="font-medium text-gray-900">{stats.user2.name}</p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-semibold text-gray-900">{stats.user2.name}</p>
                   <span className="text-2xl font-bold text-pink-500">{stats.user2.percentage}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-pink-500 h-3 rounded-full transition-all"
-                    style={{ width: `${stats.user2.percentage}%` }}
-                  />
+                <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+                  <div className="bg-pink-500 h-3 rounded-full transition-all" style={{ width: `${stats.user2.percentage}%` }} />
                 </div>
-                <p className="text-sm text-gray-600 mt-2">Balance: {stats.user2.balance.toFixed(1)} pts</p>
+                <p className="text-sm text-gray-600">Saldo: <span className={`font-bold ${stats.user2.balance >= 0 ? 'text-success' : 'text-danger'}`}>{stats.user2.balance.toFixed(1)} pts</span></p>
               </div>
             </div>
           </div>

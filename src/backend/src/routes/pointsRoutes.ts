@@ -198,18 +198,6 @@ router.get('/stats', authMiddleware, async (req: Request, res: Response): Promis
       return
     }
 
-    // Check subscription status (simplified for MVP)
-    const subscription = await prisma.subscription.findUnique({
-      where: { coupleId: req.coupleId },
-    })
-
-    const isPremium = subscription?.plan !== 'free'
-
-    if (!isPremium) {
-      res.status(403).json({ error: 'Premium feature. Please upgrade your subscription.' })
-      return
-    }
-
     // Get all transactions for the couple
     const transactions = await prisma.pointsTransaction.findMany({
       where: { coupleId: req.coupleId },

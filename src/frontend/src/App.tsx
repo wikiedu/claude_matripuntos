@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useAppStore } from './store/useAppStore'
 import { apiClient } from './services/apiClient'
 import Login from './pages/Login'
+import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
 import RequestActivity from './pages/RequestActivity'
 import RequestInbox from './pages/RequestInbox'
@@ -11,6 +12,8 @@ import Tasks from './pages/Tasks'
 import History from './pages/History'
 import Settings from './pages/Settings'
 import Analytics from './pages/Analytics'
+import { Calendar } from './pages/Calendar'
+import { AnalyticsPage } from './pages/AnalyticsPage'
 import NotFound from './pages/NotFound'
 import './App.css'
 
@@ -51,6 +54,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/onboarding/join/:token" element={<Onboarding />} />
 
       <Route
         path="/dashboard"
@@ -111,6 +116,24 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Analytics />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/calendar"
+        element={
+          <ProtectedRoute>
+            <Calendar />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/analytics/advanced"
+        element={
+          <ProtectedRoute>
+            <AnalyticsPage />
           </ProtectedRoute>
         }
       />

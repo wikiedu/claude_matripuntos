@@ -2,7 +2,8 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "darwin", "windows"]
 }
 
 datasource db {
@@ -29,6 +30,16 @@ model Couple {
   notifications         Notification[]
   subscriptions         Subscription?
 
+  // V2 Relations
+  profile               CoupleProfile?
+  children              Child[]
+  pets                  Pet[]
+  invitations           Invitation[]
+  categories            Category[]
+  achievements          Achievement[]
+  coupleScores          CoupleScore[]
+  calendarEntries       CalendarEntry[]
+
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
@@ -45,13 +56,17 @@ model User {
   verifiedAt            DateTime?
 
   name                  String
-  role                  String                   @default("user")
+  roleInHome            String                   @default("equal")
   timezone              String                   @default("Europe/Madrid")
+  language              String                   @default("es")
   notificationsPush     Boolean                  @default(true)
   notificationsEmail    Boolean                  @default(true)
+  hasCompletedOnboarding Boolean                 @default(false)
+  notificationPreferences String                 @default("{}")
 
   // Relations
   couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  profile               UserProfile?
   eventsCreated         Event[]                  @relation("createdBy")
   tasksCompleted        TaskLog[]                @relation("completedBy")
   tasksVerified         TaskLog[]                @relation("verifiedBy")
@@ -59,6 +74,8 @@ model User {
   negotiationsResponded Negotiation[]            @relation("respondedBy")
   pointsTransactions    PointsTransaction[]
   notifications         Notification[]
+  invitationsSent       Invitation[]             @relation("invitedBy")
+  achievements          UserAchievement[]
 
   lastLogin             DateTime?
   createdAt             DateTime                 @default(now())
@@ -91,6 +108,11 @@ model Event {
   status                String                   @default("draft")
   negotiationRound      Int                      @default(0)
   maxFreeRounds         Int                      @default(2)
+  currentNegotiationRound Int                    @default(0)
+  lastProposedBy        String?
+  lastProposedPoints    Decimal?
+  negotiationHistory    String                   @default("[]")  // JSON array of negotiation rounds
+  justification         String?                  // Reason for counter-proposal
 
   compensation          String?
   compensationDiscount  Decimal                  @default(1.0)
@@ -321,4 +343,249 @@ model Subscription {
 
   @@index([coupleId])
   @@index([endsAt])
+}
+
+// UserProfile - Extended user data (V2)
+model UserProfile {
+  id                    String                   @id @default(cuid())
+  userId                String                   @unique
+
+  surname               String?
+  profilePhotoUrl       String?
+  dateOfBirth           DateTime?
+
+  // Work info
+  weeklyWorkHours       Int                      @default(40)
+  workMode              String                   @default("presencial")  // presencial, teletrabajo, hibrido
+  workSchedule          String?                  // JSON string
+
+  // Preferences
+  taskPreferencesLoves  String                   @default("[]")  // JSON array
+  taskPreferencesDislikes String                 @default("[]")  // JSON array
+
+  // Relations
+  user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@index([userId])
+}
+
+// CoupleProfile - Home/household data (V2)
+model CoupleProfile {
+  id                    String                   @id @default(cuid())
+  coupleId              String                   @unique
+
+  homeType              String?                  // piso, casa, otro
+  homeSizeM2            Int?
+
+  cohabitation          String?                  // JSON string
+  externalServices      String?                  // JSON string (cleaners, babysitters, etc)
+
+  isActive              Boolean                  @default(true)
+
+  // Relations
+  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@index([coupleId])
+}
+
+// Child - Children management (V2)
+model Child {
+  id                    String                   @id @default(cuid())
+  coupleId              String
+
+  name                  String
+  dateOfBirth           DateTime
+  livesWithUser1        Boolean                  @default(true)
+  livesWithUser2        Boolean                  @default(true)
+  hasSpecialNeeds       Boolean                  @default(false)
+
+  // Relations
+  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@index([coupleId])
+}
+
+// Pet - Pets management (V2)
+model Pet {
+  id                    String                   @id @default(cuid())
+  coupleId              String
+
+  name                  String
+  type                  String                   // perro, gato, otro
+  quantity              Int                      @default(1)
+
+  // Relations
+  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@index([coupleId])
+}
+
+// Invitation - Partner invitation system (V2)
+model Invitation {
+  id                    String                   @id @default(cuid())
+  coupleId              String
+
+  inviterUserId         String
+  inviteeEmail          String
+  inviteeUserId         String?
+
+  token                 String                   @unique
+  status                String                   @default("pending")  // pending, accepted, rejected
+  expiresAt             DateTime
+
+  // Relations
+  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  inviter               User                     @relation("invitedBy", fields: [inviterUserId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@unique([coupleId, inviteeEmail])
+  @@index([token])
+  @@index([coupleId])
+  @@index([inviterUserId])
+  @@index([status])
+}
+
+// Category - Event/Task categories (V2)
+model Category {
+  id                    String                   @id @default(cuid())
+  coupleId              String
+
+  name                  String
+  emoji                 String
+  type                  String                   // event, chore, service
+  basePoints            Decimal                  @default(10)
+  description           String?
+
+  isCustom              Boolean                  @default(false)  // false = base, true = couple created
+  isActive              Boolean                  @default(true)
+
+  // Relations
+  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  subcategories         Subcategory[]
+
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@index([coupleId])
+  @@index([type])
+  @@index([isCustom])
+}
+
+// Subcategory - Event/Task subcategories (V2)
+model Subcategory {
+  id                    String                   @id @default(cuid())
+  categoryId            String
+
+  name                  String
+  basePointsModifier    Decimal                  @default(0)  // Can be +5, -3, ×1.2 etc
+
+  // Relations
+  category              Category                 @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@index([categoryId])
+}
+
+// Achievement - Gamification achievements (V2)
+model Achievement {
+  id                    String                   @id @default(cuid())
+  coupleId              String
+
+  type                  String                   // solo, couple
+  name                  String
+  description           String
+  icon                  String
+  rarity                String                   // common, rare, epic, legendary
+  condition             String?                  // JSON condition
+
+  // Relations
+  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  userAchievements      UserAchievement[]
+
+  createdAt             DateTime                 @default(now())
+
+  @@index([coupleId])
+  @@index([type])
+}
+
+// UserAchievement - When user unlocked achievement (V2)
+model UserAchievement {
+  id                    String                   @id @default(cuid())
+  userId                String
+  achievementId         String
+
+  // Relations
+  user                  User?                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement           Achievement              @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  unlockedAt            DateTime                 @default(now())
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@index([achievementId])
+}
+
+// CoupleScore - Weekly couple score snapshots (V2)
+model CoupleScore {
+  id                    String                   @id @default(cuid())
+  coupleId              String
+
+  weekStartDate         DateTime
+  user1Score            Decimal                  @default(50)
+  user2Score            Decimal                  @default(50)
+  overallScore          Decimal                  @default(50)
+
+  equilibrium           Decimal                  @default(0)
+  activity              Decimal                  @default(0)
+  consensus             Decimal                  @default(0)
+  constancy             Decimal                  @default(0)
+
+  // Relations
+  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime                 @default(now())
+
+  @@unique([coupleId, weekStartDate])
+  @@index([coupleId])
+  @@index([weekStartDate])
+}
+
+// CalendarEntry - Calendar events (V2)
+model CalendarEntry {
+  id                    String                   @id @default(cuid())
+  coupleId              String
+
+  type                  String                   // event, task, service, birthday, holiday
+  title                 String
+  date                  DateTime
+
+  relatedEventId        String?
+  relatedTaskId         String?
+  description           String?
+  color                 String?
+
+  // Relations
+  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime                 @default(now())
+
+  @@index([coupleId])
+  @@index([date])
+  @@index([type])
 }

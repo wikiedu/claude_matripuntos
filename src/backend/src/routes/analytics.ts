@@ -1,0 +1,204 @@
+import { Router, Request, Response } from 'express'
+import { authenticateToken } from '../middleware/auth.js'
+import * as analyticsService from '../services/analyticsService.js'
+
+const router = Router()
+
+router.use(authenticateToken)
+
+/**
+ * GET /api/analytics/couple
+ * Get overall couple analytics
+ */
+router.get('/couple', async (req: Request, res: Response) => {
+  try {
+    const coupleId = (req as any).user.coupleId
+    const { startDate, endDate } = req.query
+
+    const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30))
+    const end = endDate ? new Date(endDate as string) : new Date()
+
+    const metrics = await analyticsService.getCoupleAnalytics(coupleId, start, end)
+
+    res.json({
+      message: 'Couple analytics retrieved',
+      data: metrics,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to retrieve analytics'
+    res.status(500).json({ error: message })
+  }
+})
+
+/**
+ * GET /api/analytics/users
+ * Get per-user analytics
+ */
+router.get('/users', async (req: Request, res: Response) => {
+  try {
+    const coupleId = (req as any).user.coupleId
+    const { startDate, endDate } = req.query
+
+    const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30))
+    const end = endDate ? new Date(endDate as string) : new Date()
+
+    const userAnalytics = await analyticsService.getUserAnalytics(coupleId, start, end)
+
+    res.json({
+      message: 'User analytics retrieved',
+      data: userAnalytics,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to retrieve user analytics'
+    res.status(500).json({ error: message })
+  }
+})
+
+/**
+ * GET /api/analytics/daily-activity
+ * Get daily activity analytics
+ */
+router.get('/daily-activity', async (req: Request, res: Response) => {
+  try {
+    const coupleId = (req as any).user.coupleId
+    const { startDate, endDate } = req.query
+
+    const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30))
+    const end = endDate ? new Date(endDate as string) : new Date()
+
+    const activity = await analyticsService.getDailyActivityAnalytics(coupleId, start, end)
+
+    res.json({
+      message: 'Daily activity analytics retrieved',
+      count: activity.length,
+      data: activity,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to retrieve daily activity'
+    res.status(500).json({ error: message })
+  }
+})
+
+/**
+ * GET /api/analytics/negotiations
+ * Get negotiation analytics
+ */
+router.get('/negotiations', async (req: Request, res: Response) => {
+  try {
+    const coupleId = (req as any).user.coupleId
+    const { startDate, endDate } = req.query
+
+    const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30))
+    const end = endDate ? new Date(endDate as string) : new Date()
+
+    const negotiations = await analyticsService.getNegotiationAnalytics(coupleId, start, end)
+
+    res.json({
+      message: 'Negotiation analytics retrieved',
+      data: negotiations,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to retrieve negotiation analytics'
+    res.status(500).json({ error: message })
+  }
+})
+
+/**
+ * GET /api/analytics/points-by-category
+ * Get points distribution by category
+ */
+router.get('/points-by-category', async (req: Request, res: Response) => {
+  try {
+    const coupleId = (req as any).user.coupleId
+    const { startDate, endDate } = req.query
+
+    const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30))
+    const end = endDate ? new Date(endDate as string) : new Date()
+
+    const distribution = await analyticsService.getPointsByCategory(coupleId, start, end)
+
+    res.json({
+      message: 'Points by category retrieved',
+      data: distribution,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to retrieve points by category'
+    res.status(500).json({ error: message })
+  }
+})
+
+/**
+ * GET /api/analytics/weekly-trends
+ * Get weekly trends for the past N weeks
+ */
+router.get('/weekly-trends', async (req: Request, res: Response) => {
+  try {
+    const coupleId = (req as any).user.coupleId
+    const { weeks } = req.query
+
+    const numberOfWeeks = weeks ? parseInt(weeks as string) : 8
+
+    const trends = await analyticsService.getWeeklyTrends(coupleId, numberOfWeeks)
+
+    res.json({
+      message: 'Weekly trends retrieved',
+      data: trends,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to retrieve weekly trends'
+    res.status(500).json({ error: message })
+  }
+})
+
+/**
+ * GET /api/analytics/monthly/:year/:month
+ * Get monthly summary
+ */
+router.get('/monthly/:year/:month', async (req: Request, res: Response) => {
+  try {
+    const coupleId = (req as any).user.coupleId
+    const year = parseInt(req.params.year)
+    const month = parseInt(req.params.month)
+
+    if (!year || !month || month < 1 || month > 12) {
+      return res.status(400).json({ error: 'Invalid year or month' })
+    }
+
+    const summary = await analyticsService.getMonthlySummary(coupleId, year, month)
+
+    res.json({
+      message: 'Monthly summary retrieved',
+      data: summary,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to retrieve monthly summary'
+    res.status(500).json({ error: message })
+  }
+})
+
+/**
+ * GET /api/analytics/yearly/:year
+ * Get yearly overview
+ */
+router.get('/yearly/:year', async (req: Request, res: Response) => {
+  try {
+    const coupleId = (req as any).user.coupleId
+    const year = parseInt(req.params.year)
+
+    if (!year) {
+      return res.status(400).json({ error: 'Invalid year' })
+    }
+
+    const overview = await analyticsService.getYearOverview(coupleId, year)
+
+    res.json({
+      message: 'Yearly overview retrieved',
+      data: overview,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to retrieve yearly overview'
+    res.status(500).json({ error: message })
+  }
+})
+
+export default router

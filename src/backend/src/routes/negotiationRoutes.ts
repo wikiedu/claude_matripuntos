@@ -149,14 +149,15 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
         },
       })
 
-      // Create points transaction
+      // Create points transaction (negative amount — proposer spends points)
       await prisma.pointsTransaction.create({
         data: {
           coupleId: req.coupleId,
+          userId: negotiation.proposedBy,
           type: 'event_accepted',
           relatedEventId: negotiation.eventId,
-          amount: negotiation.pointsProposed,
-          description: `Accepted activity: ${negotiation.event.type}`,
+          amount: new Decimal(-negotiation.pointsProposed),
+          description: `Actividad aceptada: ${negotiation.event.title || negotiation.event.type}`,
         },
       })
     } else if (data.responseType === 'counter_proposed') {

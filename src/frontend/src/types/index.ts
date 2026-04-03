@@ -10,9 +10,11 @@ export interface User {
 
 export interface Couple {
   id: string
+  name?: string
   numChildren: number
   language: string
   users?: User[]
+  children?: { id: string; name: string; dateOfBirth: string }[]
 }
 
 export interface Event {

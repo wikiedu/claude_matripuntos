@@ -8,6 +8,15 @@ import negotiationRoutes from './routes/negotiationRoutes.js'
 import pointsRoutes from './routes/pointsRoutes.js'
 import configurationRoutes from './routes/configurationRoutes.js'
 import notificationRoutes from './routes/notificationRoutes.js'
+import profileRoutes from './routes/profile.js'
+import familyRoutes from './routes/family.js'
+import invitationRoutes from './routes/invitations.js'
+import categoryRoutes from './routes/categories.js'
+import pointsV2Routes from './routes/pointsV2.js'
+import negotiationV2Routes from './routes/negotiation.js'
+import achievementRoutes from './routes/achievements.js'
+import calendarRoutes from './routes/calendar.js'
+import analyticsRoutes from './routes/analytics.js'
 
 dotenv.config()
 
@@ -28,12 +37,29 @@ app.get('/api/health', (req, res) => {
 
 // Routes
 app.use('/api/auth', authRoutes)
+app.use('/api/auth', invitationRoutes)  // Invitations are part of auth
 app.use('/api/events', eventRoutes)
 app.use('/api/tasks', taskRoutes)
 app.use('/api/negotiations', negotiationRoutes)
 app.use('/api/points', pointsRoutes)
 app.use('/api/configuration', configurationRoutes)
 app.use('/api/notifications', notificationRoutes)
+
+// V2 Routes
+app.use('/api/profile', profileRoutes)
+app.use('/api', familyRoutes)
+app.use('/api/categories', categoryRoutes)
+app.use('/api/points', pointsV2Routes)
+app.use('/api/events', negotiationV2Routes)
+
+// Gamification Routes (FASE 4)
+app.use('/api/achievements', achievementRoutes)
+
+// Calendar Routes (FASE 5)
+app.use('/api/calendar', calendarRoutes)
+
+// Analytics Routes (FASE 6)
+app.use('/api/analytics', analyticsRoutes)
 
 // 404 handler
 app.use((req, res) => {

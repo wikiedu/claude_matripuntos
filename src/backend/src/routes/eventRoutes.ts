@@ -134,6 +134,15 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
           id: e.creator.id,
           name: e.creator.name,
         } : null,
+        negotiations: (e.negotiations || []).map((n: any) => ({
+          id: n.id,
+          roundNumber: n.roundNumber,
+          pointsProposed: n.pointsProposed.toString(),
+          message: n.message,
+          responseType: n.responseType,
+          proposedBy: n.proposedBy,
+          respondedAt: n.respondedAt,
+        })),
       })),
     })
   } catch (error) {

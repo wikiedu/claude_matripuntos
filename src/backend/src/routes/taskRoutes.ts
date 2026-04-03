@@ -12,18 +12,18 @@ const prisma = new PrismaClient()
 const createTaskSchema = z.object({
   name: z.string().min(1, 'Task name is required'),
   description: z.string().optional(),
-  category: z.enum(['cocina', 'baños', 'limpieza', 'compra', 'logistica', 'cuidado']),
+  category: z.enum(['cocina', 'baños', 'limpieza', 'compra', 'logistica', 'cuidado', 'mantenimiento', 'jardineria', 'mascotas']),
   pointsBase: z.number().positive('Points must be positive').optional().default(1.0),
   isDefault: z.boolean().optional().default(false),
 })
 
 const createTaskLogSchema = z.object({
-  taskId: z.string().cuid('Invalid task ID'),
-  date: z.string().date(),
+  date: z.string().min(1, 'Date is required'),
   pointsBase: z.number().positive('Points must be positive'),
   modifier: z.string().optional(),
-  modifierValue: z.number().optional().default(0),
+  modifierValue: z.number().optional().default(1.0),
   pointsFinal: z.number().positive('Final points must be positive'),
+  notes: z.string().optional(),
 })
 
 const updateTaskLogSchema = z.object({
@@ -117,11 +117,12 @@ router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response):
     }
 
     const data = createTaskLogSchema.parse(req.body)
+    const taskId = req.params.taskId
 
     // Verify task belongs to couple
     const task = await prisma.task.findFirst({
       where: {
-        id: data.taskId,
+        id: taskId,
         coupleId: req.coupleId,
       },
     })
@@ -134,7 +135,7 @@ router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response):
     const taskLog = await prisma.taskLog.create({
       data: {
         coupleId: req.coupleId,
-        taskId: data.taskId,
+        taskId: taskId,
         completedBy: req.userId,
         date: new Date(data.date),
         pointsBase: new Decimal(data.pointsBase),

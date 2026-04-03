@@ -45,8 +45,13 @@ export const useAppStore = create<AppState>((set) => ({
     try {
       const response = await apiClient.auth.login(email, password)
       apiClient.setToken(response.token)
+
+      // Load couple data after successful login
+      const coupleResponse = await apiClient.auth.getCouple()
+
       set({
         user: response.user,
+        couple: coupleResponse.couple,
         isAuthenticated: true,
         isLoading: false,
       })

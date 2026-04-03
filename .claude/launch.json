@@ -2,20 +2,24 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "Frontend - Vite",
-      "runtimeExecutable": "/Users/edu/Web development/Claude/Matripuntos/run-frontend.sh",
-      "runtimeArgs": [],
-      "cwd": "/Users/edu/Web development/Claude/Matripuntos",
-      "port": 5173,
-      "description": "React dev server con Vite"
+      "name": "Backend - Express",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "${workspaceFolder}/src/backend",
+      "autoPort": true,
+      "env": {
+        "NODE_ENV": "development"
+      }
     },
     {
-      "name": "Backend - Express",
-      "runtimeExecutable": "/Users/edu/Web development/Claude/Matripuntos/run-backend.sh",
-      "runtimeArgs": [],
-      "cwd": "/Users/edu/Web development/Claude/Matripuntos",
-      "port": 3000,
-      "description": "Express API server"
+      "name": "Frontend - Vite",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "${workspaceFolder}/src/frontend",
+      "autoPort": true,
+      "env": {
+        "NODE_ENV": "development"
+      }
     }
   ]
 }
