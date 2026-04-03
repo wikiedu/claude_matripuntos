@@ -187,7 +187,7 @@ router.get('/chart-data', authMiddleware, async (req: Request, res: Response): P
       partnerRunning += partnerDelta[key] || 0
       chartData.push({
         idx: days - 1 - i,
-        label: i === 0 ? 'Hoy' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
+        date: i === 0 ? 'Hoy' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
         [you.name]: Math.round(youRunning),
         [partner.name]: Math.round(partnerRunning),
       })

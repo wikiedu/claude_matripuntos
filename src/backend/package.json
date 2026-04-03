@@ -2,6 +2,9 @@
   "name": "@matripuntos/backend",
   "version": "0.0.1",
   "type": "module",
+  "prisma": {
+    "seed": "node --loader ts-node/esm prisma/seed.ts"
+  },
   "scripts": {
     "dev": "node --loader ts-node/esm src/server.ts",
     "build": "tsc",
