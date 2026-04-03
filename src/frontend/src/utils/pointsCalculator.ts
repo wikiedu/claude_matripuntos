@@ -119,7 +119,8 @@ export function calculateActivityPoints(
   startHour: number,
   durationHours: number,
   config: PointsConfig,
-  compensationId?: string
+  compensationId?: string,
+  startMinute: number = 0
 ): ActivityPoints {
   const breakdown: string[] = []
 
@@ -132,7 +133,7 @@ export function calculateActivityPoints(
   breakdown.push(`× Factor tipo (${config.activityType}) = ×${factorType}`)
 
   // 3. Factor franja horaria
-  const timeSlot = getTimeSlot(startHour)
+  const timeSlot = getTimeSlot(startHour, startMinute)
   const factorTimeSlot = FACTOR_TIME_SLOT[timeSlot] || 1.0
   breakdown.push(`× Factor franja (${timeSlot}) = ×${factorTimeSlot}`)
 
