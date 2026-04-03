@@ -127,10 +127,10 @@ function LogTaskModal({ task, onClose, onSuccess }: {
         </div>
 
         <div className="bg-gray-50 rounded-xl p-3 mb-4 flex items-center gap-3">
-          <span className="text-2xl">{CATEGORY_EMOJI[task.category] || '✅'}</span>
+          <span className="text-2xl">{CATEGORY_EMOJI[task.category?.toLowerCase()] || '✅'}</span>
           <div className="flex-1">
             <div className="font-semibold text-gray-900">{task.name}</div>
-            <div className="text-xs text-gray-500">{CATEGORY_LABEL[task.category] || task.category}</div>
+            <div className="text-xs text-gray-500">{CATEGORY_LABEL[task.category?.toLowerCase()] || task.category}</div>
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold text-primary">{finalPts}</div>
@@ -518,7 +518,7 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
                       {myPendingLogs.map(log => (
                         <div key={log.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-base">{CATEGORY_EMOJI[log.taskCategory] || '✅'}</span>
+                            <span className="text-base">{CATEGORY_EMOJI[log.taskCategory?.toLowerCase()] || '✅'}</span>
                             <div className="min-w-0">
                               <p className="text-sm font-medium text-gray-800 truncate">{log.taskName}</p>
                               <p className="text-xs text-gray-500">{new Date(log.date).toLocaleDateString('es-ES', { day:'numeric', month:'short' })}</p>
@@ -583,14 +583,14 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
                         <div key={task.id} className={`card transition-all ${doneToday ? 'opacity-70' : ''}`}>
                           <div className="flex items-center gap-3">
                             <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 ${doneToday ? 'bg-green-100' : 'bg-gray-100'}`}>
-                              {doneToday ? '✅' : (CATEGORY_EMOJI[task.category] || '🏠')}
+                              {doneToday ? '✅' : (CATEGORY_EMOJI[task.category?.toLowerCase()] || '🏠')}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className={`font-semibold truncate ${doneToday ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{task.name}</p>
                                 {badge && <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${badge.color}`}>{badge.text}</span>}
                               </div>
-                              <p className="text-sm text-gray-500">{CATEGORY_LABEL[task.category] || task.category} · {task.pointsBase} pts base</p>
+                              <p className="text-sm text-gray-500">{CATEGORY_LABEL[task.category?.toLowerCase()] || task.category} · {task.pointsBase} pts base</p>
                             </div>
                             <div className="flex items-center gap-1.5">
                               {task.description && (
@@ -634,7 +634,7 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="text-lg">{CATEGORY_EMOJI[log.taskCategory] || '✅'}</span>
+                              <span className="text-lg">{CATEGORY_EMOJI[log.taskCategory?.toLowerCase()] || '✅'}</span>
                               <div className="min-w-0">
                                 <p className="font-semibold text-gray-900 truncate">{log.taskName}</p>
                                 <p className="text-sm text-gray-500">

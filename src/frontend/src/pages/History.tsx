@@ -71,7 +71,7 @@ export default function History({ onBack }: PageProps) {
         })
         setTransactions(historyResponse.transactions || [])
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to load history'
+        const message = err instanceof Error ? err.message : 'Error al cargar el historial'
         setError(message)
         console.error('Failed to load history:', err)
       } finally {
@@ -99,15 +99,15 @@ export default function History({ onBack }: PageProps) {
   const getTransactionLabel = (type: string) => {
     switch (type) {
       case 'event_accepted':
-        return 'Activity Accepted'
+        return 'Actividad aceptada'
       case 'event_forced':
-        return 'Activity Forced'
+        return 'Actividad forzada'
       case 'task_completed':
-        return 'Task Completed'
+        return 'Tarea completada'
       case 'donation':
-        return 'Points Donation'
+        return 'Donación de puntos'
       case 'forced_payment':
-        return 'Forced Payment'
+        return 'Pago forzado'
       default:
         return type
     }
@@ -150,7 +150,7 @@ export default function History({ onBack }: PageProps) {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardDescription>Your Balance</CardDescription>
+                  <CardDescription>Tu balance</CardDescription>
                   <p className="text-3xl font-bold text-gray-900 mt-2">
                     {balance.you.balance > 0 ? '+' : ''}{balance.you.balance}
                   </p>
@@ -172,12 +172,12 @@ export default function History({ onBack }: PageProps) {
             <Card className="bg-blue-50 border-blue-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardDescription>Difference</CardDescription>
+                  <CardDescription>Diferencia</CardDescription>
                   <p className="text-3xl font-bold text-blue-600 mt-2">
                     {balance.difference.toFixed(1)}
                   </p>
                   <p className="text-sm text-gray-600 mt-1">
-                    {balance.isBalanced ? 'Balanced ✓' : 'Needs balancing'}
+                    {balance.isBalanced ? 'Equilibrado ✓' : 'Necesita equilibrarse'}
                   </p>
                 </div>
                 <div className="w-8 h-8 flex items-center justify-center">
@@ -194,7 +194,7 @@ export default function History({ onBack }: PageProps) {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardDescription>Partner's Balance</CardDescription>
+                  <CardDescription>Balance de tu pareja</CardDescription>
                   <p className="text-3xl font-bold text-gray-900 mt-2">
                     {balance.partner.balance > 0 ? '+' : ''}{balance.partner.balance}
                   </p>
@@ -218,30 +218,30 @@ export default function History({ onBack }: PageProps) {
         <Card className="mb-8">
           <CardTitle className="text-lg mb-4 flex items-center gap-2">
             <Filter className="w-5 h-5" />
-            Filters
+            Filtros
           </CardTitle>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Transaction Type
+                  Tipo de transacción
                 </label>
                 <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="all">All Transactions</option>
-                  <option value="event_accepted">Activities</option>
-                  <option value="task_completed">Tasks</option>
-                  <option value="donation">Donations</option>
-                  <option value="forced_payment">Forced Payments</option>
+                  <option value="all">Todas las transacciones</option>
+                  <option value="event_accepted">Actividades</option>
+                  <option value="task_completed">Tareas</option>
+                  <option value="donation">Donaciones</option>
+                  <option value="forced_payment">Pagos forzados</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">
-                  From Date
+                  Desde
                 </label>
                 <input
                   type="date"
@@ -253,7 +253,7 @@ export default function History({ onBack }: PageProps) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">
-                  To Date
+                  Hasta
                 </label>
                 <input
                   type="date"
@@ -268,16 +268,16 @@ export default function History({ onBack }: PageProps) {
 
         {/* Transaction List */}
         <Card>
-          <CardTitle className="text-lg mb-4">Transaction History</CardTitle>
+          <CardTitle className="text-lg mb-4">Historial de transacciones</CardTitle>
           <CardContent>
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader className="w-8 h-8 text-blue-600 animate-spin mr-2" />
-                <span className="text-gray-600">Loading transactions...</span>
+                <span className="text-gray-600">Cargando transacciones...</span>
               </div>
             ) : transactions.length === 0 ? (
               <p className="text-gray-500 text-center py-8">
-                No transactions found. Start by creating activities or marking tasks!
+                No hay transacciones. ¡Crea actividades o registra tareas para empezar!
               </p>
             ) : (
               <div className="space-y-3">

@@ -35,7 +35,14 @@ router.get('/', async (req: Request, res: Response) => {
       orderBy: { name: 'asc' },
     })
 
-    res.json(categories)
+    res.json(categories.map(cat => ({
+      ...cat,
+      basePoints: parseFloat(cat.basePoints.toString()),
+      subcategories: cat.subcategories.map(sub => ({
+        ...sub,
+        basePointsModifier: parseFloat(sub.basePointsModifier.toString()),
+      })),
+    })))
   } catch (error) {
     console.error('Error fetching categories:', error)
     res.status(500).json({ error: 'Failed to fetch categories' })
@@ -70,7 +77,14 @@ router.get('/default', async (req: Request, res: Response) => {
       orderBy: { name: 'asc' },
     })
 
-    res.json(baseCategories)
+    res.json(baseCategories.map(cat => ({
+      ...cat,
+      basePoints: parseFloat(cat.basePoints.toString()),
+      subcategories: cat.subcategories.map(sub => ({
+        ...sub,
+        basePointsModifier: parseFloat(sub.basePointsModifier.toString()),
+      })),
+    })))
   } catch (error) {
     console.error('Error fetching base categories:', error)
     res.status(500).json({ error: 'Failed to fetch categories' })
@@ -276,7 +290,14 @@ router.get('/:categoryId', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Unauthorized' })
     }
 
-    res.json(category)
+    res.json({
+      ...category,
+      basePoints: parseFloat(category.basePoints.toString()),
+      subcategories: category.subcategories.map(sub => ({
+        ...sub,
+        basePointsModifier: parseFloat(sub.basePointsModifier.toString()),
+      })),
+    })
   } catch (error) {
     console.error('Error fetching category:', error)
     res.status(500).json({ error: 'Failed to fetch category' })

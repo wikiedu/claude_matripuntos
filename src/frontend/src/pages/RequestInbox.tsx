@@ -55,6 +55,19 @@ const CATEGORY_EMOJI: Record<string, string> = {
   cuidado: '👶', baños: '🚿', mantenimiento: '🔧', jardineria: '🌿', mascotas: '🐾',
 }
 
+// ─── Compensation labels ──────────────────────────────────────────────────────
+const COMPENSATIONS: { id: string; label: string }[] = [
+  { id: 'none', label: 'Sin compensación' },
+  { id: 'cocinar', label: '🍳 Cocinar la cena de la semana' },
+  { id: 'tareas', label: '🧹 Tareas extra esa semana' },
+  { id: 'masaje', label: '💆 Masaje de espalda' },
+  { id: 'desayuno', label: '☕ Desayuno en cama' },
+  { id: 'noche_libre', label: '🌙 Noche libre para tu pareja' },
+]
+
+const getCompensationLabel = (id: string) =>
+  COMPENSATIONS.find(c => c.id === id)?.label ?? id
+
 // ─── Main component ──────────────────────────────────────────────────────────
 export default function RequestInbox({ onBack }: { onBack?: () => void }) {
   const navigate = useNavigate()
@@ -296,7 +309,7 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
             )}
             {selectedEvent.compensation && (
               <div className="mt-3 bg-blue-50 rounded-xl p-3 text-sm text-blue-700">
-                💡 <strong>Compensación ofrecida:</strong> {selectedEvent.compensation}
+                💡 <strong>Compensación ofrecida:</strong> {getCompensationLabel(selectedEvent.compensation!)}
               </div>
             )}
           </div>

@@ -200,14 +200,14 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
     const dayMult = getDayMultiplier(startDate)
     const childMult = withChildren ? getChildrenMultiplier(numChildren || 1) : 1.0
     const compDiscount = COMPENSATIONS.find(c => c.id === compensation)?.discount ?? 0
-    const subMod = selectedSub?.basePointsModifier ?? 0
+    const subMod = Number(selectedSub?.basePointsModifier ?? 0)
     const durationMult = getDurationMultiplier(numDays)
-    const total = calcPoints(selectedCat.basePoints, subMod, timeMult, dayMult, childMult, compDiscount, durationMult)
+    const total = calcPoints(Number(selectedCat.basePoints), subMod, timeMult, dayMult, childMult, compDiscount, durationMult)
 
     return {
-      basePoints: selectedCat.basePoints,
+      basePoints: Number(selectedCat.basePoints),
       subMod,
-      effectiveBase: Math.max(1, selectedCat.basePoints + subMod),
+      effectiveBase: Math.max(1, Number(selectedCat.basePoints) + subMod),
       timeMult, dayMult, childMult, compDiscount, durationMult, numDays, total,
       timeLabel: getTimeSlotLabel(hour, minute),
       dayLabel: getDayLabel(startDate),
@@ -226,7 +226,7 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
     const childMult = withChildren ? getChildrenMultiplier(numChildren || 1) : 1.0
     const compDiscount = COMPENSATIONS.find(c => c.id === compensation)?.discount ?? 0
     const durationMult = getDurationMultiplier(numDays)
-    return calcPoints(selectedCat.basePoints, subMod, timeMult, dayMult, childMult, compDiscount, durationMult)
+    return calcPoints(Number(selectedCat.basePoints), Number(subMod), timeMult, dayMult, childMult, compDiscount, durationMult)
   }
 
   const handleCategoryChange = (id: string) => {
@@ -365,7 +365,7 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
                         <p className="text-sm font-medium text-gray-700 mb-2">¿Qué tipo concretamente?</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {selectedCat.subcategories.map(sub => {
-                            const preview = previewSubPts(sub.basePointsModifier)
+                            const preview = previewSubPts(Number(sub.basePointsModifier))
                             const isSelected = selectedSubcategoryId === sub.id
                             return (
                               <button key={sub.id} type="button"
@@ -382,7 +382,7 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
                                 }`}>
                                   {preview !== null && startDate
                                     ? `${preview} pts`
-                                    : `${Math.max(1, selectedCat!.basePoints + sub.basePointsModifier)} pts`}
+                                    : `${Math.max(1, Number(selectedCat!.basePoints) + Number(sub.basePointsModifier))} pts`}
                                 </span>
                               </button>
                             )
@@ -610,12 +610,12 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
                         {selectedSub && (
                           <div className="flex justify-between">
                             <span className="text-gray-600">Ajuste subcategoría</span>
-                            <span className={selectedSub.basePointsModifier >= 0 ? 'text-green-600' : 'text-red-500'}>
-                              {selectedSub.basePointsModifier >= 0 ? '+' : ''}{selectedSub.basePointsModifier}
+                            <span className={Number(selectedSub.basePointsModifier) >= 0 ? 'text-green-600' : 'text-red-500'}>
+                              {Number(selectedSub.basePointsModifier) >= 0 ? '+' : ''}{Number(selectedSub.basePointsModifier)}
                             </span>
                           </div>
                         )}
-                        {(selectedSub?.basePointsModifier ?? 0) !== 0 && (
+                        {Number(selectedSub?.basePointsModifier ?? 0) !== 0 && (
                           <div className="flex justify-between border-t border-gray-200 pt-1">
                             <span className="text-gray-600">Subtotal base</span>
                             <span className="font-bold">{pointsCalc.effectiveBase} pts</span>
