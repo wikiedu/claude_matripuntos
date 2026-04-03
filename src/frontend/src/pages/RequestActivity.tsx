@@ -20,20 +20,22 @@ interface Subcategory {
   basePointsModifier: number
 }
 
-function getTimeMultiplier(hour: number): number {
-  if (hour >= 0 && hour < 6) return 1.6
-  if (hour >= 6 && hour < 14) return 1.0
-  if (hour >= 14 && hour < 20) return 1.1
-  if (hour >= 20 && hour < 23) return 1.4
-  return 1.6
+function getTimeMultiplier(hour: number, minute: number = 0): number {
+  const totalMinutes = hour * 60 + minute
+  if (totalMinutes >= 7*60 && totalMinutes < 9*60+30) return 1.4   // 07:00-09:30
+  if (totalMinutes >= 9*60+30 && totalMinutes < 17*60+30) return 1.0 // 09:30-17:30
+  if (totalMinutes >= 17*60+30 && totalMinutes < 21*60+30) return 1.5 // 17:30-21:30
+  if (totalMinutes >= 21*60+30 || totalMinutes < 1*60) return 1.2   // 21:30-01:00
+  return 1.6 // 01:00-07:00
 }
 
-function getTimeSlotLabel(hour: number): string {
-  if (hour >= 0 && hour < 6) return 'Madrugada 🌙'
-  if (hour >= 6 && hour < 14) return 'Mañana / Mediodía ☀️'
-  if (hour >= 14 && hour < 20) return 'Tarde 🌅'
-  if (hour >= 20 && hour < 23) return 'Noche 🌙'
-  return 'Noche tardía 🌛'
+function getTimeSlotLabel(hour: number, minute: number = 0): string {
+  const totalMinutes = hour * 60 + minute
+  if (totalMinutes >= 7*60 && totalMinutes < 9*60+30) return 'Mañana temprano ×1.4'
+  if (totalMinutes >= 9*60+30 && totalMinutes < 17*60+30) return 'Horario normal ×1.0'
+  if (totalMinutes >= 17*60+30 && totalMinutes < 21*60+30) return 'Tarde-noche ×1.5'
+  if (totalMinutes >= 21*60+30 || totalMinutes < 1*60) return 'Noche ×1.2'
+  return 'Madrugada ×1.6'
 }
 
 function getDayMultiplier(dateStr: string): number {
@@ -191,8 +193,10 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
   const pointsCalc = useMemo(() => {
     if (!selectedCat || !startDate || !startTime) return null
 
-    const hour = parseInt(startTime.split(':')[0])
-    const timeMult = getTimeMultiplier(hour)
+    const [hourStr, minuteStr] = startTime.split(':')
+    const hour = parseInt(hourStr)
+    const minute = parseInt(minuteStr) || 0
+    const timeMult = getTimeMultiplier(hour, minute)
     const dayMult = getDayMultiplier(startDate)
     const childMult = withChildren ? getChildrenMultiplier(numChildren || 1) : 1.0
     const compDiscount = COMPENSATIONS.find(c => c.id === compensation)?.discount ?? 0
@@ -205,7 +209,7 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
       subMod,
       effectiveBase: Math.max(1, selectedCat.basePoints + subMod),
       timeMult, dayMult, childMult, compDiscount, durationMult, numDays, total,
-      timeLabel: getTimeSlotLabel(hour),
+      timeLabel: getTimeSlotLabel(hour, minute),
       dayLabel: getDayLabel(startDate),
       durationLabel: getDurationLabel(numDays),
     }
@@ -214,8 +218,10 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
   // Helper: preview final pts for a subcategory (given current date/time/etc)
   const previewSubPts = (subMod: number) => {
     if (!selectedCat || !startDate || !startTime) return null
-    const hour = parseInt(startTime.split(':')[0])
-    const timeMult = getTimeMultiplier(hour)
+    const [hourStr2, minuteStr2] = startTime.split(':')
+    const hour = parseInt(hourStr2)
+    const minute = parseInt(minuteStr2) || 0
+    const timeMult = getTimeMultiplier(hour, minute)
     const dayMult = getDayMultiplier(startDate)
     const childMult = withChildren ? getChildrenMultiplier(numChildren || 1) : 1.0
     const compDiscount = COMPENSATIONS.find(c => c.id === compensation)?.discount ?? 0
@@ -484,7 +490,7 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
 
                 {startDate && (
                   <p className="text-xs text-gray-500 mt-2">
-                    📅 {getDayLabel(startDate)} · {getTimeSlotLabel(parseInt(startTime.split(':')[0]))}
+                    📅 {getDayLabel(startDate)} · {getTimeSlotLabel(parseInt(startTime.split(':')[0]), parseInt(startTime.split(':')[1]) || 0)}
                   </p>
                 )}
               </div>

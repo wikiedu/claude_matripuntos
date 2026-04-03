@@ -21,18 +21,23 @@ interface PointsContext {
 export class PointsCalculator {
   /**
    * Get time-of-day multiplier
-   * Morning (6-12): ×1.0
-   * Afternoon (12-18): ×1.1
-   * Evening (18-23): ×1.3
-   * Night (23-6): ×1.6
+   * 07:00-09:30 → ×1.4 (mañana temprano)
+   * 09:30-17:30 → ×1.0 (horario normal)
+   * 17:30-21:30 → ×1.5 (tarde-noche)
+   * 21:30-01:00 → ×1.2 (noche)
+   * 01:00-07:00 → ×1.6 (madrugada)
    */
   private getTimeMultiplier(dateStart: Date): number {
-    const hour = new Date(dateStart).getHours()
+    const d = new Date(dateStart)
+    const hours = d.getHours()
+    const minutes = d.getMinutes()
+    const totalMinutes = hours * 60 + minutes
 
-    if (hour >= 6 && hour < 12) return 1.0   // Morning
-    if (hour >= 12 && hour < 18) return 1.1  // Afternoon
-    if (hour >= 18 && hour < 23) return 1.3  // Evening
-    return 1.6                                 // Night
+    if (totalMinutes >= 7*60 && totalMinutes < 9*60+30) return 1.4   // 07:00-09:30 mañana temprano
+    if (totalMinutes >= 9*60+30 && totalMinutes < 17*60+30) return 1.0 // 09:30-17:30 horario normal
+    if (totalMinutes >= 17*60+30 && totalMinutes < 21*60+30) return 1.5 // 17:30-21:30 tarde-noche
+    if (totalMinutes >= 21*60+30 || totalMinutes < 1*60) return 1.2   // 21:30-01:00 noche
+    return 1.6 // 01:00-07:00 madrugada
   }
 
   /**

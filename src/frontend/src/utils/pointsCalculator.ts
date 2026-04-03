@@ -79,12 +79,18 @@ export const COMPENSATIONS = [
 
 /**
  * Determina la franja horaria basada en la hora de inicio
+ * 07:00-09:30 → manana (×1.4)
+ * 09:30-17:30 → dia (×1.0)
+ * 17:30-21:30 → tarde (×1.5)
+ * 21:30-01:00 → noche (×1.2)
+ * 01:00-07:00 → madrugada (×1.6)
  */
-export function getTimeSlot(hour: number): string {
-  if (hour >= 7 && hour < 9.5) return 'manana'
-  if (hour >= 9.5 && hour < 17.5) return 'dia'
-  if (hour >= 17.5 && hour < 21.5) return 'tarde'
-  if (hour >= 21.5 && hour < 1) return 'noche'
+export function getTimeSlot(hour: number, minute: number = 0): string {
+  const totalMinutes = hour * 60 + minute
+  if (totalMinutes >= 7*60 && totalMinutes < 9*60+30) return 'manana'
+  if (totalMinutes >= 9*60+30 && totalMinutes < 17*60+30) return 'dia'
+  if (totalMinutes >= 17*60+30 && totalMinutes < 21*60+30) return 'tarde'
+  if (totalMinutes >= 21*60+30 || totalMinutes < 1*60) return 'noche'
   return 'madrugada'
 }
 
