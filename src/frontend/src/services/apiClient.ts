@@ -570,63 +570,39 @@ export const apiClient = new ApiClient()
 /**
  * Fetch the 5 most recent activities for the user's couple.
  * @returns {Promise<any>} The recent activity data
+ * @throws {Error} If the request fails
  */
-export async function fetchRecentActivity() {
-  try {
-    const response = await apiClient.request('/recent-activity')
-    return response
-  } catch (error) {
-    console.error('Error fetching recent activity:', error)
-    throw error
-  }
-}
+export const fetchRecentActivity = () =>
+  apiClient.request('/recent-activity')
 
 /**
  * Fetch all pending task logs for the user's couple.
  * @returns {Promise<any>} Array of pending task logs
+ * @throws {Error} If the request fails
  */
-export async function fetchPendingTaskLogs() {
-  try {
-    const response = await apiClient.request('/tasks/logs?status=pending')
-    return response
-  } catch (error) {
-    console.error('Error fetching pending task logs:', error)
-    throw error
-  }
-}
+export const fetchPendingTaskLogs = () =>
+  apiClient.request('/tasks/logs?status=pending')
 
 /**
  * Verify a task log by ID.
  * @param {string} taskLogId - The ID of the task log to verify
  * @returns {Promise<any>} The verified task log data
+ * @throws {Error} If the request fails
  */
-export async function verifyTaskLog(taskLogId: string) {
-  try {
-    const response = await apiClient.request(`/tasks/logs/${taskLogId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'verified' }),
-    })
-    return response
-  } catch (error) {
-    console.error('Error verifying task log:', error)
-    throw error
-  }
-}
+export const verifyTaskLog = (taskLogId: string) =>
+  apiClient.request(`/tasks/logs/${taskLogId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ status: 'verified' }),
+  })
 
 /**
  * Reject/dispute a task log by ID.
  * @param {string} taskLogId - The ID of the task log to reject
  * @returns {Promise<any>} The disputed task log data
+ * @throws {Error} If the request fails
  */
-export async function rejectTaskLog(taskLogId: string) {
-  try {
-    const response = await apiClient.request(`/tasks/logs/${taskLogId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'disputed' }),
-    })
-    return response
-  } catch (error) {
-    console.error('Error rejecting task log:', error)
-    throw error
-  }
-}
+export const rejectTaskLog = (taskLogId: string) =>
+  apiClient.request(`/tasks/logs/${taskLogId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ status: 'disputed' }),
+  })
