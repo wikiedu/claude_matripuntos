@@ -577,32 +577,45 @@ export const fetchRecentActivity = () =>
 
 /**
  * Fetch all pending task logs for the user's couple.
- * @returns {Promise<any>} Array of pending task logs
+ * @returns {Promise<any>} API response with logs array and taskId included
  * @throws {Error} If the request fails
  */
 export const fetchPendingTaskLogs = () =>
-  apiClient.request('/tasks/logs?status=pending')
+  apiClient.tasks.getAllLogs('pending')
 
 /**
  * Verify a task log by ID.
  * @param {string} taskLogId - The ID of the task log to verify
+ * @param {string} taskId - The ID of the task (parent entity)
  * @returns {Promise<any>} The verified task log data
  * @throws {Error} If the request fails
  */
-export const verifyTaskLog = (taskLogId: string) =>
-  apiClient.request(`/tasks/logs/${taskLogId}`, {
-    method: 'PUT',
-    body: JSON.stringify({ status: 'verified' }),
-  })
+export const verifyTaskLog = (taskLogId: string, taskId?: string) => {
+  // If taskId is provided, use it directly
+  if (taskId) {
+    return apiClient.request(`/tasks/${taskId}/logs/${taskLogId}/verify`, {
+      method: 'PUT',
+    })
+  }
+  // Otherwise, we'll need to fetch it - this is handled in the component
+  throw new Error('taskId is required for verifyTaskLog')
+}
 
 /**
  * Reject/dispute a task log by ID.
  * @param {string} taskLogId - The ID of the task log to reject
+ * @param {string} taskId - The ID of the task (parent entity)
  * @returns {Promise<any>} The disputed task log data
  * @throws {Error} If the request fails
  */
-export const rejectTaskLog = (taskLogId: string) =>
-  apiClient.request(`/tasks/logs/${taskLogId}`, {
-    method: 'PUT',
-    body: JSON.stringify({ status: 'disputed' }),
-  })
+export const rejectTaskLog = (taskLogId: string, taskId?: string) => {
+  // If taskId is provided, use it directly
+  if (taskId) {
+    return apiClient.request(`/tasks/${taskId}/logs/${taskLogId}/dispute`, {
+      method: 'PUT',
+      body: JSON.stringify({}),
+    })
+  }
+  // Otherwise, we'll need to fetch it - this is handled in the component
+  throw new Error('taskId is required for rejectTaskLog')
+}

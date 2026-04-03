@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ArrowLeft, Check, X, Edit, Calendar, Loader, Clock, Home, ChevronRight, CheckCircle, AlertTriangle, History, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Check, X, Edit, Calendar, Loader, Clock, Home, ChevronRight, History, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { apiClient } from '../services/apiClient'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiClient, fetchPendingTaskLogs } from '../services/apiClient'
 import { useAppStore } from '../store/useAppStore'
+import { TaskPendingCard } from '../components/TaskPendingCard'
+import { TaskPendingLog } from '../types/activity'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -72,6 +75,7 @@ const getCompensationLabel = (id: string) =>
 export default function RequestInbox({ onBack }: { onBack?: () => void }) {
   const navigate = useNavigate()
   const { user, couple } = useAppStore()
+  const queryClient = useQueryClient()
 
   const [tab, setTab] = useState<InboxTab>('activities')
 
@@ -83,10 +87,61 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
   const [counterMessage, setCounterMessage] = useState('')
   const [isResponding, setIsResponding] = useState(false)
 
-  // Tasks state
-  const [pendingTaskLogs, setPendingTaskLogs] = useState<TaskLogItem[]>([])
+  // Tasks: React Query hooks for pending task logs
+  const { data: pendingTaskLogs = [], isLoading: tasksLoading, error: tasksError } = useQuery({
+    queryKey: ['taskLogs', 'pending'],
+    queryFn: fetchPendingTaskLogs,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+
+  // Mutations for task verification and rejection
+  const verifyMutation = useMutation({
+    mutationFn: async (taskLogId: string) => {
+      // Get the task log to extract taskId
+      const response = await fetchPendingTaskLogs()
+      const taskLog = response.logs?.find((log: TaskPendingLog) => log.id === taskLogId)
+      if (!taskLog) throw new Error('Task log not found')
+
+      // Call verify endpoint with both taskId and logId
+      return apiClient.request(`/tasks/${taskLog.taskId}/logs/${taskLogId}/verify`, {
+        method: 'PUT',
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['taskLogs', 'pending'] })
+      setSuccess('✅ Tarea verificada. ¡Puntos actualizados!')
+      setTimeout(() => setSuccess(null), 5000)
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : 'Error al verificar la tarea')
+    },
+  })
+
+  const rejectMutation = useMutation({
+    mutationFn: async (taskLogId: string) => {
+      // Get the task log to extract taskId
+      const response = await fetchPendingTaskLogs()
+      const taskLog = response.logs?.find((log: TaskPendingLog) => log.id === taskLogId)
+      if (!taskLog) throw new Error('Task log not found')
+
+      // Call dispute endpoint with both taskId and logId
+      return apiClient.request(`/tasks/${taskLog.taskId}/logs/${taskLogId}/dispute`, {
+        method: 'PUT',
+        body: JSON.stringify({}),
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['taskLogs', 'pending'] })
+      setSuccess('⚠️ Tarea rechazada/disputada')
+      setTimeout(() => setSuccess(null), 5000)
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : 'Error al rechazar la tarea')
+    },
+  })
+
+  // For activities and history, keep the old state for now
   const [allTaskLogs, setAllTaskLogs] = useState<TaskLogItem[]>([])
-  const [verifyingId, setVerifyingId] = useState<string | null>(null)
   const [disputingLog, setDisputingLog] = useState<TaskLogItem | null>(null)
   const [disputeReason, setDisputeReason] = useState('')
   const [isDisputing, setIsDisputing] = useState(false)
@@ -122,15 +177,14 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
       const allLogs: TaskLogItem[] = allLogsRes.logs || []
       setAllTaskLogs(allLogs)
 
-      // Pending task logs = partner's tasks awaiting my verification
-      const pendingTasks = allLogs.filter(l => l.status === 'pending' && l.completedBy?.id !== user.id)
-      setPendingTaskLogs(pendingTasks)
+      // Refetch pending task logs via React Query (don't set state directly)
+      queryClient.invalidateQueries({ queryKey: ['taskLogs', 'pending'] })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error cargando datos')
     } finally {
       setIsLoading(false)
     }
-  }, [user?.id, couple?.id])
+  }, [user?.id, couple?.id, queryClient])
 
   useEffect(() => { loadAll() }, [loadAll])
 
@@ -178,21 +232,7 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
     }
   }
 
-  // ─── Task verification ────────────────────────────────────────────────────
-  const handleVerify = async (log: TaskLogItem) => {
-    setVerifyingId(log.id)
-    setError(null)
-    try {
-      await apiClient.tasks.verifyLog(log.taskId, log.id)
-      setSuccess(`✅ Tarea "${log.taskName}" verificada. +${log.pointsFinal} pts para ${log.completedBy?.name}`)
-      setTimeout(() => setSuccess(null), 5000)
-      await loadAll()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al verificar')
-    } finally {
-      setVerifyingId(null)
-    }
-  }
+  // Task verification handlers are now handled by verifyMutation and rejectMutation above
 
   const handleDisputeConfirm = async () => {
     if (!disputingLog) return
@@ -598,56 +638,41 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
             {/* ── TASKS TAB ── */}
             {tab === 'tasks' && (
               <div className="space-y-3">
-                {pendingTaskLogs.length === 0 ? (
+                {tasksLoading && (
+                  <div className="card text-center py-14">
+                    <Loader className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
+                    <p className="text-gray-600">Cargando tareas...</p>
+                  </div>
+                )}
+
+                {tasksError && (
+                  <div className="card text-center py-14">
+                    <div className="text-5xl mb-3">⚠️</div>
+                    <p className="font-semibold text-red-600 mb-1">Error al cargar tareas</p>
+                    <p className="text-sm text-gray-500">{tasksError instanceof Error ? tasksError.message : 'Intenta recargar la página'}</p>
+                  </div>
+                )}
+
+                {!tasksLoading && !tasksError && pendingTaskLogs.length === 0 && (
                   <div className="card text-center py-14">
                     <div className="text-5xl mb-3">🏠</div>
                     <p className="font-semibold text-gray-700 mb-1">Sin tareas pendientes de verificar</p>
                     <p className="text-sm text-gray-500">Cuando tu pareja registre tareas, aparecerán aquí para verificar</p>
                   </div>
-                ) : (
+                )}
+
+                {!tasksLoading && !tasksError && (pendingTaskLogs as TaskPendingLog[]).length > 0 && (
                   <>
                     <p className="text-sm text-gray-500 pb-1">
                       Tareas completadas por tu pareja que esperan tu verificación
                     </p>
-                    {pendingTaskLogs.map(log => (
-                      <div key={log.id} className="card border-l-4 border-purple-400">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-lg">{CATEGORY_EMOJI[log.taskCategory] || '✅'}</span>
-                              <p className="font-semibold text-gray-900 truncate">{log.taskName}</p>
-                            </div>
-                            <p className="text-sm text-gray-500 mt-0.5">
-                              {log.completedBy?.name} · {new Date(log.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
-                              {log.modifier && log.modifier !== 'none' && (
-                                <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${log.modifier === 'extra' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                                  {log.modifier === 'extra' ? '⭐ Extra' : '🔸 Parcial'}
-                                </span>
-                              )}
-                            </p>
-                          </div>
-                          <div className="text-right ml-3">
-                            <div className="text-xl font-bold text-purple-600">+{log.pointsFinal}</div>
-                            <div className="text-xs text-gray-400">pts</div>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleVerify(log)}
-                            disabled={verifyingId === log.id}
-                            className="flex-1 py-2.5 px-3 bg-green-100 text-green-700 rounded-xl text-sm font-semibold hover:bg-green-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
-                            {verifyingId === log.id ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                            Verificar (+{log.pointsFinal} pts)
-                          </button>
-                          <button
-                            onClick={() => setDisputingLog(log)}
-                            disabled={verifyingId === log.id}
-                            className="flex-1 py-2.5 px-3 bg-orange-100 text-orange-700 rounded-xl text-sm font-semibold hover:bg-orange-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
-                            <AlertTriangle className="w-3.5 h-3.5" />
-                            Disputar
-                          </button>
-                        </div>
-                      </div>
+                    {(pendingTaskLogs as TaskPendingLog[]).map(taskLog => (
+                      <TaskPendingCard
+                        key={taskLog.id}
+                        taskLog={taskLog}
+                        onVerify={verifyMutation.mutateAsync}
+                        onReject={rejectMutation.mutateAsync}
+                      />
                     ))}
                   </>
                 )}
