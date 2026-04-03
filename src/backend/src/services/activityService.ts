@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 
+const RECENT_ACTIVITY_LIMIT = 5;
+
 export type RecentActivityType = 'event' | 'task' | 'negotiation';
 
 export interface RecentActivity {
@@ -14,7 +16,7 @@ export async function getRecentActivity(
   prisma: PrismaClient,
   coupleId: string
 ): Promise<RecentActivity[]> {
-  // Fetch 5 most recent accepted/rejected/forced events (dateEnd < now)
+  // Fetch most recent accepted/rejected/forced events (dateEnd < now)
   const events = await prisma.event.findMany({
     where: {
       coupleId,
@@ -22,7 +24,7 @@ export async function getRecentActivity(
       dateEnd: { lt: new Date() }
     },
     orderBy: { dateEnd: 'desc' },
-    take: 5,
+    take: RECENT_ACTIVITY_LIMIT,
     select: {
       id: true,
       type: true,
@@ -31,14 +33,15 @@ export async function getRecentActivity(
     }
   });
 
-  // Fetch 5 most recent verified task logs
+  // Fetch most recent verified task logs
   const taskLogs = await prisma.taskLog.findMany({
     where: {
       coupleId,
-      status: 'verified'
+      status: 'verified',
+      verifiedAt: { not: null }
     },
     orderBy: { verifiedAt: 'desc' },
-    take: 5,
+    take: RECENT_ACTIVITY_LIMIT,
     select: {
       id: true,
       taskId: true,
@@ -51,16 +54,17 @@ export async function getRecentActivity(
     }
   });
 
-  // Fetch 5 most recent resolved negotiations (responseType != 'awaiting')
+  // Fetch most recent resolved negotiations (responseType != 'awaiting')
   const negotiations = await prisma.negotiation.findMany({
     where: {
       event: {
         coupleId
       },
-      responseType: { not: 'awaiting' }
+      responseType: { not: 'awaiting' },
+      respondedAt: { not: null }
     },
     orderBy: { respondedAt: 'desc' },
-    take: 5,
+    take: RECENT_ACTIVITY_LIMIT,
     select: {
       id: true,
       eventId: true,
@@ -91,7 +95,7 @@ export async function getRecentActivity(
       id: log.id,
       type: 'task',
       name: log.task.name,
-      date: log.verifiedAt || new Date(),
+      date: log.verifiedAt as Date,
       relatedId: log.taskId
     });
   });
@@ -101,13 +105,13 @@ export async function getRecentActivity(
       id: neg.id,
       type: 'negotiation',
       name: `Negotiation - ${neg.event.type || 'Event'}`,
-      date: neg.respondedAt || new Date(),
+      date: neg.respondedAt as Date,
       relatedId: neg.eventId
     });
   });
 
-  // Sort DESC by date and return top 5
+  // Sort DESC by date and return top items
   return activitiesArray
     .sort((a, b) => b.date.getTime() - a.date.getTime())
-    .slice(0, 5);
+    .slice(0, RECENT_ACTIVITY_LIMIT);
 }
