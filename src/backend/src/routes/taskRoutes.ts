@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express'
 import { PrismaClient } from '@prisma/client'
+import type { Prisma } from '@prisma/client'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
 import { Decimal } from '@prisma/client/runtime/library'
@@ -116,11 +117,19 @@ router.get('/all-logs', authMiddleware, async (req: Request, res: Response): Pro
       return
     }
 
-    const status = req.query.status as string | undefined
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200)
-    const offset = parseInt(req.query.offset as string) || 0
+    const querySchema = z.object({
+      status: z.enum(['pending', 'verified', 'disputed']).optional(),
+      limit: z.coerce.number().int().min(1).max(200).default(50),
+      offset: z.coerce.number().int().min(0).default(0),
+    })
+    const queryResult = querySchema.safeParse(req.query)
+    if (!queryResult.success) {
+      res.status(400).json({ error: 'Invalid query parameters', details: queryResult.error.errors })
+      return
+    }
+    const { status, limit, offset } = queryResult.data
 
-    const where: any = {
+    const where: Prisma.TaskLogWhereInput = {
       coupleId: req.coupleId,
     }
 
@@ -180,8 +189,8 @@ router.get('/all-logs', authMiddleware, async (req: Request, res: Response): Pro
       },
     })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch task logs'
-    res.status(400).json({ error: message })
+    console.error('[all-logs]', error)
+    res.status(500).json({ error: 'Failed to fetch task logs' })
   }
 })
 
