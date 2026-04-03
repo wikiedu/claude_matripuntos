@@ -166,6 +166,7 @@ export class NegotiationEngine {
               respondedBy: responderId,
               responseType: 'accepted',
               respondedAt: new Date(),
+              pointsProposed: lastNegotiation.pointsProposed,
             },
           })
           break
@@ -186,6 +187,7 @@ export class NegotiationEngine {
               responseType: 'rejected',
               respondedAt: new Date(),
               message: response.message || null,
+              pointsProposed: lastNegotiation.pointsProposed,
             },
           })
           break
@@ -241,6 +243,7 @@ export class NegotiationEngine {
               responseType: 'pending_conversation',
               respondedAt: new Date(),
               message: response.message || null,
+              pointsProposed: lastNegotiation.pointsProposed,
             },
           })
           break

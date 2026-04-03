@@ -171,7 +171,7 @@ export const loginUser = async (email: string, password: string) => {
         email: user.email,
         name: user.name,
         coupleId: user.coupleId,
-        role: user.role,
+        role: user.roleInHome,
         timezone: user.timezone,
       }
     }

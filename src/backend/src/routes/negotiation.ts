@@ -151,7 +151,7 @@ router.get('/:eventId/negotiation', authenticateToken, async (req: Request, res:
     const event = await prisma.event.findUnique({
       where: { id: eventId },
       include: {
-        createdByUser: {
+        creator: {
           select: { id: true, name: true, email: true },
         },
       },
@@ -192,7 +192,7 @@ router.get('/:eventId/negotiation', authenticateToken, async (req: Request, res:
       status,
       history,
       participants: {
-        creator: event.createdByUser,
+        creator: event.creator,
         partner: partner,
       },
     })
@@ -233,7 +233,7 @@ router.get('/:eventId/negotiation/history', authenticateToken, async (req: Reque
       eventTitle: event.title || event.type,
       eventStatus: event.status,
       negotiations: history,
-      totalRounds: history.length > 0 ? Math.max(...history.map((n) => n.roundNumber)) : 0,
+      totalRounds: history.length > 0 ? Math.max(...history.map((n: { roundNumber: number }) => n.roundNumber)) : 0,
     })
   } catch (error) {
     console.error('Error getting negotiation history:', error)
@@ -270,11 +270,8 @@ router.get('/user/pending', authenticateToken, async (req: Request, res: Respons
         status: { in: ['proposed', 'counter_proposal'] },
       },
       include: {
-        createdByUser: {
+        creator: {
           select: { id: true, name: true },
-        },
-        category: {
-          select: { name: true, emoji: true },
         },
       },
       orderBy: { updatedAt: 'desc' },

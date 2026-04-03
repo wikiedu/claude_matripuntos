@@ -148,7 +148,7 @@ export class AchievementEngine {
       },
       _sum: { pointsAgreed: true },
     })
-    return (result._sum.pointsAgreed || 0) >= threshold
+    return Number(result._sum.pointsAgreed || 0) >= threshold
   }
 
   /**
@@ -209,7 +209,7 @@ export class AchievementEngine {
         },
         _sum: { pointsAgreed: true },
       })
-      return result._sum.pointsAgreed || 0
+      return Number(result._sum.pointsAgreed || 0)
     } catch (error) {
       console.error('Error getting couple score:', error)
       throw error
@@ -248,7 +248,7 @@ export class AchievementEngine {
 
       const accepted = couple.events.filter((e) => e.status === 'accepted')
       const rejected = couple.events.filter((e) => e.status === 'rejected')
-      const totalScore = accepted.reduce((sum, e) => sum + (e.pointsAgreed || 0), 0)
+      const totalScore = accepted.reduce((sum, e) => sum + Number(e.pointsAgreed || 0), 0)
 
       return {
         totalScore,
@@ -279,7 +279,6 @@ export class AchievementEngine {
       const couples = await prisma.couple.findMany({
         select: {
           id: true,
-          name: true,
           events: {
             where: { status: 'accepted' },
             select: { pointsAgreed: true },
@@ -291,8 +290,8 @@ export class AchievementEngine {
       const leaderboard = couples
         .map((couple) => ({
           coupleId: couple.id,
-          coupleName: couple.name || 'Sin nombre',
-          totalScore: couple.events.reduce((sum, e) => sum + (e.pointsAgreed || 0), 0),
+          coupleName: 'Sin nombre',
+          totalScore: couple.events.reduce((sum, e) => sum + Number(e.pointsAgreed || 0), 0),
           eventsAccepted: couple.events.length,
         }))
         .sort((a, b) => b.totalScore - a.totalScore)
@@ -336,7 +335,7 @@ export class AchievementEngine {
       })
 
       const accepted = events.filter((e) => e.status === 'accepted')
-      const pointsEarned = accepted.reduce((sum, e) => sum + (e.pointsAgreed || 0), 0)
+      const pointsEarned = accepted.reduce((sum, e) => sum + Number(e.pointsAgreed || 0), 0)
 
       return {
         week: `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`,

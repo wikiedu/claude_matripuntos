@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Edit, Trash2, ChevronDown, X, AlertCircle } from 'lucide-react'
+import { Plus, Trash2, ChevronDown, AlertCircle } from 'lucide-react'
 import { apiClient } from '../services/apiClient'
 
 interface Category {

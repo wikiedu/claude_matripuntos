@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader, CheckCircle, AlertCircle, Mail } from 'lucide-react'
+import { Loader, CheckCircle, Mail } from 'lucide-react'
 import { apiClient } from '../../services/apiClient'
 
 interface OnboardingJoinFlowProps {
@@ -62,7 +62,7 @@ export default function OnboardingJoinFlow({ token }: OnboardingJoinFlowProps) {
       setError(null)
 
       // Register with invitation
-      await apiClient.auth.registerWithInvitation({
+      await apiClient.invitations.registerWithInvitation({
         token,
         email: formData.email,
         password: formData.password,

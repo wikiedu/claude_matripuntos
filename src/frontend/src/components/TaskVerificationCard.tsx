@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
-import { CheckCircle, XCircle, AlertCircle, MessageCircle, Loader } from 'lucide-react'
-import { Card, CardTitle, CardContent, CardDescription } from './Card'
+import { useState } from 'react'
+import { CheckCircle, AlertCircle, MessageCircle } from 'lucide-react'
+import { Card, CardTitle, CardDescription } from './Card'
 import { Button } from './Button'
 import { Alert } from './Alert'
 
@@ -19,7 +19,7 @@ interface TaskVerificationCardProps {
 
 export function TaskVerificationCard({
   id,
-  taskId,
+  taskId: _taskId,
   taskName,
   completedByName,
   date,

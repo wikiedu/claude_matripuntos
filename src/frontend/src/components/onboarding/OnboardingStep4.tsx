@@ -1,5 +1,4 @@
-import { Mail, Copy, CheckCircle, Loader } from 'lucide-react'
-import { useState } from 'react'
+import { Mail, CheckCircle, Loader } from 'lucide-react'
 
 interface Step4Props {
   data: any
@@ -9,20 +8,8 @@ interface Step4Props {
 }
 
 export default function OnboardingStep4({ data, onChange, onSubmit, isLoading }: Step4Props) {
-  const [invitationLink, setInvitationLink] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
-
   const handleEmailChange = (email: string) => {
     onChange({ partnerEmail: email })
-    setInvitationLink(null)
-  }
-
-  const copyToClipboard = () => {
-    if (invitationLink) {
-      navigator.clipboard.writeText(invitationLink)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
   }
 
   return (

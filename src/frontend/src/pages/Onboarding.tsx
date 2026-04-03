@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Loader, ChevronRight, User, Home, Users, Zap } from 'lucide-react'
+import { Loader, ChevronRight } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
 import OnboardingStep1 from '../components/onboarding/OnboardingStep1'
@@ -65,10 +65,10 @@ export default function Onboarding() {
   const [data, setData] = useState<OnboardingData>({})
   const [error, setError] = useState<string | null>(null)
 
-  const handleStepChange = (stepData: Partial<OnboardingData>, nextStep?: OnboardingStep) => {
+  const handleStepChange = (stepData: Partial<OnboardingData>, nextStep?: number) => {
     setData(prev => ({ ...prev, ...stepData }))
     if (nextStep) {
-      setCurrentStep(nextStep)
+      setCurrentStep(nextStep as OnboardingStep)
       window.scrollTo(0, 0)
     }
   }

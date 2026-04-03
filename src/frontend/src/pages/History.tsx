@@ -40,7 +40,7 @@ interface PageProps {
 
 export default function History({ onBack }: PageProps) {
   const navigate = useNavigate()
-  const { user, couple } = useAppStore()
+  const { couple } = useAppStore()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [balance, setBalance] = useState<BalanceData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -112,8 +112,6 @@ export default function History({ onBack }: PageProps) {
         return type
     }
   }
-
-  const otherUser = couple?.users?.find((u) => u.id !== user?.id)
 
   return (
     <div className="min-h-screen bg-gray-50">

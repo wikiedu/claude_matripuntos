@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { TrendingUp, Users, Target, Trophy, Calendar, BarChart3 } from 'lucide-react'
+import { TrendingUp, Users, Target, Trophy, BarChart3 } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
 import { AnalyticsChart } from './AnalyticsChart'
@@ -43,7 +43,7 @@ export const AnalyticsDashboard: React.FC = () => {
   const [negotiationStats, setNegotiationStats] = useState<NegotiationStats | null>(null)
   const [weeklyData, setWeeklyData] = useState<any[]>([])
   const [pointsByCategory, setPointsByCategory] = useState<Record<string, number>>({})
-  const [loading, setLoading] = useState(false)
+  const [_loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (isAuthenticated) {

@@ -159,7 +159,7 @@ export class PointsCalculator {
       const totalMultiplier = timeMultiplier * dayMultiplier * workMultiplier *
                              childrenMultiplier * impactMultiplier
 
-      const calculatedPoints = event.pointsBase * new Decimal(totalMultiplier)
+      const calculatedPoints = new Decimal(event.pointsBase).mul(new Decimal(totalMultiplier))
 
       // Cap at 500 points max
       const finalPoints = calculatedPoints.greaterThan(500)
@@ -189,7 +189,7 @@ export class PointsCalculator {
       const totalMultiplier = timeMultiplier * dayMultiplier * workMultiplier *
                              childrenMultiplier * impactMultiplier
 
-      const calculatedPoints = event.pointsBase * new Decimal(totalMultiplier)
+      const calculatedPoints = new Decimal(event.pointsBase).mul(new Decimal(totalMultiplier))
       const finalPoints = calculatedPoints.greaterThan(500)
         ? new Decimal(500)
         : calculatedPoints
@@ -223,7 +223,7 @@ export class PointsCalculator {
       const workMultiplier = await this.getWorkMultiplier(userId, taskLog.date)
 
       const totalMultiplier = dayMultiplier * workMultiplier
-      const calculatedPoints = new Decimal(taskLog.pointsBase) * new Decimal(totalMultiplier)
+      const calculatedPoints = new Decimal(taskLog.pointsBase).mul(new Decimal(totalMultiplier))
 
       return calculatedPoints
     } catch (error) {

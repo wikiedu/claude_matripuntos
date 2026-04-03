@@ -44,7 +44,7 @@ function getFirstDayOfMonth(year: number, month: number) {
 
 export const CalendarDashboard: React.FC = () => {
   const navigate = useNavigate()
-  const { isAuthenticated, user } = useAppStore()
+  const { isAuthenticated } = useAppStore()
   const [view, setView] = useState<'month' | 'upcoming'>('month')
   const [events, setEvents] = useState<AppEvent[]>([])
   const [loading, setLoading] = useState(false)
