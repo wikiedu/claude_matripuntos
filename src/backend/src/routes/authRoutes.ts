@@ -6,8 +6,12 @@ import { ZodError } from 'zod'
 
 const router = express.Router()
 
-// Signup - Create new couple account
-router.post('/signup', async (req: Request, res: Response): Promise<void> => {
+// Register/Signup - Create new couple account
+// Accepts both /signup and /register endpoints for compatibility
+router.post('/signup', registerCoupleHandler)
+router.post('/register', registerCoupleHandler)
+
+async function registerCoupleHandler(req: Request, res: Response): Promise<void> {
   try {
     const validated = signupSchema.parse(req.body)
 
@@ -49,7 +53,7 @@ router.post('/signup', async (req: Request, res: Response): Promise<void> => {
     const message = error instanceof Error ? error.message : 'Signup failed'
     res.status(400).json({ error: message })
   }
-})
+}
 
 // Login
 router.post('/login', async (req: Request, res: Response): Promise<void> => {
