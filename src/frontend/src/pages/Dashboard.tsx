@@ -7,7 +7,7 @@ import { NotificationBell } from '../components/NotificationBell'
 import RequestActivity from './RequestActivity'
 import RequestInbox from './RequestInbox'
 import Tasks from './Tasks'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts'
 
 interface Event {
   id: string
@@ -20,6 +20,7 @@ interface Event {
 }
 
 interface ChartPoint {
+  idx: number
   date: string
   [key: string]: string | number
 }
@@ -125,7 +126,7 @@ export default function Dashboard() {
           else deltaMap[key].partner += Number(t.amount)
         })
 
-        // Generate one entry per day for the last 30 days
+        // Generate one entry per day for the last 30 days (idx 0 = oldest, 29 = today)
         const chartArray: ChartPoint[] = []
         for (let i = 29; i >= 0; i--) {
           const d = new Date()
@@ -135,10 +136,11 @@ export default function Dashboard() {
           const delta = deltaMap[key] || { user: 0, partner: 0 }
           userRunning += delta.user
           partnerRunning += delta.partner
-          // Only add label every 5 days to avoid crowding, always add today
-          const label = i === 0 ? 'Hoy' : i % 5 === 0 ? d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : ''
+          const idx = 29 - i  // 0 = 29 days ago, 29 = today
+          const dateLabel = i === 0 ? 'Hoy' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
           chartArray.push({
-            date: label || d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
+            idx,
+            date: dateLabel,
             [userName]: Math.round(userRunning),
             [partnerName]: Math.round(partnerRunning),
           })
@@ -167,12 +169,8 @@ export default function Dashboard() {
   const userName = user?.name || 'User 1'
   const partnerName = otherUser?.name || 'User 2'
 
-  // Indexes to show on the 30-day chart X axis (always include 29 = today)
-  const chartTicks = [0, 5, 10, 15, 20, 25, 29]
-  const chartTickFormatter = (value: string, index: number) => {
-    if (index === 29) return 'Hoy'
-    return value
-  }
+  // Numeric tick positions for 30-day chart; 29 = today
+  const CHART_TICKS = [0, 5, 10, 15, 20, 25, 29]
 
   const handleBack = (dirty = true) => {
     setCurrentView('dashboard')
@@ -366,50 +364,37 @@ export default function Dashboard() {
             {/* Graph */}
             {chartData.length > 0 && (
               <div className="card mb-8">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-bold text-gray-900">Últimos 30 Días</h2>
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
-                    <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-indigo-500 inline-block" /> {userName}</span>
-                    <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-pink-500 inline-block" /> {partnerName}</span>
-                  </div>
-                </div>
-                <div className="w-full h-64">
+                <h2 className="text-lg font-bold text-gray-900 mb-2">Evolución de puntos — últimos 30 días</h2>
+                <p className="text-xs text-gray-400 mb-4">Saldo acumulado por persona</p>
+                <div className="w-full h-72">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                    <LineChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 24 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                       <XAxis
-                        dataKey="date"
+                        dataKey="idx"
+                        type="number"
+                        domain={[0, 29]}
+                        ticks={CHART_TICKS}
+                        tickFormatter={(v: number) => chartData[v]?.date ?? ''}
                         stroke="#9ca3af"
                         tick={{ fontSize: 11 }}
-                        ticks={chartTicks.map(i => chartData[i]?.date).filter(Boolean)}
-                        tickFormatter={chartTickFormatter}
+                        label={{ value: 'Días', position: 'insideBottom', offset: -12, fill: '#9ca3af', fontSize: 11 }}
                       />
-                      <YAxis stroke="#9ca3af" tick={{ fontSize: 11 }} width={40} />
+                      <YAxis
+                        stroke="#9ca3af"
+                        tick={{ fontSize: 11 }}
+                        width={48}
+                        label={{ value: 'Puntos', angle: -90, position: 'insideLeft', offset: 8, fill: '#9ca3af', fontSize: 11 }}
+                      />
+                      <ReferenceLine y={0} stroke="#d1d5db" strokeDasharray="4 2" />
                       <Tooltip
-                        contentStyle={{
-                          backgroundColor: '#ffffff',
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '8px',
-                          fontSize: '12px',
-                        }}
-                        formatter={(value: number, name: string) => [`${value} pts`, name]}
+                        contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }}
+                        labelFormatter={(v: number) => chartData[v]?.date ?? ''}
+                        formatter={(value: number, name: string) => [`${value > 0 ? '+' : ''}${value} pts`, name]}
                       />
-                      <Line
-                        type="monotone"
-                        dataKey={userName}
-                        stroke="#6366F1"
-                        strokeWidth={2}
-                        dot={false}
-                        activeDot={{ r: 5, fill: '#6366F1' }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey={partnerName}
-                        stroke="#EC4899"
-                        strokeWidth={2}
-                        dot={false}
-                        activeDot={{ r: 5, fill: '#EC4899' }}
-                      />
+                      <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
+                      <Line type="monotone" dataKey={userName} stroke="#6366F1" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: '#6366F1' }} />
+                      <Line type="monotone" dataKey={partnerName} stroke="#EC4899" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: '#EC4899' }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
