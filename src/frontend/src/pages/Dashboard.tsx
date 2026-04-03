@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { BarChart3, Plus, Settings, LogOut, TrendingUp, TrendingDown, Loader, PieChart, Calendar } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
-import { apiClient } from '../services/apiClient'
+import { apiClient, fetchRecentActivity } from '../services/apiClient'
 import { NotificationBell } from '../components/NotificationBell'
+import { RecentMovementItem } from '../components/RecentMovementItem'
+import { type RecentActivity } from '../types/activity'
 import RequestActivity from './RequestActivity'
 import RequestInbox from './RequestInbox'
 import Tasks from './Tasks'
@@ -23,15 +26,6 @@ interface ChartPoint {
   idx: number
   date: string
   [key: string]: string | number
-}
-
-interface PointsTransaction {
-  id: string
-  type: string
-  amount: string
-  description: string
-  createdAt: string
-  user?: { id: string; name: string }
 }
 
 interface BalanceData {
@@ -56,7 +50,14 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<ChartPoint[]>([])
   const [chartNames, setChartNames] = useState<{ you: string; partner: string }>({ you: 'Yo', partner: 'Pareja' })
   const [balance, setBalance] = useState<BalanceData | null>(null)
-  const [transactions, setTransactions] = useState<PointsTransaction[]>([])
+
+  // Fetch recent activities using React Query
+  const { data: recentActivities = [], isLoading: activitiesLoading } = useQuery({
+    queryKey: ['recentActivity'],
+    queryFn: fetchRecentActivity,
+    staleTime: 5 * 60 * 1000,  // 5 min
+    enabled: !!user?.id && !!couple?.id,
+  })
 
   useEffect(() => {
     const loadData = async () => {
@@ -64,12 +65,11 @@ export default function Dashboard() {
         setIsLoading(true)
         setError(null)
 
-        const [eventsResponse, taskLogsResponse, balanceResponse, chartResponse, historyResponse] = await Promise.all([
+        const [eventsResponse, taskLogsResponse, balanceResponse, chartResponse] = await Promise.all([
           apiClient.events.getAll(),
           apiClient.tasks.getAllLogs('pending'),
           apiClient.points.getBalance(),
           apiClient.points.getChartData(30),
-          apiClient.points.getHistory({ limit: 50 }),
         ])
 
         setEvents(eventsResponse.events || [])
@@ -80,7 +80,6 @@ export default function Dashboard() {
         ).length)
 
         setBalance(balanceResponse)
-        setTransactions(historyResponse.transactions || [])
 
         // Chart data comes ready from the server — no client-side processing needed
         setChartData(chartResponse.chartData || [])
@@ -264,35 +263,32 @@ export default function Dashboard() {
               <div>
                 <h2 className="text-lg font-bold text-gray-900 mb-4">Últimos Movimientos</h2>
                 <div className="space-y-3">
-                  {transactions.length > 0 ? (
-                    transactions.slice(0, 5).map(tx => {
-                      const amount = Number(tx.amount)
-                      const isPositive = amount >= 0
-                      const typeLabel =
-                        tx.type === 'task_completed' ? '🏠 Tarea' :
-                        tx.type === 'event_accepted' ? '🎯 Actividad (coste)' :
-                        tx.type === 'event_accepted_credit' ? '🎯 Actividad (ganado)' :
-                        tx.type === 'forced_payment' ? '⚡ Forzado' :
-                        tx.type === 'manual_adjustment' ? '✏️ Ajuste' : tx.type
-                      return (
-                        <div key={tx.id} className="card">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-gray-900 text-sm truncate">{tx.description}</p>
-                              <p className="text-xs text-gray-500 mt-0.5">
-                                {typeLabel} · {tx.user?.name || '?'} · {new Date(tx.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-                              </p>
-                            </div>
-                            <span className={`ml-3 flex-shrink-0 text-sm font-bold px-2 py-1 rounded-lg ${isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                              {isPositive ? '+' : ''}{amount.toFixed(0)} pts
-                            </span>
-                          </div>
-                        </div>
-                      )
-                    })
-                  ) : (
+                  {activitiesLoading && (
+                    <div className="card flex items-center justify-center py-8">
+                      <Loader className="w-5 h-5 text-primary animate-spin" />
+                      <span className="ml-2 text-sm text-gray-600">Cargando movimientos...</span>
+                    </div>
+                  )}
+
+                  {!activitiesLoading && recentActivities.length === 0 && (
                     <div className="card text-center py-8 text-gray-500">
-                      No hay movimientos todavía
+                      No hay actividad reciente
+                    </div>
+                  )}
+
+                  {!activitiesLoading && recentActivities.length > 0 && (
+                    <div className="space-y-2">
+                      {recentActivities.slice(0, 5).map((activity: RecentActivity) => (
+                        <RecentMovementItem
+                          key={`${activity.type}-${activity.id}`}
+                          movement={activity}
+                          onClick={() => {
+                            if (activity.type === 'event') navigate(`/events/${activity.relatedId}`)
+                            else if (activity.type === 'task') navigate(`/tasks/${activity.relatedId}`)
+                            else if (activity.type === 'negotiation') navigate(`/events/${activity.relatedId}`)
+                          }}
+                        />
+                      ))}
                     </div>
                   )}
                 </div>
