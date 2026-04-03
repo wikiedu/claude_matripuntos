@@ -141,9 +141,7 @@ router.get('/all-logs', authMiddleware, async (req: Request, res: Response): Pro
       prisma.taskLog.findMany({
         where,
         include: {
-          task: {
-            select: { id: true, name: true, category: true },
-          },
+          task: true,
           completedByUser: {
             select: { id: true, name: true },
           },
