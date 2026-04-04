@@ -16,20 +16,20 @@ export async function getRecentActivity(
   prisma: PrismaClient,
   coupleId: string
 ): Promise<RecentActivity[]> {
-  // Fetch most recent accepted/rejected/forced events (dateEnd < now)
+  // Fetch most recent accepted/rejected/forced events
   const events = await prisma.event.findMany({
     where: {
       coupleId,
       status: { in: ['accepted', 'rejected', 'forced'] },
-      dateEnd: { lt: new Date() }
     },
-    orderBy: { dateEnd: 'desc' },
+    orderBy: { updatedAt: 'desc' },
     take: RECENT_ACTIVITY_LIMIT,
     select: {
       id: true,
       type: true,
       title: true,
-      dateEnd: true
+      dateEnd: true,
+      updatedAt: true
     }
   });
 
@@ -85,7 +85,7 @@ export async function getRecentActivity(
       id: event.id,
       type: 'event',
       name: event.title || event.type || 'Event',
-      date: event.dateEnd,
+      date: event.updatedAt,
       relatedId: event.id
     });
   });

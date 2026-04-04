@@ -39,9 +39,8 @@ export function RecentMovementItem({ movement, onClick }: RecentMovementItemProp
   }
 
   return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer border border-gray-200 hover:border-gray-300 text-left"
+    <div
+      className="w-full flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-200 hover:border-gray-300"
     >
       {/* Icon */}
       <span className="text-xl flex-shrink-0">{config.icon}</span>
@@ -63,6 +62,6 @@ export function RecentMovementItem({ movement, onClick }: RecentMovementItemProp
 
       {/* Arrow indicator */}
       <span className="text-gray-400 text-lg flex-shrink-0">→</span>
-    </button>
+    </div>
   )
 }

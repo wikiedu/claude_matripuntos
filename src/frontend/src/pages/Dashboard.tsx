@@ -283,11 +283,7 @@ export default function Dashboard() {
                         <RecentMovementItem
                           key={`${activity.type}-${activity.id}`}
                           movement={activity}
-                          onClick={() => {
-                            if (activity.type === 'event') navigate(`/events/${activity.relatedId}`)
-                            else if (activity.type === 'task') navigate(`/tasks/${activity.relatedId}`)
-                            else if (activity.type === 'negotiation') navigate(`/events/${activity.relatedId}`)
-                          }}
+                          onClick={() => {}}
                         />
                       ))}
                     </div>
