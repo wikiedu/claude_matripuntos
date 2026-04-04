@@ -1,14 +1,30 @@
 import express, { Request, Response } from 'express'
-import { signupCouple, loginUser, getUserById, getCoupleData } from '../services/authService.js'
+import jwt from 'jsonwebtoken'
+import { PrismaClient } from '@prisma/client'
+import { signupCouple, loginUser, getUserById, getCoupleData, signupUser } from '../services/authService.js'
+import {
+  createInvitation,
+  acceptEmailInvitation,
+  rejectInvitation,
+  proposePartner,
+  acceptProposal,
+  rejectProposal,
+  getInvitationByToken,
+  getPendingProposalsForUser,
+} from '../services/invitationService.js'
 import { authMiddleware } from '../middleware/authMiddleware.js'
-import { signupSchema, loginSchema } from '../schemas/authSchemas.js'
+import {
+  signupSchema, loginSchema,
+  signupUserSchema, inviteSchema, acceptInviteSchema, rejectInviteSchema,
+  proposePartnerSchema, proposalActionSchema,
+} from '../schemas/authSchemas.js'
 import { ZodError } from 'zod'
 
 const router = express.Router()
+const prisma = new PrismaClient()
 
 // Register/Signup - Create new couple account
 // Accepts both /signup and /register endpoints for compatibility
-router.post('/signup', registerCoupleHandler)
 router.post('/register', registerCoupleHandler)
 
 async function registerCoupleHandler(req: Request, res: Response): Promise<void> {
@@ -54,6 +70,22 @@ async function registerCoupleHandler(req: Request, res: Response): Promise<void>
     res.status(400).json({ error: message })
   }
 }
+
+// Single-user signup
+router.post('/signup', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const validated = signupUserSchema.parse(req.body)
+    const user = await signupUser(validated.email, validated.password, validated.name, validated.language)
+    const token = jwt.sign({ userId: user.id, coupleId: null }, process.env.JWT_SECRET!, { expiresIn: '7d' })
+    res.status(201).json({ message: 'Account created', user, token })
+  } catch (error) {
+    if (error instanceof ZodError) {
+      res.status(400).json({ error: 'Validation error', details: error.errors })
+      return
+    }
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Failed' })
+  }
+})
 
 // Login
 router.post('/login', async (req: Request, res: Response): Promise<void> => {
@@ -144,6 +176,98 @@ router.get('/couple', authMiddleware, async (req: Request, res: Response): Promi
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch couple data'
     res.status(400).json({ error: message })
+  }
+})
+
+// Send email invitation to partner
+router.post('/invite', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.userId) { res.status(401).json({ error: 'User ID not found' }); return }
+    const validated = inviteSchema.parse(req.body)
+    const inv = await createInvitation(req.userId, validated.toEmail)
+    res.json({ message: 'Invitation sent', token: inv.token, inviteLink: `http://localhost:5173/onboarding/join?token=${inv.token}&email=${validated.toEmail}` })
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Failed' })
+  }
+})
+
+// Accept email invitation (creates account and links to couple)
+router.post('/accept-invite', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const validated = acceptInviteSchema.parse(req.body)
+    const inv = await getInvitationByToken(validated.token)
+    if (!inv || inv.toEmail !== validated.email) { res.status(400).json({ error: 'Invalid invitation' }); return }
+    const newUser = await signupUser(validated.email, validated.password, validated.name, validated.language)
+    const couple = await acceptEmailInvitation(validated.token, newUser.id)
+    const token = jwt.sign({ userId: newUser.id, coupleId: couple.id }, process.env.JWT_SECRET!, { expiresIn: '7d' })
+    res.status(201).json({ message: 'Account created and linked', couple, token })
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Failed' })
+  }
+})
+
+// Reject email invitation
+router.post('/reject-invite', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const validated = rejectInviteSchema.parse(req.body)
+    await rejectInvitation(validated.token)
+    res.json({ message: 'Invitation rejected' })
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Failed' })
+  }
+})
+
+// Propose partner (both users already have accounts)
+router.post('/propose-partner', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.userId) { res.status(401).json({ error: 'User ID not found' }); return }
+    const validated = proposePartnerSchema.parse(req.body)
+    const partner = await prisma.user.findUnique({ where: { email: validated.partnerEmail } })
+    if (!partner) { res.status(404).json({ error: 'User not found' }); return }
+    if (partner.id === req.userId) { res.status(400).json({ error: 'Cannot propose yourself' }); return }
+    const prop = await proposePartner(req.userId, partner.id)
+    res.json({ message: 'Proposal sent', expiresAt: prop.expiresAt })
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Failed' })
+  }
+})
+
+// Accept partner proposal
+router.post('/accept-proposal', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.userId) { res.status(401).json({ error: 'User ID not found' }); return }
+    const validated = proposalActionSchema.parse(req.body)
+    const prop = await prisma.invitation.findUnique({ where: { id: validated.invitationId } })
+    if (!prop || prop.toUserId !== req.userId) { res.status(404).json({ error: 'Proposal not found' }); return }
+    const couple = await acceptProposal(validated.invitationId)
+    res.json({ message: 'Proposal accepted', couple })
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Failed' })
+  }
+})
+
+// Reject partner proposal
+router.post('/reject-proposal', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.userId) { res.status(401).json({ error: 'User ID not found' }); return }
+    const validated = proposalActionSchema.parse(req.body)
+    const prop = await prisma.invitation.findUnique({ where: { id: validated.invitationId } })
+    if (!prop || prop.toUserId !== req.userId) { res.status(404).json({ error: 'Proposal not found' }); return }
+    await rejectProposal(validated.invitationId)
+    res.json({ message: 'Proposal rejected' })
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Failed' })
+  }
+})
+
+// Get pending proposals for current user
+router.get('/proposals', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.userId) { res.status(401).json({ error: 'User ID not found' }); return }
+    const proposals = await getPendingProposalsForUser(req.userId)
+    res.json({ proposals })
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed' })
   }
 })
 
