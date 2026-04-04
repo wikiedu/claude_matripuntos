@@ -22,3 +22,34 @@ export const getUserSchema = z.object({
 export const getCoupleSchema = z.object({
   coupleId: z.string().cuid('Invalid couple ID'),
 })
+
+export const signupUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  name: z.string().min(2),
+  language: z.string().default('es'),
+})
+
+export const inviteSchema = z.object({
+  toEmail: z.string().email(),
+})
+
+export const acceptInviteSchema = z.object({
+  token: z.string().min(32),
+  email: z.string().email(),
+  password: z.string().min(8),
+  name: z.string().min(2),
+  language: z.string().default('es'),
+})
+
+export const rejectInviteSchema = z.object({
+  token: z.string().min(32),
+})
+
+export const proposePartnerSchema = z.object({
+  partnerEmail: z.string().email(),
+})
+
+export const proposalActionSchema = z.object({
+  invitationId: z.string().cuid(),
+})
