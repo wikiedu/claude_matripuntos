@@ -151,15 +151,27 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
         },
       })
 
-      // Create points transaction (negative amount — proposer spends points)
+      // Negative transaction for event creator (they requested the activity)
       await prisma.pointsTransaction.create({
         data: {
           coupleId: req.coupleId,
-          userId: negotiation.proposedBy,
+          userId: negotiation.event.createdBy,
           type: 'event_accepted',
           relatedEventId: negotiation.eventId,
           amount: new Decimal(-negotiation.pointsProposed),
           description: `Actividad aceptada: ${negotiation.event.title || negotiation.event.type}`,
+        },
+      })
+
+      // Positive transaction for the partner who accepted (they cover for the creator)
+      await prisma.pointsTransaction.create({
+        data: {
+          coupleId: req.coupleId,
+          userId: req.userId!,
+          type: 'event_accepted_credit',
+          relatedEventId: `${negotiation.eventId}_credit`,
+          amount: new Decimal(negotiation.pointsProposed),
+          description: `Cobertura acordada: ${negotiation.event.title || negotiation.event.type}`,
         },
       })
 

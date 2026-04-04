@@ -123,8 +123,6 @@ model Event {
   creator               User?                    @relation("createdBy", fields: [createdBy], references: [id], onDelete: SetNull)
   negotiations          Negotiation[]
   compensations         Compensation[]
-  pointsTransaction     PointsTransaction?
-
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
@@ -229,7 +227,7 @@ model PointsTransaction {
   userId                String?
 
   type                  String                   // event_accepted, task_completed, donation, forced_payment, etc.
-  relatedEventId        String?                  @unique
+  relatedEventId        String?
   relatedTaskLogId      String?                  @unique
 
   amount                Decimal
@@ -238,7 +236,6 @@ model PointsTransaction {
   // Relations
   couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
   user                  User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  event                 Event?                   @relation(fields: [relatedEventId], references: [id], onDelete: SetNull)
   taskLog               TaskLog?                 @relation(fields: [relatedTaskLogId], references: [id], onDelete: SetNull)
 
   createdAt             DateTime                 @default(now())
@@ -246,6 +243,7 @@ model PointsTransaction {
   @@index([coupleId])
   @@index([userId])
   @@index([type])
+  @@index([relatedEventId])
   @@index([createdAt])
 }
 

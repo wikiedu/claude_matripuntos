@@ -190,7 +190,7 @@ export class NegotiationEngine {
               coupleId: user.coupleId,
               userId: responderId,
               type: 'event_accepted_credit',
-              relatedEventId: eventId,
+              relatedEventId: `${eventId}_credit`,
               amount: new Decimal(lastNegotiation.pointsProposed!),
               description: `Actividad completada: ${event.title || event.type}`,
             },
