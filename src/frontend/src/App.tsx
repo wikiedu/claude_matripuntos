@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useAppStore } from './store/useAppStore'
 import { apiClient } from './services/apiClient'
 import Login from './pages/Login'
+import Signup from './pages/Signup'
 import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
 import RequestActivity from './pages/RequestActivity'
@@ -55,6 +56,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/onboarding/join/:token" element={<Onboarding />} />
 
