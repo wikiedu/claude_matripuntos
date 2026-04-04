@@ -33,8 +33,14 @@ describe('AchievementEngine', () => {
   })
 
   afterEach(async () => {
-    // Cleanup
-    await prisma.couple.delete({ where: { id: testCoupleId } })
+    try {
+      await prisma.couple.delete({ where: { id: testCoupleId } })
+    } catch (error) {
+      // Ignore if already deleted
+    }
+  })
+
+  afterAll(async () => {
     await prisma.$disconnect()
   })
 
