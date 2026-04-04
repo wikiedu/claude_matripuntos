@@ -143,7 +143,7 @@ router.post('/couple', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'User not found' })
     }
 
-    const coupleId = user.coupleId
+    const coupleId = user.coupleId ?? undefined
 
     // Create or update couple profile
     let coupleProfile = await prisma.coupleProfile.findUnique({
@@ -165,7 +165,7 @@ router.post('/couple', async (req: Request, res: Response) => {
       // Create new
       coupleProfile = await prisma.coupleProfile.create({
         data: {
-          coupleId,
+          coupleId: coupleId!,
           homeType: data.homeType,
           homeSizeM2: data.homeSizeM2,
           cohabitation: data.cohabitation ? JSON.stringify(data.cohabitation) : null,
@@ -201,7 +201,7 @@ router.get('/couple', async (req: Request, res: Response) => {
     }
 
     const coupleProfile = await prisma.coupleProfile.findUnique({
-      where: { coupleId: user.coupleId },
+      where: { coupleId: user.coupleId ?? undefined },
     })
 
     if (!coupleProfile) {

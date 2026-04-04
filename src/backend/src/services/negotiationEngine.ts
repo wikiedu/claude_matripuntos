@@ -79,16 +79,16 @@ export class NegotiationEngine {
 
       // Create notification for partner
       const couple = await prisma.couple.findUnique({
-        where: { id: user.coupleId },
+        where: { id: user.coupleId ?? undefined },
         include: { users: true },
       })
 
-      const partner = couple?.users.find((u) => u.id !== proposerUserId)
+      const partner = couple?.users.find((u: { id: string }) => u.id !== proposerUserId)
 
       if (partner) {
         await prisma.notification.create({
           data: {
-            coupleId: user.coupleId,
+            coupleId: user.coupleId ?? '',
             userId: partner.id,
             type: 'event_proposed',
             title: `${user.name} propuso una actividad`,
@@ -175,7 +175,7 @@ export class NegotiationEngine {
           // 1. Proposer loses points (negative transaction)
           await prisma.pointsTransaction.create({
             data: {
-              coupleId: user.coupleId,
+              coupleId: user.coupleId ?? '',
               userId: event.createdBy!,
               type: 'event_accepted',
               relatedEventId: eventId,
@@ -187,7 +187,7 @@ export class NegotiationEngine {
           // 2. Responder gains points (positive transaction)
           await prisma.pointsTransaction.create({
             data: {
-              coupleId: user.coupleId,
+              coupleId: user.coupleId ?? '',
               userId: responderId,
               type: 'event_accepted_credit',
               relatedEventId: `${eventId}_credit`,
@@ -293,7 +293,7 @@ export class NegotiationEngine {
 
         await prisma.notification.create({
           data: {
-            coupleId: user.coupleId,
+            coupleId: user.coupleId ?? '',
             userId: creator.id,
             type: 'event_response',
             title: `${user.name} ${actionLabels[response.action]} la actividad`,

@@ -206,7 +206,7 @@ export const loginUser = async (email: string, password: string) => {
       data: { lastLogin: new Date() }
     })
 
-    const token = generateToken(user.id, user.coupleId)
+    const token = generateToken(user.id, user.coupleId ?? '')
 
     return {
       token,

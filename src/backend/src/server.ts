@@ -10,7 +10,6 @@ import configurationRoutes from './routes/configurationRoutes.js'
 import notificationRoutes from './routes/notificationRoutes.js'
 import profileRoutes from './routes/profile.js'
 import familyRoutes from './routes/family.js'
-import invitationRoutes from './routes/invitations.js'
 import categoryRoutes from './routes/categories.js'
 import pointsV2Routes from './routes/pointsV2.js'
 import negotiationV2Routes from './routes/negotiation.js'
@@ -38,7 +37,6 @@ app.get('/api/health', (req, res) => {
 
 // Routes
 app.use('/api/auth', authRoutes)
-app.use('/api/auth', invitationRoutes)  // Invitations are part of auth
 app.use('/api/events', eventRoutes)
 app.use('/api/tasks', taskRoutes)
 app.use('/api/negotiations', negotiationRoutes)
