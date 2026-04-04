@@ -73,3 +73,71 @@ Regla: máx 1-2 notificaciones/día por usuario para no saturar.
 - Gráfico semanal de tendencia
 - Equity score: equilibrium (saldo), activity (participación), consensus (% acuerdos), constancy (regularidad)
 - Vista: semana / mes / todo el historial (premium)
+
+---
+
+## Flujo 7: Single-User Signup
+
+1. Usuario llega a `/signup`
+2. Formulario: nombre, email, password
+3. POST `/api/auth/signup` → User creado, coupleId=null (sin pareja aún)
+4. Token JWT guardado en localStorage
+5. Redirect a `/dashboard` (modo single-user)
+6. Dashboard muestra opción "Invitar pareja" en settings
+
+---
+
+## Flujo 8: Invitar Pareja por Email
+
+1. User A (logueado) va a Settings → "Invitar Pareja"
+2. Introduce email de User B → POST `/api/auth/invite`
+3. Backend: crea Invitation (tipo=email_invite, expira en 48h), genera token único
+4. Frontend muestra link copiable: `/onboarding/join?token=XXX&email=bob@example.com`
+5. User B recibe link (manual o email futuro)
+6. User B abre link → página `/onboarding/join` con email pre-rellenado
+7. User B introduce nombre + password → POST `/api/auth/accept-invite`
+8. Backend valida token, crea User B, crea Couple vinculando ambos
+9. Ambos redirigidos a `/dashboard` con pareja formada
+
+---
+
+## Flujo 9: Rechazar Invitación por Email
+
+1. User B recibe link de invitación
+2. User B decide no aceptar → POST `/api/auth/reject-invite` con token
+3. Invitation status → "rejected"
+4. User B puede registrarse independientemente vía `/signup`
+5. User A sigue como single-user, puede invitar a otro email
+
+---
+
+## Flujo 10: Proponer Pareja (Usuario ya registrado)
+
+**Escenario:** User A invitó a bob@example.com, pero User B se registró con bob.smith@example.com y no vio la invitación.
+
+1. User B (logueado con bob.smith@example.com) va a Settings → "Añadir Pareja"
+2. Introduce email de User A → POST `/api/auth/propose-partner`
+3. Backend: crea Invitation (tipo=user_proposal) para User A, expira 48h
+4. User A recibe notificación: "User B quiere ser tu pareja"
+5. User A ve propuesta pendiente en Settings/notificaciones
+
+---
+
+## Flujo 11: Aceptar Propuesta de Pareja
+
+1. User A ve propuesta de User B
+2. User A acepta → POST `/api/auth/accept-proposal` con invitationId
+3. Backend: crea Couple vinculando User A + User B
+4. Ambos pasan a tener coupleId asignado
+5. Notificación a User B: "User A aceptó tu propuesta"
+6. Ambos redirigidos a dashboard de pareja
+
+---
+
+## Flujo 12: Rechazar Propuesta de Pareja
+
+1. User A ve propuesta de User B
+2. User A rechaza → POST `/api/auth/reject-proposal` con invitationId
+3. Invitation status → "rejected"
+4. User B notificado: "User A rechazó tu propuesta"
+5. Ambos siguen independientes
