@@ -13,11 +13,22 @@ const prisma = new PrismaClient()
 
 /**
  * GET /api/achievements
- * Get all available achievements
+ * Get all available achievements for the user's couple
  */
 router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const achievements = await achievementEngine.getAllAchievements()
+    const userId = (req as any).userId
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { coupleId: true },
+    })
+
+    if (!user?.coupleId) {
+      return res.status(403).json({ error: 'User does not have a couple' })
+    }
+
+    const achievements = await achievementEngine.getAllAchievements(user.coupleId)
 
     res.json({
       success: true,
@@ -41,8 +52,17 @@ router.get('/user/my-achievements', authenticateToken, async (req: Request, res:
   try {
     const userId = (req as any).userId
 
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { coupleId: true },
+    })
+
+    if (!user?.coupleId) {
+      return res.status(403).json({ error: 'User does not have a couple' })
+    }
+
     const userAchievements = await achievementEngine.getUserAchievements(userId)
-    const totalAchievements = await achievementEngine.getAllAchievements()
+    const totalAchievements = await achievementEngine.getAllAchievements(user.coupleId)
 
     const unlocked = userAchievements.length
     const total = totalAchievements.length

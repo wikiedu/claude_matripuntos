@@ -141,7 +141,14 @@
       "Bash(sqlite3 prisma/dev.db \"VACUUM;\")",
       "Bash(node -e \"console.log\\('cwd:', process.cwd\\(\\)\\); const fs = require\\('fs'\\); console.log\\('exists:', fs.existsSync\\('prisma/dev.db'\\)\\);\")",
       "Bash(pkill -f \"node.*src/server\")",
-      "Bash(node -c src/routes/activityRoutes.ts)"
+      "Bash(node -c src/routes/activityRoutes.ts)",
+      "Bash(pkill -f \"npm run dev\")",
+      "Bash(chmod +x /tmp/test-auth-flow.sh)",
+      "Bash(/tmp/test-auth-flow.sh)",
+      "Bash(chmod +x /tmp/comprehensive-test.sh)",
+      "Bash(/tmp/comprehensive-test.sh)",
+      "Bash(npm list:*)",
+      "Bash(npm test:*)"
     ]
   }
 }

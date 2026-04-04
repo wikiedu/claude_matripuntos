@@ -232,7 +232,6 @@ describe('AchievementEngine', () => {
         data: {
           eventId: event.id,
           roundNumber: 1,
-          pointsProposed: 10,
           responseType: 'accepted',
         },
       })
