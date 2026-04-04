@@ -82,6 +82,27 @@ class ApiClient {
     getMe: () => this.request('/auth/me'),
 
     getCouple: () => this.request('/auth/couple'),
+
+    invite: (toEmail: string) =>
+      this.request('/auth/invite', { method: 'POST', body: JSON.stringify({ toEmail }) }),
+
+    acceptInvite: (token: string, email: string, password: string, name: string) =>
+      this.request('/auth/accept-invite', { method: 'POST', body: JSON.stringify({ token, email, password, name }) }),
+
+    rejectInvite: (token: string) =>
+      this.request('/auth/reject-invite', { method: 'POST', body: JSON.stringify({ token }) }),
+
+    proposePartner: (partnerEmail: string) =>
+      this.request('/auth/propose-partner', { method: 'POST', body: JSON.stringify({ partnerEmail }) }),
+
+    acceptProposal: (invitationId: string) =>
+      this.request('/auth/accept-proposal', { method: 'POST', body: JSON.stringify({ invitationId }) }),
+
+    rejectProposal: (invitationId: string) =>
+      this.request('/auth/reject-proposal', { method: 'POST', body: JSON.stringify({ invitationId }) }),
+
+    getPendingProposals: () =>
+      this.request('/auth/proposals', { method: 'GET' }),
   }
 
   // Event endpoints
