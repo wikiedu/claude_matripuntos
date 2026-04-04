@@ -1,234 +1,221 @@
-import { Router, Request, Response } from 'express'
+import express, { Request, Response } from 'express'
+import { PrismaClient } from '@prisma/client'
 import { authenticateToken } from '../middleware/auth.js'
 import { achievementEngine } from '../services/achievementEngine.js'
-import { PrismaClient } from '@prisma/client'
 
-const router = Router()
+const router = express.Router()
 const prisma = new PrismaClient()
 
 /**
- * Achievement Routes - FASE 4
- * Manages gamification: achievements, scores, leaderboards, weekly summaries
- */
-
-/**
  * GET /api/achievements
- * Get all available achievements for the user's couple
+ * Get all achievements (desbloqueados + futuros) for couple
  */
-router.get('/', authenticateToken, async (req: Request, res: Response) => {
+router.get('/', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).userId
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { coupleId: true },
-    })
-
-    if (!user?.coupleId) {
-      return res.status(403).json({ error: 'User does not have a couple' })
+    if (!req.coupleId) {
+      res.status(401).json({ error: 'Couple ID not found in token' })
+      return
     }
 
-    const achievements = await achievementEngine.getAllAchievements(user.coupleId)
+    const achievements = await prisma.achievement.findMany({
+      where: { coupleId: req.coupleId },
+      include: {
+        userAchievements: true
+      },
+      orderBy: [{ rarity: 'asc' }, { name: 'asc' }]
+    })
+
+    const userAchievementIds = new Set(
+      achievements
+        .flatMap(a => a.userAchievements.filter(ua => ua.userId === req.userId))
+        .map(ua => ua.achievementId)
+    )
+
+    const enriched = achievements.map(ach => ({
+      id: ach.id,
+      name: ach.name,
+      description: ach.description,
+      icon: ach.icon,
+      rarity: ach.rarity,
+      type: ach.type,
+      unlockedAt: ach.userAchievements.find(ua => ua.userId === req.userId)?.unlockedAt || null,
+      isUnlocked: userAchievementIds.has(ach.id),
+      progress: null
+    }))
 
     res.json({
       success: true,
-      achievements,
-      total: achievements.length,
+      achievements: enriched,
+      stats: {
+        unlocked: userAchievementIds.size,
+        total: achievements.length,
+        percentage: achievements.length > 0 ? Math.round((userAchievementIds.size / achievements.length) * 100) : 0
+      }
     })
   } catch (error) {
     console.error('Error getting achievements:', error)
     res.status(500).json({
       error: 'Failed to get achievements',
-      details: error instanceof Error ? error.message : 'Unknown error',
+      details: error instanceof Error ? error.message : 'Unknown error'
     })
   }
 })
 
 /**
- * GET /api/achievements/user/my-achievements
- * Get current user's unlocked achievements
+ * GET /api/achievements/user
+ * Get current user's unlocked achievements only
  */
-router.get('/user/my-achievements', authenticateToken, async (req: Request, res: Response) => {
+router.get('/user', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).userId
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { coupleId: true },
-    })
-
-    if (!user?.coupleId) {
-      return res.status(403).json({ error: 'User does not have a couple' })
+    if (!req.userId || !req.coupleId) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
     }
 
-    const userAchievements = await achievementEngine.getUserAchievements(userId)
-    const totalAchievements = await achievementEngine.getAllAchievements(user.coupleId)
+    const userAchievements = await prisma.userAchievement.findMany({
+      where: { userId: req.userId },
+      include: {
+        achievement: true
+      },
+      orderBy: { unlockedAt: 'desc' }
+    })
 
-    const unlocked = userAchievements.length
-    const total = totalAchievements.length
-    const progress = Math.round((unlocked / total) * 100)
+    const achievements = userAchievements
+      .filter(ua => ua.achievement.coupleId === req.coupleId)
+      .map(ua => ({
+        id: ua.achievement.id,
+        name: ua.achievement.name,
+        description: ua.achievement.description,
+        icon: ua.achievement.icon,
+        rarity: ua.achievement.rarity,
+        type: ua.achievement.type,
+        unlockedAt: ua.unlockedAt
+      }))
+
+    const allCount = await prisma.achievement.count({
+      where: { coupleId: req.coupleId }
+    })
 
     res.json({
       success: true,
-      achievements: userAchievements,
+      achievements,
       progress: {
-        unlocked,
-        total,
-        percentage: progress,
-      },
+        unlocked: achievements.length,
+        total: allCount,
+        percentage: allCount > 0 ? Math.round((achievements.length / allCount) * 100) : 0
+      }
     })
   } catch (error) {
     console.error('Error getting user achievements:', error)
     res.status(500).json({
       error: 'Failed to get user achievements',
-      details: error instanceof Error ? error.message : 'Unknown error',
+      details: error instanceof Error ? error.message : 'Unknown error'
     })
   }
 })
 
 /**
  * POST /api/achievements/check
- * Check and unlock new achievements for user
+ * Manually check and unlock new achievements
  */
-router.post('/check', authenticateToken, async (req: Request, res: Response) => {
+router.post('/check', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).userId
+    if (!req.userId || !req.coupleId) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
+    }
 
-    const newAchievements = await achievementEngine.checkAndUnlockAchievements(userId)
+    const newAchievements = await achievementEngine.checkAchievements(
+      req.userId,
+      req.coupleId,
+      { type: 'manual_check' }
+    )
+
+    const totalUnlocked = await prisma.userAchievement.count({
+      where: { userId: req.userId }
+    })
 
     res.json({
       success: true,
-      newAchievements,
-      message: `${newAchievements.length} new achievement(s) unlocked!`,
+      newAchievements: newAchievements.map((ach: any) => ({
+        id: ach.id,
+        name: ach.name,
+        description: ach.description,
+        icon: ach.icon,
+        rarity: ach.rarity,
+        type: ach.type,
+        unlockedAt: new Date().toISOString(),
+        message: `¡Desbloqueaste '${ach.name}'!`
+      })),
+      totalUnlocked
     })
   } catch (error) {
     console.error('Error checking achievements:', error)
     res.status(500).json({
       error: 'Failed to check achievements',
-      details: error instanceof Error ? error.message : 'Unknown error',
+      details: error instanceof Error ? error.message : 'Unknown error'
     })
   }
 })
 
 /**
- * GET /api/achievements/couple/stats
- * Get couple statistics
+ * GET /api/achievements/couple-score
+ * Get this week's CoupleScore
  */
-router.get('/couple/stats', authenticateToken, async (req: Request, res: Response) => {
+router.get('/couple-score', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).userId
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { coupleId: true },
-    })
-
-    if (!user?.coupleId) {
-      return res.status(403).json({ error: 'User does not have a couple' })
+    if (!req.coupleId) {
+      res.status(401).json({ error: 'Couple ID not found in token' })
+      return
     }
 
-    const stats = await achievementEngine.getCoupleStats(user.coupleId)
+    const weekStart = getWeekStart(new Date())
+
+    let coupleScore = await prisma.coupleScore.findUnique({
+      where: { coupleId_weekStartDate: { coupleId: req.coupleId, weekStartDate: weekStart } }
+    })
+
+    if (!coupleScore) {
+      coupleScore = await prisma.coupleScore.create({
+        data: {
+          coupleId: req.coupleId,
+          weekStartDate: weekStart,
+          user1Score: 0,
+          user2Score: 0,
+          equilibrium: 50,
+          activity: 50,
+          consensus: 50,
+          constancy: 50
+        }
+      })
+    }
 
     res.json({
       success: true,
-      stats,
-    })
-  } catch (error) {
-    console.error('Error getting couple stats:', error)
-    res.status(500).json({
-      error: 'Failed to get couple stats',
-      details: error instanceof Error ? error.message : 'Unknown error',
-    })
-  }
-})
-
-/**
- * GET /api/achievements/couple/score
- * Get couple's total score
- */
-router.get('/couple/score', authenticateToken, async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).userId
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { coupleId: true },
-    })
-
-    if (!user?.coupleId) {
-      return res.status(403).json({ error: 'User does not have a couple' })
-    }
-
-    const totalScore = await achievementEngine.getCoupleScore(user.coupleId)
-
-    res.json({
-      success: true,
-      coupleId: user.coupleId,
-      totalScore,
+      coupleScore: {
+        weekStartDate: coupleScore.weekStartDate,
+        user1Score: coupleScore.user1Score,
+        user2Score: coupleScore.user2Score,
+        equilibrium: coupleScore.equilibrium,
+        activity: coupleScore.activity,
+        consensus: coupleScore.consensus,
+        constancy: coupleScore.constancy
+      }
     })
   } catch (error) {
     console.error('Error getting couple score:', error)
     res.status(500).json({
       error: 'Failed to get couple score',
-      details: error instanceof Error ? error.message : 'Unknown error',
+      details: error instanceof Error ? error.message : 'Unknown error'
     })
   }
 })
 
-/**
- * GET /api/achievements/leaderboard
- * Get global leaderboard (top couples by score)
- */
-router.get('/leaderboard', authenticateToken, async (req: Request, res: Response) => {
-  try {
-    const limit = Math.min(parseInt(req.query.limit as string) || 10, 50)
-
-    const leaderboard = await achievementEngine.getLeaderboard(limit)
-
-    res.json({
-      success: true,
-      leaderboard,
-      total: leaderboard.length,
-    })
-  } catch (error) {
-    console.error('Error getting leaderboard:', error)
-    res.status(500).json({
-      error: 'Failed to get leaderboard',
-      details: error instanceof Error ? error.message : 'Unknown error',
-    })
-  }
-})
-
-/**
- * GET /api/achievements/weekly-summary
- * Get couple's weekly summary
- */
-router.get('/weekly-summary', authenticateToken, async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).userId
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { coupleId: true },
-    })
-
-    if (!user?.coupleId) {
-      return res.status(403).json({ error: 'User does not have a couple' })
-    }
-
-    const summary = await achievementEngine.getWeeklySummary(user.coupleId)
-
-    res.json({
-      success: true,
-      summary,
-    })
-  } catch (error) {
-    console.error('Error getting weekly summary:', error)
-    res.status(500).json({
-      error: 'Failed to get weekly summary',
-      details: error instanceof Error ? error.message : 'Unknown error',
-    })
-  }
-})
+function getWeekStart(date: Date): Date {
+  const d = new Date(date)
+  const day = d.getUTCDay()
+  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1)
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff, 0, 0, 0, 0))
+}
 
 export default router
