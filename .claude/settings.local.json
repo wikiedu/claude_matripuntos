@@ -156,7 +156,19 @@
       "Bash(sqlite3 prisma/dev.db \"SELECT name, type, rarity, icon FROM Achievement WHERE coupleId = 'cmnjj3m1s0000tbwnjg73o5ic' ORDER BY rowid LIMIT 12;\")",
       "Bash(pkill -f \"node.*server.ts\")",
       "Bash(sed -i '' '16a\\\\:*)",
-      "Bash(sed -n '10,20p' \"src/frontend/src/App.tsx\")"
+      "Bash(sed -n '10,20p' \"src/frontend/src/App.tsx\")",
+      "Bash(chmod +x /tmp/e2e-test.sh)",
+      "Bash(/tmp/e2e-test.sh)",
+      "Bash(node seed-achievements.mjs)",
+      "Bash(chmod 666 prisma/dev.db)",
+      "Bash(sqlite3 prisma/dev.db \"SELECT count\\(*\\) as table_count FROM sqlite_master WHERE type='table';\")",
+      "Bash(grep -n \"TBD\\\\|TODO\\\\|placeholder\\\\|FILL IN\\\\|...$\" docs/superpowers/specs/2026-04-04-phase3-auth-refactor-and-specs.md)",
+      "Bash(grep -E \"TBD|TODO|FIXME|placeholder|fill.?in|...\\\\.|\\\\?{3}\" docs/superpowers/specs/2026-04-04-phase3-auth-refactor-and-specs.md)",
+      "Bash(sqlite3 prisma/dev.db \"SELECT sql FROM sqlite_master WHERE type='table' AND name='Invitation';\")",
+      "Bash(sqlite3 prisma/dev.db \"PRAGMA table_info\\(User\\);\")",
+      "Bash(sqlite3 prisma/dev.db \"SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='Invitation';\")",
+      "Bash(pkill -f \"node.*src/backend\")",
+      "Bash(curl -v -X POST http://localhost:3000/api/auth/signup -H 'Content-Type: application/json' -d '{\"email\":\"testuser1@local.test\",\"password\":\"TestPass123456\",\"name\":\"TestUser1\"}')"
     ]
   }
 }
