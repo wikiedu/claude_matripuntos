@@ -42,6 +42,50 @@ export const verifyToken = (token: string): { userId: string; coupleId: string }
   }
 }
 
+// Signup a single user (not yet paired)
+export async function signupUser(
+  email: string,
+  password: string,
+  name: string,
+  language: string = 'es'
+) {
+  try {
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({ where: { email } })
+    if (existingUser) {
+      throw new Error('Email already registered')
+    }
+
+    // Hash password
+    const passwordHash = await hashPassword(password)
+
+    // Create user WITHOUT couple (coupleId = null)
+    const user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        name,
+        coupleId: null, // Single user, not paired yet
+        roleInHome: 'equal',
+        timezone: 'Europe/Madrid',
+        hasCompletedOnboarding: false,
+        notificationsPush: true,
+        notificationsEmail: true,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        coupleId: true,
+      },
+    })
+
+    return user
+  } catch (error) {
+    throw error
+  }
+}
+
 // Signup a new couple
 export const signupCouple = async (
   email1: string,
