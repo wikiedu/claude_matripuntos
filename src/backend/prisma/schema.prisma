@@ -49,7 +49,7 @@ model Couple {
 // Users - Individual members of a couple
 model User {
   id                    String                   @id @default(cuid())
-  coupleId              String
+  coupleId              String?
   email                 String                   @unique
   passwordHash          String
   emailVerified         Boolean                  @default(false)
@@ -65,7 +65,7 @@ model User {
   notificationPreferences String                 @default("{}")
 
   // Relations
-  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  couple                Couple?                  @relation(fields: [coupleId], references: [id], onDelete: Cascade)
   profile               UserProfile?
   eventsCreated         Event[]                  @relation("createdBy")
   tasksCompleted        TaskLog[]                @relation("completedBy")
@@ -74,7 +74,8 @@ model User {
   negotiationsResponded Negotiation[]            @relation("respondedBy")
   pointsTransactions    PointsTransaction[]
   notifications         Notification[]
-  invitationsSent       Invitation[]             @relation("invitedBy")
+  invitationsSent       Invitation[]             @relation("InvitationsSent")
+  invitationsReceived   Invitation[]             @relation("InvitationsReceived")
   achievements          UserAchievement[]
 
   lastLogin             DateTime?
@@ -435,28 +436,28 @@ model Pet {
 // Invitation - Partner invitation system (V2)
 model Invitation {
   id                    String                   @id @default(cuid())
-  coupleId              String
-
-  inviterUserId         String
-  inviteeEmail          String
-  inviteeUserId         String?
-
+  fromUserId            String
+  toEmail               String?
+  toUserId              String?
   token                 String                   @unique
+  type                  String                   // "email_invite" | "user_proposal"
   status                String                   @default("pending")  // pending, accepted, rejected
+  coupleId              String?
   expiresAt             DateTime
 
   // Relations
-  couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
-  inviter               User                     @relation("invitedBy", fields: [inviterUserId], references: [id], onDelete: Cascade)
+  fromUser              User                     @relation("InvitationsSent", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser                User?                    @relation("InvitationsReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+  couple                Couple?                  @relation(fields: [coupleId], references: [id], onDelete: SetNull)
 
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
-  @@unique([coupleId, inviteeEmail])
+  @@index([fromUserId])
+  @@index([toEmail])
+  @@index([toUserId])
   @@index([token])
-  @@index([coupleId])
-  @@index([inviterUserId])
-  @@index([status])
+  @@index([expiresAt])
 }
 
 // Category - Event/Task categories (V2)
