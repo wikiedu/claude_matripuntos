@@ -232,18 +232,6 @@ router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response):
       },
     })
 
-    // Create points transaction
-    await prisma.pointsTransaction.create({
-      data: {
-        coupleId: req.coupleId,
-        userId: req.userId,
-        type: 'task_completed',
-        relatedTaskLogId: taskLog.id,
-        amount: new Decimal(data.pointsFinal),
-        description: `Completed task: ${task.name}`,
-      },
-    })
-
     // Send notification to partner
     await notifyTaskCompleted(
       taskLog.id,
@@ -350,12 +338,28 @@ router.put('/:taskId/logs/:logId/verify', authMiddleware, async (req: Request, r
       return
     }
 
+    const task = await prisma.task.findUnique({
+      where: { id: req.params.taskId },
+    })
+
     const updated = await prisma.taskLog.update({
       where: { id: req.params.logId },
       data: {
         status: 'verified',
         verifiedBy: req.userId,
         verifiedAt: new Date(),
+      },
+    })
+
+    // Award points to the person who completed the task (now that partner verified)
+    await prisma.pointsTransaction.create({
+      data: {
+        coupleId: req.coupleId,
+        userId: taskLog.completedBy!,
+        type: 'task_completed',
+        relatedTaskLogId: req.params.logId,
+        amount: taskLog.pointsFinal,
+        description: `Tarea verificada: ${task?.name ?? 'tarea'}`,
       },
     })
 
