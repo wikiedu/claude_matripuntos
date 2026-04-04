@@ -364,11 +364,14 @@ router.put('/:taskId/logs/:logId/verify', authMiddleware, async (req: Request, r
     })
 
     // Trigger achievement check
-    const newAchievements = await achievementEngine.checkAchievements(
-      taskLog.completedBy,
-      req.coupleId,
-      { type: 'task_verified', taskLogId: req.params.logId }
-    )
+    let newAchievements: any[] = []
+    if (taskLog.completedBy) {
+      newAchievements = await achievementEngine.checkAchievements(
+        taskLog.completedBy,
+        req.coupleId,
+        { type: 'task_verified', taskLogId: req.params.logId }
+      )
+    }
 
     res.json({
       success: true,

@@ -151,11 +151,17 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
         },
       })
 
+      const creatorId = negotiation.event.createdBy
+      if (!creatorId) {
+        res.status(400).json({ error: 'Event creator not found' })
+        return
+      }
+
       // Negative transaction for event creator (they requested the activity)
       await prisma.pointsTransaction.create({
         data: {
           coupleId: req.coupleId,
-          userId: negotiation.event.createdBy,
+          userId: creatorId,
           type: 'event_accepted',
           relatedEventId: negotiation.eventId,
           amount: new Decimal(-negotiation.pointsProposed),
@@ -176,11 +182,13 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
       })
 
       // Trigger achievement check
-      const newAchievements = await achievementEngine.checkAchievements(
-        negotiation.proposedBy,
-        req.coupleId,
-        { type: 'event_accepted', eventId: negotiation.eventId }
-      )
+      if (negotiation.proposedBy) {
+        await achievementEngine.checkAchievements(
+          negotiation.proposedBy,
+          req.coupleId,
+          { type: 'event_accepted', eventId: negotiation.eventId }
+        )
+      }
     } else if (data.responseType === 'counter_proposed') {
       // Counter-propose
       if (!data.pointsProposed) {

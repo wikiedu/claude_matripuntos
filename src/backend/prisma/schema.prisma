@@ -123,6 +123,7 @@ model Event {
   creator               User?                    @relation("createdBy", fields: [createdBy], references: [id], onDelete: SetNull)
   negotiations          Negotiation[]
   compensations         Compensation[]
+  pointsTransactions    PointsTransaction[]
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
@@ -237,6 +238,7 @@ model PointsTransaction {
   couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
   user                  User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
   taskLog               TaskLog?                 @relation(fields: [relatedTaskLogId], references: [id], onDelete: SetNull)
+  event                 Event?                   @relation(fields: [relatedEventId], references: [id], onDelete: SetNull)
 
   createdAt             DateTime                 @default(now())
 
