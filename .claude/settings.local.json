@@ -148,7 +148,15 @@
       "Bash(chmod +x /tmp/comprehensive-test.sh)",
       "Bash(/tmp/comprehensive-test.sh)",
       "Bash(npm list:*)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(NODE_OPTIONS=\"--loader ts-node/esm --no-warnings\" npx ts-node src/seeds/achievementsSeed.ts)",
+      "Bash(node --loader ts-node/esm src/seeds/achievementsSeed.ts)",
+      "Bash(node --loader ts-node/esm /tmp/verify_achievements.ts)",
+      "Bash(sqlite3 prisma/dev.db \"SELECT coupleId, COUNT\\(*\\) as count FROM Achievement GROUP BY coupleId;\")",
+      "Bash(sqlite3 prisma/dev.db \"SELECT name, type, rarity, icon FROM Achievement WHERE coupleId = 'cmnjj3m1s0000tbwnjg73o5ic' ORDER BY rowid LIMIT 12;\")",
+      "Bash(pkill -f \"node.*server.ts\")",
+      "Bash(sed -i '' '16a\\\\:*)",
+      "Bash(sed -n '10,20p' \"src/frontend/src/App.tsx\")"
     ]
   }
 }

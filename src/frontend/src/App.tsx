@@ -14,6 +14,7 @@ import Settings from './pages/Settings'
 import Analytics from './pages/Analytics'
 import { Calendar } from './pages/Calendar'
 import { AnalyticsPage } from './pages/AnalyticsPage'
+import Achievements from './pages/Achievements'
 import NotFound from './pages/NotFound'
 import './App.css'
 
@@ -138,6 +139,14 @@ function AppRoutes() {
         }
       />
 
+      <Route
+        path="/achievements"
+        element={
+          <ProtectedRoute>
+            <Achievements />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

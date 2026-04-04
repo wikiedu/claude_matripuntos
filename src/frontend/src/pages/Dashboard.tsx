@@ -7,6 +7,7 @@ import { apiClient, fetchRecentActivity } from '../services/apiClient'
 import { NotificationBell } from '../components/NotificationBell'
 import { RecentMovementItem } from '../components/RecentMovementItem'
 import { type RecentActivity } from '../types/activity'
+import { AchievementsWidget } from '../components/AchievementsWidget'
 import RequestActivity from './RequestActivity'
 import RequestInbox from './RequestInbox'
 import Tasks from './Tasks'
@@ -364,6 +365,11 @@ export default function Dashboard() {
                 </div>
               </div>
             )}
+
+            {/* Achievements Widget */}
+            <div className="mb-8">
+              <AchievementsWidget />
+            </div>
           </>
         )}
       </main>
