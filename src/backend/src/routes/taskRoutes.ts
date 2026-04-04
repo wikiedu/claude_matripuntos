@@ -4,10 +4,12 @@ import type { Prisma } from '@prisma/client'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
 import { Decimal } from '@prisma/client/runtime/library'
+import { AchievementEngine } from '../services/achievementEngine.js'
 import { notifyTaskCompleted, notifyTaskDisputed } from '../services/notificationService.js'
 
 const router = express.Router()
 const prisma = new PrismaClient()
+const achievementEngine = new AchievementEngine(prisma)
 
 // Validation schemas
 const createTaskSchema = z.object({
@@ -357,13 +359,21 @@ router.put('/:taskId/logs/:logId/verify', authMiddleware, async (req: Request, r
       },
     })
 
+    // Trigger achievement check
+    const newAchievements = await achievementEngine.checkAchievements(
+      taskLog.completedBy,
+      req.coupleId,
+      { type: 'task_verified', taskLogId: req.params.logId }
+    )
+
     res.json({
-      message: 'Task log verified',
+      success: true,
       taskLog: {
         id: updated.id,
         status: updated.status,
         verifiedAt: updated.verifiedAt,
       },
+      newAchievements: newAchievements.map((a: any) => ({ name: a.name, rarity: a.rarity })),
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to verify task log'

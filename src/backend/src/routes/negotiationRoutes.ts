@@ -3,9 +3,11 @@ import { PrismaClient } from '@prisma/client'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
 import { Decimal } from '@prisma/client/runtime/library'
+import { AchievementEngine } from '../services/achievementEngine.js'
 
 const router = express.Router()
 const prisma = new PrismaClient()
+const achievementEngine = new AchievementEngine(prisma)
 
 // Validation schemas
 const createNegotiationSchema = z.object({
@@ -160,6 +162,13 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
           description: `Actividad aceptada: ${negotiation.event.title || negotiation.event.type}`,
         },
       })
+
+      // Trigger achievement check
+      const newAchievements = await achievementEngine.checkAchievements(
+        negotiation.proposedBy,
+        req.coupleId,
+        { type: 'event_accepted', eventId: negotiation.eventId }
+      )
     } else if (data.responseType === 'counter_proposed') {
       // Counter-propose
       if (!data.pointsProposed) {
