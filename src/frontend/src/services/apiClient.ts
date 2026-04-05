@@ -578,6 +578,9 @@ class ApiClient {
     getWeeklyTrends: (weeks?: number) =>
       this.request(`/analytics/weekly-trends${weeks ? `?weeks=${weeks}` : ''}`),
 
+    getDailyBreakdown: (startDate: string, endDate: string) =>
+      this.request(`/analytics/daily-breakdown?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`),
+
     getMonthly: (year: number, month: number) =>
       this.request(`/analytics/monthly/${year}/${month}`),
 

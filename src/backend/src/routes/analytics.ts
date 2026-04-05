@@ -201,4 +201,38 @@ router.get('/yearly/:year', async (req: Request, res: Response) => {
   }
 })
 
+/**
+ * GET /api/analytics/daily-breakdown
+ * Get daily activity breakdown for a given date range.
+ * Used by the period-aware chart in the analytics dashboard.
+ */
+router.get('/daily-breakdown', async (req: Request, res: Response) => {
+  try {
+    const coupleId = (req as any).user.coupleId
+    const { startDate, endDate } = req.query
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'startDate and endDate are required' })
+    }
+
+    const start = new Date(startDate as string)
+    const end = new Date(endDate as string)
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format' })
+    }
+
+    const breakdown = await analyticsService.getDailyBreakdown(coupleId, start, end)
+
+    res.json({
+      message: 'Daily breakdown retrieved',
+      data: breakdown,
+      periodDays: breakdown.length,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to retrieve daily breakdown'
+    res.status(500).json({ error: message })
+  }
+})
+
 export default router
