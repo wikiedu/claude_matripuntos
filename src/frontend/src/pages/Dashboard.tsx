@@ -210,6 +210,28 @@ export default function Dashboard() {
                     </span>
                   )}
                 </div>
+                {/* Equity bar — only visible when there's a meaningful imbalance */}
+                {!balance.isBalanced && (
+                  <div className="mt-3">
+                    {(() => {
+                      const pos = Math.max(0, balance.you.balance)
+                      const total = Math.max(0, balance.you.balance) + Math.max(0, balance.partner?.balance ?? 0)
+                      const youPct = total === 0 ? 50 : Math.round((pos / total) * 100)
+                      return (
+                        <div className="w-full h-2 bg-indigo-400/40 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-white/70 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(Math.max(youPct, 5), 95)}%` }}
+                          />
+                        </div>
+                      )
+                    })()}
+                    <div className="flex justify-between text-xs text-indigo-200 mt-1">
+                      <span>{balance.you.name}</span>
+                      {balance.partner && <span>{balance.partner.name}</span>}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

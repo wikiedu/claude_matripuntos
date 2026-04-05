@@ -41,6 +41,19 @@ export function TaskPendingCard({ taskLog, onVerify, onReject }: TaskPendingCard
 
   const categoryEmoji = categoryEmojiMap[taskLog.task.category] || '✓'
 
+  const categoryColorMap: Record<string, string> = {
+    cocina: 'bg-orange-100 text-orange-700',
+    baños: 'bg-blue-100 text-blue-700',
+    limpieza: 'bg-green-100 text-green-700',
+    compra: 'bg-yellow-100 text-yellow-700',
+    logistica: 'bg-purple-100 text-purple-700',
+    cuidado: 'bg-pink-100 text-pink-700',
+    mantenimiento: 'bg-gray-100 text-gray-700',
+    jardineria: 'bg-emerald-100 text-emerald-700',
+    mascotas: 'bg-amber-100 text-amber-700',
+  }
+  const categoryColor = categoryColorMap[taskLog.task.category] || 'bg-gray-100 text-gray-600'
+
   // Format date to Spanish locale
   const formatDate = (date: Date): string => {
     const d = new Date(date)
@@ -85,7 +98,12 @@ export function TaskPendingCard({ taskLog, onVerify, onReject }: TaskPendingCard
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="text-3xl">{categoryEmoji}</span>
-          <CardTitle className="m-0">{taskLog.task.name}</CardTitle>
+          <div>
+            <CardTitle className="m-0">{taskLog.task.name}</CardTitle>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium mt-0.5 inline-block ${categoryColor}`}>
+              {taskLog.task.category}
+            </span>
+          </div>
         </div>
       </div>
 
