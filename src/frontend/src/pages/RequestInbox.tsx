@@ -97,14 +97,8 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
 
   // Mutations for task verification and rejection
   const verifyMutation = useMutation({
-    mutationFn: async (taskLogId: string) => {
-      // Get the task log to extract taskId
-      const logs = await fetchPendingTaskLogs()
-      const taskLog = logs?.find((log: TaskPendingLog) => log.id === taskLogId)
-      if (!taskLog) throw new Error('Task log not found')
-
-      // Call verify endpoint with both taskId and logId
-      return apiClient.request(`/tasks/${taskLog.taskId}/logs/${taskLogId}/verify`, {
+    mutationFn: async ({ taskLogId, taskId }: { taskLogId: string; taskId: string }) => {
+      return apiClient.request(`/tasks/${taskId}/logs/${taskLogId}/verify`, {
         method: 'PUT',
       })
     },
@@ -119,14 +113,8 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
   })
 
   const rejectMutation = useMutation({
-    mutationFn: async (taskLogId: string) => {
-      // Get the task log to extract taskId
-      const logs = await fetchPendingTaskLogs()
-      const taskLog = logs?.find((log: TaskPendingLog) => log.id === taskLogId)
-      if (!taskLog) throw new Error('Task log not found')
-
-      // Call dispute endpoint with both taskId and logId
-      return apiClient.request(`/tasks/${taskLog.taskId}/logs/${taskLogId}/dispute`, {
+    mutationFn: async ({ taskLogId, taskId }: { taskLogId: string; taskId: string }) => {
+      return apiClient.request(`/tasks/${taskId}/logs/${taskLogId}/dispute`, {
         method: 'PUT',
         body: JSON.stringify({}),
       })
@@ -671,8 +659,8 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
                       <TaskPendingCard
                         key={taskLog.id}
                         taskLog={taskLog}
-                        onVerify={verifyMutation.mutateAsync}
-                        onReject={rejectMutation.mutateAsync}
+                        onVerify={(taskLogId) => verifyMutation.mutateAsync({ taskLogId, taskId: taskLog.taskId })}
+                        onReject={(taskLogId) => rejectMutation.mutateAsync({ taskLogId, taskId: taskLog.taskId })}
                       />
                     ))}
                   </>

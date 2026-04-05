@@ -598,12 +598,12 @@ export const fetchRecentActivity = () =>
 
 /**
  * Fetch all pending task logs for the user's couple.
- * @returns {Promise<any>} API response with logs array and taskId included
+ * @returns {Promise<TaskPendingLog[]>} API response with logs array and taskId included
  * @throws {Error} If the request fails
  */
-export const fetchPendingTaskLogs = async (): Promise<any[]> => {
+export const fetchPendingTaskLogs = async (): Promise<import('../types/activity').TaskPendingLog[]> => {
   const result = await apiClient.tasks.getAllLogs('pending')
-  return (result.logs ?? [])
+  return (result.logs ?? []) as import('../types/activity').TaskPendingLog[]
 }
 
 /**
