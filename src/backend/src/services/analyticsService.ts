@@ -385,3 +385,71 @@ function getWeekNumber(date: Date): number {
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
   return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
 }
+
+export interface DailyBreakdownPoint {
+  date: string      // ISO date "2026-04-01"
+  label: string     // "lun 1"
+  events: number
+  points: number
+  tasks: number
+}
+
+/**
+ * Get daily activity breakdown for a date range.
+ * Returns one entry per day (including days with 0 activity).
+ */
+export async function getDailyBreakdown(
+  coupleId: string,
+  startDate: Date,
+  endDate: Date
+): Promise<DailyBreakdownPoint[]> {
+  const [events, taskLogs] = await Promise.all([
+    prisma.event.findMany({
+      where: {
+        coupleId,
+        dateStart: { gte: startDate, lte: endDate },
+        status: { in: ['accepted', 'forced'] },
+      },
+    }),
+    prisma.taskLog.findMany({
+      where: {
+        coupleId,
+        date: { gte: startDate, lte: endDate },
+        status: 'verified',
+      },
+    }),
+  ])
+
+  // Aggregate by ISO date
+  const byDay: Record<string, { events: number; points: number; tasks: number }> = {}
+
+  for (const e of events) {
+    const key = e.dateStart.toISOString().split('T')[0]
+    if (!byDay[key]) byDay[key] = { events: 0, points: 0, tasks: 0 }
+    byDay[key].events++
+    byDay[key].points += Number(e.pointsCalculated)
+  }
+
+  for (const t of taskLogs) {
+    const key = t.date.toISOString().split('T')[0]
+    if (!byDay[key]) byDay[key] = { events: 0, points: 0, tasks: 0 }
+    byDay[key].tasks++
+    byDay[key].points += Number(t.pointsFinal)
+  }
+
+  // Generate one entry per day in the range (including 0-activity days)
+  const result: DailyBreakdownPoint[] = []
+  const startDateStr = startDate.toISOString().split('T')[0]
+  const endDateStr = endDate.toISOString().split('T')[0]
+
+  let cursor = new Date(startDateStr)
+  while (cursor.toISOString().split('T')[0] <= endDateStr) {
+    const key = cursor.toISOString().split('T')[0]
+    const label = cursor.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' })
+    const data = byDay[key] ?? { events: 0, points: 0, tasks: 0 }
+    result.push({ date: key, label, ...data })
+    cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000)
+  }
+
+  return result
+}
