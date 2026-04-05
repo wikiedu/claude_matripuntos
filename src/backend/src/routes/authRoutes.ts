@@ -148,7 +148,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response): Promise<v
 router.get('/couple', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.coupleId) {
-      res.status(401).json({ error: 'Couple ID not found in token' })
+      res.json({ couple: null })
       return
     }
 
