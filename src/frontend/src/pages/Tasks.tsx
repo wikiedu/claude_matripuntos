@@ -249,7 +249,6 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
   const [addingFromCatalog, setAddingFromCatalog] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
-    if (!couple?.id) return
     try {
       setIsLoading(true)
       setError(null)
@@ -258,13 +257,18 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
         apiClient.tasks.getAllLogs(),
       ])
       setTasks(tasksRes.tasks || [])
-      setAllLogs(logsRes.logs || [])
+      // Map task object fields to flat taskName/taskCategory expected by component
+      setAllLogs((logsRes.logs || []).map((l: any) => ({
+        ...l,
+        taskName: l.taskName ?? l.task?.name ?? '',
+        taskCategory: l.taskCategory ?? l.task?.category ?? '',
+      })))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error cargando tareas')
     } finally {
       setIsLoading(false)
     }
-  }, [couple?.id])
+  }, [])
 
   useEffect(() => { loadData() }, [loadData])
 
