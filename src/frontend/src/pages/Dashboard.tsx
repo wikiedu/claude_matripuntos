@@ -49,7 +49,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [chartData, setChartData] = useState<ChartPoint[]>([])
-  const [chartNames, setChartNames] = useState<{ you: string; partner: string }>({ you: 'Yo', partner: 'Pareja' })
+  const [chartNames, setChartNames] = useState<{ you: string; partner: string | null }>({ you: 'Yo', partner: null })
   const [balance, setBalance] = useState<BalanceData | null>(null)
 
   // Fetch recent activities using React Query
@@ -84,7 +84,7 @@ export default function Dashboard() {
 
         // Chart data comes ready from the server — no client-side processing needed
         setChartData(chartResponse.chartData || [])
-        setChartNames({ you: chartResponse.youName || 'Yo', partner: chartResponse.partnerName || 'Pareja' })
+        setChartNames({ you: chartResponse.youName || 'Yo', partner: chartResponse.partnerName ?? null })
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load data'
         setError(message)
