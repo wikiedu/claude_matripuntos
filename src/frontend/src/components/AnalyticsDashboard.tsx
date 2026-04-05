@@ -43,7 +43,6 @@ export const AnalyticsDashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<CoupleMetrics | null>(null)
   const [userStats, setUserStats] = useState<UserStat[]>([])
   const [negotiationStats, setNegotiationStats] = useState<NegotiationStats | null>(null)
-  const [_weeklyData, _setWeeklyData] = useState<any[]>([])
   const [dailyBreakdown, setDailyBreakdown] = useState<any[]>([])
   const [periodDays, setPeriodDays] = useState(0)
   const [pointsByCategory, setPointsByCategory] = useState<Record<string, number>>({})
