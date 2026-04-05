@@ -188,7 +188,7 @@ export class NegotiationEngine {
           await prisma.pointsTransaction.create({
             data: {
               coupleId: user.coupleId ?? '',
-              userId: responderId,
+              userId: responderId !== event.createdBy ? responderId : (lastNegotiation.proposedBy ?? responderId),
               type: 'event_accepted_credit',
               relatedEventId: eventId,
               amount: new Decimal(lastNegotiation.pointsProposed!),

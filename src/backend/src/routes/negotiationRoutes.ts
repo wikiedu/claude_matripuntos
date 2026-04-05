@@ -173,7 +173,7 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
       await prisma.pointsTransaction.create({
         data: {
           coupleId: req.coupleId,
-          userId: req.userId!,
+          userId: req.userId !== creatorId ? req.userId! : (negotiation.proposedBy ?? req.userId!),
           type: 'event_accepted_credit',
           relatedEventId: negotiation.eventId,
           amount: new Decimal(negotiation.pointsProposed),
