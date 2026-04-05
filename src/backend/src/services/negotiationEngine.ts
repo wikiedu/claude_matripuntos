@@ -171,8 +171,8 @@ export class NegotiationEngine {
             },
           })
 
-          // Create points transactions
-          // 1. Proposer loses points (negative transaction)
+          // Create points transaction
+          // Proposer loses points (negative transaction)
           await prisma.pointsTransaction.create({
             data: {
               coupleId: user.coupleId ?? '',
@@ -181,18 +181,6 @@ export class NegotiationEngine {
               relatedEventId: eventId,
               amount: new Decimal(-lastNegotiation.pointsProposed!),
               description: `Actividad aceptada: ${event.title || event.type}`,
-            },
-          })
-
-          // 2. Responder gains points (positive transaction)
-          await prisma.pointsTransaction.create({
-            data: {
-              coupleId: user.coupleId ?? '',
-              userId: responderId !== event.createdBy ? responderId : (lastNegotiation.proposedBy ?? responderId),
-              type: 'event_accepted_credit',
-              relatedEventId: eventId,
-              amount: new Decimal(lastNegotiation.pointsProposed!),
-              description: `Actividad completada: ${event.title || event.type}`,
             },
           })
           break
