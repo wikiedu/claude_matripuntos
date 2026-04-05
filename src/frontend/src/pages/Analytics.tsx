@@ -95,7 +95,6 @@ export default function Analytics() {
     transactions.filter(t => Number(t.amount) > 0).forEach(t => {
       const label =
         t.type === 'task_completed' ? '🏠 Tareas' :
-        t.type === 'event_accepted_credit' ? '🎯 Actividades aceptadas' :
         t.type === 'manual_adjustment' ? '✏️ Ajuste manual' :
         t.type === 'forced_payment' ? '⚡ Pagos forzados' : t.type
       types[label] = (types[label] || 0) + Math.abs(Number(t.amount))
