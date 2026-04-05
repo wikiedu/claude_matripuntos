@@ -137,13 +137,13 @@ router.get('/chart-data', authMiddleware, async (req: Request, res: Response): P
       where: { id: req.coupleId },
       include: { users: { select: { id: true, name: true } } },
     })
-    if (!couple || !couple.users || couple.users.length < 2) {
-      res.json({ chartData: [], youName: 'Yo', partnerName: 'Pareja' })
+    if (!couple || !couple.users || couple.users.length === 0) {
+      res.json({ chartData: [], youName: 'Yo', partnerName: null })
       return
     }
 
     const you = couple.users.find(u => u.id === req.userId)!
-    const partner = couple.users.find(u => u.id !== req.userId)!
+    const partner = couple.users.find(u => u.id !== req.userId) ?? null
 
     // Fetch ALL transactions for this couple (no date filter — need full history for cumulative)
     const allTx = await prisma.pointsTransaction.findMany({
@@ -161,7 +161,7 @@ router.get('/chart-data', authMiddleware, async (req: Request, res: Response): P
     for (const t of allTx) {
       if (new Date(t.createdAt) < windowStart) {
         if (t.userId === you.id) youRunning += Number(t.amount)
-        else if (t.userId === partner.id) partnerRunning += Number(t.amount)
+        else if (partner && t.userId === partner.id) partnerRunning += Number(t.amount)
       }
     }
 
@@ -173,7 +173,7 @@ router.get('/chart-data', authMiddleware, async (req: Request, res: Response): P
       if (d < windowStart) continue
       const key = d.toISOString().split('T')[0]
       if (t.userId === you.id) youDelta[key] = (youDelta[key] || 0) + Number(t.amount)
-      else if (t.userId === partner.id) partnerDelta[key] = (partnerDelta[key] || 0) + Number(t.amount)
+      else if (partner && t.userId === partner.id) partnerDelta[key] = (partnerDelta[key] || 0) + Number(t.amount)
     }
 
     // Generate one entry per day
@@ -185,15 +185,18 @@ router.get('/chart-data', authMiddleware, async (req: Request, res: Response): P
       const key = d.toISOString().split('T')[0]
       youRunning += youDelta[key] || 0
       partnerRunning += partnerDelta[key] || 0
-      chartData.push({
+      const entry: any = {
         idx: days - 1 - i,
         date: i === 0 ? 'Hoy' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
         [you.name]: Math.round(youRunning),
-        [partner.name]: Math.round(partnerRunning),
-      })
+      }
+      if (partner) {
+        entry[partner.name] = Math.round(partnerRunning)
+      }
+      chartData.push(entry)
     }
 
-    res.json({ chartData, youName: you.name, partnerName: partner.name })
+    res.json({ chartData, youName: you.name, partnerName: partner?.name ?? null })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch chart data'
     res.status(400).json({ error: message })

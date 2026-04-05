@@ -31,7 +31,7 @@ interface ChartPoint {
 
 interface BalanceData {
   you: { id: string; name: string; balance: number }
-  partner: { id: string; name: string; balance: number }
+  partner?: { id: string; name: string; balance: number } | null
   difference: number
   isBalanced: boolean
 }
@@ -191,13 +191,15 @@ export default function Dashboard() {
                     </p>
                     <p className="text-indigo-200 text-sm mt-1">{balance.you.name}</p>
                   </div>
-                  <div className="text-right opacity-80">
-                    <p className="text-3xl font-semibold">
-                      {balance.partner.balance > 0 ? '+' : ''}{balance.partner.balance.toFixed(1)}
-                      <span className="text-lg ml-1 font-normal opacity-70">pts</span>
-                    </p>
-                    <p className="text-indigo-200 text-sm mt-1">{balance.partner.name}</p>
-                  </div>
+                  {balance.partner && (
+                    <div className="text-right opacity-80">
+                      <p className="text-3xl font-semibold">
+                        {balance.partner.balance > 0 ? '+' : ''}{balance.partner.balance.toFixed(1)}
+                        <span className="text-lg ml-1 font-normal opacity-70">pts</span>
+                      </p>
+                      <p className="text-indigo-200 text-sm mt-1">{balance.partner.name}</p>
+                    </div>
+                  )}
                 </div>
                 <div className="mt-4 pt-3 border-t border-indigo-400/40 flex items-center gap-2">
                   {balance.isBalanced ? (
@@ -298,11 +300,17 @@ export default function Dashboard() {
             </div>
 
             {/* Graph */}
-            {chartData.length > 0 && (
-              <div className="card mb-8">
+            <div className="card mb-8">
                 <h2 className="text-lg font-bold text-gray-900 mb-2">Evolución de puntos — últimos 30 días</h2>
                 <p className="text-xs text-gray-400 mb-4">Saldo acumulado por persona</p>
-                <div className="w-full h-72">
+                <div className="relative w-full h-72">
+                  {chartData.length > 0 && chartData.every(p => (p[userName] as number || 0) === 0 && (p[partnerName as string] as number || 0) === 0) && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                      <p className="text-sm text-gray-400 bg-white/80 px-3 py-1 rounded-full">
+                        Aún no hay movimientos registrados
+                      </p>
+                    </div>
+                  )}
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 24 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -330,7 +338,9 @@ export default function Dashboard() {
                       />
                       <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
                       <Line type="monotone" dataKey={userName} stroke="#6366F1" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: '#6366F1' }} />
-                      <Line type="monotone" dataKey={partnerName} stroke="#EC4899" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: '#EC4899' }} />
+                      {partnerName && (
+                        <Line type="monotone" dataKey={partnerName} stroke="#EC4899" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: '#EC4899' }} />
+                      )}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -350,22 +360,23 @@ export default function Dashboard() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {(balance?.partner.balance || 0) >= 0 ? (
-                      <TrendingUp className="w-5 h-5 text-success" />
-                    ) : (
-                      <TrendingDown className="w-5 h-5 text-danger" />
-                    )}
-                    <div>
-                      <p className="text-xs text-gray-600">{partnerName}</p>
-                      <p className={`font-bold ${(balance?.partner.balance || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
-                        {(balance?.partner.balance || 0) >= 0 ? '+' : ''}{balance?.partner.balance.toFixed(1) || '0.0'} pts
-                      </p>
+                  {balance?.partner && (
+                    <div className="flex items-center gap-3">
+                      {(balance?.partner.balance || 0) >= 0 ? (
+                        <TrendingUp className="w-5 h-5 text-success" />
+                      ) : (
+                        <TrendingDown className="w-5 h-5 text-danger" />
+                      )}
+                      <div>
+                        <p className="text-xs text-gray-600">{partnerName}</p>
+                        <p className={`font-bold ${(balance?.partner.balance || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
+                          {(balance?.partner.balance || 0) >= 0 ? '+' : ''}{balance?.partner.balance.toFixed(1) || '0.0'} pts
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
-            )}
 
             {/* Achievements Widget */}
             <div className="mb-8">
