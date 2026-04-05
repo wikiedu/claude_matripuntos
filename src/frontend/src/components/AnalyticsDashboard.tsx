@@ -43,7 +43,9 @@ export const AnalyticsDashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<CoupleMetrics | null>(null)
   const [userStats, setUserStats] = useState<UserStat[]>([])
   const [negotiationStats, setNegotiationStats] = useState<NegotiationStats | null>(null)
-  const [weeklyData, setWeeklyData] = useState<any[]>([])
+  const [_weeklyData, _setWeeklyData] = useState<any[]>([])
+  const [dailyBreakdown, setDailyBreakdown] = useState<any[]>([])
+  const [periodDays, setPeriodDays] = useState(0)
   const [pointsByCategory, setPointsByCategory] = useState<Record<string, number>>({})
   const [_loading, setLoading] = useState(false)
 
@@ -91,6 +93,14 @@ export const AnalyticsDashboard: React.FC = () => {
     }
   }
 
+  const getPeriodLabel = (): string => {
+    const { startDate, endDate } = getDateRange()
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    const fmt = (d: Date) => d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
+    return `${fmt(start)} — ${fmt(end)}`
+  }
+
   const fetchAnalytics = async () => {
     if (!isAuthenticated) return
     setLoading(true)
@@ -98,18 +108,19 @@ export const AnalyticsDashboard: React.FC = () => {
     try {
       const { startDate, endDate } = getDateRange()
 
-      const [metricsRes, usersRes, negotiationsRes, weeklyRes, categoryRes] = await Promise.all([
+      const [metricsRes, usersRes, negotiationsRes, breakdownRes, categoryRes] = await Promise.all([
         apiClient.analytics.getCouple(startDate, endDate),
         apiClient.analytics.getUsers(startDate, endDate),
         apiClient.analytics.getNegotiations(startDate, endDate),
-        apiClient.analytics.getWeeklyTrends(),
+        apiClient.analytics.getDailyBreakdown(startDate, endDate),
         apiClient.analytics.getPointsByCategory(startDate, endDate),
       ])
 
       setMetrics(metricsRes.data)
       setUserStats(usersRes.data)
       setNegotiationStats(negotiationsRes.data)
-      setWeeklyData(weeklyRes.data)
+      setDailyBreakdown(breakdownRes.data ?? [])
+      setPeriodDays(breakdownRes.periodDays ?? 0)
       setPointsByCategory(categoryRes.data)
     } catch (error) {
       console.error('Failed to fetch analytics:', error)
@@ -140,7 +151,10 @@ export const AnalyticsDashboard: React.FC = () => {
           </button>
           <div>
             <h1 className="text-4xl font-bold text-gray-900">Analytics Avanzado</h1>
-            <p className="text-gray-600">Análisis detallado de tu relación en números</p>
+            <p className="text-gray-600">
+              Análisis detallado de tu relación en números
+              <span className="ml-2 text-sm text-gray-400">· {getPeriodLabel()}</span>
+            </p>
           </div>
         </div>
 
@@ -200,13 +214,14 @@ export const AnalyticsDashboard: React.FC = () => {
 
         {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Weekly Trends */}
+          {/* Daily Activity */}
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
               <TrendingUp size={20} />
-              Tendencia Semanal
+              Actividad diaria
             </h2>
-            <AnalyticsChart data={weeklyData} type="weekly" />
+            <p className="text-sm text-gray-500 mb-4">{getPeriodLabel()}</p>
+            <AnalyticsChart data={dailyBreakdown} type="period" periodDays={periodDays} />
           </div>
 
           {/* Points by Category */}
