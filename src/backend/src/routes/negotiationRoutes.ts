@@ -175,7 +175,7 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
           coupleId: req.coupleId,
           userId: req.userId!,
           type: 'event_accepted_credit',
-          relatedEventId: `${negotiation.eventId}_credit`,
+          relatedEventId: negotiation.eventId,
           amount: new Decimal(negotiation.pointsProposed),
           description: `Cobertura acordada: ${negotiation.event.title || negotiation.event.type}`,
         },
