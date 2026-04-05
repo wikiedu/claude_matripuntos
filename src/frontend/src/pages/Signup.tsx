@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAppStore } from '../store/useAppStore'
+import { apiClient } from '../services/apiClient'
 
 export default function Signup() {
   const navigate = useNavigate()
@@ -22,9 +24,19 @@ export default function Signup() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, name, language: 'es' }),
       })
-      if (!res.ok) throw new Error('Signup failed')
       const data = await res.json()
-      localStorage.setItem('token', data.token)
+      if (!res.ok) throw new Error(data.error || 'Signup failed')
+
+      // Store token so apiClient can use it for subsequent requests
+      apiClient.setToken(data.token)
+
+      // Populate Zustand store directly from signup response.
+      // New users have no couple yet, so we skip getCouple() and set couple to null.
+      useAppStore.getState().setUser(data.user)
+      useAppStore.getState().setCouple(null)
+      // Mark as authenticated so ProtectedRoute lets us through
+      useAppStore.setState({ isAuthenticated: true })
+
       navigate('/dashboard')
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Signup failed')

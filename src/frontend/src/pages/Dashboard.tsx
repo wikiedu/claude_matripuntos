@@ -94,8 +94,13 @@ export default function Dashboard() {
       }
     }
 
-    if (user?.id && couple?.id) {
-      loadData()
+    if (user?.id) {
+      if (couple?.id) {
+        loadData()
+      } else {
+        // User has no couple yet — stop the spinner and show an empty state
+        setIsLoading(false)
+      }
     }
   }, [user?.id, couple?.id, refreshCounter])
 

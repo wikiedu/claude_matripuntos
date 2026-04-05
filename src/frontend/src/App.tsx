@@ -30,7 +30,16 @@ const queryClient = new QueryClient({
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAppStore()
+  const { isAuthenticated, isLoading } = useAppStore()
+
+  // While we're checking a stored token, render nothing to avoid a flash redirect
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-gray-500 text-sm">Cargando...</div>
+      </div>
+    )
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />

@@ -46,12 +46,18 @@ export const useAppStore = create<AppState>((set) => ({
       const response = await apiClient.auth.login(email, password)
       apiClient.setToken(response.token)
 
-      // Load couple data after successful login
-      const coupleResponse = await apiClient.auth.getCouple()
+      // Attempt to load couple data. Users with no couple yet will get a 401/400 — that's expected.
+      let couple = null
+      try {
+        const coupleResponse = await apiClient.auth.getCouple()
+        couple = coupleResponse.couple ?? null
+      } catch {
+        // No couple linked yet — solo user, that's fine
+      }
 
       set({
         user: response.user,
-        couple: coupleResponse.couple,
+        couple,
         isAuthenticated: true,
         isLoading: false,
       })
@@ -78,13 +84,21 @@ export const useAppStore = create<AppState>((set) => ({
   loadUserData: async () => {
     set({ isLoading: true, error: null })
     try {
-      const [userResponse, coupleResponse] = await Promise.all([
-        apiClient.auth.getMe(),
-        apiClient.auth.getCouple(),
-      ])
+      const userResponse = await apiClient.auth.getMe()
+
+      // Attempt to load couple data. New users (no couple yet) will get a 401/400
+      // from /auth/couple — that's expected. We handle it gracefully.
+      let couple = null
+      try {
+        const coupleResponse = await apiClient.auth.getCouple()
+        couple = coupleResponse.couple ?? null
+      } catch {
+        // No couple linked yet — that's fine for a freshly signed-up user
+      }
+
       set({
         user: userResponse.user,
-        couple: coupleResponse.couple,
+        couple,
         isAuthenticated: true,
         isLoading: false,
       })
