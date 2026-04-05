@@ -174,7 +174,11 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
       })
       setPendingActivities(pending)
 
-      const allLogs: TaskLogItem[] = allLogsRes.logs || []
+      const allLogs: TaskLogItem[] = (allLogsRes.logs || []).map((l: any) => ({
+        ...l,
+        taskName: l.taskName ?? l.task?.name ?? '',
+        taskCategory: l.taskCategory ?? l.task?.category ?? '',
+      }))
       setAllTaskLogs(allLogs)
 
       // Refetch pending task logs via React Query (don't set state directly)
