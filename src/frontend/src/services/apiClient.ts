@@ -601,8 +601,10 @@ export const fetchRecentActivity = () =>
  * @returns {Promise<any>} API response with logs array and taskId included
  * @throws {Error} If the request fails
  */
-export const fetchPendingTaskLogs = () =>
-  apiClient.tasks.getAllLogs('pending')
+export const fetchPendingTaskLogs = async (): Promise<any[]> => {
+  const result = await apiClient.tasks.getAllLogs('pending')
+  return (result.logs ?? [])
+}
 
 /**
  * Verify a task log by ID.

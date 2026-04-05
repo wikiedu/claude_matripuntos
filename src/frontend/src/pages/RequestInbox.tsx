@@ -91,15 +91,16 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
   const { data: pendingTaskLogs = [], isLoading: tasksLoading, error: tasksError } = useQuery({
     queryKey: ['taskLogs', 'pending'],
     queryFn: fetchPendingTaskLogs,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
+    select: (logs: TaskPendingLog[]) => logs.filter(log => log.completedBy?.id !== user?.id),
   })
 
   // Mutations for task verification and rejection
   const verifyMutation = useMutation({
     mutationFn: async (taskLogId: string) => {
       // Get the task log to extract taskId
-      const response = await fetchPendingTaskLogs()
-      const taskLog = response.logs?.find((log: TaskPendingLog) => log.id === taskLogId)
+      const logs = await fetchPendingTaskLogs()
+      const taskLog = logs?.find((log: TaskPendingLog) => log.id === taskLogId)
       if (!taskLog) throw new Error('Task log not found')
 
       // Call verify endpoint with both taskId and logId
@@ -120,8 +121,8 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
   const rejectMutation = useMutation({
     mutationFn: async (taskLogId: string) => {
       // Get the task log to extract taskId
-      const response = await fetchPendingTaskLogs()
-      const taskLog = response.logs?.find((log: TaskPendingLog) => log.id === taskLogId)
+      const logs = await fetchPendingTaskLogs()
+      const taskLog = logs?.find((log: TaskPendingLog) => log.id === taskLogId)
       if (!taskLog) throw new Error('Task log not found')
 
       // Call dispute endpoint with both taskId and logId
@@ -324,9 +325,6 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
               <div className="text-right">
                 <div className="text-3xl font-black text-orange-500">−{pts}</div>
                 <div className="text-xs text-gray-500">pts para {selectedEvent.creator?.name}</div>
-                {!isMyEvent && (
-                  <div className="text-xs text-green-600 font-medium mt-1">+{pts} pts para ti</div>
-                )}
               </div>
             </div>
 
@@ -586,7 +584,6 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
                               <div className="flex items-center gap-3 ml-3">
                                 <div className="text-right">
                                   <div className="font-bold text-orange-500">−{pts} pts</div>
-                                  <div className="text-xs text-green-600">+{pts} tuyos</div>
                                 </div>
                                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
                               </div>
