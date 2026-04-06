@@ -76,7 +76,7 @@ router.post('/signup', async (req: Request, res: Response): Promise<void> => {
   try {
     const validated = signupUserSchema.parse(req.body)
     const user = await signupUser(validated.email, validated.password, validated.name, validated.language)
-    const token = jwt.sign({ userId: user.id, coupleId: null }, process.env.JWT_SECRET!, { expiresIn: '7d' })
+    const token = jwt.sign({ userId: user.id, coupleId: user.coupleId }, process.env.JWT_SECRET!, { expiresIn: '7d' })
     res.status(201).json({ message: 'Account created', user, token })
   } catch (error) {
     if (error instanceof ZodError) {

@@ -307,12 +307,9 @@ router.post('/register-with-invitation', async (req: Request, res: Response) => 
 })
 
 /**
- * Link an existing user as partner directly (no invitation token needed)
+ * Request to link an existing user as partner (sends notification, requires acceptance)
  * POST /api/auth/link-partner
  * Body: { partnerEmail: string }
- * - partnerEmail must exist in DB
- * - partnerEmail must not already belong to a couple
- * - Calling user must not already have a partner
  */
 router.post('/link-partner', authenticateToken, async (req: Request, res: Response) => {
   try {
@@ -329,40 +326,160 @@ router.post('/link-partner', authenticateToken, async (req: Request, res: Respon
     const myCouple = me.couple
     if (!myCouple) return res.status(400).json({ error: 'You are not linked to any couple yet' })
 
-    // Check I don't already have a partner
     const alreadyHasPartner = myCouple.users.some(u => u.id !== userId)
     if (alreadyHasPartner) {
-      return res.status(400).json({ error: 'You already have a partner linked' })
+      return res.status(400).json({ error: 'Ya tienes una pareja vinculada.' })
     }
 
     const partner = await prisma.user.findUnique({ where: { email: partnerEmail }, include: { couple: { include: { users: true } } } })
     if (!partner) {
       return res.status(404).json({ error: 'No existe ninguna cuenta con ese email. Pídele que se registre primero.' })
     }
-
-    // Partner must not already have a different partner
-    if (partner.coupleId && partner.coupleId !== myCouple.id) {
-      const partnerCouple = partner.couple
-      if (partnerCouple && partnerCouple.users.some(u => u.id !== partner.id)) {
-        return res.status(400).json({ error: 'Ese usuario ya tiene pareja asociada.' })
-      }
+    if (partner.id === userId) {
+      return res.status(400).json({ error: 'No puedes vincularte contigo mismo.' })
     }
 
-    // Link partner to my couple
-    await prisma.user.update({
-      where: { id: partner.id },
-      data: { coupleId: myCouple.id },
+    // Partner must not already have a different partner
+    if (partner.couple && partner.couple.users.some(u => u.id !== partner.id)) {
+      return res.status(400).json({ error: 'Ese usuario ya tiene pareja asociada.' })
+    }
+
+    // Check no pending request already exists
+    const existing = await prisma.invitation.findFirst({
+      where: { fromUserId: userId, toUserId: partner.id, type: 'link_request', status: 'pending' },
+    })
+    if (existing) {
+      return res.status(400).json({ error: 'Ya has enviado una solicitud a este usuario. Está pendiente de aceptación.' })
+    }
+
+    const token = crypto.randomBytes(32).toString('hex')
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+
+    await prisma.invitation.create({
+      data: {
+        fromUserId: userId,
+        toUserId: partner.id,
+        token,
+        type: 'link_request',
+        status: 'pending',
+        coupleId: myCouple.id,  // the couple the partner will join
+        expiresAt,
+      },
     })
 
-    const updatedCouple = await prisma.couple.findUnique({
-      where: { id: myCouple.id },
+    // Notify the partner (in their own couple scope)
+    if (partner.coupleId) {
+      await prisma.notification.create({
+        data: {
+          coupleId: partner.coupleId,
+          userId: partner.id,
+          type: 'LINK_REQUEST',
+          title: 'Solicitud de vinculación',
+          message: `${me.name} quiere vincularse contigo como pareja en Matripuntos. Ve a Configuración → Tu Pareja para aceptar.`,
+          isRead: false,
+        },
+      })
+    }
+
+    return res.json({ message: 'Solicitud enviada. Tu pareja recibirá una notificación para aceptar.' })
+  } catch (error) {
+    console.error('Error sending link request:', error)
+    return res.status(500).json({ error: 'Failed to send link request' })
+  }
+})
+
+/**
+ * Get pending link requests sent TO me
+ * GET /api/auth/pending-link-requests
+ */
+router.get('/pending-link-requests', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id
+    const requests = await prisma.invitation.findMany({
+      where: {
+        toUserId: userId,
+        type: 'link_request',
+        status: 'pending',
+        expiresAt: { gt: new Date() },
+      },
+      include: {
+        fromUser: { select: { id: true, name: true, email: true } },
+      },
+    })
+    return res.json({ requests })
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch link requests' })
+  }
+})
+
+/**
+ * Accept a link request — moves me to the requester's couple, returns new JWT
+ * POST /api/auth/accept-link-partner
+ * Body: { invitationId: string }
+ */
+router.post('/accept-link-partner', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id
+    const { invitationId } = req.body
+
+    if (!invitationId) return res.status(400).json({ error: 'invitationId is required' })
+
+    const invitation = await prisma.invitation.findFirst({
+      where: { id: invitationId, toUserId: userId, type: 'link_request', status: 'pending' },
+    })
+    if (!invitation) return res.status(404).json({ error: 'Solicitud no encontrada o ya procesada.' })
+    if (new Date() > invitation.expiresAt) return res.status(410).json({ error: 'La solicitud ha caducado.' })
+
+    // Move me to the requester's couple
+    await prisma.user.update({ where: { id: userId }, data: { coupleId: invitation.coupleId! } })
+
+    // Mark invitation accepted
+    await prisma.invitation.update({ where: { id: invitation.id }, data: { status: 'accepted' } })
+
+    // Mark the notification as read (if any)
+    await prisma.notification.updateMany({
+      where: { userId, type: 'LINK_REQUEST', isRead: false },
+      data: { isRead: true },
+    })
+
+    // Issue a new JWT with the updated coupleId
+    const jwt = await import('jsonwebtoken')
+    const newToken = jwt.default.sign(
+      { userId, coupleId: invitation.coupleId },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    )
+
+    const couple = await prisma.couple.findUnique({
+      where: { id: invitation.coupleId! },
       include: { users: { select: { id: true, name: true, email: true } } },
     })
 
-    return res.json({ message: 'Partner linked successfully', couple: updatedCouple })
+    return res.json({ message: 'Vinculación aceptada', token: newToken, couple })
   } catch (error) {
-    console.error('Error linking partner:', error)
-    return res.status(500).json({ error: 'Failed to link partner' })
+    console.error('Error accepting link request:', error)
+    return res.status(500).json({ error: 'Failed to accept link request' })
+  }
+})
+
+/**
+ * Reject a link request
+ * POST /api/auth/reject-link-partner
+ * Body: { invitationId: string }
+ */
+router.post('/reject-link-partner', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id
+    const { invitationId } = req.body
+
+    await prisma.invitation.updateMany({
+      where: { id: invitationId, toUserId: userId, type: 'link_request', status: 'pending' },
+      data: { status: 'rejected' },
+    })
+
+    return res.json({ message: 'Solicitud rechazada.' })
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to reject link request' })
   }
 })
 

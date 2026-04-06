@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken'
 import bcryptjs from 'bcryptjs'
+import crypto from 'crypto'
 import { PrismaClient } from '@prisma/client'
 import { config } from 'dotenv'
 
@@ -42,7 +43,7 @@ export const verifyToken = (token: string): { userId: string; coupleId: string }
   }
 }
 
-// Signup a single user (not yet paired)
+// Signup a single user — creates a solo couple so the user has a coupleId from day 1
 export async function signupUser(
   email: string,
   password: string,
@@ -56,29 +57,76 @@ export async function signupUser(
       throw new Error('Email already registered')
     }
 
-    // Hash password
     const passwordHash = await hashPassword(password)
 
-    // Create user WITHOUT couple (coupleId = null)
+    // Create a solo couple so all couple-scoped features work immediately
+    const couple = await prisma.couple.create({
+      data: {
+        secretKey: crypto.randomBytes(16).toString('hex'),
+        language,
+        configurations: {
+          create: {
+            tasksConfig: JSON.stringify({ cocina: 2.0, baños: 1.5, limpieza: 1.5, compra: 1.0, logistica: 1.0, cuidado: 1.5 }),
+            multipliersConfig: JSON.stringify({ franja: { mañana: 1.0, tarde: 1.1, noche: 1.2 }, hijos: { 0: 1.0, 1: 1.4, 2: 1.8, 3: 2.2 } }),
+            activityTypes: JSON.stringify([]),
+          },
+        },
+        subscriptions: { create: { plan: 'free' } },
+      },
+    })
+
     const user = await prisma.user.create({
       data: {
         email,
         passwordHash,
         name,
-        coupleId: null, // Single user, not paired yet
+        coupleId: couple.id,
         roleInHome: 'equal',
         timezone: 'Europe/Madrid',
         hasCompletedOnboarding: false,
         notificationsPush: true,
         notificationsEmail: true,
       },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        coupleId: true,
-      },
+      select: { id: true, email: true, name: true, coupleId: true },
     })
+
+    // Create default tasks for the new couple
+    await prisma.task.createMany({
+      data: [
+        { coupleId: couple.id, name: 'Cocinar', category: 'cocina', pointsBase: 2.0, isDefault: true },
+        { coupleId: couple.id, name: 'Limpiar baños', category: 'baños', pointsBase: 1.5, isDefault: true },
+        { coupleId: couple.id, name: 'Limpieza general', category: 'limpieza', pointsBase: 1.5, isDefault: true },
+        { coupleId: couple.id, name: 'Hacer la compra', category: 'compra', pointsBase: 1.0, isDefault: true },
+        { coupleId: couple.id, name: 'Gestiones logísticas', category: 'logistica', pointsBase: 1.0, isDefault: true },
+        { coupleId: couple.id, name: 'Cuidado de los niños', category: 'cuidado', pointsBase: 1.5, isDefault: true },
+      ],
+    })
+
+    // Create basic event categories so RequestActivity works
+    const eventCats = [
+      { name: 'Gastronomía', emoji: '🍽️', basePoints: 15 },
+      { name: 'Escapadas & Viajes', emoji: '✈️', basePoints: 25 },
+      { name: 'Ocio & Cultura', emoji: '🎭', basePoints: 12 },
+      { name: 'Deporte & Bienestar', emoji: '🏋️', basePoints: 10 },
+      { name: 'Familia & Social', emoji: '👨‍👩‍👧', basePoints: 12 },
+      { name: 'Trabajo & Obligaciones', emoji: '🏢', basePoints: 10 },
+      { name: 'Ocio Personal', emoji: '🎮', basePoints: 8 },
+    ]
+    for (const cat of eventCats) {
+      await prisma.category.create({
+        data: { coupleId: couple.id, name: cat.name, emoji: cat.emoji, type: 'event', basePoints: cat.basePoints, isCustom: false, isActive: true },
+      })
+    }
+
+    // Create basic achievements
+    const achievements = [
+      { type: 'couple', name: 'Primer Evento', description: 'Acuerda tu primer evento', icon: '🎉', rarity: 'common', condition: JSON.stringify({ type: 'events_accepted', threshold: 1 }) },
+      { type: 'couple', name: 'Colaborador', description: 'Acuerda 5 eventos', icon: '👥', rarity: 'rare', condition: JSON.stringify({ type: 'events_accepted', threshold: 5 }) },
+      { type: 'couple', name: 'Acumulador', description: 'Gana 50 puntos totales', icon: '⭐', rarity: 'common', condition: JSON.stringify({ type: 'points_earned', threshold: 50 }) },
+    ]
+    for (const ach of achievements) {
+      await prisma.achievement.create({ data: { coupleId: couple.id, ...ach } })
+    }
 
     return user
   } catch (error) {

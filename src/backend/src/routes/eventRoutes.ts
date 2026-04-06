@@ -210,6 +210,7 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response): Promise<
           pointsProposed: n.pointsProposed.toString(),
           message: n.message,
           responseType: n.responseType,
+          proposedBy: n.proposedBy,  // needed for isMyTurn check in RequestInbox
           proposer: n.proposer ? { id: n.proposer.id, name: n.proposer.name } : null,
           responder: n.responder ? { id: n.responder.id, name: n.responder.name } : null,
           respondedAt: n.respondedAt,

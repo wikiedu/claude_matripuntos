@@ -59,6 +59,10 @@ export default function Settings({ onBack }: PageProps) {
   const [linkSuccess, setLinkSuccess] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
 
+  // Pending link requests sent TO me
+  const [pendingLinkRequests, setPendingLinkRequests] = useState<Array<{ id: string; fromUser: { id: string; name: string; email: string } }>>([])
+  const [linkRequestActionLoading, setLinkRequestActionLoading] = useState(false)
+
   const [config, setConfig] = useState<ConfigData>({
     numChildren: couple?.numChildren || 0,
     timezone: 'Europe/Madrid',
@@ -126,6 +130,10 @@ export default function Settings({ onBack }: PageProps) {
         setHasPendingResetFromPartner(pending)
       }).catch(() => {/* silent */})
     }
+    // Always fetch pending link requests (even for solo users without a couple)
+    apiClient.invitations.pendingLinkRequests().then((res: any) => {
+      setPendingLinkRequests(res.requests || [])
+    }).catch(() => {/* silent */})
   }, [couple?.id])
 
   const handleSave = async () => {
@@ -168,6 +176,33 @@ export default function Settings({ onBack }: PageProps) {
       setError(err instanceof Error ? err.message : 'Error al restaurar')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleAcceptLinkRequest = async (invitationId: string) => {
+    setLinkRequestActionLoading(true)
+    try {
+      const result = await apiClient.invitations.acceptLinkPartner(invitationId)
+      // Store new JWT and reload user data
+      apiClient.setToken(result.token)
+      await useAppStore.getState().loadUserData()
+      window.location.reload()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al aceptar la solicitud')
+    } finally {
+      setLinkRequestActionLoading(false)
+    }
+  }
+
+  const handleRejectLinkRequest = async (invitationId: string) => {
+    setLinkRequestActionLoading(true)
+    try {
+      await apiClient.invitations.rejectLinkPartner(invitationId)
+      setPendingLinkRequests(prev => prev.filter(r => r.id !== invitationId))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al rechazar la solicitud')
+    } finally {
+      setLinkRequestActionLoading(false)
     }
   }
 
@@ -516,6 +551,37 @@ export default function Settings({ onBack }: PageProps) {
           <Card>
             <CardTitle>Tu Pareja</CardTitle>
             <CardContent>
+              {/* Pending link requests — shown regardless of partner status */}
+              {pendingLinkRequests.length > 0 && (
+                <div className="mb-5 space-y-3">
+                  {pendingLinkRequests.map(req => (
+                    <div key={req.id} className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
+                      <p className="text-sm font-semibold text-indigo-900 mb-1">💌 Solicitud de vinculación</p>
+                      <p className="text-sm text-indigo-800 mb-3">
+                        <strong>{req.fromUser.name}</strong> ({req.fromUser.email}) quiere vincularse contigo como pareja.
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleRejectLinkRequest(req.id)}
+                          disabled={linkRequestActionLoading}
+                          className="flex-1 py-2 px-3 border border-gray-300 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          Rechazar
+                        </button>
+                        <button
+                          onClick={() => handleAcceptLinkRequest(req.id)}
+                          disabled={linkRequestActionLoading}
+                          className="flex-1 py-2 px-3 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {linkRequestActionLoading ? <Loader className="w-4 h-4 animate-spin" /> : null}
+                          Aceptar vinculación
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {otherUser ? (
                 <div className="space-y-5">
                   <div className="p-5 bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-xl">

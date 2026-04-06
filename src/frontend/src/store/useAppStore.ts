@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { User, Couple } from '../types/index'
 import { apiClient } from '../services/apiClient'
+import { queryClient } from '../App'
 
 interface AppState {
   user: User | null
@@ -111,6 +112,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   logout: () => {
     apiClient.clearToken()
+    queryClient.clear()
     set({ user: null, couple: null, isAuthenticated: false, error: null })
   },
 }))

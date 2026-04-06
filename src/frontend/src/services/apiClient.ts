@@ -422,6 +422,21 @@ class ApiClient {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+
+    pendingLinkRequests: () =>
+      this.request('/auth/pending-link-requests'),
+
+    acceptLinkPartner: (invitationId: string) =>
+      this.request('/auth/accept-link-partner', {
+        method: 'POST',
+        body: JSON.stringify({ invitationId }),
+      }),
+
+    rejectLinkPartner: (invitationId: string) =>
+      this.request('/auth/reject-link-partner', {
+        method: 'POST',
+        body: JSON.stringify({ invitationId }),
+      }),
   }
 
   // Category endpoints (V2)

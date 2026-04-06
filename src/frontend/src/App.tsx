@@ -19,7 +19,7 @@ import Achievements from './pages/Achievements'
 import NotFound from './pages/NotFound'
 import './App.css'
 
-const queryClient = new QueryClient({
+export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000, // 5 minutes
