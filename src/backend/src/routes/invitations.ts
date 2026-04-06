@@ -306,4 +306,64 @@ router.post('/register-with-invitation', async (req: Request, res: Response) => 
   }
 })
 
+/**
+ * Link an existing user as partner directly (no invitation token needed)
+ * POST /api/auth/link-partner
+ * Body: { partnerEmail: string }
+ * - partnerEmail must exist in DB
+ * - partnerEmail must not already belong to a couple
+ * - Calling user must not already have a partner
+ */
+router.post('/link-partner', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id
+    const { partnerEmail } = req.body
+
+    if (!partnerEmail || typeof partnerEmail !== 'string') {
+      return res.status(400).json({ error: 'partnerEmail is required' })
+    }
+
+    const me = await prisma.user.findUnique({ where: { id: userId }, include: { couple: { include: { users: true } } } })
+    if (!me) return res.status(404).json({ error: 'User not found' })
+
+    const myCouple = me.couple
+    if (!myCouple) return res.status(400).json({ error: 'You are not linked to any couple yet' })
+
+    // Check I don't already have a partner
+    const alreadyHasPartner = myCouple.users.some(u => u.id !== userId)
+    if (alreadyHasPartner) {
+      return res.status(400).json({ error: 'You already have a partner linked' })
+    }
+
+    const partner = await prisma.user.findUnique({ where: { email: partnerEmail }, include: { couple: { include: { users: true } } } })
+    if (!partner) {
+      return res.status(404).json({ error: 'No existe ninguna cuenta con ese email. Pídele que se registre primero.' })
+    }
+
+    // Partner must not already have a different partner
+    if (partner.coupleId && partner.coupleId !== myCouple.id) {
+      const partnerCouple = partner.couple
+      if (partnerCouple && partnerCouple.users.some(u => u.id !== partner.id)) {
+        return res.status(400).json({ error: 'Ese usuario ya tiene pareja asociada.' })
+      }
+    }
+
+    // Link partner to my couple
+    await prisma.user.update({
+      where: { id: partner.id },
+      data: { coupleId: myCouple.id },
+    })
+
+    const updatedCouple = await prisma.couple.findUnique({
+      where: { id: myCouple.id },
+      include: { users: { select: { id: true, name: true, email: true } } },
+    })
+
+    return res.json({ message: 'Partner linked successfully', couple: updatedCouple })
+  } catch (error) {
+    console.error('Error linking partner:', error)
+    return res.status(500).json({ error: 'Failed to link partner' })
+  }
+})
+
 export default router

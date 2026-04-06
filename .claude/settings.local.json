@@ -182,7 +182,10 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('signup:', d.get\\('message'\\), '| coupleId:', d.get\\('user',{}\\).get\\('coupleId'\\)\\)\")",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('login:', d.get\\('message'\\), '| coupleId:', d.get\\('user',{}\\).get\\('coupleId'\\)\\)\")",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('couple:', d.get\\('couple'\\)\\)\")",
-      "Bash(killall -9 node)"
+      "Bash(killall -9 node)",
+      "Bash(npx jest:*)",
+      "Bash(node -e \"console.log\\('ISO:', new Date\\('2026-04-01T00:00:00Z'\\).toISOString\\(\\)\\); console.log\\('Date:', new Date\\('2026-04-01T00:00:00Z'\\).toLocaleDateString\\('es-ES'\\)\\); console.log\\('Local:', new Date\\('2026-04-01'\\).toISOString\\(\\)\\);\")",
+      "Bash(node --loader ts-node/esm prisma/setup-test-users.ts)"
     ]
   }
 }

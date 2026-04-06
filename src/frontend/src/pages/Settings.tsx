@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, RotateCcw, AlertCircle, Loader, Info, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Save, RotateCcw, AlertCircle, Loader, Info, RefreshCw, Link2, Mail, CheckCircle, Copy } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
 import { Button } from '../components/Button'
@@ -49,6 +49,15 @@ export default function Settings({ onBack }: PageProps) {
   const [resetState, setResetState] = useState<'idle' | 'requesting'>('idle')
   const [isResetting, setIsResetting] = useState(false)
   const [hasPendingResetFromPartner, setHasPendingResetFromPartner] = useState(false)
+
+  // Partner linking state
+  const [partnerMode, setPartnerMode] = useState<'idle' | 'invite' | 'link'>('idle')
+  const [partnerEmail, setPartnerEmail] = useState('')
+  const [partnerActionLoading, setPartnerActionLoading] = useState(false)
+  const [partnerActionError, setPartnerActionError] = useState<string | null>(null)
+  const [inviteLink, setInviteLink] = useState<string | null>(null)
+  const [linkSuccess, setLinkSuccess] = useState(false)
+  const [copiedLink, setCopiedLink] = useState(false)
 
   const [config, setConfig] = useState<ConfigData>({
     numChildren: couple?.numChildren || 0,
@@ -159,6 +168,37 @@ export default function Settings({ onBack }: PageProps) {
       setError(err instanceof Error ? err.message : 'Error al restaurar')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleInvitePartner = async () => {
+    if (!partnerEmail.trim()) return
+    setPartnerActionLoading(true)
+    setPartnerActionError(null)
+    try {
+      const result = await apiClient.invitations.invitePartner({ inviteeEmail: partnerEmail.trim() })
+      setInviteLink(result.invitation?.invitationLink || null)
+    } catch (err) {
+      setPartnerActionError(err instanceof Error ? err.message : 'Error al crear invitación')
+    } finally {
+      setPartnerActionLoading(false)
+    }
+  }
+
+  const handleLinkPartner = async () => {
+    if (!partnerEmail.trim()) return
+    setPartnerActionLoading(true)
+    setPartnerActionError(null)
+    try {
+      await apiClient.invitations.linkPartner({ partnerEmail: partnerEmail.trim() })
+      setLinkSuccess(true)
+      // Reload couple data
+      await (useAppStore.getState() as any).loadUserData?.()
+      window.location.reload()
+    } catch (err) {
+      setPartnerActionError(err instanceof Error ? err.message : 'Error al vincular pareja')
+    } finally {
+      setPartnerActionLoading(false)
     }
   }
 
@@ -587,11 +627,120 @@ export default function Settings({ onBack }: PageProps) {
                   </div>
                 </div>
               ) : (
-                <div className="p-6 text-center">
-                  <div className="text-4xl mb-3">💑</div>
-                  <p className="font-semibold text-gray-800 mb-1">Aún no tienes pareja conectada</p>
-                  <p className="text-sm text-gray-500 mb-5">Invita a tu pareja para empezar a compartir el sistema de puntos</p>
-                  <button className="btn-primary mx-auto">Invitar a mi pareja</button>
+                <div className="space-y-5">
+                  <div className="p-5 bg-gray-50 rounded-xl text-center">
+                    <div className="text-4xl mb-3">💑</div>
+                    <p className="font-semibold text-gray-800 mb-1">Aún no tienes pareja conectada</p>
+                    <p className="text-sm text-gray-500">Elige cómo conectar con tu pareja:</p>
+                  </div>
+
+                  {/* Option buttons */}
+                  {partnerMode === 'idle' && (
+                    <div className="grid grid-cols-1 gap-3">
+                      <button
+                        onClick={() => { setPartnerMode('link'); setPartnerActionError(null); setPartnerEmail('') }}
+                        className="w-full flex items-center gap-3 p-4 border-2 border-indigo-200 rounded-xl hover:bg-indigo-50 transition-colors text-left"
+                      >
+                        <Link2 className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+                        <div>
+                          <p className="font-semibold text-gray-900 text-sm">Mi pareja ya tiene cuenta</p>
+                          <p className="text-xs text-gray-500">Vincula directamente con su email</p>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => { setPartnerMode('invite'); setPartnerActionError(null); setPartnerEmail(''); setInviteLink(null) }}
+                        className="w-full flex items-center gap-3 p-4 border-2 border-purple-200 rounded-xl hover:bg-purple-50 transition-colors text-left"
+                      >
+                        <Mail className="w-5 h-5 text-purple-600 flex-shrink-0" />
+                        <div>
+                          <p className="font-semibold text-gray-900 text-sm">Invitar a mi pareja</p>
+                          <p className="text-xs text-gray-500">Genera un enlace de invitación para que se registre</p>
+                        </div>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Link by email */}
+                  {partnerMode === 'link' && !linkSuccess && (
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium text-gray-700">Email de tu pareja (debe tener cuenta en Matripuntos):</p>
+                      <input
+                        type="email"
+                        value={partnerEmail}
+                        onChange={e => setPartnerEmail(e.target.value)}
+                        placeholder="pareja@ejemplo.com"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                      />
+                      {partnerActionError && (
+                        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{partnerActionError}</p>
+                      )}
+                      <div className="flex gap-2">
+                        <button onClick={() => { setPartnerMode('idle'); setPartnerActionError(null) }} className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50">
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={handleLinkPartner}
+                          disabled={partnerActionLoading || !partnerEmail.trim()}
+                          className="flex-1 py-2.5 px-4 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {partnerActionLoading ? <Loader className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                          Vincular pareja
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Invite flow */}
+                  {partnerMode === 'invite' && !inviteLink && (
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium text-gray-700">Email de tu pareja (le llegará el enlace):</p>
+                      <input
+                        type="email"
+                        value={partnerEmail}
+                        onChange={e => setPartnerEmail(e.target.value)}
+                        placeholder="pareja@ejemplo.com"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                      />
+                      {partnerActionError && (
+                        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{partnerActionError}</p>
+                      )}
+                      <div className="flex gap-2">
+                        <button onClick={() => { setPartnerMode('idle'); setPartnerActionError(null) }} className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50">
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={handleInvitePartner}
+                          disabled={partnerActionLoading || !partnerEmail.trim()}
+                          className="flex-1 py-2.5 px-4 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {partnerActionLoading ? <Loader className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                          Generar enlace
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Invite link result */}
+                  {partnerMode === 'invite' && inviteLink && (
+                    <div className="space-y-3">
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+                        <p className="text-sm font-semibold text-green-800 mb-2">✅ Enlace generado</p>
+                        <p className="text-xs text-green-700 mb-3">Comparte este enlace con tu pareja. Caduca en 7 días.</p>
+                        <div className="flex items-center gap-2 bg-white border border-green-300 rounded-lg px-3 py-2">
+                          <p className="text-xs text-gray-700 flex-1 truncate font-mono">{inviteLink}</p>
+                          <button
+                            onClick={() => { navigator.clipboard.writeText(inviteLink); setCopiedLink(true); setTimeout(() => setCopiedLink(false), 2000) }}
+                            className="flex-shrink-0 text-green-700 hover:text-green-900"
+                          >
+                            {copiedLink ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <button onClick={() => { setPartnerMode('idle'); setInviteLink(null) }} className="w-full py-2.5 px-4 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50">
+                        Volver
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>

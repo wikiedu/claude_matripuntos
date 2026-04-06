@@ -151,6 +151,11 @@ router.get('/chart-data', authMiddleware, async (req: Request, res: Response): P
       orderBy: { createdAt: 'asc' },
     })
 
+    // Use local-date keys (YYYY-MM-DD) to avoid UTC-offset mismatches when
+    // the server timezone differs from midnight (e.g. UTC+1/+2 in Spain).
+    const localDateKey = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
     const windowStart = new Date()
     windowStart.setDate(windowStart.getDate() - (days - 1))
     windowStart.setHours(0, 0, 0, 0)
@@ -165,24 +170,24 @@ router.get('/chart-data', authMiddleware, async (req: Request, res: Response): P
       }
     }
 
-    // Build per-day delta maps
+    // Build per-day delta maps using local date keys
     const youDelta: Record<string, number> = {}
     const partnerDelta: Record<string, number> = {}
     for (const t of allTx) {
       const d = new Date(t.createdAt)
       if (d < windowStart) continue
-      const key = d.toISOString().split('T')[0]
+      const key = localDateKey(d)
       if (t.userId === you.id) youDelta[key] = (youDelta[key] || 0) + Number(t.amount)
       else if (partner && t.userId === partner.id) partnerDelta[key] = (partnerDelta[key] || 0) + Number(t.amount)
     }
 
-    // Generate one entry per day
+    // Generate one entry per day using local date keys
     const chartData = []
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date()
       d.setDate(d.getDate() - i)
       d.setHours(0, 0, 0, 0)
-      const key = d.toISOString().split('T')[0]
+      const key = localDateKey(d)
       youRunning += youDelta[key] || 0
       partnerRunning += partnerDelta[key] || 0
       const entry: any = {

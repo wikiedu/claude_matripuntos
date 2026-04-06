@@ -402,6 +402,12 @@ class ApiClient {
         body: JSON.stringify(data),
       }),
 
+    linkPartner: (data: { partnerEmail: string }) =>
+      this.request('/auth/link-partner', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
     validateToken: (token: string) =>
       this.request(`/auth/invitation/${token}`),
 
