@@ -35,7 +35,7 @@ router.post('/invite-partner', authenticateToken, async (req: Request, res: Resp
     const existingInvitation = await prisma.invitation.findFirst({
       where: {
         coupleId,
-        inviteeEmail,
+        toEmail: inviteeEmail,
         status: 'pending',
       },
     })
@@ -53,9 +53,10 @@ router.post('/invite-partner', authenticateToken, async (req: Request, res: Resp
     const invitation = await prisma.invitation.create({
       data: {
         coupleId,
-        inviterUserId: userId,
-        inviteeEmail,
+        fromUserId: userId,
+        toEmail: inviteeEmail,
         token,
+        type: 'email_invite',
         status: 'pending',
         expiresAt,
       },
@@ -70,7 +71,7 @@ router.post('/invite-partner', authenticateToken, async (req: Request, res: Resp
         id: invitation.id,
         token: invitation.token,
         invitationLink,
-        inviteeEmail: invitation.inviteeEmail,
+        inviteeEmail: invitation.toEmail,
         expiresAt: invitation.expiresAt,
       },
     })
@@ -93,7 +94,7 @@ router.get('/invitation/:token', async (req: Request, res: Response) => {
       where: { token },
       include: {
         couple: true,
-        inviter: {
+        fromUser: {
           select: {
             id: true,
             name: true,
@@ -121,8 +122,8 @@ router.get('/invitation/:token', async (req: Request, res: Response) => {
       valid: true,
       invitation: {
         id: invitation.id,
-        inviteeEmail: invitation.inviteeEmail,
-        inviterName: invitation.inviter.name,
+        inviteeEmail: invitation.toEmail,
+        inviterName: invitation.fromUser.name,
         coupleId: invitation.coupleId,
         expiresAt: invitation.expiresAt,
       },
@@ -175,7 +176,7 @@ router.post('/accept-invitation', authenticateToken, async (req: Request, res: R
     }
 
     // Check if email matches
-    if (inviteeUser.email !== invitation.inviteeEmail) {
+    if (inviteeUser.email !== invitation.toEmail) {
       return res.status(400).json({ error: 'Email does not match invitation' })
     }
 
@@ -192,7 +193,7 @@ router.post('/accept-invitation', authenticateToken, async (req: Request, res: R
       where: { id: invitation.id },
       data: {
         status: 'accepted',
-        inviteeUserId: userId,
+        toUserId: userId,
         updatedAt: new Date(),
       },
     })
@@ -254,7 +255,7 @@ router.post('/register-with-invitation', async (req: Request, res: Response) => 
     }
 
     // Check if email matches invitation
-    if (email !== invitation.inviteeEmail) {
+    if (email !== invitation.toEmail) {
       return res.status(400).json({ error: 'Email does not match invitation' })
     }
 
@@ -286,7 +287,7 @@ router.post('/register-with-invitation', async (req: Request, res: Response) => 
       where: { id: invitation.id },
       data: {
         status: 'accepted',
-        inviteeUserId: newUser.id,
+        toUserId: newUser.id,
         updatedAt: new Date(),
       },
     })
