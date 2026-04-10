@@ -47,6 +47,7 @@ export const AnalyticsDashboard: React.FC = () => {
   const [periodDays, setPeriodDays] = useState(0)
   const [pointsByCategory, setPointsByCategory] = useState<Record<string, number>>({})
   const [_loading, setLoading] = useState(false)
+  const [fetchDone, setFetchDone] = useState(false)
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -125,13 +126,34 @@ export const AnalyticsDashboard: React.FC = () => {
       console.error('Failed to fetch analytics:', error)
     } finally {
       setLoading(false)
+      setFetchDone(true)
     }
+  }
+
+  if (!metrics && !fetchDone) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      </div>
+    )
   }
 
   if (!metrics) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-8 flex items-center gap-4">
+            <button onClick={() => navigate('/dashboard')} className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <h1 className="text-4xl font-bold text-gray-900">Analytics Avanzado</h1>
+          </div>
+          <div className="bg-white rounded-xl p-12 text-center border border-gray-200">
+            <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-700 mb-2">Aún no hay datos suficientes</h2>
+            <p className="text-gray-500">Registra actividades y tareas para ver el análisis aquí.</p>
+          </div>
+        </div>
       </div>
     )
   }

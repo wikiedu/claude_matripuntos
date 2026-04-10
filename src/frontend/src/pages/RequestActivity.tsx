@@ -171,7 +171,8 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
         setIsLoadingCats(true)
         const res = await apiClient.categories.getAll()
         const cats = (res.categories || res || []).filter((c: Category) => c.type === 'event')
-        if (cats.length > 0) {
+        const hasSubcategories = cats.some((c: Category) => c.subcategories && c.subcategories.length > 0)
+        if (cats.length > 0 && hasSubcategories) {
           setCategories(cats)
           setSelectedCategoryId(cats[0].id)
         } else throw new Error('empty')
