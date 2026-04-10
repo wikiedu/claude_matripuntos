@@ -1,5 +1,5 @@
-import { PrismaClient } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
+import prismaClient from '../lib/prisma.js'
 
 // BLOCKER 1: Define interfaces
 interface Achievement {
@@ -500,4 +500,4 @@ export class AchievementEngine {
   }
 }
 
-export const achievementEngine = new AchievementEngine(new PrismaClient())
+export const achievementEngine = new AchievementEngine(prismaClient)

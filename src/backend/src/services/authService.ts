@@ -1,12 +1,11 @@
 import jwt from 'jsonwebtoken'
 import bcryptjs from 'bcryptjs'
 import crypto from 'crypto'
-import { PrismaClient } from '@prisma/client'
 import { config } from 'dotenv'
 
 config()
 
-const prisma = new PrismaClient()
+import prisma from '../lib/prisma.js'
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 const JWT_EXPIRY = '7d'
 

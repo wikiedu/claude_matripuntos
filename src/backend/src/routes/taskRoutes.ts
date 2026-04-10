@@ -1,5 +1,4 @@
 import express, { Request, Response } from 'express'
-import { PrismaClient } from '@prisma/client'
 import type { Prisma } from '@prisma/client'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
@@ -8,7 +7,7 @@ import { AchievementEngine } from '../services/achievementEngine.js'
 import { notifyTaskCompleted, notifyTaskDisputed } from '../services/notificationService.js'
 
 const router = express.Router()
-const prisma = new PrismaClient()
+import prisma from '../lib/prisma.js'
 const achievementEngine = new AchievementEngine(prisma)
 
 // Validation schemas

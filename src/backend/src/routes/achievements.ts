@@ -1,10 +1,9 @@
 import express, { Request, Response } from 'express'
-import { PrismaClient } from '@prisma/client'
 import { authenticateToken } from '../middleware/auth.js'
 import { achievementEngine } from '../services/achievementEngine.js'
 
 const router = express.Router()
-const prisma = new PrismaClient()
+import prisma from '../lib/prisma.js'
 
 /**
  * GET /api/achievements

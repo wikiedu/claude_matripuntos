@@ -1,12 +1,11 @@
 import express, { Request, Response } from 'express'
-import { PrismaClient } from '@prisma/client'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
 import { Decimal } from '@prisma/client/runtime/library'
 import { AchievementEngine } from '../services/achievementEngine.js'
 
 const router = express.Router()
-const prisma = new PrismaClient()
+import prisma from '../lib/prisma.js'
 const achievementEngine = new AchievementEngine(prisma)
 
 // Validation schemas

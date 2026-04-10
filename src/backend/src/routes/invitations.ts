@@ -1,12 +1,11 @@
 import { Router, Request, Response } from 'express'
-import { PrismaClient } from '@prisma/client'
 import { authenticateToken } from '../middleware/auth.js'
 import crypto from 'crypto'
 import bcryptjs from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import prisma from '../lib/prisma.js'
 
 const router = Router()
-const prisma = new PrismaClient()
 
 /**
  * Generate invitation token for partner

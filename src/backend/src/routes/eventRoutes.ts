@@ -1,11 +1,10 @@
 import express, { Request, Response } from 'express'
-import { PrismaClient } from '@prisma/client'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
 import { notifyEventProposed } from '../services/notificationService.js'
 
 const router = express.Router()
-const prisma = new PrismaClient()
+import prisma from '../lib/prisma.js'
 
 // Validation schemas
 const createEventSchema = z.object({

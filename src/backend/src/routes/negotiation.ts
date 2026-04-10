@@ -1,10 +1,9 @@
 import { Router, Request, Response } from 'express'
 import { authenticateToken } from '../middleware/auth.js'
 import { negotiationEngine } from '../services/negotiationEngine.js'
-import { PrismaClient } from '@prisma/client'
 
 const router = Router()
-const prisma = new PrismaClient()
+import prisma from '../lib/prisma.js'
 
 /**
  * Negotiation Routes - FASE 3

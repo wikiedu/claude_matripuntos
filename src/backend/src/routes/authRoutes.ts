@@ -1,6 +1,5 @@
 import express, { Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
-import { PrismaClient } from '@prisma/client'
 import { signupCouple, loginUser, getUserById, getCoupleData, signupUser } from '../services/authService.js'
 import {
   createInvitation,
@@ -20,8 +19,9 @@ import {
 } from '../schemas/authSchemas.js'
 import { ZodError } from 'zod'
 
+import prisma from '../lib/prisma.js'
+
 const router = express.Router()
-const prisma = new PrismaClient()
 
 // Register/Signup - Create new couple account
 // Accepts both /signup and /register endpoints for compatibility

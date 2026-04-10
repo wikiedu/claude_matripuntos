@@ -1,7 +1,7 @@
 import { PrismaClient, Event, Negotiation } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
 
-const prisma = new PrismaClient()
+import prisma from '../lib/prisma.js'
 
 /**
  * Negotiation Engine Service
