@@ -293,7 +293,7 @@ router.post('/register-with-invitation', async (req: Request, res: Response) => 
       },
     })
 
-    const token = jwt.sign(
+    const authToken = jwt.sign(
       { userId: newUser.id, coupleId: newUser.coupleId },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
@@ -301,7 +301,7 @@ router.post('/register-with-invitation', async (req: Request, res: Response) => 
 
     res.status(201).json({
       message: 'Registration successful',
-      token,
+      token: authToken,
       user: {
         id: newUser.id,
         email: newUser.email,
