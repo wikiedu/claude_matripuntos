@@ -1,4 +1,5 @@
 import { Decimal } from '@prisma/client/runtime/library'
+import type { PrismaClient } from '@prisma/client'
 import prismaClient from '../lib/prisma.js'
 
 // BLOCKER 1: Define interfaces
