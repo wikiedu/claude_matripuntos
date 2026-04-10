@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Loader, CheckCircle, Mail } from 'lucide-react'
 import { apiClient } from '../../services/apiClient'
+import { useAppStore } from '../../store/useAppStore'
 
 interface OnboardingJoinFlowProps {
   token: string
@@ -62,14 +63,19 @@ export default function OnboardingJoinFlow({ token }: OnboardingJoinFlowProps) {
       setError(null)
 
       // Register with invitation
-      await apiClient.invitations.registerWithInvitation({
+      const data = await apiClient.invitations.registerWithInvitation({
         token,
         email: formData.email,
         password: formData.password,
         name: formData.name,
       })
 
-      setStep('complete')
+      // Store token and authenticate
+      apiClient.setToken(data.token)
+      useAppStore.getState().setUser(data.user)
+      useAppStore.setState({ isAuthenticated: true })
+
+      navigate('/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error registering')
     } finally {

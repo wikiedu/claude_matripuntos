@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express'
 import { PrismaClient } from '@prisma/client'
 import { authenticateToken } from '../middleware/auth.js'
 import crypto from 'crypto'
+import bcryptjs from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 
 const router = Router()
 const prisma = new PrismaClient()
@@ -268,9 +270,8 @@ router.post('/register-with-invitation', async (req: Request, res: Response) => 
       return res.status(400).json({ error: 'Email already registered' })
     }
 
-    // Hash password (using simple bcrypt)
-    const bcrypt = require('bcryptjs')
-    const passwordHash = await bcrypt.hash(password, 10)
+    // Hash password
+    const passwordHash = await bcryptjs.hash(password, 10)
 
     // Create new user
     const newUser = await prisma.user.create({
@@ -292,8 +293,15 @@ router.post('/register-with-invitation', async (req: Request, res: Response) => 
       },
     })
 
+    const token = jwt.sign(
+      { userId: newUser.id, coupleId: newUser.coupleId },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    )
+
     res.status(201).json({
       message: 'Registration successful',
+      token,
       user: {
         id: newUser.id,
         email: newUser.email,
