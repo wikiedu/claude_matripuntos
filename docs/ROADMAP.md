@@ -10,7 +10,7 @@
 | Versión | Nombre | Estado | Branch | Tag |
 |---|---|---|---|---|
 | MVP 1 | Los Cimientos | ✅ En producción | `main` | `mvp1` |
-| v1.1 | La Chispa | Siguiente | `feature/v1.1-la-chispa` | — |
+| v1.1 | La Chispa | ✅ En producción | `main` | `v1.1` |
 | v1.2 | El Juego | Planificado | `feature/v1.2-el-juego` | — |
 | v1.3 | La Casa | Planificado | `feature/v1.3-la-casa` | — |
 | v2.0 | Hogar 360 | Planificado | `feature/v2.0-hogar-360` | — |
