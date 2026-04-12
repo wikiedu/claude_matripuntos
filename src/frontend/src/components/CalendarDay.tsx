@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
+import { formatLocalTime, toLocalDateString } from '../utils/dateUtils'
 
 interface CalendarEntry {
   id: string
@@ -48,7 +49,7 @@ export const CalendarDay: React.FC = () => {
     if (!isAuthenticated) return
     setLoading(true)
     try {
-      const dateStr = selectedDate.toISOString().split('T')[0]
+      const dateStr = toLocalDateString(selectedDate)
       const response = await apiClient.calendar.getDay(dateStr)
       setEntries(response.data?.entries || [])
     } catch (error) {
@@ -228,7 +229,7 @@ export const CalendarDay: React.FC = () => {
                   </div>
                   {entry.description && <p className="text-sm opacity-90 ml-7">{entry.description}</p>}
                   <p className="text-xs opacity-75 mt-2 ml-7">
-                    {new Date(entry.date).toLocaleTimeString('es-ES')}
+                    {formatLocalTime(entry.date)}
                   </p>
                 </div>
                 <button

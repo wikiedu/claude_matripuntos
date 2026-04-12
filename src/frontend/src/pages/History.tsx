@@ -6,6 +6,7 @@ import { apiClient } from '../services/apiClient'
 import { Button } from '../components/Button'
 import { Alert } from '../components/Alert'
 import { Card, CardTitle, CardContent, CardDescription } from '../components/Card'
+import { formatLocalDate } from '../utils/dateUtils'
 
 interface Transaction {
   id: string
@@ -303,7 +304,7 @@ export default function History({ onBack }: PageProps) {
                           </p>
                         )}
                         <p className="text-xs text-gray-500 mt-1">
-                          {new Date(transaction.createdAt).toLocaleDateString()}
+                          {formatLocalDate(transaction.createdAt)}
                         </p>
                       </div>
                     </div>

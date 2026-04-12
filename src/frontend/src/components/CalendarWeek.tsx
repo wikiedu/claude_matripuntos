@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
+import { toLocalDateString } from '../utils/dateUtils'
 
 interface CalendarEntry {
   id: string
@@ -88,8 +89,8 @@ export const CalendarWeek: React.FC = () => {
   }
 
   const getEntriesForDay = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0]
-    return entries.filter(e => new Date(e.date).toISOString().split('T')[0] === dateStr)
+    const dateStr = toLocalDateString(date)
+    return entries.filter(e => toLocalDateString(new Date(e.date)) === dateStr)
   }
 
   const isToday = (date: Date) => {
