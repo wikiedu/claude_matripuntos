@@ -117,6 +117,13 @@ export const useAppStore = create<AppState>((set) => ({
         isAuthenticated: true,
         isLoading: false,
       })
+
+      // Sync theme from server preference
+      if (userResponse?.user?.theme) {
+        const serverTheme = userResponse.user.theme as 'dark' | 'light'
+        localStorage.setItem('matri-theme', serverTheme)
+        set({ theme: serverTheme })
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load user data'
       set({ error: message, isLoading: false, isAuthenticated: false })

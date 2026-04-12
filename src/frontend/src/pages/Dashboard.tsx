@@ -135,7 +135,11 @@ export default function Dashboard() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
-            onClick={toggleTheme}
+            onClick={async () => {
+              toggleTheme()
+              const newTheme = theme === 'dark' ? 'light' : 'dark'
+              await apiClient.profile.updateMe({ theme: newTheme })
+            }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--matri-text-2)', padding: 4 }}
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
@@ -148,7 +152,7 @@ export default function Dashboard() {
             size="md"
             interactive
             onMoodChange={async (mood) => {
-              await apiClient.request('/profile/me', { method: 'PUT', body: JSON.stringify({ currentMood: mood }) })
+              await apiClient.profile.updateMe({ currentMood: mood })
               useAppStore.setState((s: any) => ({
                 user: s.user ? { ...s.user, currentMood: mood } : s.user
               }))
