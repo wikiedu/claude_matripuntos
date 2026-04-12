@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { BarChart3, Plus, Settings, LogOut, TrendingUp, TrendingDown, Loader, PieChart, Calendar } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
@@ -8,9 +8,7 @@ import { NotificationBell } from '../components/NotificationBell'
 import { RecentMovementItem } from '../components/RecentMovementItem'
 import { type RecentActivity } from '../types/activity'
 import { AchievementsWidget } from '../components/AchievementsWidget'
-import RequestActivity from './RequestActivity'
-import RequestInbox from './RequestInbox'
-import Tasks from './Tasks'
+import { BottomNav } from '../components/BottomNav'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts'
 
 interface Event {
@@ -38,12 +36,8 @@ interface BalanceData {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const location = useLocation()
   const { user, couple, logout } = useAppStore()
-  const [currentView, setCurrentView] = useState<'dashboard' | 'request' | 'inbox' | 'tasks'>(
-    (location.state as any)?.openInbox ? 'inbox' : 'dashboard'
-  )
-  const [refreshCounter, setRefreshCounter] = useState(0)
+  const [refreshCounter] = useState(0)
   const [events, setEvents] = useState<Event[]>([])
   const [pendingTaskCount, setPendingTaskCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
@@ -115,25 +109,8 @@ export default function Dashboard() {
   // Numeric tick positions for 30-day chart; 29 = today
   const CHART_TICKS = [0, 5, 10, 15, 20, 25, 29]
 
-  const handleBack = (dirty = true) => {
-    setCurrentView('dashboard')
-    if (dirty) setRefreshCounter(c => c + 1)
-  }
-
-  if (currentView === 'request') {
-    return <RequestActivity onBack={() => handleBack()} />
-  }
-
-  if (currentView === 'inbox') {
-    return <RequestInbox onBack={() => handleBack()} />
-  }
-
-  if (currentView === 'tasks') {
-    return <Tasks onBack={() => handleBack()} />
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 72 }}>
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -241,14 +218,14 @@ export default function Dashboard() {
               <div className="space-y-3">
                 <h2 className="text-lg font-bold text-gray-900 mb-4">Acciones Rápidas</h2>
                 <button
-                  onClick={() => setCurrentView('request')}
+                  onClick={() => navigate('/request-activity')}
                   className="w-full btn-primary flex items-center justify-center gap-2 py-3 hover:shadow-md"
                 >
                   <Plus className="w-5 h-5" />
                   Solicitar Actividad
                 </button>
                 <button
-                  onClick={() => setCurrentView('tasks')}
+                  onClick={() => navigate('/tasks')}
                   className="w-full btn-primary flex items-center justify-center gap-2 py-3 hover:shadow-md"
                 >
                   <Plus className="w-5 h-5" />
@@ -269,7 +246,7 @@ export default function Dashboard() {
                   Analytics Avanzado
                 </button>
                 <button
-                  onClick={() => setCurrentView('inbox')}
+                  onClick={() => navigate('/inbox')}
                   className="w-full btn-secondary flex items-center justify-center gap-2 py-3 hover:shadow-md"
                 >
                   <BarChart3 className="w-5 h-5" />
@@ -407,6 +384,7 @@ export default function Dashboard() {
           </>
         )}
       </main>
+      <BottomNav onPlusPress={() => navigate('/request-activity')} />
     </div>
   )
 }
