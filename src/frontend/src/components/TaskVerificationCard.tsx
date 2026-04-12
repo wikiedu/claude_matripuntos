@@ -3,6 +3,7 @@ import { CheckCircle, AlertCircle, MessageCircle } from 'lucide-react'
 import { Card, CardTitle, CardDescription } from './Card'
 import { Button } from './Button'
 import { Alert } from './Alert'
+import { formatLocalDate } from '../utils/dateUtils'
 
 interface TaskVerificationCardProps {
   id: string
@@ -98,7 +99,7 @@ export function TaskVerificationCard({
             <div>
               <CardTitle className="text-base">{taskName}</CardTitle>
               <CardDescription>
-                Completed by {completedByName} on {new Date(date).toLocaleDateString()}
+                Completed by {completedByName} on {formatLocalDate(date)}
               </CardDescription>
             </div>
           </div>
@@ -121,7 +122,7 @@ export function TaskVerificationCard({
           <div className="flex-1">
             <CardTitle className="text-base">{taskName}</CardTitle>
             <CardDescription>
-              Completed by {completedByName} on {new Date(date).toLocaleDateString()}
+              Completed by {completedByName} on {formatLocalDate(date)}
             </CardDescription>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { apiClient } from '../services/apiClient'
 import { MessageCircle, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { formatLocalDateTime } from '../utils/dateUtils'
 
 interface NegotiationRound {
   id: string
@@ -74,16 +75,6 @@ export const NegotiationHistory = ({ eventId, eventTitle, onClose }: Negotiation
     }
   }
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return ''
-    const date = new Date(dateString)
-    return date.toLocaleDateString('es-ES', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
 
   if (loading) {
     return (
@@ -176,8 +167,8 @@ export const NegotiationHistory = ({ eventId, eventTitle, onClose }: Negotiation
                       </h4>
                       <p className="text-xs text-gray-500 mt-1">
                         {negotiation.respondedAt
-                          ? formatDate(negotiation.respondedAt)
-                          : formatDate(negotiation.createdAt)}
+                          ? formatLocalDateTime(negotiation.respondedAt)
+                          : negotiation.createdAt ? formatLocalDateTime(negotiation.createdAt) : ''}
                       </p>
                     </div>
                   </div>

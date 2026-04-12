@@ -3,6 +3,7 @@ import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
 import { Decimal } from '@prisma/client/runtime/library'
 import { AchievementEngine } from '../services/achievementEngine.js'
+import { notifyEventResponded } from '../services/notificationService.js'
 
 const router = express.Router()
 import prisma from '../lib/prisma.js'
@@ -228,6 +229,20 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
           status: 'rejected',
         },
       })
+    }
+
+    // Notify the event creator about the partner's response
+    try {
+      await notifyEventResponded(
+        negotiation.eventId,
+        req.coupleId,
+        req.userId,
+        data.responseType as 'accepted' | 'rejected' | 'counter_proposed',
+        negotiation.event?.title || negotiation.event?.type || 'Actividad'
+      )
+    } catch (notifError) {
+      // Non-fatal: log but don't fail the request
+      console.error('Failed to send response notification:', notifError)
     }
 
     res.json({

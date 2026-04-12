@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
+import { toLocalDateString, formatLocalDate, formatLocalWeekDay } from '../utils/dateUtils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Task {
@@ -274,7 +275,7 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
   useEffect(() => { loadData() }, [loadData])
 
   // ─── Derived state ─────────────────────────────────────────────────────────
-  const today = new Date().toISOString().split('T')[0]
+  const today = toLocalDateString(new Date())
 
   // My completions today (for task status in the list)
   const myTodayLogs = allLogs.filter(
@@ -526,7 +527,7 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
                             <span className="text-base">{CATEGORY_EMOJI[log.taskCategory?.toLowerCase()] || '✅'}</span>
                             <div className="min-w-0">
                               <p className="text-sm font-medium text-gray-800 truncate">{log.taskName}</p>
-                              <p className="text-xs text-gray-500">{new Date(log.date).toLocaleDateString('es-ES', { day:'numeric', month:'short' })}</p>
+                              <p className="text-xs text-gray-500">{formatLocalDate(log.date)}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2 ml-2">
@@ -643,7 +644,7 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
                               <div className="min-w-0">
                                 <p className="font-semibold text-gray-900 truncate">{log.taskName}</p>
                                 <p className="text-sm text-gray-500">
-                                  {log.completedBy?.name} · {new Date(log.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                  {log.completedBy?.name} · {formatLocalWeekDay(log.date)}
                                   {log.modifier && log.modifier !== 'none' && (
                                     <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${log.modifier === 'extra' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
                                       {log.modifier === 'extra' ? '⭐ Extra +30%' : '🔸 Parcial −30%'}
@@ -692,7 +693,7 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="font-medium text-gray-800">{log.taskName}</p>
-                              <p className="text-xs text-gray-500">{new Date(log.date).toLocaleDateString('es-ES', { day:'numeric', month:'short' })} · ⏳ Esperando verificación</p>
+                              <p className="text-xs text-gray-500">{formatLocalDate(log.date)} · ⏳ Esperando verificación</p>
                             </div>
                             <span className="text-sm font-bold text-gray-400">+{log.pointsFinal} pts</span>
                           </div>
@@ -726,7 +727,7 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
                         </div>
                         <p className="font-medium text-gray-900 truncate">{log.taskName}</p>
                         <p className="text-xs text-gray-500">
-                          {log.completedBy?.name} · {new Date(log.date).toLocaleDateString('es-ES', { day:'numeric', month:'short' })}
+                          {log.completedBy?.name} · {formatLocalDate(log.date)}
                           {log.verifiedBy && ` · ✓ ${log.verifiedBy.name}`}
                         </p>
                         {log.disputeReason && <p className="text-xs text-orange-600 mt-0.5">💬 "{log.disputeReason}"</p>}

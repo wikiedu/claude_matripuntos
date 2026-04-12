@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
+import { toLocalDateString, formatLocalDate } from '../utils/dateUtils'
 
 interface CalendarEntry {
   id: string
@@ -64,8 +65,8 @@ export const CalendarMonth: React.FC = () => {
   const emptyDays = Array.from({ length: firstDay }, (_, i) => i)
 
   const getEntriesForDay = (day: number) => {
-    const dateStr = new Date(year, month - 1, day).toISOString().split('T')[0]
-    return entries.filter(e => new Date(e.date).toISOString().split('T')[0] === dateStr)
+    const dateStr = toLocalDateString(new Date(year, month - 1, day))
+    return entries.filter(e => toLocalDateString(new Date(e.date)) === dateStr)
   }
 
   const goToPreviousMonth = () => {
@@ -80,7 +81,7 @@ export const CalendarMonth: React.FC = () => {
     setCurrentDate(new Date())
   }
 
-  const monthName = new Date(year, month - 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+  const monthName = formatLocalDate(new Date(year, month - 1, 1))
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
@@ -166,7 +167,7 @@ export const CalendarMonth: React.FC = () => {
       {selectedDate && (
         <div className="mt-6 pt-6 border-t">
           <h3 className="font-bold text-lg mb-4">
-            {selectedDate.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            {formatLocalDate(selectedDate)}
           </h3>
           <div className="space-y-2">
             {getEntriesForDay(selectedDate.getDate()).length > 0 ? (
