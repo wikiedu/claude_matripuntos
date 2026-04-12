@@ -50,3 +50,6 @@ coverage/
 
 # Optional eslint cache
 .eslintcache
+
+# Deploy credentials (never commit)
+.deploy-credentials

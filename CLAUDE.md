@@ -1,7 +1,10 @@
 # CLAUDE.md — Matripuntos
 
 ## 1. PROYECTO
-App web gamificada para parejas: gestión equitativa de responsabilidades del hogar mediante puntos negociables. MVP funcional. Branch activo: `feature/matripuntos-mvp`. Repo: https://github.com/wikiedu/claude_matripuntos
+App web gamificada para parejas: gestión equitativa de responsabilidades del hogar mediante puntos negociables. Repo: https://github.com/wikiedu/claude_matripuntos
+
+**Versión actual en producción:** MVP 1 · Los Cimientos  
+**Branch principal:** `main`
 
 ## 2. STACK TÉCNICO
 
@@ -16,7 +19,10 @@ App web gamificada para parejas: gestión equitativa de responsabilidades del ho
 - Prisma ORM · Zod (validation) · JWT (auth)
 - SQLite local → PostgreSQL/Supabase en producción
 
-**Deploy:** Vercel (frontend) · Railway/Render (backend) · Supabase (DB prod)
+**Deploy:**
+- Frontend: FTP → `ftp.keepitup.io` (dominio propio) — credenciales en `.deploy-credentials` (no en git)
+- Backend: Render — auto-deploy desde `main` via GitHub
+- DB producción: Supabase (PostgreSQL) — conectado a Render via env vars
 
 ## 3. ESTRUCTURA DE CÓDIGO
 
@@ -228,27 +234,36 @@ Ver referencia completa: `docs/PUNTOS.md`
 
 **Hijos:** Se usa `Event.numChildren` (cuántos hijos afectados en esa ausencia concreta), no el total de la pareja.
 
-## 9. ESTADO ACTUAL
+## 9. VERSIONES Y ROADMAP
 
-**MVP completo en `feature/matripuntos-mvp`:**
+### Convención de versiones
+Formato: `vX.Y · Nombre`. Branches: `feature/vX.Y-nombre-kebab`. Tags git: `mvp1`, `v1.1`, `v1.2`...
+
+| Versión | Nombre | Estado | Branch |
+|---|---|---|---|
+| MVP 1 | Los Cimientos | ✓ Producción | `main` (tag: `mvp1`) |
+| v1.1 | La Chispa | Planificado | `feature/v1.1-la-chispa` |
+| v1.2 | El Juego | Planificado | `feature/v1.2-el-juego` |
+| v1.3 | La Casa | Planificado | `feature/v1.3-la-casa` |
+| v2.0 | Hogar 360 | Planificado | `feature/v2.0-hogar-360` |
+| v2.1 | Conectados | Planificado | `feature/v2.1-conectados` |
+| v3.0 | Premium | Futuro | `feature/v3.0-premium` |
+
+Roadmap completo: `docs/superpowers/specs/2026-04-11-roadmap-versiones-design.md`
+
+### MVP 1 · Los Cimientos (en producción)
 - Auth + invitaciones + onboarding (4 steps)
 - Eventos: CRUD, negociación, forzar
 - Tareas: CRUD, logs, verificación, disputa
 - Puntos: balance, historial, transacciones
 - Configuración editable (tareas, multiplicadores, tipos)
-- Notificaciones in-app
+- Notificaciones in-app (fix: solo al responder, no al crear)
+- Calendario con tareas y eventos (fix: TaskLogs incluidos)
+- Fechas en timezone local (fix: Intl API)
 - Perfiles + familia (V2)
 - Categorías personalizadas (V2)
 - Logros/Achievements (V2)
-- Calendario (V2)
 - Analytics: overview, trends, equity (V2)
-
-**Pendiente (roadmap):**
-- Stripe: plan premium con pagos reales
-- App móvil (React Native)
-- Google Calendar integration
-- Notificaciones push
-- Export de datos
 
 ## 10. CONVENCIONES
 
@@ -260,6 +275,10 @@ Ver referencia completa: `docs/PUNTOS.md`
 - **V1 vs V2:** Las rutas V1 (MVP básico) y V2 (extended) coexisten en `server.ts`; no eliminar V1
 - **Frontend state:** Zustand para auth/couple global, React Query para datos del servidor
 - **Commits:** `feat:` · `fix:` · `chore:` · `docs:` convencionales
+- **Branches:** `feature/vX.Y-nombre-kebab` (ej: `feature/v1.1-la-chispa`)
+- **Tags:** `mvp1`, `v1.1`, `v1.2`... aplicados en `main` al hacer merge de cada versión
+- **Worktrees:** `~/.config/superpowers/worktrees/Matripuntos/<branch>` (global, fuera del repo)
+- **Credenciales deploy:** `.deploy-credentials` (local, en .gitignore, nunca commitear)
 
 ---
 

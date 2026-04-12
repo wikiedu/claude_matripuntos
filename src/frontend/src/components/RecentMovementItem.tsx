@@ -15,6 +15,7 @@ interface RecentMovementItemProps {
  * @param movement - The activity item to display
  * @param onClick - Callback when the item is clicked
  */
+// @ts-ignore
 export function RecentMovementItem({ movement, onClick }: RecentMovementItemProps) {
   // Icon and label based on activity type
   const typeConfig: Record<

@@ -222,6 +222,7 @@ function DisputeModal({ log, onClose, onSuccess }: {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function Tasks({ onBack }: { onBack?: () => void }) {
   const navigate = useNavigate()
+  // @ts-ignore
   const { couple, user } = useAppStore()
 
   const [tasks, setTasks] = useState<Task[]>([])

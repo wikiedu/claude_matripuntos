@@ -19,13 +19,10 @@ export default function Signup() {
       setFormError('Please fill all fields'); setIsLoading(false); return
     }
     try {
-      const res = await fetch('http://localhost:3000/api/auth/signup', {
+      const data = await apiClient.request('/auth/signup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, name, language: 'es' }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Signup failed')
 
       // Store token so apiClient can use it for subsequent requests
       apiClient.setToken(data.token)

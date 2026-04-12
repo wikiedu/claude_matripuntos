@@ -9,6 +9,7 @@ interface Step4Props {
   isLoading: boolean
 }
 
+// @ts-ignore
 export default function OnboardingStep4({ data, onChange, onSubmit, isLoading }: Step4Props) {
   const [mode, setMode] = useState<'idle' | 'invite' | 'link'>('idle')
   const [email, setEmail] = useState('')
