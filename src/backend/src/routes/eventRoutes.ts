@@ -1,7 +1,6 @@
 import express, { Request, Response } from 'express'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
-import { notifyEventProposed } from '../services/notificationService.js'
 
 const router = express.Router()
 import prisma from '../lib/prisma.js'
@@ -54,14 +53,6 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
         negotiations: true,
       },
     })
-
-    // Send notification to partner
-    await notifyEventProposed(
-      event.id,
-      req.coupleId,
-      req.userId,
-      event.title || `${event.type} Activity`
-    )
 
     res.status(201).json({
       message: 'Activity request created',
