@@ -249,7 +249,7 @@ Formato: `vX.Y · Nombre`. Branches: `feature/vX.Y-nombre-kebab`. Tags git: `mvp
 | v2.1 | Conectados | Planificado | `feature/v2.1-conectados` |
 | v3.0 | Premium | Futuro | `feature/v3.0-premium` |
 
-Roadmap completo: `docs/superpowers/specs/2026-04-11-roadmap-versiones-design.md`
+Roadmap: `docs/ROADMAP.md` · Decisiones: `docs/DECISIONS.md` · Spec detallado: `docs/superpowers/specs/2026-04-11-roadmap-versiones-design.md`
 
 ### MVP 1 · Los Cimientos (en producción)
 - Auth + invitaciones + onboarding (4 steps)
@@ -282,4 +282,4 @@ Roadmap completo: `docs/superpowers/specs/2026-04-11-roadmap-versiones-design.md
 
 ---
 
-*Docs de referencia: `docs/PUNTOS.md` · `docs/API.md` · `docs/FLUJOS.md` · `docs/DATOS.md`*
+*Docs de referencia: `docs/PUNTOS.md` · `docs/API.md` · `docs/FLUJOS.md` · `docs/DATOS.md` · `docs/ROADMAP.md` · `docs/DECISIONS.md`*
