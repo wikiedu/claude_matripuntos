@@ -11,18 +11,11 @@ interface StatCardProps {
   color?: ColorKey
 }
 
-const colorClasses: Record<ColorKey, string> = {
-  blue: 'bg-blue-50 text-blue-600 border-blue-200',
-  green: 'bg-green-50 text-green-600 border-green-200',
-  purple: 'bg-purple-50 text-purple-600 border-purple-200',
-  orange: 'bg-orange-50 text-orange-600 border-orange-200',
-}
-
-const iconColorClasses: Record<ColorKey, string> = {
-  blue: 'text-blue-500',
-  green: 'text-green-500',
-  purple: 'text-purple-500',
-  orange: 'text-orange-500',
+const iconColorStyles: Record<ColorKey, string> = {
+  blue: '#60a5fa',
+  green: '#4ade80',
+  purple: '#c084fc',
+  orange: '#fb923c',
 }
 
 export function StatCard({
@@ -34,17 +27,21 @@ export function StatCard({
   color = 'blue',
 }: StatCardProps) {
   return (
-    <div className={`rounded-lg border p-6 ${colorClasses[color]}`}>
-      <div className="flex items-start justify-between mb-4">
-        <h3 className="text-sm font-medium text-gray-600">{label}</h3>
-        <Icon size={20} className={iconColorClasses[color]} />
+    <div style={{
+      background: 'var(--matri-card-bg)',
+      border: '1px solid var(--matri-card-border)',
+      borderRadius: 10,
+      padding: '12px 14px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+        <p style={{ color: 'var(--matri-text-3)', fontSize: 12, fontWeight: 500 }}>{label}</p>
+        <Icon size={20} color={iconColorStyles[color]} />
       </div>
       <div>
-        <p className="text-3xl font-bold">
-          {trend}
-          {value}
+        <p style={{ color: 'var(--matri-text)', fontSize: 28, fontWeight: 700, lineHeight: 1.1 }}>
+          {trend}{value}
         </p>
-        <p className="text-xs text-gray-500 mt-1">{unit}</p>
+        <p style={{ color: 'var(--matri-text-2)', fontSize: 11, marginTop: 4 }}>{unit}</p>
       </div>
     </div>
   )

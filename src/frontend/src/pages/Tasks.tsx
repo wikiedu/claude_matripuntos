@@ -8,6 +8,7 @@ import {
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
 import { toLocalDateString, formatLocalDate, formatLocalWeekDay } from '../utils/dateUtils'
+import { BottomNav } from '../components/BottomNav'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Task {
@@ -359,7 +360,7 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
   const catKeys = Object.keys(CATEGORY_EMOJI)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div style={{ minHeight: '100vh', background: 'var(--matri-bg)', paddingBottom: 72 }}>
       {/* Modals */}
       {loggingTask && (
         <LogTaskModal task={loggingTask} onClose={() => setLoggingTask(null)} onSuccess={handleLogSuccess} />
@@ -423,14 +424,14 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
       )}
 
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+      <header style={{ background: 'var(--matri-card-bg)', borderBottom: '1px solid var(--matri-card-border)', position: 'sticky', top: 0, zIndex: 40 }}>
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
-          <button onClick={onBack || (() => navigate('/dashboard'))} className="p-2 hover:bg-gray-100 rounded-lg">
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          <button onClick={onBack || (() => navigate('/dashboard'))} className="p-2 hover:bg-gray-100 rounded-lg" style={{ color: 'var(--matri-text-2)' }}>
+            <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex-1">
-            <h1 className="text-xl font-bold text-gray-900">Tareas del Hogar</h1>
-            <p className="text-sm text-gray-500">{tasks.length} tareas · {myTodayLogs.length} hechas hoy</p>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--matri-text)' }}>Tareas del Hogar</h1>
+            <p className="text-sm" style={{ color: 'var(--matri-text-2)' }}>{tasks.length} tareas · {myTodayLogs.length} hechas hoy</p>
           </div>
           <button onClick={loadData} className="p-2 hover:bg-gray-100 rounded-lg" title="Actualizar">
             <RefreshCw className="w-4 h-4 text-gray-500" />
@@ -445,14 +446,18 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
 
         {/* Tabs */}
         <div className="max-w-4xl mx-auto px-4 pb-3">
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+          <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'rgba(0,0,0,0.15)' }}>
             {[
               { key: 'mis_tareas' as const, label: '✅ Mis Tareas', badge: myTodayLogs.length },
               { key: 'verificar' as const, label: '👀 Verificar', badge: partnerPendingLogs.length },
               { key: 'historial' as const, label: '📋 Historial', badge: null },
             ].map(t => (
               <button key={t.key} onClick={() => setTab(t.key)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-sm font-medium transition-all ${tab === t.key ? 'bg-white text-primary shadow-sm' : 'text-gray-600 hover:text-gray-800'}`}>
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-sm font-medium transition-all"
+                style={tab === t.key
+                  ? { background: 'var(--matri-card-bg)', color: 'var(--matri-amber)', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }
+                  : { background: 'transparent', color: 'var(--matri-text-2)' }
+                }>
                 {t.label}
                 {t.badge !== null && t.badge > 0 && (
                   <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${tab === t.key ? 'bg-primary text-white' : 'bg-red-500 text-white'}`}>{t.badge}</span>
@@ -746,6 +751,7 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
           </>
         )}
       </main>
+      <BottomNav />
     </div>
   )
 }

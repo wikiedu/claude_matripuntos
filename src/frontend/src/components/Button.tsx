@@ -14,29 +14,54 @@ export function Button({
   children,
   className = '',
   disabled,
+  style,
   ...props
 }: ButtonProps) {
-  const baseClasses =
-    'font-medium rounded-lg transition-colors duration-200 flex items-center justify-center gap-2'
-
-  const variantClasses = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400',
-    secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200 disabled:bg-gray-50',
-    danger: 'bg-red-600 text-white hover:bg-red-700 disabled:bg-red-400',
-    success: 'bg-green-600 text-white hover:bg-green-700 disabled:bg-green-400',
+  const baseStyle: React.CSSProperties = {
+    fontWeight: 500,
+    borderRadius: 8,
+    transition: 'opacity 0.15s, background 0.15s',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    border: 'none',
+    cursor: disabled || isLoading ? 'not-allowed' : 'pointer',
+    opacity: disabled || isLoading ? 0.55 : 1,
   }
 
-  const sizeClasses = {
-    sm: 'px-3 py-2 text-sm',
-    md: 'px-4 py-2 text-base',
-    lg: 'px-6 py-3 text-lg',
+  const variantStyles: Record<string, React.CSSProperties> = {
+    primary: {
+      background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+      color: '#ffffff',
+    },
+    secondary: {
+      background: 'var(--matri-card-bg)',
+      color: 'var(--matri-text)',
+      border: '1px solid var(--matri-card-border)',
+    },
+    danger: {
+      background: '#dc2626',
+      color: '#ffffff',
+    },
+    success: {
+      background: '#16a34a',
+      color: '#ffffff',
+    },
+  }
+
+  const sizeStyles: Record<string, React.CSSProperties> = {
+    sm: { padding: '6px 12px', fontSize: 13 },
+    md: { padding: '8px 16px', fontSize: 15 },
+    lg: { padding: '12px 24px', fontSize: 17 },
   }
 
   return (
     <button
       {...props}
       disabled={disabled || isLoading}
-      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      style={{ ...baseStyle, ...variantStyles[variant], ...sizeStyles[size], ...style }}
+      className={className}
     >
       {isLoading && <LoadingSpinner size="sm" />}
       {children}

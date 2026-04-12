@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Home, Calendar, List } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
+import { BottomNav } from './BottomNav'
 
 interface AppEvent {
   id: string
@@ -109,31 +110,40 @@ export const CalendarDashboard: React.FC = () => {
   const pendingCount = events.filter(e => e.status === 'pending' || e.status === 'draft').length
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div style={{ minHeight: '100vh', background: 'var(--matri-bg)', paddingBottom: 72 }}>
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <header style={{ background: 'var(--matri-card-bg)', borderBottom: '1px solid var(--matri-card-border)', position: 'sticky', top: 0, zIndex: 50 }}>
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
           <button
             onClick={() => navigate('/dashboard')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 rounded-lg transition-colors"
+            style={{ color: 'var(--matri-text-2)' }}
           >
-            <Home className="w-5 h-5 text-gray-600" />
+            <Home className="w-5 h-5" />
           </button>
           <div className="flex-1">
-            <h1 className="text-xl font-bold text-gray-900">Calendario</h1>
-            <p className="text-sm text-gray-500">{acceptedCount} aceptados · {pendingCount} pendientes</p>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--matri-text)' }}>Calendario</h1>
+            <p className="text-sm" style={{ color: 'var(--matri-text-2)' }}>{acceptedCount} aceptados · {pendingCount} pendientes</p>
           </div>
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+          <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'rgba(0,0,0,0.15)' }}>
             <button
               onClick={() => setView('month')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'month' ? 'bg-white text-primary shadow-sm' : 'text-gray-600'}`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all"
+              style={view === 'month'
+                ? { background: 'var(--matri-card-bg)', color: 'var(--matri-amber)', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }
+                : { background: 'transparent', color: 'var(--matri-text-2)' }
+              }
             >
               <Calendar className="w-4 h-4" />
               Mes
             </button>
             <button
               onClick={() => setView('upcoming')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'upcoming' ? 'bg-white text-primary shadow-sm' : 'text-gray-600'}`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all"
+              style={view === 'upcoming'
+                ? { background: 'var(--matri-card-bg)', color: 'var(--matri-amber)', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }
+                : { background: 'transparent', color: 'var(--matri-text-2)' }
+              }
             >
               <List className="w-4 h-4" />
               Lista
@@ -150,26 +160,26 @@ export const CalendarDashboard: React.FC = () => {
         ) : view === 'month' ? (
           <div className="space-y-4">
             {/* Month navigation */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                <button onClick={goToPrev} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                  <ChevronLeft className="w-5 h-5 text-gray-600" />
+            <div style={{ background: 'var(--matri-card-bg)', border: '1px solid var(--matri-card-border)', borderRadius: 16, overflow: 'hidden' }}>
+              <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--matri-card-border)' }}>
+                <button onClick={goToPrev} className="p-2 rounded-lg transition-colors" style={{ color: 'var(--matri-text-2)' }}>
+                  <ChevronLeft className="w-5 h-5" />
                 </button>
                 <div className="text-center">
-                  <h2 className="text-lg font-bold text-gray-900">{monthNames[month - 1]} {year}</h2>
+                  <h2 className="text-lg font-bold" style={{ color: 'var(--matri-text)' }}>{monthNames[month - 1]} {year}</h2>
                   {!isCurrentMonth && (
-                    <button onClick={goToToday} className="text-xs text-blue-600 hover:text-blue-800">← Volver a hoy</button>
+                    <button onClick={goToToday} style={{ fontSize: 12, color: 'var(--matri-amber)' }}>← Volver a hoy</button>
                   )}
                 </div>
-                <button onClick={goToNext} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                  <ChevronRight className="w-5 h-5 text-gray-600" />
+                <button onClick={goToNext} className="p-2 rounded-lg transition-colors" style={{ color: 'var(--matri-text-2)' }}>
+                  <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
 
               {/* Day names */}
-              <div className="grid grid-cols-7 border-b border-gray-100">
+              <div className="grid grid-cols-7" style={{ borderBottom: '1px solid var(--matri-card-border)' }}>
                 {dayNames.map(d => (
-                  <div key={d} className="py-2 text-center text-xs font-bold text-gray-400">{d}</div>
+                  <div key={d} className="py-2 text-center text-xs font-bold" style={{ color: 'var(--matri-text-3)' }}>{d}</div>
                 ))}
               </div>
 
@@ -190,17 +200,19 @@ export const CalendarDashboard: React.FC = () => {
                     <button
                       key={day}
                       onClick={() => setSelectedDay(isSelected ? null : day)}
-                      className={`aspect-square flex flex-col items-center justify-start pt-1.5 px-1 relative transition-all hover:bg-gray-50 ${
-                        isSelected ? 'bg-primary/5 ring-1 ring-inset ring-primary/20' : ''
-                      }`}
+                      className="aspect-square flex flex-col items-center justify-start pt-1.5 px-1 relative transition-all"
+                      style={isSelected ? { background: 'rgba(245,158,11,0.08)' } : undefined}
                     >
-                      <span className={`text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full ${
-                        isToday
-                          ? 'bg-primary text-white font-bold'
-                          : isSelected
-                          ? 'text-primary font-bold'
-                          : 'text-gray-700'
-                      }`}>
+                      <span
+                        className="text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full"
+                        style={
+                          isToday
+                            ? { background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', fontWeight: 700 }
+                            : isSelected
+                            ? { color: 'var(--matri-amber)', fontWeight: 700 }
+                            : { color: 'var(--matri-text)' }
+                        }
+                      >
                         {day}
                       </span>
                       {dayEvents.length > 0 && (
@@ -227,43 +239,43 @@ export const CalendarDashboard: React.FC = () => {
               {Object.entries(STATUS_LABELS).map(([status, label]) => (
                 <div key={status} className="flex items-center gap-1.5">
                   <div className={`w-2.5 h-2.5 rounded-full ${STATUS_COLORS[status]}`} />
-                  <span className="text-xs text-gray-500">{label}</span>
+                  <span className="text-xs" style={{ color: 'var(--matri-text-2)' }}>{label}</span>
                 </div>
               ))}
             </div>
 
             {/* Selected day events */}
             {selectedDay && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                <h3 className="font-bold text-gray-900 mb-3">
+              <div style={{ background: 'var(--matri-card-bg)', border: '1px solid var(--matri-card-border)', borderRadius: 16, padding: '20px' }}>
+                <h3 className="font-bold mb-3" style={{ color: 'var(--matri-text)' }}>
                   {selectedDay} de {monthNames[month - 1]}
                 </h3>
                 {selectedDayEvents.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-4">Sin actividades este día</p>
+                  <p className="text-sm text-center py-4" style={{ color: 'var(--matri-text-3)' }}>Sin actividades este día</p>
                 ) : (
                   <div className="space-y-2">
                     {selectedDayEvents.map(event => (
                       <button
                         key={event.id}
                         onClick={() => navigate('/dashboard', { state: { openInbox: true, eventId: event.id } })}
-                        className={`w-full text-left flex items-start gap-3 p-3 rounded-xl border-l-4 transition-opacity hover:opacity-80 ${
-                          event.status === 'accepted' ? 'bg-green-50 border-green-400' :
-                          event.status === 'rejected' ? 'bg-red-50 border-red-400' :
-                          'bg-yellow-50 border-yellow-400'
-                        }`}
+                        className="w-full text-left flex items-start gap-3 p-3 rounded-xl border-l-4 transition-opacity hover:opacity-80"
+                        style={{
+                          background: 'rgba(0,0,0,0.1)',
+                          borderLeftColor: event.status === 'accepted' ? '#4ade80' : event.status === 'rejected' ? '#f87171' : '#facc15',
+                        }}
                       >
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm text-gray-900 truncate">{event.title || event.type}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">
+                          <p className="font-semibold text-sm truncate" style={{ color: 'var(--matri-text)' }}>{event.title || event.type}</p>
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--matri-text-2)' }}>
                             {new Date(event.dateStart).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                             {' – '}
                             {new Date(event.dateEnd).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                           </p>
                           {event.creator && (
-                            <p className="text-xs text-gray-400 mt-0.5">Por {event.creator.name}</p>
+                            <p className="text-xs mt-0.5" style={{ color: 'var(--matri-text-3)' }}>Por {event.creator.name}</p>
                           )}
                           {(event.status === 'pending' || event.status === 'draft') && (
-                            <p className="text-xs font-medium text-yellow-700 mt-1">→ Toca para gestionar</p>
+                            <p className="text-xs font-medium mt-1" style={{ color: 'var(--matri-amber)' }}>→ Toca para gestionar</p>
                           )}
                         </div>
                         <div className="text-right flex-shrink-0">
@@ -275,7 +287,7 @@ export const CalendarDashboard: React.FC = () => {
                             {STATUS_LABELS[event.status] || event.status}
                           </span>
                           {(event.pointsAgreed || event.pointsCalculated) && (
-                            <p className="text-xs font-bold text-gray-600 mt-1">
+                            <p className="text-xs font-bold mt-1" style={{ color: 'var(--matri-text-2)' }}>
                               {event.pointsAgreed || event.pointsCalculated} pts
                             </p>
                           )}
@@ -290,12 +302,12 @@ export const CalendarDashboard: React.FC = () => {
         ) : (
           /* Upcoming / List view */
           <div className="space-y-3">
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide">Próximas actividades</h2>
+            <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: 'var(--matri-text-3)' }}>Próximas actividades</h2>
             {upcomingEvents.length === 0 ? (
-              <div className="bg-white rounded-2xl p-10 text-center border border-gray-100">
+              <div style={{ background: 'var(--matri-card-bg)', border: '1px solid var(--matri-card-border)', borderRadius: 16, padding: '40px 20px', textAlign: 'center' }}>
                 <div className="text-4xl mb-3">📅</div>
-                <p className="font-semibold text-gray-700 mb-1">No hay actividades próximas</p>
-                <p className="text-sm text-gray-400 mb-5">Solicita una actividad a tu pareja para verla aquí</p>
+                <p className="font-semibold mb-1" style={{ color: 'var(--matri-text)' }}>No hay actividades próximas</p>
+                <p className="text-sm mb-5" style={{ color: 'var(--matri-text-2)' }}>Solicita una actividad a tu pareja para verla aquí</p>
                 <button
                   onClick={() => navigate('/request-activity')}
                   className="btn-primary mx-auto"
@@ -308,34 +320,37 @@ export const CalendarDashboard: React.FC = () => {
                 const start = new Date(event.dateStart)
                 const end = new Date(event.dateEnd)
                 const isMultiDay = start.toDateString() !== end.toDateString()
+                const leftBorderColor = event.status === 'accepted' ? '#4ade80' : event.status === 'rejected' ? '#f87171' : '#facc15'
                 return (
                   <div
                     key={event.id}
-                    className={`bg-white rounded-2xl p-4 border border-gray-100 shadow-sm border-l-4 ${
-                      event.status === 'accepted' ? 'border-l-green-400' :
-                      event.status === 'rejected' ? 'border-l-red-400' :
-                      'border-l-yellow-400'
-                    }`}
+                    style={{
+                      background: 'var(--matri-card-bg)',
+                      border: '1px solid var(--matri-card-border)',
+                      borderRadius: 16,
+                      padding: 16,
+                      borderLeft: `4px solid ${leftBorderColor}`,
+                    }}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="bg-gray-50 rounded-xl p-2 text-center min-w-[52px]">
-                        <div className="text-xs font-bold text-gray-400 uppercase">
+                      <div style={{ background: 'rgba(0,0,0,0.1)', borderRadius: 12, padding: 8, textAlign: 'center', minWidth: 52 }}>
+                        <div className="text-xs font-bold uppercase" style={{ color: 'var(--matri-text-3)' }}>
                           {start.toLocaleDateString('es-ES', { month: 'short' })}
                         </div>
-                        <div className="text-2xl font-black text-gray-900 leading-none">
+                        <div className="text-2xl font-black leading-none" style={{ color: 'var(--matri-text)' }}>
                           {start.getDate()}
                         </div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-gray-900 truncate">{event.title || event.type}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">
+                        <p className="font-bold truncate" style={{ color: 'var(--matri-text)' }}>{event.title || event.type}</p>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--matri-text-2)' }}>
                           {isMultiDay
                             ? `${start.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} – ${end.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}`
                             : `${start.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} – ${end.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`
                           }
                         </p>
                         {event.creator && (
-                          <p className="text-xs text-gray-400">Propuesto por {event.creator.name}</p>
+                          <p className="text-xs" style={{ color: 'var(--matri-text-3)' }}>Propuesto por {event.creator.name}</p>
                         )}
                       </div>
                       <div className="text-right">
@@ -347,7 +362,7 @@ export const CalendarDashboard: React.FC = () => {
                           {STATUS_LABELS[event.status] || event.status}
                         </span>
                         {(event.pointsAgreed || event.pointsCalculated) && (
-                          <p className="text-sm font-bold text-gray-700 mt-1">
+                          <p className="text-sm font-bold mt-1" style={{ color: 'var(--matri-text-2)' }}>
                             {event.pointsAgreed || event.pointsCalculated} pts
                           </p>
                         )}
@@ -360,6 +375,7 @@ export const CalendarDashboard: React.FC = () => {
           </div>
         )}
       </main>
+      <BottomNav />
     </div>
   )
 }

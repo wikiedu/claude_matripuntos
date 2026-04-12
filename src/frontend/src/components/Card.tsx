@@ -10,9 +10,15 @@ export function Card({ children, className = '', onClick }: CardProps) {
   return (
     <div
       onClick={onClick}
-      className={`bg-white rounded-lg border border-gray-200 p-6 ${
-        onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''
-      } ${className}`}
+      style={{
+        background: 'var(--matri-card-bg)',
+        border: '1px solid var(--matri-card-border)',
+        borderRadius: 10,
+        padding: '20px 24px',
+        cursor: onClick ? 'pointer' : undefined,
+        transition: onClick ? 'opacity 0.15s' : undefined,
+      }}
+      className={className}
     >
       {children}
     </div>
@@ -25,7 +31,14 @@ interface CardTitleProps {
 }
 
 export function CardTitle({ children, className = '' }: CardTitleProps) {
-  return <h3 className={`font-semibold text-gray-900 text-lg ${className}`}>{children}</h3>
+  return (
+    <h3
+      style={{ color: 'var(--matri-text)', fontWeight: 600, fontSize: 18 }}
+      className={className}
+    >
+      {children}
+    </h3>
+  )
 }
 
 interface CardDescriptionProps {
@@ -34,7 +47,14 @@ interface CardDescriptionProps {
 }
 
 export function CardDescription({ children, className = '' }: CardDescriptionProps) {
-  return <p className={`text-gray-600 text-sm ${className}`}>{children}</p>
+  return (
+    <p
+      style={{ color: 'var(--matri-text-2)', fontSize: 14 }}
+      className={className}
+    >
+      {children}
+    </p>
+  )
 }
 
 interface CardContentProps {
@@ -43,5 +63,5 @@ interface CardContentProps {
 }
 
 export function CardContent({ children, className = '' }: CardContentProps) {
-  return <div className={`mt-4 ${className}`}>{children}</div>
+  return <div style={{ marginTop: 16 }} className={className}>{children}</div>
 }
