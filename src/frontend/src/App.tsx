@@ -17,6 +17,7 @@ import { Calendar } from './pages/Calendar'
 import { AnalyticsPage } from './pages/AnalyticsPage'
 import Achievements from './pages/Achievements'
 import NotFound from './pages/NotFound'
+import { OnboardingLanding } from './pages/onboarding/OnboardingLanding'
 import './App.css'
 
 export const queryClient = new QueryClient({
@@ -164,7 +165,14 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route
+        path="/"
+        element={
+          isAuthenticated
+            ? <Navigate to="/dashboard" replace />
+            : <OnboardingLanding />
+        }
+      />
       <Route path="*" element={<NotFound />} />
     </Routes>
   )
