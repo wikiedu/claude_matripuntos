@@ -6,6 +6,7 @@ import { apiClient } from '../services/apiClient'
 import { Button } from '../components/Button'
 import { Alert } from '../components/Alert'
 import { Card, CardTitle, CardContent } from '../components/Card'
+import { AvatarSelector } from '../components/AvatarSelector'
 
 interface ConfigData {
   numChildren: number
@@ -277,14 +278,14 @@ export default function Settings({ onBack }: PageProps) {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <div style={{ minHeight: '100vh', background: 'var(--matri-bg)', color: 'var(--matri-text)' }}>
+      <header style={{ background: 'var(--matri-card-bg)', borderBottom: '1px solid var(--matri-card-border)' }} className="sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button onClick={onBack || (() => navigate('/dashboard'))} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </button>
-            <h1 className="text-2xl font-bold text-gray-900">Configuración</h1>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--matri-text)' }}>Configuración</h1>
           </div>
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={handleResetDefaults} disabled={isSaving}>
@@ -339,6 +340,21 @@ export default function Settings({ onBack }: PageProps) {
                         <p><span className="font-medium">Email:</span> {user?.email}</p>
                         <p><span className="font-medium">Pareja:</span> {couple?.name || `${user?.name} & ${otherUser?.name || '...'}`}</p>
                       </div>
+                    </div>
+
+                    {/* Sección Avatar */}
+                    <div style={{ marginBottom: 24, background: 'var(--matri-card-bg)', border: '1px solid var(--matri-card-border)', borderRadius: 12, padding: 16 }}>
+                      <h3 style={{ color: 'var(--matri-text)', fontWeight: 600, marginBottom: 12 }}>Tu avatar</h3>
+                      <AvatarSelector
+                        currentEmoji={user?.avatarEmoji ?? '🐼'}
+                        currentColor={user?.avatarColor ?? '#7c3aed'}
+                        onChange={async (emoji: string, color: string) => {
+                          await apiClient.profile.updateMe({ avatarEmoji: emoji, avatarColor: color })
+                          useAppStore.setState((s: any) => ({
+                            user: s.user ? { ...s.user, avatarEmoji: emoji, avatarColor: color } : s.user
+                          }))
+                        }}
+                      />
                     </div>
 
                     <div>

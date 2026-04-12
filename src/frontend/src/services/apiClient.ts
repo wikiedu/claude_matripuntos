@@ -351,6 +351,17 @@ class ApiClient {
 
     getCoupleProfile: () =>
       this.request('/profile/couple'),
+
+    updateMe: (data: {
+      avatarEmoji?: string
+      avatarColor?: string
+      theme?: string
+      currentMood?: string
+    }) =>
+      this.request('/profile/me', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
   }
 
   // Family endpoints (V2)
