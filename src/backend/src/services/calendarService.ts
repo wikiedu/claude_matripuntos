@@ -28,37 +28,34 @@ export interface CalendarFilter {
  * @param year - Year (2026)
  * @param month - Month (1-12)
  */
-export async function getMonthCalendar(
-  coupleId: string,
-  year: number,
-  month: number
-) {
+export async function getMonthCalendar(coupleId: string, year: number, month: number) {
   const startDate = new Date(year, month - 1, 1)
   const endDate = new Date(year, month, 0, 23, 59, 59)
 
-  const entries = await prisma.calendarEntry.findMany({
-    where: {
-      coupleId,
-      date: {
-        gte: startDate,
-        lte: endDate,
-      },
-    },
-    include: {
-      couple: true,
-    },
-    orderBy: { date: 'asc' },
-  })
+  const [entries, taskEntries] = await Promise.all([
+    prisma.calendarEntry.findMany({
+      where: { coupleId, date: { gte: startDate, lte: endDate } },
+      include: { couple: true },
+      orderBy: { date: 'asc' },
+    }),
+    getTaskLogsInRange(coupleId, startDate, endDate).catch(err => {
+      console.error('[calendarService] taskLog query failed:', err)
+      return []
+    }),
+  ])
 
-  // Group by day for easier frontend rendering
-  const grouped = groupByDay(entries)
+  const allEntries = [...entries, ...taskEntries].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  )
+
+  const grouped = groupByDay(allEntries)
 
   return {
     year,
     month,
     startDate,
     endDate,
-    entries,
+    entries: allEntries,
     grouped,
     totalDays: getDaysInMonth(year, month),
   }
@@ -70,33 +67,31 @@ export async function getMonthCalendar(
  * @param year - Year
  * @param week - Week number (1-53)
  */
-export async function getWeekCalendar(
-  coupleId: string,
-  year: number,
-  week: number
-) {
+export async function getWeekCalendar(coupleId: string, year: number, week: number) {
   const [startDate, endDate] = getWeekDates(year, week)
 
-  const entries = await prisma.calendarEntry.findMany({
-    where: {
-      coupleId,
-      date: {
-        gte: startDate,
-        lte: endDate,
-      },
-    },
-    include: {
-      couple: true,
-    },
-    orderBy: { date: 'asc' },
-  })
+  const [entries, taskEntries] = await Promise.all([
+    prisma.calendarEntry.findMany({
+      where: { coupleId, date: { gte: startDate, lte: endDate } },
+      include: { couple: true },
+      orderBy: { date: 'asc' },
+    }),
+    getTaskLogsInRange(coupleId, startDate, endDate).catch(err => {
+      console.error('[calendarService] taskLog query failed:', err)
+      return []
+    }),
+  ])
+
+  const allEntries = [...entries, ...taskEntries].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  )
 
   return {
     year,
     week,
     startDate,
     endDate,
-    entries,
+    entries: allEntries,
     daysOfWeek: getDaysOfWeek(startDate),
   }
 }
@@ -111,24 +106,26 @@ export async function getDayCalendar(coupleId: string, date: Date | string) {
   const startOfDay = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate())
   const endOfDay = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), 23, 59, 59)
 
-  const entries = await prisma.calendarEntry.findMany({
-    where: {
-      coupleId,
-      date: {
-        gte: startOfDay,
-        lte: endOfDay,
-      },
-    },
-    include: {
-      couple: true,
-    },
-    orderBy: { date: 'asc' },
-  })
+  const [entries, taskEntries] = await Promise.all([
+    prisma.calendarEntry.findMany({
+      where: { coupleId, date: { gte: startOfDay, lte: endOfDay } },
+      include: { couple: true },
+      orderBy: { date: 'asc' },
+    }),
+    getTaskLogsInRange(coupleId, startOfDay, endOfDay).catch(err => {
+      console.error('[calendarService] taskLog query failed:', err)
+      return []
+    }),
+  ])
+
+  const allEntries = [...entries, ...taskEntries].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  )
 
   return {
     date: startOfDay,
-    entries,
-    total: entries.length,
+    entries: allEntries,
+    total: allEntries.length,
   }
 }
 
@@ -369,4 +366,30 @@ function getDaysOfWeek(startDate: Date): string[] {
     days.push(date.toISOString().split('T')[0])
   }
   return days
+}
+
+async function getTaskLogsInRange(coupleId: string, startDate: Date, endDate: Date) {
+  const logs = await prisma.taskLog.findMany({
+    where: {
+      coupleId,
+      date: { gte: startDate, lte: endDate },
+    },
+    include: { task: true },
+    orderBy: { date: 'asc' },
+  })
+
+  return logs.map(log => ({
+    id: `tasklog-${log.id}`,
+    coupleId: log.coupleId,
+    type: 'task' as const,
+    title: log.task?.name ?? 'Tarea',
+    date: log.date,
+    description: `${log.pointsFinal} pts · ${log.status}`,
+    color: '#22C55E',
+    relatedEventId: null,
+    relatedTaskId: log.taskId,
+    couple: null,
+    createdAt: log.date,
+    updatedAt: log.date,
+  }))
 }
