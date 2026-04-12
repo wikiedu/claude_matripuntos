@@ -364,6 +364,15 @@ model UserProfile {
   taskPreferencesLoves  String                   @default("[]")  // JSON array
   taskPreferencesDislikes String                 @default("[]")  // JSON array
 
+  // Avatar & personalization (v1.1)
+  avatarEmoji    String   @default("🐼")
+  avatarColor    String   @default("#7c3aed")
+  theme          String   @default("dark")
+
+  // Mood del día (v1.1)
+  currentMood    String?
+  moodUpdatedAt  DateTime?
+
   // Relations
   user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

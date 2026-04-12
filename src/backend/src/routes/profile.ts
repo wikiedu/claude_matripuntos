@@ -221,4 +221,38 @@ router.get('/couple', async (req: Request, res: Response) => {
   }
 })
 
+/**
+ * PUT /api/profile/me
+ * Update current user's avatar, mood, and/or theme
+ */
+router.put('/me', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id
+    const { avatarEmoji, avatarColor, theme, currentMood } = req.body
+
+    // Ensure profile exists
+    const existing = await prisma.userProfile.findUnique({ where: { userId } })
+    if (!existing) {
+      return res.status(404).json({ error: 'Profile not found. Complete onboarding first.' })
+    }
+
+    const updated = await prisma.userProfile.update({
+      where: { userId },
+      data: {
+        ...(avatarEmoji !== undefined && { avatarEmoji }),
+        ...(avatarColor !== undefined && { avatarColor }),
+        ...(theme !== undefined && { theme }),
+        ...(currentMood !== undefined && {
+          currentMood,
+          moodUpdatedAt: new Date(),
+        }),
+      },
+    })
+
+    res.json({ message: 'Profile updated', profile: updated })
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update profile' })
+  }
+})
+
 export default router

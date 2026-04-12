@@ -126,6 +126,32 @@ router.get('/me', authMiddleware, async (req: Request, res: Response): Promise<v
 
     const user = await getUserById(req.userId)
 
+    // Load own profile for avatar/mood/theme
+    const myProfile = await prisma.userProfile.findUnique({
+      where: { userId: req.userId },
+      select: { avatarEmoji: true, avatarColor: true, theme: true, currentMood: true, moodUpdatedAt: true },
+    })
+
+    // Load partner mood if couple exists
+    let partnerMood: string | null = null
+    let partnerName: string | null = null
+    if (user.coupleId) {
+      const couple = await prisma.couple.findUnique({
+        where: { id: user.coupleId },
+        include: { users: { include: { profile: { select: { currentMood: true, moodUpdatedAt: true } } } } },
+      })
+      const partner = couple?.users.find((u: any) => u.id !== req.userId)
+      if (partner) {
+        partnerName = partner.name
+        // Only show mood if updated today
+        const today = new Date()
+        const moodDate = partner.profile?.moodUpdatedAt
+        if (moodDate && new Date(moodDate).toDateString() === today.toDateString()) {
+          partnerMood = partner.profile?.currentMood ?? null
+        }
+      }
+    }
+
     res.json({
       user: {
         id: user.id,
@@ -133,10 +159,17 @@ router.get('/me', authMiddleware, async (req: Request, res: Response): Promise<v
         name: user.name,
         coupleId: user.coupleId,
         roleInHome: user.roleInHome,
-        timezone: user.timezone,
-        notificationsPush: user.notificationsPush,
-        notificationsEmail: user.notificationsEmail,
+        timezone: (user as any).timezone,
+        notificationsPush: (user as any).notificationsPush,
+        notificationsEmail: (user as any).notificationsEmail,
+        // Profile fields
+        avatarEmoji: myProfile?.avatarEmoji ?? '🐼',
+        avatarColor: myProfile?.avatarColor ?? '#7c3aed',
+        theme: myProfile?.theme ?? 'dark',
+        currentMood: myProfile?.currentMood ?? null,
       },
+      partnerMood,
+      partnerName,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch user'

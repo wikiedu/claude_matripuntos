@@ -11,6 +11,10 @@ export interface User {
   hasCompletedOnboarding?: boolean
   notificationsPush?: boolean
   notificationsEmail?: boolean
+  avatarEmoji?: string
+  avatarColor?: string
+  theme?: 'dark' | 'light'
+  currentMood?: string | null
 }
 
 export interface Couple {
