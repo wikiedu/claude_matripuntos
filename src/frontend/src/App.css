@@ -1,3 +1,38 @@
+/* ============================================================
+   Matripuntos v1.1 — Design tokens (dark/light)
+   ============================================================ */
+
+/* Dark theme (default) */
+:root,
+html.dark {
+  --matri-bg: linear-gradient(160deg, #0d0a1a, #0f0a1e, #12103a);
+  --matri-card-bg: rgba(26, 16, 53, 0.85);
+  --matri-card-border: rgba(168, 85, 247, 0.15);
+  --matri-amber: #f59e0b;
+  --matri-amber-dark: #d97706;
+  --matri-purple: #a855f7;
+  --matri-purple-dark: #7c3aed;
+  --matri-text: #e2e8f0;
+  --matri-text-2: #9ca3af;
+  --matri-text-3: #6b7280;
+  --matri-success: #22c55e;
+}
+
+/* Light theme */
+html.light {
+  --matri-bg: linear-gradient(160deg, #fffbf0, #fef9ec, #fdf4e3);
+  --matri-card-bg: #ffffff;
+  --matri-card-border: #fde68a;
+  --matri-amber: #d97706;
+  --matri-amber-dark: #b45309;
+  --matri-purple: #7c3aed;
+  --matri-purple-dark: #6d28d9;
+  --matri-text: #1c1917;
+  --matri-text-2: #78716c;
+  --matri-text-3: #9ca3af;
+  --matri-success: #16a34a;
+}
+
 /* Main app styles */
 #root {
   min-height: 100vh;
