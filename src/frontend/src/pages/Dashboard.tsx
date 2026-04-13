@@ -9,6 +9,8 @@ import { RecentMovementItem } from '../components/RecentMovementItem'
 import { type RecentActivity } from '../types/activity'
 import { AchievementsWidget } from '../components/AchievementsWidget'
 import { BottomNav } from '../components/BottomNav'
+import { StreakWidget } from '../components/StreakWidget'
+import { LevelProgress } from '../components/LevelProgress'
 import { Avatar } from '../components/Avatar'
 import { getDailyPhrase } from '../utils/dailyPhrase'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts'
@@ -232,6 +234,12 @@ export default function Dashboard() {
                 )}
               </div>
             )}
+
+            {/* v1.2 Gamification */}
+            <div className="space-y-3 px-4 pb-3">
+              <LevelProgress />
+              <StreakWidget />
+            </div>
 
             {/* Frase del día */}
             <div
