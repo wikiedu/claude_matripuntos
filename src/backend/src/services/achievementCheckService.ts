@@ -23,12 +23,12 @@ async function evaluateCondition(
     }
     case 'daily_streak': {
       const couple = await prisma.couple.findUnique({ where: { id: coupleId } })
-      const current = (couple as any)?.dailyStreakDays || 0
+      const current = couple?.dailyStreakDays || 0
       return { met: current >= target, current, target }
     }
     case 'weekly_streak': {
       const couple = await prisma.couple.findUnique({ where: { id: coupleId } })
-      const current = (couple as any)?.weeklyStreakWeeks || 0
+      const current = couple?.weeklyStreakWeeks || 0
       return { met: current >= target, current, target }
     }
     case 'equilibrium_week': {
@@ -36,11 +36,7 @@ async function evaluateCondition(
         where: { coupleId },
         orderBy: { weekStartDate: 'desc' }
       })
-      const current = lastScore?.equilibrium
-        ? (typeof lastScore.equilibrium === 'object'
-            ? (lastScore.equilibrium as any).toNumber()
-            : Number(lastScore.equilibrium))
-        : 0
+      const current = lastScore?.equilibrium ? Number(lastScore.equilibrium) : 0
       return { met: current >= target, current, target }
     }
     case 'equilibrium_consecutive_weeks': {
@@ -50,12 +46,7 @@ async function evaluateCondition(
         take: target
       })
       if (scores.length < target) return { met: false, current: scores.length, target }
-      const allEquilibrated = scores.every(s => {
-        const eq = typeof s.equilibrium === 'object'
-          ? (s.equilibrium as any).toNumber()
-          : Number(s.equilibrium)
-        return eq >= 40
-      })
+      const allEquilibrated = scores.every(s => Number(s.equilibrium) >= 40)
       return { met: allEquilibrated, current: allEquilibrated ? target : scores.length, target }
     }
     case 'negotiations_without_force': {
@@ -79,7 +70,7 @@ async function evaluateCondition(
     case 'level_reached': {
       const levelOrder = ['nido', 'brote', 'hogar', 'raices', 'diamante', 'leyenda', 'eterno']
       const couple = await prisma.couple.findUnique({ where: { id: coupleId } })
-      const currentIdx = levelOrder.indexOf((couple as any)?.level || 'nido')
+      const currentIdx = levelOrder.indexOf(couple?.level || 'nido')
       return { met: currentIdx >= target, current: currentIdx, target }
     }
     default:
@@ -88,19 +79,19 @@ async function evaluateCondition(
 }
 
 export async function checkAllAchievements(coupleId: string): Promise<string[]> {
-  const definitions = await (prisma as any).achievementDefinition.findMany({
+  const definitions = await prisma.achievementDefinition.findMany({
     orderBy: { orderIndex: 'asc' }
   })
 
-  const existing = await (prisma as any).coupleAchievement.findMany({
+  const existing = await prisma.coupleAchievement.findMany({
     where: { coupleId }
   })
-  const existingMap = new Map(existing.map((ca: any) => [ca.achievementDefinitionId, ca]))
+  const existingMap = new Map(existing.map((ca) => [ca.achievementDefinitionId, ca]))
 
   const newlyUnlocked: string[] = []
 
   for (const def of definitions) {
-    const ca = existingMap.get(def.id) as any
+    const ca = existingMap.get(def.id)
     if (ca?.unlockedAt) continue // already unlocked
 
     let condition: AchievementCondition
@@ -114,7 +105,7 @@ export async function checkAllAchievements(coupleId: string): Promise<string[]> 
     const progressJson = JSON.stringify({ current, target })
 
     if (met) {
-      await (prisma as any).coupleAchievement.upsert({
+      await prisma.coupleAchievement.upsert({
         where: { coupleId_achievementDefinitionId: { coupleId, achievementDefinitionId: def.id } },
         create: {
           coupleId,
@@ -136,7 +127,7 @@ export async function checkAllAchievements(coupleId: string): Promise<string[]> 
         `¡Habéis conseguido '${def.name}'! +${def.xpReward} XP`
       )
     } else {
-      await (prisma as any).coupleAchievement.upsert({
+      await prisma.coupleAchievement.upsert({
         where: { coupleId_achievementDefinitionId: { coupleId, achievementDefinitionId: def.id } },
         create: { coupleId, achievementDefinitionId: def.id, progress: progressJson },
         update: { progress: progressJson }
@@ -148,19 +139,19 @@ export async function checkAllAchievements(coupleId: string): Promise<string[]> 
 }
 
 export async function getAchievementsMap(coupleId: string) {
-  const definitions = await (prisma as any).achievementDefinition.findMany({
+  const definitions = await prisma.achievementDefinition.findMany({
     orderBy: { orderIndex: 'asc' }
   })
 
-  const coupleAchievements = await (prisma as any).coupleAchievement.findMany({
+  const coupleAchievements = await prisma.coupleAchievement.findMany({
     where: { coupleId }
   })
-  const caMap = new Map(coupleAchievements.map((ca: any) => [ca.achievementDefinitionId, ca]))
+  const caMap = new Map(coupleAchievements.map((ca) => [ca.achievementDefinitionId, ca]))
 
-  return definitions.map((def: any, index: number) => {
-    const ca = caMap.get(def.id) as any
+  return definitions.map((def, index) => {
+    const ca = caMap.get(def.id)
     const isUnlocked = !!ca?.unlockedAt
-    const previousUnlocked = index === 0 || !!(caMap.get(definitions[index - 1].id) as any)?.unlockedAt
+    const previousUnlocked = index === 0 || !!caMap.get(definitions[index - 1].id)?.unlockedAt
 
     let status: 'unlocked' | 'in_progress' | 'locked'
     if (isUnlocked) {
