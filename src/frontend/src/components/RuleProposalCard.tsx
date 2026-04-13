@@ -58,10 +58,14 @@ export function RuleProposalCard({ proposal, currentUserId }: Props) {
               value={comment}
               onChange={e => setComment(e.target.value)}
               placeholder="Comentario opcional..."
-              className="w-full text-xs rounded-lg px-2.5 py-2 mb-2 resize-none"
+              disabled={respondMutation.isPending}
+              className="w-full text-xs rounded-lg px-2.5 py-2 mb-2 resize-none disabled:opacity-50"
               style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0' }}
               rows={2}
             />
+          )}
+          {respondMutation.isError && (
+            <p className="text-red-400 text-[10px] mb-2">Error al enviar. Inténtalo de nuevo.</p>
           )}
           <div className="flex gap-2">
             <button
