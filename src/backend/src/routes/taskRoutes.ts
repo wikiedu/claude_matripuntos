@@ -231,7 +231,7 @@ router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response):
     const combinedMultiplier = dailyMult * (1 + weeklyBonus) * factorMascotas
 
     const originalPointsFinal = data.pointsFinal
-    const multipliedPointsFinal = Math.round(originalPointsFinal * combinedMultiplier * 10) / 10
+    const multipliedPointsFinal = Math.round(originalPointsFinal * combinedMultiplier * 2) / 2
 
     const taskLog = await prisma.taskLog.create({
       data: {
