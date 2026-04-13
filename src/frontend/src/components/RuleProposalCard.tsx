@@ -20,7 +20,7 @@ export function RuleProposalCard({ proposal, currentUserId }: Props) {
 
   const respondMutation = useMutation({
     mutationFn: (status: 'accepted' | 'rejected') =>
-      apiClient.rules.respond(proposal.id, { status, comment: comment || undefined }),
+      apiClient.rules.respond(proposal.id, { status, responderComment: comment || undefined }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rules'] })
     }
