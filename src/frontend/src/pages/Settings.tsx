@@ -517,6 +517,7 @@ export default function Settings({ onBack }: PageProps) {
 
         {/* ── REGLAS ── */}
         {activeTab === 'reglas' && (
+          <>
           <Card>
             <CardTitle>Reglas del Sistema</CardTitle>
             <CardContent>
@@ -610,6 +611,7 @@ export default function Settings({ onBack }: PageProps) {
               + Proponer nueva regla
             </button>
           </section>
+          </>
         )}
 
         {/* ── PAREJA ── */}

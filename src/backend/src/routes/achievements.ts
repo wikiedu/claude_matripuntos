@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express'
 import { authenticateToken } from '../middleware/auth.js'
 import { achievementEngine } from '../services/achievementEngine.js'
 import { getAchievementsMap } from '../services/achievementCheckService.js'
+import { updateWeeklyStreak } from '../services/gamificationService.js'
 
 const router = express.Router()
 import prisma from '../lib/prisma.js'
@@ -188,6 +189,8 @@ router.get('/couple-score', authenticateToken, async (req: Request, res: Respons
           constancy: 50
         }
       })
+      // Non-fatal: update weekly streak based on last week's equilibrium
+      updateWeeklyStreak(req.coupleId).catch(err => console.error('updateWeeklyStreak error:', err))
     }
 
     res.json({
