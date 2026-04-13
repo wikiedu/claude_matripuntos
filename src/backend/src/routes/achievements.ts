@@ -1,6 +1,8 @@
 import express, { Request, Response } from 'express'
 import { authenticateToken } from '../middleware/auth.js'
 import { achievementEngine } from '../services/achievementEngine.js'
+import { getAchievementsMap } from '../services/achievementCheckService.js'
+import { updateWeeklyStreak } from '../services/gamificationService.js'
 
 const router = express.Router()
 import prisma from '../lib/prisma.js'
@@ -187,6 +189,8 @@ router.get('/couple-score', authenticateToken, async (req: Request, res: Respons
           constancy: 50
         }
       })
+      // Non-fatal: update weekly streak based on last week's equilibrium
+      updateWeeklyStreak(req.coupleId).catch(err => console.error('updateWeeklyStreak error:', err))
     }
 
     res.json({
@@ -216,5 +220,22 @@ function getWeekStart(date: Date): Date {
   const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1)
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff, 0, 0, 0, 0))
 }
+
+/**
+ * GET /api/achievements/map
+ */
+router.get('/map', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.coupleId) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
+    }
+    const map = await getAchievementsMap(req.coupleId)
+    res.json(map)
+  } catch (error) {
+    console.error('Error getting achievements map:', error)
+    res.status(500).json({ error: 'Failed to get achievements map' })
+  }
+})
 
 export default router

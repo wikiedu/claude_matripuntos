@@ -14,10 +14,12 @@ import categoryRoutes from './routes/categories.js'
 import pointsV2Routes from './routes/pointsV2.js'
 import negotiationV2Routes from './routes/negotiation.js'
 import achievementRoutes from './routes/achievements.js'
+import gamificationRoutes from './routes/gamification.js'
 import calendarRoutes from './routes/calendar.js'
 import analyticsRoutes from './routes/analytics.js'
 import activityRoutes from './routes/activityRoutes.js'
 import invitationRoutes from './routes/invitations.js'
+import ruleProposalRoutes from './routes/ruleProposals.js'
 
 dotenv.config()
 
@@ -54,6 +56,7 @@ app.use('/api/events', negotiationV2Routes)
 
 // Gamification Routes (FASE 4)
 app.use('/api/achievements', achievementRoutes)
+app.use('/api/gamification', gamificationRoutes)
 
 // Calendar Routes (FASE 5)
 app.use('/api/calendar', calendarRoutes)
@@ -66,6 +69,9 @@ app.use('/api/recent-activity', activityRoutes)
 
 // Invitation + partner linking routes
 app.use('/api/auth', invitationRoutes)
+
+// Rule Proposals Routes
+app.use('/api/rules', ruleProposalRoutes)
 
 // 404 handler
 app.use((req, res) => {

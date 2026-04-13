@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Save, RotateCcw, AlertCircle, Loader, Info, RefreshCw, Link2, Mail, CheckCircle, Copy } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
 import { Button } from '../components/Button'
 import { Alert } from '../components/Alert'
 import { Card, CardTitle, CardContent } from '../components/Card'
 import { AvatarSelector } from '../components/AvatarSelector'
+import { RuleProposalCard } from '../components/RuleProposalCard'
 
 interface ConfigData {
   numChildren: number
@@ -136,6 +138,11 @@ export default function Settings({ onBack }: PageProps) {
       setPendingLinkRequests(res.requests || [])
     }).catch(() => {/* silent */})
   }, [couple?.id])
+
+  const { data: rulesData } = useQuery({
+    queryKey: ['rules'],
+    queryFn: () => apiClient.rules.getAll()
+  })
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -510,6 +517,7 @@ export default function Settings({ onBack }: PageProps) {
 
         {/* ── REGLAS ── */}
         {activeTab === 'reglas' && (
+          <>
           <Card>
             <CardTitle>Reglas del Sistema</CardTitle>
             <CardContent>
@@ -560,6 +568,50 @@ export default function Settings({ onBack }: PageProps) {
               </div>
             </CardContent>
           </Card>
+
+          {/* Reglas del Juego */}
+          <section className="mt-6">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-amber-400 mb-3 px-1">
+              📋 Reglas del Juego
+            </h2>
+            <p className="text-xs text-gray-500 mb-3 leading-relaxed">
+              Las reglas que ambos habéis acordado. Cualquiera puede proponer un cambio — el otro debe aprobar.
+            </p>
+
+            {/* Rules list */}
+            <div className="space-y-2 mb-4">
+              {(rulesData?.rules || []).map((rule: any) => (
+                <div key={rule.key} className="flex gap-3 items-start rounded-xl p-3"
+                     style={{ background: 'rgba(26,16,53,0.85)', border: '1px solid rgba(168,85,247,0.15)' }}>
+                  <div className="text-lg">📌</div>
+                  <div>
+                    <div className="text-xs font-semibold text-white">{rule.description}</div>
+                    <div className="text-[11px] text-amber-400 mt-0.5">{String(rule.value ?? 'automático')}</div>
+                    <span className="inline-block mt-1 text-[9px] px-2 py-0.5 rounded-full"
+                          style={{ background: 'rgba(34,197,94,0.12)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.25)' }}>
+                      ✓ Acordado
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pending proposals */}
+            {(rulesData?.proposals || []).filter((p: any) => p.status === 'pending').map((proposal: any) => (
+              <div key={proposal.id} className="mb-3">
+                <p className="text-[10px] uppercase tracking-wide text-amber-400 font-bold mb-1.5">⏳ Propuesta pendiente</p>
+                <RuleProposalCard proposal={proposal} currentUserId={user?.id || ''} />
+              </div>
+            ))}
+
+            <button
+              onClick={() => {/* propose modal - future */}}
+              className="w-full mt-2 py-2.5 rounded-xl text-xs text-purple-400"
+              style={{ background: 'transparent', border: '1px dashed rgba(168,85,247,0.3)' }}>
+              + Proponer nueva regla
+            </button>
+          </section>
+          </>
         )}
 
         {/* ── PAREJA ── */}

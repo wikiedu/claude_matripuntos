@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { authenticateToken } from '../middleware/auth.js'
+import { createNotification } from '../services/notificationService.js'
 
 const router = Router()
 import prisma from '../lib/prisma.js'
@@ -356,6 +357,82 @@ router.post('/:categoryId/subcategories', async (req: Request, res: Response) =>
   } catch (error) {
     console.error('Error adding subcategory:', error)
     res.status(500).json({ error: 'Failed to add subcategory' })
+  }
+})
+
+/**
+ * POST /api/categories/propose
+ */
+router.post('/propose', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.coupleId || !req.userId) { res.status(401).json({ error: 'Authentication required' }); return }
+    const { name, emoji, type, basePoints, comment } = req.body
+    if (!name || !emoji || !comment) {
+      res.status(400).json({ error: 'name, emoji, and comment are required' })
+      return
+    }
+    const proposal = await prisma.ruleProposal.create({
+      data: {
+        coupleId: req.coupleId,
+        proposedById: req.userId,
+        type: 'category',
+        payload: JSON.stringify({ name, emoji, type: type || 'chore', basePoints: basePoints || 10 }),
+        proposerComment: comment,
+        status: 'pending'
+      },
+      include: { proposedBy: { select: { id: true, name: true } } }
+    })
+
+    const couple = await prisma.couple.findUnique({
+      where: { id: req.coupleId },
+      include: { users: { select: { id: true, name: true } } }
+    })
+    const partner = couple?.users.find(u => u.id !== req.userId)
+    const proposerName = couple?.users.find(u => u.id === req.userId)?.name || 'Tu pareja'
+    if (partner) {
+      await createNotification({
+        coupleId: req.coupleId,
+        userId: partner.id,
+        type: 'category_proposal',
+        title: '📂 Nueva categoría propuesta',
+        message: `${proposerName} propone nueva categoría: ${name}`
+      })
+    }
+    res.status(201).json(proposal)
+  } catch (error) {
+    console.error('Error proposing category:', error)
+    res.status(500).json({ error: 'Failed to propose category' })
+  }
+})
+
+/**
+ * PUT /api/categories/:id/propose-change
+ */
+router.put('/:id/propose-change', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.coupleId || !req.userId) { res.status(401).json({ error: 'Authentication required' }); return }
+    const { comment, ...fields } = req.body
+    if (!comment) { res.status(400).json({ error: 'comment is required' }); return }
+
+    const category = await prisma.category.findFirst({
+      where: { id: req.params.id, coupleId: req.coupleId }
+    })
+    if (!category) { res.status(404).json({ error: 'Category not found' }); return }
+
+    const proposal = await prisma.ruleProposal.create({
+      data: {
+        coupleId: req.coupleId,
+        proposedById: req.userId,
+        type: 'category_edit',
+        payload: JSON.stringify({ categoryId: req.params.id, ...fields }),
+        proposerComment: comment,
+        status: 'pending'
+      }
+    })
+    res.status(201).json(proposal)
+  } catch (error) {
+    console.error('Error proposing category change:', error)
+    res.status(500).json({ error: 'Failed to propose category change' })
   }
 })
 
