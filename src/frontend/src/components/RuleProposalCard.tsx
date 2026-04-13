@@ -36,7 +36,7 @@ export function RuleProposalCard({ proposal, currentUserId }: Props) {
         </div>
         <div>
           <p className="text-xs text-gray-300">
-            <strong className="text-white">{proposal.proposedBy.name}</strong>{' '}
+            <strong className="text-white">{proposal.proposedBy?.name ?? 'Alguien'}</strong>{' '}
             propone {proposal.type === 'category' ? 'nueva categoría' : proposal.type === 'category_edit' ? 'cambio de categoría' : 'nueva regla'}
           </p>
         </div>
