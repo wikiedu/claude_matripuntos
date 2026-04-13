@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Plus, CheckCircle, Clock, Loader, X,
@@ -224,6 +225,7 @@ function DisputeModal({ log, onClose, onSuccess }: {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function Tasks({ onBack }: { onBack?: () => void }) {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   // @ts-ignore
   const { couple, user } = useAppStore()
 
@@ -302,6 +304,8 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
     setLoggingTask(null)
     setSuccess('✅ Tarea registrada. Tu pareja recibirá una notificación para verificarla.')
     setTimeout(() => setSuccess(null), 5000)
+    queryClient.invalidateQueries({ queryKey: ['gamification', 'status'] })
+    queryClient.invalidateQueries({ queryKey: ['achievements', 'map'] })
     await loadData()
   }
 
