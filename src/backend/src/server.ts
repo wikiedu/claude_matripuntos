@@ -19,6 +19,7 @@ import calendarRoutes from './routes/calendar.js'
 import analyticsRoutes from './routes/analytics.js'
 import activityRoutes from './routes/activityRoutes.js'
 import invitationRoutes from './routes/invitations.js'
+import ruleProposalRoutes from './routes/ruleProposals.js'
 
 dotenv.config()
 
@@ -68,6 +69,9 @@ app.use('/api/recent-activity', activityRoutes)
 
 // Invitation + partner linking routes
 app.use('/api/auth', invitationRoutes)
+
+// Rule Proposals Routes
+app.use('/api/rules', ruleProposalRoutes)
 
 // 404 handler
 app.use((req, res) => {
