@@ -142,3 +142,51 @@ export interface CoupleConfiguration {
   multipliersConfig: Record<string, unknown>
   activityTypes: Record<string, unknown>
 }
+
+// v1.2 gamification types
+export interface GamificationStatus {
+  xp: number
+  level: string
+  levelEmoji: string
+  levelName: string
+  nextLevel: string
+  nextLevelEmoji: string
+  xpToNext: number
+  xpProgress: number
+  dailyStreak: number
+  weeklyStreak: number
+  dailyMultiplier: number
+  weeklyBonus: number
+  combinedMultiplier: number
+  freezerAvailable: boolean
+  lastActivityDate: string | null
+}
+
+export interface AchievementMapNode {
+  id: string
+  name: string
+  description: string
+  icon: string
+  rarity: 'common' | 'rare' | 'epic' | 'legendary'
+  category: string
+  xpReward: number
+  orderIndex: number
+  status: 'unlocked' | 'in_progress' | 'locked'
+  unlockedAt: string | null
+  progress: { current: number; target: number; percentage: number } | null
+}
+
+export interface RuleProposal {
+  id: string
+  coupleId: string
+  proposedById: string | null
+  type: 'rule' | 'category' | 'category_edit'
+  payload: string
+  proposerComment: string | null
+  status: 'pending' | 'accepted' | 'rejected'
+  responderComment: string | null
+  respondedAt: string | null
+  proposedBy: { id: string; name: string } | null
+  respondedBy: { id: string; name: string } | null
+  createdAt: string
+}

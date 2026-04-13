@@ -1,3 +1,5 @@
+import type { GamificationStatus, AchievementMapNode, RuleProposal } from '../types/index'
+
 const API_BASE_URL = (import.meta as any).env.MODE === 'production'
   ? 'https://matripuntos-api.onrender.com/api'
   : 'http://localhost:3000/api'
@@ -485,6 +487,30 @@ class ApiClient {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+
+    propose: (data: {
+      name: string
+      emoji?: string
+      type?: string
+      basePoints?: number
+      proposerComment?: string
+    }): Promise<RuleProposal> =>
+      this.request('/categories/propose', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    proposeChange: (categoryId: string, data: {
+      name?: string
+      emoji?: string
+      basePoints?: number
+      isActive?: boolean
+      proposerComment?: string
+    }): Promise<RuleProposal> =>
+      this.request(`/categories/${categoryId}/propose-change`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
   }
 
   // Points V2 endpoints
@@ -530,6 +556,9 @@ class ApiClient {
 
   // Gamification endpoints (V2 - FASE 4)
   gamification = {
+    getStatus: (): Promise<GamificationStatus> =>
+      this.request('/gamification/status'),
+
     getAllAchievements: () =>
       this.request('/achievements'),
 
@@ -552,6 +581,37 @@ class ApiClient {
 
     getWeeklySummary: () =>
       this.request('/achievements/weekly-summary'),
+  }
+
+  // Achievements map endpoints (v1.2)
+  achievements = {
+    getMap: (): Promise<AchievementMapNode[]> =>
+      this.request('/achievements/map'),
+  }
+
+  // Rules endpoints (v1.2)
+  rules = {
+    getAll: (): Promise<{ rules: any[]; proposals: RuleProposal[] }> =>
+      this.request('/rules'),
+
+    propose: (data: {
+      type: 'rule' | 'category' | 'category_edit'
+      payload: string
+      proposerComment?: string
+    }): Promise<RuleProposal> =>
+      this.request('/rules/propose', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    respond: (id: string, data: {
+      status: 'accepted' | 'rejected'
+      responderComment?: string
+    }): Promise<RuleProposal> =>
+      this.request(`/rules/${id}/respond`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
   }
 
   // Calendar endpoints (FASE 5)
