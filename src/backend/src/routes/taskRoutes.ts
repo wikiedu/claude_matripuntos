@@ -5,6 +5,8 @@ import { z } from 'zod'
 import { Decimal } from '@prisma/client/runtime/library'
 import { AchievementEngine } from '../services/achievementEngine.js'
 import { notifyTaskCompleted, notifyTaskDisputed } from '../services/notificationService.js'
+import { updateDailyStreak, calculateAndSaveXP, getDailyMultiplier, getWeeklyBonus, getFactorMascotas } from '../services/gamificationService.js'
+import { checkAllAchievements } from '../services/achievementCheckService.js'
 
 const router = express.Router()
 import prisma from '../lib/prisma.js'
@@ -217,6 +219,20 @@ router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response):
       return
     }
 
+    // Calculate streak + pet multiplier before creating the log
+    const couple = await prisma.couple.findUnique({
+      where: { id: req.coupleId },
+    })
+    const streakDays = (couple as any)?.dailyStreakDays || 0
+    const streakWeeks = (couple as any)?.weeklyStreakWeeks || 0
+    const dailyMult = getDailyMultiplier(streakDays)
+    const weeklyBonus = getWeeklyBonus(streakWeeks)
+    const factorMascotas = await getFactorMascotas(req.coupleId)
+    const combinedMultiplier = dailyMult * (1 + weeklyBonus) * factorMascotas
+
+    const originalPointsFinal = data.pointsFinal
+    const multipliedPointsFinal = Math.round(originalPointsFinal * combinedMultiplier * 10) / 10
+
     const taskLog = await prisma.taskLog.create({
       data: {
         coupleId: req.coupleId,
@@ -226,7 +242,7 @@ router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response):
         pointsBase: new Decimal(data.pointsBase),
         modifier: data.modifier,
         modifierValue: new Decimal(data.modifierValue),
-        pointsFinal: new Decimal(data.pointsFinal),
+        pointsFinal: new Decimal(multipliedPointsFinal),
         status: 'pending',
       },
     })
@@ -238,6 +254,15 @@ router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response):
       req.userId,
       task.name
     )
+
+    // Non-fatal gamification updates
+    try {
+      await updateDailyStreak(req.coupleId)
+      await calculateAndSaveXP(req.coupleId)
+      await checkAllAchievements(req.coupleId)
+    } catch (gamErr) {
+      console.error('Gamification update error (non-fatal):', gamErr)
+    }
 
     res.status(201).json({
       message: 'Task logged',
