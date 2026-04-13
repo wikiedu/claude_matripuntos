@@ -49,7 +49,7 @@ model Couple {
   lastActivityDate        DateTime?
 
   // v1.2 relations
-  achievementDefinitions  CoupleAchievement[]
+  coupleAchievements      CoupleAchievement[]
   ruleProposals           RuleProposal[]
 
   createdAt             DateTime                 @default(now())
@@ -654,7 +654,7 @@ model CoupleAchievement {
 model RuleProposal {
   id               String   @id @default(cuid())
   coupleId         String
-  proposedById     String
+  proposedById     String?
   respondedById    String?
 
   type             String   // rule | category | category_edit
@@ -666,7 +666,7 @@ model RuleProposal {
   respondedAt      DateTime?
 
   couple           Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
-  proposedBy       User     @relation("ProposalsSent", fields: [proposedById], references: [id], onDelete: Cascade)
+  proposedBy       User?    @relation("ProposalsSent", fields: [proposedById], references: [id], onDelete: SetNull)
   respondedBy      User?    @relation("ProposalsResponded", fields: [respondedById], references: [id], onDelete: SetNull)
 
   createdAt        DateTime @default(now())
@@ -674,4 +674,5 @@ model RuleProposal {
 
   @@index([coupleId])
   @@index([status])
+  @@index([proposedById])
 }

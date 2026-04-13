@@ -51,7 +51,7 @@ ALTER TABLE "CoupleAchievement" ADD CONSTRAINT "CoupleAchievement_achievementDef
 CREATE TABLE "RuleProposal" (
     "id" TEXT NOT NULL,
     "coupleId" TEXT NOT NULL,
-    "proposedById" TEXT NOT NULL,
+    "proposedById" TEXT,
     "respondedById" TEXT,
     "type" TEXT NOT NULL,
     "payload" TEXT NOT NULL,
@@ -68,8 +68,9 @@ CREATE TABLE "RuleProposal" (
 -- CreateIndex
 CREATE INDEX "RuleProposal_coupleId_idx" ON "RuleProposal"("coupleId");
 CREATE INDEX "RuleProposal_status_idx" ON "RuleProposal"("status");
+CREATE INDEX "RuleProposal_proposedById_idx" ON "RuleProposal"("proposedById");
 
 -- AddForeignKey
 ALTER TABLE "RuleProposal" ADD CONSTRAINT "RuleProposal_coupleId_fkey" FOREIGN KEY ("coupleId") REFERENCES "Couple"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "RuleProposal" ADD CONSTRAINT "RuleProposal_proposedById_fkey" FOREIGN KEY ("proposedById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "RuleProposal" ADD CONSTRAINT "RuleProposal_proposedById_fkey" FOREIGN KEY ("proposedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "RuleProposal" ADD CONSTRAINT "RuleProposal_respondedById_fkey" FOREIGN KEY ("respondedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
