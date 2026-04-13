@@ -40,6 +40,18 @@ model Couple {
   coupleScores          CoupleScore[]
   calendarEntries       CalendarEntry[]
 
+  // v1.2 gamification fields
+  xp                     Int       @default(0)
+  level                  String    @default("nido")
+  dailyStreakDays         Int       @default(0)
+  weeklyStreakWeeks       Int       @default(0)
+  dailyStreakFreezerUsed  Boolean   @default(false)
+  lastActivityDate        DateTime?
+
+  // v1.2 relations
+  achievementDefinitions  CoupleAchievement[]
+  ruleProposals           RuleProposal[]
+
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
@@ -77,6 +89,8 @@ model User {
   invitationsSent       Invitation[]             @relation("InvitationsSent")
   invitationsReceived   Invitation[]             @relation("InvitationsReceived")
   achievements          UserAchievement[]
+  ruleProposalsSent       RuleProposal[]   @relation("ProposalsSent")
+  ruleProposalsResponded  RuleProposal[]   @relation("ProposalsResponded")
 
   lastLogin             DateTime?
   createdAt             DateTime                 @default(now())
@@ -598,4 +612,66 @@ model CalendarEntry {
   @@index([coupleId])
   @@index([date])
   @@index([type])
+}
+
+// AchievementDefinition — global achievement catalog (v1.2)
+model AchievementDefinition {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  icon        String   // emoji
+  rarity      String   // common | rare | epic | legendary
+  category    String   // constancia | equilibrio | consenso | rendimiento | pareja | secretos
+  condition   String   // JSON: { type, threshold, ... }
+  xpReward    Int      @default(50)
+  orderIndex  Int      @default(0)
+
+  coupleAchievements CoupleAchievement[]
+
+  createdAt   DateTime @default(now())
+
+  @@index([category])
+  @@index([orderIndex])
+}
+
+// CoupleAchievement — per-couple progress on AchievementDefinitions (v1.2)
+model CoupleAchievement {
+  id                      String   @id @default(cuid())
+  coupleId                String
+  achievementDefinitionId String
+
+  progress                String?  // JSON: { current, target }
+  unlockedAt              DateTime?
+
+  couple                  Couple                @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  definition              AchievementDefinition @relation(fields: [achievementDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([coupleId, achievementDefinitionId])
+  @@index([coupleId])
+}
+
+// RuleProposal — bilateral proposal flow for rules and categories (v1.2)
+model RuleProposal {
+  id               String   @id @default(cuid())
+  coupleId         String
+  proposedById     String
+  respondedById    String?
+
+  type             String   // rule | category | category_edit
+  payload          String   // JSON
+  proposerComment  String?
+
+  status           String   @default("pending") // pending | accepted | rejected
+  responderComment String?
+  respondedAt      DateTime?
+
+  couple           Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  proposedBy       User     @relation("ProposalsSent", fields: [proposedById], references: [id], onDelete: Cascade)
+  respondedBy      User?    @relation("ProposalsResponded", fields: [respondedById], references: [id], onDelete: SetNull)
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([coupleId])
+  @@index([status])
 }
