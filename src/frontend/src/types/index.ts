@@ -190,3 +190,68 @@ export interface RuleProposal {
   respondedBy: { id: string; name: string } | null
   createdAt: string
 }
+
+// v1.3 Shopping List
+export interface ShoppingItem {
+  id: string
+  listId: string
+  text: string
+  isChecked: boolean
+  checkedBy: string | null
+  checkedAt: string | null
+  createdAt: string
+}
+
+export interface ShoppingList {
+  id: string
+  coupleId: string
+  isActive: boolean
+  archivedAt: string | null
+  createdAt: string
+  items: ShoppingItem[]
+}
+
+export interface ShoppingData {
+  active: ShoppingList
+  history: ShoppingList[]
+}
+
+// v1.3 To-dos
+export interface Todo {
+  id: string
+  userId: string
+  coupleId: string
+  text: string
+  isCompleted: boolean
+  completedAt: string | null
+  dueDate: string | null
+  isShared: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TodosData {
+  mine: Todo[]
+  partnerShared: Todo[]
+}
+
+// v1.3 Task scheduling
+export interface TaskSchedule {
+  scheduledFor: string
+  frequency?: 'daily' | 'biweekly' | 'weekly' | 'bimonthly' | 'monthly'
+  recurrenceEnd?: string
+  maxOccurrences?: number
+}
+
+// v1.3 Digest
+export interface WeeklyDigestData {
+  weekStart: string
+  weekEnd: string
+  tasksCompleted: number
+  user1Name: string
+  user1Balance: number
+  user2Name: string
+  user2Balance: number
+  achievementsUnlocked: string[]
+  dailyStreakDays: number
+}

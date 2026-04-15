@@ -1,4 +1,4 @@
-import type { GamificationStatus, AchievementMapNode, RuleProposal } from '../types/index'
+import type { GamificationStatus, AchievementMapNode, RuleProposal, ShoppingData, ShoppingItem, ShoppingList, Todo, TodosData, TaskSchedule, Task } from '../types/index'
 
 const API_BASE_URL = (import.meta as any).env.MODE === 'production'
   ? 'https://matripuntos-api.onrender.com/api'
@@ -205,6 +205,12 @@ class ApiClient {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
+
+    schedule: (id: string, data: TaskSchedule): Promise<Task> =>
+      this.request(`/tasks/${id}/schedule`, { method: 'POST', body: JSON.stringify(data) }),
+
+    getWeeklyLogs: (from: string, to: string): Promise<any[]> =>
+      this.request(`/tasks/logs?view=week&from=${from}&to=${to}`),
   }
 
   // Negotiation endpoints
@@ -680,6 +686,39 @@ class ApiClient {
 
     getYearly: (year: number) =>
       this.request(`/analytics/yearly/${year}`),
+  }
+
+  // Shopping list endpoints (v1.3)
+  shopping = {
+    getAll: (): Promise<ShoppingData> =>
+      this.request('/shopping'),
+
+    addItem: (text: string): Promise<ShoppingItem> =>
+      this.request('/shopping/items', { method: 'POST', body: JSON.stringify({ text }) }),
+
+    updateItem: (id: string, data: { isChecked?: boolean; text?: string }): Promise<ShoppingItem> =>
+      this.request(`/shopping/items/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+    deleteItem: (id: string): Promise<void> =>
+      this.request(`/shopping/items/${id}`, { method: 'DELETE' }),
+
+    archive: (): Promise<ShoppingList> =>
+      this.request('/shopping/archive', { method: 'POST' }),
+  }
+
+  // To-dos endpoints (v1.3)
+  todos = {
+    getAll: (): Promise<TodosData> =>
+      this.request('/todos'),
+
+    create: (data: { text: string; dueDate?: string; isShared?: boolean }): Promise<Todo> =>
+      this.request('/todos', { method: 'POST', body: JSON.stringify(data) }),
+
+    update: (id: string, data: { text?: string; isCompleted?: boolean; dueDate?: string | null; isShared?: boolean }): Promise<Todo> =>
+      this.request(`/todos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+    delete: (id: string): Promise<void> =>
+      this.request(`/todos/${id}`, { method: 'DELETE' }),
   }
 }
 
