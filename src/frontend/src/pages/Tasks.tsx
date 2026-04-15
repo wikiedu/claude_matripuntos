@@ -10,6 +10,9 @@ import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
 import { toLocalDateString, formatLocalDate, formatLocalWeekDay } from '../utils/dateUtils'
 import { BottomNav } from '../components/BottomNav'
+import { WeeklyTaskView } from '../components/WeeklyTaskView'
+import { TaskScheduleForm } from '../components/TaskScheduleForm'
+import type { TaskSchedule } from '../types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Task {
@@ -253,6 +256,16 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
   const [isCreating, setIsCreating] = useState(false)
   const [addingFromCatalog, setAddingFromCatalog] = useState<string | null>(null)
 
+  const [view, setView] = useState<'list' | 'week'>('list')
+  const [weekStart, setWeekStart] = useState<Date>(() => {
+    const d = new Date()
+    const day = d.getDay()
+    d.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
+    d.setHours(0, 0, 0, 0)
+    return d
+  })
+  const [schedule, setSchedule] = useState<TaskSchedule | null>(null)
+
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true)
@@ -334,7 +347,11 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
   const handleCreateTask = async (name: string, category: string, pts: number, desc?: string) => {
     setIsCreating(true)
     try {
-      await apiClient.tasks.create({ name: name.trim(), category, pointsBase: pts, description: desc?.trim() })
+      const created = await apiClient.tasks.create({ name: name.trim(), category, pointsBase: pts, description: desc?.trim() })
+      if (schedule !== null && created?.task?.id) {
+        await apiClient.tasks.schedule(created.task.id, schedule)
+        setSchedule(null)
+      }
       setShowNewTask(false)
       setShowCatalog(false)
       setNewTaskName(''); setNewTaskCategory('cocina'); setNewTaskPoints('10')
@@ -437,6 +454,31 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
             <h1 className="text-xl font-bold" style={{ color: 'var(--matri-text)' }}>Tareas del Hogar</h1>
             <p className="text-sm" style={{ color: 'var(--matri-text-2)' }}>{tasks.length} tareas · {myTodayLogs.length} hechas hoy</p>
           </div>
+          {/* View toggle */}
+          <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
+            <button
+              onClick={() => setView('list')}
+              style={{
+                padding: '4px 12px', borderRadius: 8, fontSize: 11, cursor: 'pointer', border: 'none',
+                background: view === 'list' ? 'rgba(245,158,11,0.2)' : 'transparent',
+                color: view === 'list' ? 'var(--matri-amber)' : 'var(--matri-text-3)',
+                fontWeight: view === 'list' ? 700 : 400,
+              }}
+            >
+              Lista
+            </button>
+            <button
+              onClick={() => setView('week')}
+              style={{
+                padding: '4px 12px', borderRadius: 8, fontSize: 11, cursor: 'pointer', border: 'none',
+                background: view === 'week' ? 'rgba(245,158,11,0.2)' : 'transparent',
+                color: view === 'week' ? 'var(--matri-amber)' : 'var(--matri-text-3)',
+                fontWeight: view === 'week' ? 700 : 400,
+              }}
+            >
+              Semana
+            </button>
+          </div>
           <button onClick={loadData} className="p-2 hover:bg-gray-100 rounded-lg" title="Actualizar">
             <RefreshCw className="w-4 h-4 text-gray-500" />
           </button>
@@ -502,6 +544,7 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
                 <input type="number" value={newTaskPoints} onChange={e => setNewTaskPoints(e.target.value)} min="1" max="50" className="input-field" />
               </div>
             </div>
+            <TaskScheduleForm value={schedule} onChange={setSchedule} />
             <div className="flex gap-2">
               <button onClick={() => setShowNewTask(false)} className="btn-secondary flex-1" disabled={isCreating}>Cancelar</button>
               <button onClick={() => handleCreateTask(newTaskName, newTaskCategory, parseFloat(newTaskPoints) || 10)}
@@ -521,7 +564,7 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
         ) : (
           <>
             {/* ── MIS TAREAS TAB ── */}
-            {tab === 'mis_tareas' && (
+            {view === 'list' && tab === 'mis_tareas' && (
               <div className="space-y-4">
                 {/* My pending (waiting for partner verification) */}
                 {myPendingLogs.length > 0 && (
@@ -603,6 +646,20 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className={`font-semibold truncate ${doneToday ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{task.name}</p>
+                                {(task as any).isRecurring && (
+                                  <span style={{
+                                    fontSize: 9, padding: '1px 6px', borderRadius: 8, marginLeft: 6,
+                                    background: 'rgba(168,85,247,0.15)', color: '#a855f7',
+                                    border: '1px solid rgba(168,85,247,0.3)',
+                                  }}>🔄 Recurrente</span>
+                                )}
+                                {!(task as any).isRecurring && (task as any).scheduledFor && (
+                                  <span style={{
+                                    fontSize: 9, padding: '1px 6px', borderRadius: 8, marginLeft: 6,
+                                    background: 'rgba(245,158,11,0.15)', color: '#f59e0b',
+                                    border: '1px solid rgba(245,158,11,0.3)',
+                                  }}>📅 Planificada</span>
+                                )}
                                 {badge && <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${badge.color}`}>{badge.text}</span>}
                               </div>
                               <p className="text-sm text-gray-500">{CATEGORY_LABEL[task.category?.toLowerCase()] || task.category} · {task.pointsBase} pts base</p>
@@ -636,7 +693,7 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
             )}
 
             {/* ── VERIFICAR TAB ── */}
-            {tab === 'verificar' && (
+            {view === 'list' && tab === 'verificar' && (
               <div className="space-y-4">
                 {/* Partner tasks waiting for my verification */}
                 {partnerPendingLogs.length > 0 ? (
@@ -714,8 +771,30 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
               </div>
             )}
 
+            {/* ── SEMANA VIEW ── */}
+            {view === 'week' && (
+              <div style={{ padding: '0 8px' }}>
+                {/* Week navigation */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 8px 12px' }}>
+                  <button
+                    onClick={() => { const d = new Date(weekStart); d.setDate(d.getDate() - 7); setWeekStart(d) }}
+                    style={{ background: 'none', border: 'none', color: 'var(--matri-text-3)', cursor: 'pointer', fontSize: 18 }}
+                  >←</button>
+                  <span style={{ fontSize: 12, color: 'var(--matri-text-2)' }}>
+                    {weekStart.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} –{' '}
+                    {new Date(weekStart.getTime() + 6 * 86400000).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                  <button
+                    onClick={() => { const d = new Date(weekStart); d.setDate(d.getDate() + 7); setWeekStart(d) }}
+                    style={{ background: 'none', border: 'none', color: 'var(--matri-text-3)', cursor: 'pointer', fontSize: 18 }}
+                  >→</button>
+                </div>
+                <WeeklyTaskView weekStart={weekStart} />
+              </div>
+            )}
+
             {/* ── HISTORIAL TAB ── */}
-            {tab === 'historial' && (
+            {view === 'list' && tab === 'historial' && (
               <div className="space-y-2">
                 {historyLogs.length === 0 ? (
                   <div className="card text-center py-12">
