@@ -10,6 +10,8 @@ import { type RecentActivity } from '../types/activity'
 import { AchievementsWidget } from '../components/AchievementsWidget'
 import { BottomNav } from '../components/BottomNav'
 import { StreakWidget } from '../components/StreakWidget'
+import { useShoppingList } from '../hooks/useShoppingList'
+import { useTodos } from '../hooks/useTodos'
 import { LevelProgress } from '../components/LevelProgress'
 import { Avatar } from '../components/Avatar'
 import { getDailyPhrase } from '../utils/dailyPhrase'
@@ -52,6 +54,10 @@ export default function Dashboard() {
   const [partnerMood, setPartnerMood] = useState<string | null>(null)
   const [partnerDisplayName, setPartnerDisplayName] = useState<string | null>(null)
   const dailyPhrase = getDailyPhrase()
+  const { data: shoppingData } = useShoppingList()
+  const { data: todosData } = useTodos()
+  const pendingShoppingCount = shoppingData?.active?.items.filter(i => !i.isChecked).length ?? 0
+  const pendingTodosCount = todosData?.mine.filter(t => !t.isCompleted).length ?? 0
 
   // Fetch recent activities using React Query
   const { data: recentActivities = [], isLoading: activitiesLoading } = useQuery({
@@ -239,6 +245,37 @@ export default function Dashboard() {
             <div className="space-y-3 px-4 pb-3">
               <LevelProgress />
               <StreakWidget />
+              {/* v1.3 La Casa quick access */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, paddingTop: 4 }}>
+                <button
+                  onClick={() => navigate('/shopping')}
+                  style={{
+                    background: 'rgba(168,85,247,0.08)',
+                    border: '1px solid rgba(168,85,247,0.2)',
+                    borderRadius: 12, padding: '12px 14px', cursor: 'pointer', textAlign: 'left',
+                  }}
+                >
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>🛒</div>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--matri-text)', marginBottom: 2 }}>Lista de la compra</p>
+                  <p style={{ fontSize: 10, color: 'var(--matri-text-3)' }}>
+                    {pendingShoppingCount > 0 ? `${pendingShoppingCount} pendientes` : 'Todo comprado ✓'}
+                  </p>
+                </button>
+                <button
+                  onClick={() => navigate('/todos')}
+                  style={{
+                    background: 'rgba(96,165,250,0.08)',
+                    border: '1px solid rgba(96,165,250,0.2)',
+                    borderRadius: 12, padding: '12px 14px', cursor: 'pointer', textAlign: 'left',
+                  }}
+                >
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>📝</div>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--matri-text)', marginBottom: 2 }}>To-dos</p>
+                  <p style={{ fontSize: 10, color: 'var(--matri-text-3)' }}>
+                    {pendingTodosCount > 0 ? `${pendingTodosCount} pendientes` : 'Todo al día ✓'}
+                  </p>
+                </button>
+              </div>
             </div>
 
             {/* Frase del día */}
@@ -451,7 +488,7 @@ export default function Dashboard() {
           </>
         )}
       </main>
-      <BottomNav onPlusPress={() => navigate('/request-activity')} />
+      <BottomNav />
     </div>
   )
 }
