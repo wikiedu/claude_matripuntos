@@ -20,6 +20,11 @@ import analyticsRoutes from './routes/analytics.js'
 import activityRoutes from './routes/activityRoutes.js'
 import invitationRoutes from './routes/invitations.js'
 import ruleProposalRoutes from './routes/ruleProposals.js'
+import shoppingRoutes from './routes/shopping.js'
+import todoRoutes from './routes/todos.js'
+import cron from 'node-cron'
+import { runWeeklyGeneration } from './services/recurringTaskService.js'
+import { sendWeeklyDigests } from './services/digestService.js'
 
 dotenv.config()
 
@@ -73,6 +78,10 @@ app.use('/api/auth', invitationRoutes)
 // Rule Proposals Routes
 app.use('/api/rules', ruleProposalRoutes)
 
+// v1.3 Routes
+app.use('/api/shopping', shoppingRoutes)
+app.use('/api/todos', todoRoutes)
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' })
@@ -85,6 +94,12 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     error: 'Internal server error',
     message: process.env.NODE_ENV === 'development' ? err.message : undefined,
   })
+})
+
+// v1.3 weekly cron — every Monday at 08:00
+cron.schedule('0 8 * * 1', () => {
+  runWeeklyGeneration().catch(err => console.error('recurringTask cron error:', err))
+  sendWeeklyDigests().catch(err => console.error('digest cron error:', err))
 })
 
 app.listen(PORT, () => {
