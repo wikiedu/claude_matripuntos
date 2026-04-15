@@ -16,6 +16,8 @@ import Analytics from './pages/Analytics'
 import { Calendar } from './pages/Calendar'
 import { AnalyticsPage } from './pages/AnalyticsPage'
 import Achievements from './pages/Achievements'
+import ShoppingListPage from './pages/ShoppingListPage'
+import TodoListPage from './pages/TodoListPage'
 import NotFound from './pages/NotFound'
 import { OnboardingLanding } from './pages/onboarding/OnboardingLanding'
 import './App.css'
@@ -162,6 +164,22 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Achievements />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/shopping"
+        element={
+          <ProtectedRoute>
+            <ShoppingListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/todos"
+        element={
+          <ProtectedRoute>
+            <TodoListPage />
           </ProtectedRoute>
         }
       />
