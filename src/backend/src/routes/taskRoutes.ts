@@ -7,6 +7,7 @@ import { AchievementEngine } from '../services/achievementEngine.js'
 import { notifyTaskCompleted, notifyTaskDisputed } from '../services/notificationService.js'
 import { updateDailyStreak, calculateAndSaveXP, getDailyMultiplier, getWeeklyBonus, getFactorMascotas } from '../services/gamificationService.js'
 import { checkAllAchievements } from '../services/achievementCheckService.js'
+import { generateOnCreate } from '../services/recurringTaskService.js'
 
 const router = express.Router()
 import prisma from '../lib/prisma.js'
@@ -192,6 +193,36 @@ router.get('/all-logs', authMiddleware, async (req: Request, res: Response): Pro
   } catch (error) {
     console.error('[all-logs]', error)
     res.status(500).json({ error: 'Failed to fetch task logs' })
+  }
+})
+
+// GET /api/tasks/logs?view=week&from=YYYY-MM-DD&to=YYYY-MM-DD
+router.get('/logs', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.coupleId) { res.status(401).json({ error: 'Authentication required' }); return }
+
+    const { view, from, to } = req.query as { view?: string; from?: string; to?: string }
+
+    if (view === 'week' && from && to) {
+      const logs = await prisma.taskLog.findMany({
+        where: {
+          coupleId: req.coupleId,
+          scheduledFor: {
+            gte: new Date(from),
+            lte: new Date(to + 'T23:59:59Z'),
+          },
+        },
+        include: { task: { select: { name: true, category: true } } },
+        orderBy: { scheduledFor: 'asc' },
+      })
+      res.json(logs)
+      return
+    }
+
+    // Default: delegate to existing behavior or return error
+    res.status(400).json({ error: 'Use ?view=week&from=&to= or GET /all-logs' })
+  } catch (err) {
+    res.status(500).json({ error: 'Error al cargar logs' })
   }
 })
 
@@ -477,6 +508,50 @@ router.put('/:taskId/logs/:logId/dispute', authMiddleware, async (req: Request, 
     }
     const message = error instanceof Error ? error.message : 'Failed to dispute task log'
     res.status(400).json({ error: message })
+  }
+})
+
+// POST /api/tasks/:id/schedule — set scheduling/recurrence on a task
+router.post('/:id/schedule', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.coupleId) { res.status(401).json({ error: 'Authentication required' }); return }
+
+    const scheduleSchema = z.object({
+      scheduledFor: z.string(),
+      frequency: z.enum(['daily', 'biweekly', 'weekly', 'bimonthly', 'monthly']).optional(),
+      recurrenceEnd: z.string().optional(),
+      maxOccurrences: z.number().int().positive().optional(),
+    })
+
+    const data = scheduleSchema.parse(req.body)
+
+    // Verify task belongs to couple
+    const task = await prisma.task.findFirst({ where: { id: req.params.id, coupleId: req.coupleId } })
+    if (!task) { res.status(404).json({ error: 'Tarea no encontrada' }); return }
+
+    const isRecurring = !!data.frequency
+    const updated = await prisma.task.update({
+      where: { id: task.id },
+      data: {
+        scheduledFor: new Date(data.scheduledFor),
+        isRecurring,
+        frequency: data.frequency ?? null,
+        recurrenceStart: isRecurring ? new Date(data.scheduledFor) : null,
+        recurrenceEnd: data.recurrenceEnd ? new Date(data.recurrenceEnd) : null,
+        maxOccurrences: data.maxOccurrences ?? null,
+        occurrenceCount: 0,
+      },
+    })
+
+    if (isRecurring) {
+      await generateOnCreate(updated)
+    }
+
+    res.json(updated)
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: err.errors[0].message }); return }
+    console.error('POST /tasks/:id/schedule error:', err)
+    res.status(500).json({ error: 'Error al programar tarea' })
   }
 })
 
