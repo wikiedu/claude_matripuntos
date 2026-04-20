@@ -21,9 +21,10 @@ npm run build
 
 echo "Deploying to FTP..."
 lftp -c "
+set ssl:verify-certificate no
 open -u $FTP_USER,$FTP_PASS $FTP_HOST
 mirror --reverse --delete --verbose \
-  $DIST \
+  \"$DIST\" \
   /
 bye
 "
