@@ -30,28 +30,49 @@ export function TaskScheduleForm({ value, onChange }: Props) {
   }
 
   return (
-    <div style={{ marginTop: 12 }}>
+    <div style={{
+      marginTop: 12,
+      border: `2px solid ${enabled ? '#f59e0b' : '#e5e7eb'}`,
+      borderRadius: 10,
+      padding: '10px 12px',
+      background: enabled ? '#fffbeb' : '#f9fafb',
+      transition: 'all 0.2s',
+    }}>
       {/* Toggle */}
       <button
         type="button"
         onClick={toggle}
         style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: enabled ? 12 : 0,
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+          width: '100%', marginBottom: enabled ? 12 : 0,
         }}
       >
-        <div style={{
-          width: 36, height: 20, borderRadius: 10, position: 'relative',
-          background: enabled ? 'rgba(245,158,11,0.6)' : 'rgba(255,255,255,0.1)',
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: enabled ? 'flex-end' : 'flex-start',
+          width: 42, height: 24, borderRadius: 12,
+          background: enabled ? '#f59e0b' : '#d1d5db',
+          padding: '0 3px',
+          flexShrink: 0,
           transition: 'background 0.2s',
+          boxSizing: 'border-box' as const,
         }}>
-          <div style={{
-            position: 'absolute', top: 2, left: enabled ? 18 : 2,
-            width: 16, height: 16, borderRadius: 8,
-            background: '#fff', transition: 'left 0.2s',
+          <span style={{
+            width: 18, height: 18, borderRadius: 9,
+            background: '#fff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+            display: 'block',
+            flexShrink: 0,
           }} />
-        </div>
-        <span style={{ fontSize: 12, color: 'var(--matri-text-2)' }}>Planificar esta tarea</span>
+        </span>
+        <span style={{
+          fontSize: 14, fontWeight: 600,
+          color: enabled ? '#92400e' : '#6b7280',
+        }}>
+          📅 Planificar esta tarea
+        </span>
       </button>
 
       {enabled && (

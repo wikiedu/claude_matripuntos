@@ -1,8 +1,10 @@
 import type { GamificationStatus, AchievementMapNode, RuleProposal, ShoppingData, ShoppingItem, ShoppingList, Todo, TodosData, TaskSchedule, Task } from '../types/index'
 
-const API_BASE_URL = (import.meta as any).env.MODE === 'production'
-  ? 'https://matripuntos-api.onrender.com/api'
-  : 'http://localhost:3000/api'
+const API_BASE_URL = (import.meta as any).env.VITE_API_URL ?? (
+  (import.meta as any).env.MODE === 'production'
+    ? 'https://matripuntos-api.onrender.com/api'
+    : 'http://localhost:3000/api'
+)
 
 // Simple API client with automatic token management
 class ApiClient {
