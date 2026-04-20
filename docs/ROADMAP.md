@@ -1,6 +1,6 @@
 # Matripuntos — Roadmap de Versiones
 
-> Estado actualizado: 2026-04-12  
+> Estado actualizado: 2026-04-20  
 > Spec completo: `docs/superpowers/specs/2026-04-11-roadmap-versiones-design.md`
 
 ---
@@ -11,8 +11,9 @@
 |---|---|---|---|---|
 | MVP 1 | Los Cimientos | ✅ En producción | `main` | `mvp1` |
 | v1.1 | La Chispa | ✅ En producción | `main` | `v1.1` |
-| v1.2 | El Juego | Planificado | `feature/v1.2-el-juego` | — |
-| v1.3 | La Casa | Planificado | `feature/v1.3-la-casa` | — |
+| v1.2 | El Juego | ✅ En producción | `main` | `v1.2` |
+| v1.3 | La Casa | ✅ En producción | `main` | `v1.3` |
+| v1.4 | La Evolución (diseño v2) | En diseño | `feature/v1.4-la-evolucion` | — |
 | v2.0 | Hogar 360 | Planificado | `feature/v2.0-hogar-360` | — |
 | v2.1 | Conectados | Planificado | `feature/v2.1-conectados` | — |
 | v3.0 | Premium | Futuro | `feature/v3.0-premium` | — |
@@ -62,15 +63,35 @@ Primera versión presentable a usuarios externos.
 
 ---
 
-## v1.3 · La Casa
+## v1.3 · La Casa ✅
 
 **Foco:** Hub de gestión doméstica real.
 
-**Features:**
-- Tareas 2.0: tipos puntual/recurrente, planificador semanal/mensual, instancias automáticas
-- Lista de la compra compartida (con categorías, historial 4 semanas)
+**Features enviadas:**
+- Tareas 2.0: tipos puntual/recurrente, planificador semanal/mensual, instancias automáticas (cron semanal)
+- Lista de la compra compartida con categorías (ShoppingList/ShoppingItem)
 - Módulo To-dos personal (sin puntos, sin gamificación)
-- Digest semanal (resumen lunes: balance, logros, rachas)
+- Digest semanal in-app (lunes 08:00: balance, logros, rachas)
+- WeeklyTaskView: toggle lista/semana en Tareas
+- FAB con action sheet: quick-add shopping + todo
+
+**Mejoras técnicas incluidas:**
+- Security hardening: rate-limit /api/auth, CORS allowlist, JWT_SECRET min 32 chars, crypto.randomBytes para secretKey, body limit 1mb, validación zod con bounds y longitudes
+- Auto-accept TaskLogs pendientes >24h (cron horario)
+- Auth middleware consolidado en una sola implementación
+
+---
+
+## v1.4 · La Evolución (diseño v2)
+
+**Foco:** Rediseño UX completo según Claude Design + pantalla Analytics dedicada.
+
+**Scope (en diseño, pendiente spec):**
+- Navegación nueva: Inicio · Tareas · Calendario · Analítica (Logros → menú ⋯ del header)
+- Dashboard condensado: Balance+Nivel hero fusionado, StreakStrip compacto, frase diaria, tareas arriba del fold
+- FAB menú con 📅 Actividad / 🛒 Compra / 📝 To-do (diferencia clara con "Tareas")
+- Nueva pantalla Analytics: pestaña Básico (4 gráficos) + Avanzado (5 gráficos, overlay premium visible-bloqueado)
+- Header con saludo temporal, mood partner, bell + menú ⋯ (Logros, Perfil, Pareja, Reglas, Ajustes, Ayuda, Logout)
 
 ---
 
