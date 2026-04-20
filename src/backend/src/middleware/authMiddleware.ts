@@ -7,6 +7,7 @@ declare global {
     interface Request {
       userId?: string
       coupleId?: string
+      user?: { id: string; coupleId: string }
     }
   }
 }
@@ -34,6 +35,7 @@ export const authMiddleware = (
 
     req.userId = decoded.userId
     req.coupleId = decoded.coupleId
+    req.user = { id: decoded.userId, coupleId: decoded.coupleId }
 
     next()
   } catch (error) {
