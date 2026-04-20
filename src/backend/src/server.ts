@@ -23,6 +23,7 @@ import invitationRoutes from './routes/invitations.js'
 import ruleProposalRoutes from './routes/ruleProposals.js'
 import shoppingRoutes from './routes/shopping.js'
 import todoRoutes from './routes/todos.js'
+import premiumRoutes from './routes/premium.js'
 import cron from 'node-cron'
 import { runWeeklyGeneration } from './services/recurringTaskService.js'
 import { sendWeeklyDigests } from './services/digestService.js'
@@ -98,6 +99,9 @@ app.use('/api/rules', ruleProposalRoutes)
 // v1.3 Routes
 app.use('/api/shopping', shoppingRoutes)
 app.use('/api/todos', todoRoutes)
+
+// v1.4 Routes
+app.use('/api/premium', premiumRoutes)
 
 // 404 handler
 app.use((req, res) => {
