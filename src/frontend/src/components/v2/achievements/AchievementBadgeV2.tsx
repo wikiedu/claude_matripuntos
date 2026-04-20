@@ -73,13 +73,17 @@ export function AchievementBadgeV2({ node, onClick }: Props) {
     inner
   )
 
+  if (!onClick) {
+    return <div className={opacityClass}>{content}</div>
+  }
+
   return (
-    <div
-      className={`${opacityClass} ${onClick ? 'cursor-pointer hover:scale-[1.02] transition' : ''}`}
+    <button
+      type="button"
       onClick={onClick}
-      role={onClick ? 'button' : undefined}
+      className={`${opacityClass} cursor-pointer hover:scale-[1.02] transition text-left p-0 bg-transparent border-0`}
     >
       {content}
-    </div>
+    </button>
   )
 }

@@ -50,10 +50,10 @@ export default function Achievements() {
   const locked = useMemo(() => nodes.filter(n => n.status === 'locked'), [nodes])
 
   const levelOrdinal = (LEVEL_ORDER.indexOf(gamificationStatus?.level ?? 'nido') + 1) || 1
-  const xpProgress = gamificationStatus?.xpProgress ?? 0
+  const currentXp = gamificationStatus?.xp ?? 0
   const xpToNext = gamificationStatus?.xpToNext ?? 100
-  const currentXp = Math.round(xpProgress * (xpProgress + xpToNext > 0 ? (xpToNext / (1 - xpProgress || 1)) : 100))
-  const neededXp = Math.max(1, currentXp + xpToNext)
+  const neededXp = currentXp + xpToNext
+  const xpPct = gamificationStatus?.xpProgress ?? 0
 
   const dailyStreak = gamificationStatus?.dailyStreak ?? 0
   const multiplier = Number(gamificationStatus?.combinedMultiplier ?? gamificationStatus?.dailyMultiplier ?? 1.0)
@@ -85,6 +85,7 @@ export default function Achievements() {
         levelOrdinal={levelOrdinal}
         currentXp={currentXp}
         neededXp={neededXp}
+        pct={xpPct}
         unlocked={unlocked.length}
         total={nodes.length}
         extra={extra}

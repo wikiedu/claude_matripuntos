@@ -8,6 +8,7 @@ interface Props {
   levelOrdinal: number
   currentXp: number
   neededXp: number
+  pct?: number
   unlocked: number
   total: number
   extra?: ExtraItem[]
@@ -18,11 +19,14 @@ export function LevelHero({
   levelOrdinal,
   currentXp,
   neededXp,
+  pct,
   unlocked,
   total,
   extra,
 }: Props) {
-  const pct = neededXp > 0 ? Math.min(100, (currentXp / neededXp) * 100) : 0
+  const barPct = pct !== undefined
+    ? Math.min(100, Math.max(0, pct))
+    : neededXp > 0 ? Math.min(100, (currentXp / neededXp) * 100) : 0
 
   return (
     <div className="mx-4 mb-4 bg-grad-hero rounded-lg p-5 text-white shadow-xl shadow-brand-indigo/30">
@@ -37,7 +41,7 @@ export function LevelHero({
         <div className="relative overflow-hidden rounded-full bg-white/20" style={{ height: 6 }}>
           <div
             className="absolute inset-y-0 left-0 bg-grad-cta rounded-full transition-all"
-            style={{ width: `${pct}%` }}
+            style={{ width: `${barPct}%` }}
           />
         </div>
         <p className="m-0 mt-1.5 text-[11px] font-semibold text-[rgba(199,210,254,0.9)] tabular-nums">
