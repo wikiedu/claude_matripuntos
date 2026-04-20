@@ -251,4 +251,20 @@ router.get('/time-invested', async (req: Request, res: Response) => {
   }
 })
 
+/**
+ * GET /api/analytics/heatmap
+ * Actividad por día de semana × franja horaria (7×6 grid).
+ * Query: ?weeks=4 (default: 4, min: 1, max: 52)
+ */
+router.get('/heatmap', async (req: Request, res: Response) => {
+  try {
+    const coupleId = (req as any).user.coupleId
+    const weeks = Math.max(1, Math.min(52, Number(req.query.weeks ?? 4)))
+    const data = await analyticsService.getHeatmap(coupleId, weeks)
+    res.json({ success: true, data })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Error' })
+  }
+})
+
 export default router

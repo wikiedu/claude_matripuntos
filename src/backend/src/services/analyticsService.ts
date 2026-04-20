@@ -509,3 +509,51 @@ export async function getTimeInvested(coupleId: string, range: 'week' | 'month')
     partner: user2 ? { id: user2.id, name: user2.name, hours: hoursFor(user2.id) } : null,
   }
 }
+
+// Franjas horarias: 6-9, 9-12, 12-15, 15-18, 18-21, 21-24
+const HOUR_BUCKETS = [6, 9, 12, 15, 18, 21]
+
+function bucketForHour(h: number): number {
+  if (h < 6) return 21
+  for (let i = HOUR_BUCKETS.length - 1; i >= 0; i--) {
+    if (h >= HOUR_BUCKETS[i]) return HOUR_BUCKETS[i]
+  }
+  return HOUR_BUCKETS[0]
+}
+
+/**
+ * Get activity heatmap: 7 days (Mon-Sun) × 6 hour buckets.
+ * Combines TaskLogs and accepted/forced Events.
+ */
+export async function getHeatmap(coupleId: string, weeks: number = 4) {
+  const since = new Date()
+  since.setDate(since.getDate() - weeks * 7)
+
+  const logs = await prisma.taskLog.findMany({
+    where: { coupleId, date: { gte: since } },
+  })
+  const events = await prisma.event.findMany({
+    where: { coupleId, dateStart: { gte: since }, status: { in: ['accepted', 'forced'] } },
+  })
+
+  // key = `${dow}-${bucket}`, value = count
+  const map = new Map<string, number>()
+  function add(date: Date) {
+    const dow = (date.getDay() + 6) % 7 // L=0, D=6
+    const bucket = bucketForHour(date.getHours())
+    const key = `${dow}-${bucket}`
+    map.set(key, (map.get(key) ?? 0) + 1)
+  }
+  logs.forEach(l => add(new Date(l.date)))
+  events.forEach(e => add(new Date(e.dateStart)))
+
+  const max = Math.max(1, ...Array.from(map.values()))
+  const grid: { dow: number; bucket: number; count: number; norm: number }[] = []
+  for (let dow = 0; dow < 7; dow++) {
+    for (const bucket of HOUR_BUCKETS) {
+      const count = map.get(`${dow}-${bucket}`) ?? 0
+      grid.push({ dow, bucket, count, norm: Math.round((count / max) * 4) })
+    }
+  }
+  return { grid, buckets: HOUR_BUCKETS }
+}
