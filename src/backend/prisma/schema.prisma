@@ -96,6 +96,7 @@ model User {
   ruleProposalsSent       RuleProposal[]   @relation("ProposalsSent")
   ruleProposalsResponded  RuleProposal[]   @relation("ProposalsResponded")
   todos                   Todo[]
+  premiumInterests        PremiumInterest[]
 
   lastLogin             DateTime?
   createdAt             DateTime                 @default(now())
@@ -739,4 +740,20 @@ model Todo {
 
   @@index([userId])
   @@index([coupleId])
+}
+
+// v1.4 La Evolución — captura de interés en funciones Premium
+model PremiumInterest {
+  id        String   @id @default(uuid())
+  email     String
+  userId    String?
+  coupleId  String?
+  source    String
+  createdAt DateTime @default(now())
+  notified  Boolean  @default(false)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([notified])
 }
