@@ -10,7 +10,6 @@ import Dashboard from './pages/Dashboard'
 import RequestActivity from './pages/RequestActivity'
 import RequestInbox from './pages/RequestInbox'
 import Tasks from './pages/Tasks'
-import History from './pages/History'
 import Settings from './pages/Settings'
 import Analytics from './pages/Analytics'
 import { Calendar } from './pages/Calendar'
@@ -20,6 +19,7 @@ import ShoppingListPage from './pages/ShoppingListPage'
 import TodoListPage from './pages/TodoListPage'
 import NotFound from './pages/NotFound'
 import { OnboardingLanding } from './pages/onboarding/OnboardingLanding'
+import { AuthedLayout } from './layout/AuthedLayout'
 import './App.css'
 
 export const queryClient = new QueryClient({
@@ -53,13 +53,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 // App Routes Component
 function AppRoutes() {
-  const { isAuthenticated, loadUserData, theme } = useAppStore()
-
-  useEffect(() => {
-    const html = document.documentElement
-    html.classList.remove('dark', 'light')
-    html.classList.add(theme)
-  }, [theme])
+  const { isAuthenticated, loadUserData } = useAppStore()
 
   useEffect(() => {
     // Check if user has a token and try to load their data
@@ -73,16 +67,18 @@ function AppRoutes() {
 
   return (
     <Routes>
+      {/* Cold screens — no AuthedLayout */}
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/onboarding/join/:token" element={<Onboarding />} />
 
+      {/* Authenticated app shell */}
       <Route
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <Dashboard />
+            <AuthedLayout><Dashboard /></AuthedLayout>
           </ProtectedRoute>
         }
       />
@@ -91,7 +87,7 @@ function AppRoutes() {
         path="/request-activity"
         element={
           <ProtectedRoute>
-            <RequestActivity />
+            <AuthedLayout><RequestActivity /></AuthedLayout>
           </ProtectedRoute>
         }
       />
@@ -100,7 +96,16 @@ function AppRoutes() {
         path="/inbox"
         element={
           <ProtectedRoute>
-            <RequestInbox />
+            <AuthedLayout><RequestInbox /></AuthedLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/request-inbox"
+        element={
+          <ProtectedRoute>
+            <AuthedLayout><RequestInbox /></AuthedLayout>
           </ProtectedRoute>
         }
       />
@@ -109,25 +114,27 @@ function AppRoutes() {
         path="/tasks"
         element={
           <ProtectedRoute>
-            <Tasks />
+            <AuthedLayout><Tasks /></AuthedLayout>
           </ProtectedRoute>
         }
       />
 
-      <Route
-        path="/history"
-        element={
-          <ProtectedRoute>
-            <History />
-          </ProtectedRoute>
-        }
-      />
+      {/* History legacy route → redirect to Analytics movements tab */}
+      <Route path="/history" element={<Navigate to="/analytics?tab=movements" replace />} />
 
       <Route
         path="/settings"
         element={
           <ProtectedRoute>
-            <Settings />
+            <AuthedLayout><Settings /></AuthedLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings/:section"
+        element={
+          <ProtectedRoute>
+            <AuthedLayout><Settings /></AuthedLayout>
           </ProtectedRoute>
         }
       />
@@ -136,7 +143,7 @@ function AppRoutes() {
         path="/analytics"
         element={
           <ProtectedRoute>
-            <Analytics />
+            <AuthedLayout><Analytics /></AuthedLayout>
           </ProtectedRoute>
         }
       />
@@ -145,7 +152,7 @@ function AppRoutes() {
         path="/calendar"
         element={
           <ProtectedRoute>
-            <Calendar />
+            <AuthedLayout><Calendar /></AuthedLayout>
           </ProtectedRoute>
         }
       />
@@ -154,7 +161,7 @@ function AppRoutes() {
         path="/analytics/advanced"
         element={
           <ProtectedRoute>
-            <AnalyticsPage />
+            <AuthedLayout><AnalyticsPage /></AuthedLayout>
           </ProtectedRoute>
         }
       />
@@ -163,7 +170,7 @@ function AppRoutes() {
         path="/achievements"
         element={
           <ProtectedRoute>
-            <Achievements />
+            <AuthedLayout><Achievements /></AuthedLayout>
           </ProtectedRoute>
         }
       />
@@ -171,7 +178,7 @@ function AppRoutes() {
         path="/shopping"
         element={
           <ProtectedRoute>
-            <ShoppingListPage />
+            <AuthedLayout><ShoppingListPage /></AuthedLayout>
           </ProtectedRoute>
         }
       />
@@ -179,7 +186,7 @@ function AppRoutes() {
         path="/todos"
         element={
           <ProtectedRoute>
-            <TodoListPage />
+            <AuthedLayout><TodoListPage /></AuthedLayout>
           </ProtectedRoute>
         }
       />

@@ -1,5 +1,43 @@
 # Changelog - Matripuntos
 
+## [1.4.0] · La Evolución · 2026-04-20
+
+Rediseño visual y estructural completo sobre Claude Design v2 (dark-only), nueva analítica con gate Premium, onboarding de 6 pasos y limpieza de componentes v1.
+
+### Added
+- **Claude Design v2 tokens**: paleta `brand-amber/purple/indigo`, gradientes `grad-cta/hero/page/premium`, superficies `surface-card/elevated/muted`, bordes `brd-subtle/purple`, tipografía Inter + `text-primary/secondary/tertiary` aplicados vía `tailwind.config.js` + `globals.css`.
+- **Primitivas v2**: `Button`, `Input`, `Pill`, `ProgressBar`, `Avatar`, `Card`, `BottomSheet` (con `tailwindcss-animate`).
+- **Shell global**: `AppHeader` (saludo temporal + mood partner + menú ⋯), `HeaderMenu` dropdown (Logros, Perfil, Pareja, Reglas, Ajustes, Ayuda, Logout), `BottomNav` 5-slots con FAB amber central, `FabActionSheet` (📅 Actividad · 🛒 Compra rápida · 📝 To-do rápido), `AuthedLayout` unificador.
+- **Dashboard v2**: `DailyPhrase`, `BalanceLevelHero` fusionado, `StreakStrip` compacto, `TodayTasksSection` con CTAs por asignación, `RecentMovements` 3-items, `ShoppingPreview`+`TodoPreview` (hidden si vacío).
+- **Tareas v2**: ViewToggle Lista/Semana, `CategoryFilterStrip`, secciones 🔥 Hoy / 📅 Esta semana / Catálogo, `AddTaskSheet` (3 pasos) desde FAB.
+- **Calendario v2**: ViewToggle Mes/Semana, `MonthGrid` con día seleccionado border-amber, `WeekStripChart` con barras tú/partner, `EventCardV2` con Status Pills.
+- **Logros v2**: 3 tabs (Badges · Ranking · Historial), `LevelHero` full-width con detalles, `AchievementBadgeV2` con rarity y progreso.
+- **Analítica completa** (`/analytics`): Básica (WeeklyBars, CategoryPie, BalanceEvolution, TimeInvested) + Avanzada con `PremiumOverlay` (Heatmap, CompletionGauge, EquityLines, TopCategories, InsightCard) + `MovementsTab` con filtros who/cat/range. Ruta legacy `/history` redirige a `/analytics?tab=movements`.
+- **Premium teaser** (`PremiumInterestModal`): captura de email con CTA; backend `POST /api/premium/interest` + tabla `PremiumInterest`.
+- **Backend endpoints analytics** (heurísticos, sin LLM):
+  - `GET /api/analytics/time-invested?range=week|month`
+  - `GET /api/analytics/heatmap?weeks=N` (grid dow × hour bucket)
+  - `GET /api/analytics/completion-rate?range=month`
+  - `GET /api/analytics/insight` (plantillas con cache 6h)
+  - `GET /api/analytics/points-by-category?groupByUser=true` (extensión del existente)
+- **Onboarding v2** (6 pasos): Welcome · Profile · Pair · Rules · Categorías · Done, con token-skip, avatar 6×3, rules con multiplicador nocturno.
+- **Login/Signup v2**: Login con OAuth placeholders disabled, Signup wizard 2 pasos.
+- **Settings v2**: 7 secciones con subrutas (Perfil, Pareja, Hijos, Reglas, Notificaciones, Datos, Cuenta).
+- **Shopping v2**: categorías auto-inferidas en cliente (fresco/despensa/hogar/mascotas/otros), collapse "Completados hoy", archivo + histórico.
+- **Todos v2**: segmento Mis/Compartidos con contador, editor inline con due date + toggle compartir.
+- **RequestActivity** rediseñado como wizard 3 pasos (categoría → fecha/duración/hijos → breakdown + compensación).
+- **RequestInbox** rediseñado con 3 tabs (Actividades/Tareas/Historial), dispute modal en `BottomSheet`, botón "Forzar y pagar" cableado.
+- **NotFound v2** con ilustración 🌸, sugerencias navegables.
+
+### Changed
+- **Dark-only**: se elimina el toggle `theme` del store y las ramas light de todos los componentes.
+- **Topología de navegación** nueva: bottom nav `🏠 Inicio · ✅ Tareas · ➕ FAB · 📅 Calendario · 📊 Analítica`; el resto accesible desde header ⋯.
+
+### Removed
+- 30 componentes v1 sin uso tras la migración: `AchievementBadge/Card/Map/Panel/Widget`, `Avatar/AvatarSelector/MoodSelector`, `BottomNav` v1, `CalendarDashboard/Day/Month/Week`, `CategoryManager`, `CounterProposalForm`, `CoupleScoreGauge`, `GamificationDashboard`, `LevelProgress`, `NegotiationHistory`, `NotificationBell`, `PointsBreakdown`, `RecentMovementItem`, `StreakWidget`, `TaskVerificationCard`, `OnboardingStep1-4`, `OnboardingJoinFlow`, y la página `History` (sustituida por redirect a `/analytics?tab=movements`).
+
+---
+
 ## [1.3.0] · La Casa · 2026-04-20
 
 ### Added

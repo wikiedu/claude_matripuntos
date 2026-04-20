@@ -1,8 +1,25 @@
+// RequestActivity page — v2 dark design (Task 7.4 of v1.4 La Evolución).
+// 3-step wizard: (1) Tipo/categoría · (2) Fecha/duración/franja · (3) Puntos + compensación.
+// Preserves all business logic from the v1 version — only JSX/styling changes.
+
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Check, Loader, ChevronDown, ChevronRight, Clock, Calendar, Tag, MessageSquare, Gift, Users } from 'lucide-react'
+import {
+  ChevronLeft, Check, Loader, ChevronDown, ChevronRight,
+  Clock, Calendar, Tag, MessageSquare, Gift, Users,
+} from 'lucide-react'
 import { apiClient } from '../services/apiClient'
 import { useAppStore } from '../store/useAppStore'
+import { Button } from '../components/v2/primitives/Button'
+import { Pill } from '../components/v2/primitives/Pill'
+import { Card } from '../components/v2/primitives/Card'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface Subcategory {
+  id: string
+  name: string
+  basePointsModifier: number
+}
 
 interface Category {
   id: string
@@ -14,27 +31,22 @@ interface Category {
   subcategories?: Subcategory[]
 }
 
-interface Subcategory {
-  id: string
-  name: string
-  basePointsModifier: number
-}
-
-function getTimeMultiplier(hour: number, minute: number = 0): number {
+// ─── Points calculation helpers (unchanged from v1) ───────────────────────────
+function getTimeMultiplier(hour: number, minute = 0): number {
   const totalMinutes = hour * 60 + minute
-  if (totalMinutes >= 7*60 && totalMinutes < 9*60+30) return 1.4   // 07:00-09:30
-  if (totalMinutes >= 9*60+30 && totalMinutes < 17*60+30) return 1.0 // 09:30-17:30
-  if (totalMinutes >= 17*60+30 && totalMinutes < 21*60+30) return 1.5 // 17:30-21:30
-  if (totalMinutes >= 21*60+30 || totalMinutes < 1*60) return 1.2   // 21:30-01:00
+  if (totalMinutes >= 7 * 60 && totalMinutes < 9 * 60 + 30) return 1.4   // 07:00-09:30
+  if (totalMinutes >= 9 * 60 + 30 && totalMinutes < 17 * 60 + 30) return 1.0 // 09:30-17:30
+  if (totalMinutes >= 17 * 60 + 30 && totalMinutes < 21 * 60 + 30) return 1.5 // 17:30-21:30
+  if (totalMinutes >= 21 * 60 + 30 || totalMinutes < 1 * 60) return 1.2   // 21:30-01:00
   return 1.6 // 01:00-07:00
 }
 
-function getTimeSlotLabel(hour: number, minute: number = 0): string {
+function getTimeSlotLabel(hour: number, minute = 0): string {
   const totalMinutes = hour * 60 + minute
-  if (totalMinutes >= 7*60 && totalMinutes < 9*60+30) return 'Mañana temprano ×1.4'
-  if (totalMinutes >= 9*60+30 && totalMinutes < 17*60+30) return 'Horario normal ×1.0'
-  if (totalMinutes >= 17*60+30 && totalMinutes < 21*60+30) return 'Tarde-noche ×1.5'
-  if (totalMinutes >= 21*60+30 || totalMinutes < 1*60) return 'Noche ×1.2'
+  if (totalMinutes >= 7 * 60 && totalMinutes < 9 * 60 + 30) return 'Mañana temprano ×1.4'
+  if (totalMinutes >= 9 * 60 + 30 && totalMinutes < 17 * 60 + 30) return 'Horario normal ×1.0'
+  if (totalMinutes >= 17 * 60 + 30 && totalMinutes < 21 * 60 + 30) return 'Tarde-noche ×1.5'
+  if (totalMinutes >= 21 * 60 + 30 || totalMinutes < 1 * 60) return 'Noche ×1.2'
   return 'Madrugada ×1.6'
 }
 
@@ -59,6 +71,33 @@ function getChildrenMultiplier(n: number): number {
   return 2.2
 }
 
+function getDurationMultiplier(days: number): number {
+  if (days <= 1) return 1.0
+  if (days === 2) return 1.7
+  if (days === 3) return 2.3
+  if (days <= 5) return 2.8 + (days - 3) * 0.3
+  return Math.min(3.5 + (days - 5) * 0.2, 6.0)
+}
+
+function getDurationLabel(days: number): string {
+  if (days <= 1) return ''
+  if (days === 2) return '2 días ×1.7'
+  if (days === 3) return '3 días ×2.3'
+  return `${days} días ×${getDurationMultiplier(days).toFixed(1)}`
+}
+
+function calcPoints(
+  base: number, subMod: number, timeMult: number, dayMult: number,
+  childMult: number, compDiscount: number, durationMult = 1.0,
+): number {
+  const effectiveBase = Math.max(1, base + subMod)
+  return Math.min(
+    Math.round(effectiveBase * timeMult * dayMult * childMult * durationMult * (1 - compDiscount)),
+    999,
+  )
+}
+
+// ─── Static data ──────────────────────────────────────────────────────────────
 const COMPENSATIONS = [
   { id: 'none', label: 'Sin compensación', discount: 0 },
   { id: 'cocinar', label: '🍳 Cocinar la cena de la semana', discount: 0.15 },
@@ -116,31 +155,54 @@ const FALLBACK_CATEGORIES: Category[] = [
   { id: 'otro', name: 'Otro', emoji: '📌', type: 'event', basePoints: 5, subcategories: [] },
 ]
 
-// Calculate duration multiplier based on number of days
-function getDurationMultiplier(days: number): number {
-  if (days <= 1) return 1.0
-  if (days === 2) return 1.7
-  if (days === 3) return 2.3
-  if (days <= 5) return 2.8 + (days - 3) * 0.3
-  return Math.min(3.5 + (days - 5) * 0.2, 6.0) // cap at 6x for very long trips
+// ─── Stepper header ───────────────────────────────────────────────────────────
+function StepperHeader({ step, onJump }: { step: 1 | 2 | 3; onJump: (s: 1 | 2 | 3) => void }) {
+  const steps: Array<{ n: 1 | 2 | 3; label: string }> = [
+    { n: 1, label: 'Tipo' },
+    { n: 2, label: 'Cuándo' },
+    { n: 3, label: 'Puntos' },
+  ]
+  return (
+    <div className="flex items-center gap-2 mb-4">
+      {steps.map((s, i) => {
+        const active = s.n === step
+        const done = s.n < step
+        return (
+          <div key={s.n} className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onJump(s.n)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition ${
+                active
+                  ? 'bg-grad-cta text-white shadow-md shadow-brand-amber/30'
+                  : done
+                    ? 'bg-brand-purple/15 text-brand-purple border border-brand-purple/30'
+                    : 'bg-surface-card text-text-tertiary border border-brd-subtle'
+              }`}
+            >
+              <span className={`w-4 h-4 rounded-full inline-flex items-center justify-center text-[10px] font-bold ${
+                active ? 'bg-white/20' : done ? 'bg-brand-purple/30' : 'bg-surface-muted'
+              }`}>
+                {done ? <Check className="w-3 h-3" /> : s.n}
+              </span>
+              <span className="hidden sm:inline">{s.label}</span>
+            </button>
+            {i < steps.length - 1 && (
+              <span className="w-4 h-px bg-brd-subtle" aria-hidden />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
-function getDurationLabel(days: number): string {
-  if (days <= 1) return ''
-  if (days === 2) return '2 días ×1.7'
-  if (days === 3) return '3 días ×2.3'
-  return `${days} días ×${getDurationMultiplier(days).toFixed(1)}`
-}
-
-// Calculate points with a safe floor so result is never NaN or <1
-function calcPoints(base: number, subMod: number, timeMult: number, dayMult: number, childMult: number, compDiscount: number, durationMult: number = 1.0): number {
-  const effectiveBase = Math.max(1, base + subMod)
-  return Math.min(Math.round(effectiveBase * timeMult * dayMult * childMult * durationMult * (1 - compDiscount)), 999)
-}
-
+// ─── Main component ───────────────────────────────────────────────────────────
 export default function RequestActivity({ onBack }: { onBack?: () => void }) {
   const navigate = useNavigate()
   const { user, couple } = useAppStore()
+
+  const [step, setStep] = useState<1 | 2 | 3>(1)
 
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoadingCats, setIsLoadingCats] = useState(true)
@@ -163,7 +225,7 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
   const [submitSuccess, setSubmitSuccess] = useState(false)
 
   const numChildren = useMemo(() => couple?.children?.length ?? 0, [couple])
-  const partnerName = couple?.users?.find(u => u.id !== user?.id)?.name || 'tu pareja'
+  const partnerName = couple?.users?.find((u) => u.id !== user?.id)?.name || 'tu pareja'
 
   useEffect(() => {
     const load = async () => {
@@ -186,10 +248,15 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
     load()
   }, [])
 
-  const selectedCat = useMemo(() => categories.find(c => c.id === selectedCategoryId), [categories, selectedCategoryId])
-  const selectedSub = useMemo(() => selectedCat?.subcategories?.find(s => s.id === selectedSubcategoryId), [selectedCat, selectedSubcategoryId])
+  const selectedCat = useMemo(
+    () => categories.find((c) => c.id === selectedCategoryId),
+    [categories, selectedCategoryId],
+  )
+  const selectedSub = useMemo(
+    () => selectedCat?.subcategories?.find((s) => s.id === selectedSubcategoryId),
+    [selectedCat, selectedSubcategoryId],
+  )
 
-  // Number of days for multi-day events
   const numDays = useMemo(() => {
     if (!multiDay || !startDate || !endDate) return 1
     const diff = (new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)
@@ -205,7 +272,7 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
     const timeMult = getTimeMultiplier(hour, minute)
     const dayMult = getDayMultiplier(startDate)
     const childMult = withChildren ? getChildrenMultiplier(numChildren || 1) : 1.0
-    const compDiscount = COMPENSATIONS.find(c => c.id === compensation)?.discount ?? 0
+    const compDiscount = COMPENSATIONS.find((c) => c.id === compensation)?.discount ?? 0
     const subMod = Number(selectedSub?.basePointsModifier ?? 0)
     const durationMult = getDurationMultiplier(numDays)
     const total = calcPoints(Number(selectedCat.basePoints), subMod, timeMult, dayMult, childMult, compDiscount, durationMult)
@@ -221,7 +288,6 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
     }
   }, [selectedCat, selectedSub, startDate, startTime, withChildren, numChildren, compensation, numDays])
 
-  // Helper: preview final pts for a subcategory (given current date/time/etc)
   const previewSubPts = (subMod: number) => {
     if (!selectedCat || !startDate || !startTime) return null
     const [hourStr2, minuteStr2] = startTime.split(':')
@@ -230,7 +296,7 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
     const timeMult = getTimeMultiplier(hour, minute)
     const dayMult = getDayMultiplier(startDate)
     const childMult = withChildren ? getChildrenMultiplier(numChildren || 1) : 1.0
-    const compDiscount = COMPENSATIONS.find(c => c.id === compensation)?.discount ?? 0
+    const compDiscount = COMPENSATIONS.find((c) => c.id === compensation)?.discount ?? 0
     const durationMult = getDurationMultiplier(numDays)
     return calcPoints(Number(selectedCat.basePoints), Number(subMod), timeMult, dayMult, childMult, compDiscount, durationMult)
   }
@@ -238,6 +304,24 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
   const handleCategoryChange = (id: string) => {
     setSelectedCategoryId(id)
     setSelectedSubcategoryId('')
+  }
+
+  const canAdvanceFromStep1 = !!selectedCategoryId
+  const canAdvanceFromStep2 = !!startDate && (!multiDay || !!endDate)
+
+  const handleJump = (target: 1 | 2 | 3) => {
+    if (target === 1) return setStep(1)
+    if (target === 2) {
+      if (!canAdvanceFromStep1) { setSubmitError('Selecciona una categoría primero'); return }
+      setSubmitError(null)
+      return setStep(2)
+    }
+    if (target === 3) {
+      if (!canAdvanceFromStep1) { setSubmitError('Selecciona una categoría primero'); return }
+      if (!canAdvanceFromStep2) { setSubmitError('Indica la fecha de inicio'); return }
+      setSubmitError(null)
+      return setStep(3)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -260,7 +344,6 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
       const dateStart = new Date(`${startDate}T${startTime}:00`)
       const actualEndDate = multiDay && endDate ? endDate : startDate
       const dateEnd = new Date(`${actualEndDate}T${endTime}:00`)
-      // If end time is before start time on same day, add 1 day
       if (!multiDay && dateEnd <= dateStart) {
         dateEnd.setDate(dateEnd.getDate() + 1)
       }
@@ -279,7 +362,6 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
       })
 
       const eventId = eventResponse.event?.id || eventResponse.id
-      // Use V1 negotiation system (creates Negotiation record, sets event to 'pending')
       await apiClient.negotiations.create({
         eventId,
         pointsProposed: pointsCalc.total,
@@ -295,400 +377,553 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
     }
   }
 
+  // ─── Success state ─────────────────────────────────────────────────────────
   if (submitSuccess) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="max-w-md w-full card text-center py-12">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Check className="w-8 h-8 text-green-600" />
+      <main className="px-4 pt-10 pb-6">
+        <Card padding="lg" elevated className="max-w-md mx-auto text-center">
+          <div className="w-16 h-16 rounded-full bg-success/15 border border-success/30 flex items-center justify-center mx-auto mb-4">
+            <Check className="w-8 h-8 text-success" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">¡Solicitud Enviada!</h2>
-          <p className="text-gray-600 mb-4">
-            Tu solicitud ha sido enviada a <strong>{partnerName}</strong> para que la revise.
+          <h2 className="text-2xl font-extrabold text-text-primary mb-2">¡Solicitud Enviada!</h2>
+          <p className="text-text-secondary mb-4">
+            Tu solicitud ha sido enviada a <strong className="text-text-primary">{partnerName}</strong> para que la revise.
           </p>
-          <p className="text-sm text-gray-400">Redirigiendo al dashboard...</p>
-        </div>
-      </div>
+          <p className="text-sm text-text-tertiary">Redirigiendo al dashboard…</p>
+        </Card>
+      </main>
     )
   }
 
+  // ─── Main render ───────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center gap-4">
-          <button onClick={onBack || (() => navigate('/dashboard'))} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </button>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Solicitar Actividad</h1>
-            <p className="text-sm text-gray-500">Propone un plan a {partnerName}</p>
-          </div>
+    <main className="px-4 pt-3 pb-6">
+      {/* Title row with back chevron */}
+      <div className="flex items-center justify-between mb-3">
+        <button
+          onClick={onBack || (() => navigate('/dashboard'))}
+          className="inline-flex items-center gap-1 text-text-secondary hover:text-text-primary text-sm font-semibold"
+          aria-label="Volver"
+        >
+          <ChevronLeft size={18} />
+          <span>Solicitar actividad</span>
+        </button>
+        <Pill tone="amber">Paso {step} de 3</Pill>
+      </div>
+      <p className="text-sm text-text-tertiary mb-4">
+        Propone un plan a <strong className="text-text-primary">{partnerName}</strong>
+      </p>
+
+      <StepperHeader step={step} onJump={handleJump} />
+
+      {submitError && (
+        <div className="mb-3 p-3 rounded-md bg-danger/10 border border-danger/30 text-danger text-sm">
+          {submitError}
         </div>
-      </header>
+      )}
 
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-            {/* LEFT: Form */}
-            <div className="lg:col-span-2 space-y-5">
-
-              {submitError && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{submitError}</div>
-              )}
-
-              {/* Categoría */}
-              <div className="card">
-                <div className="flex items-center gap-2 mb-4">
-                  <Tag className="w-5 h-5 text-purple-600" />
-                  <h2 className="font-semibold text-gray-900">Tipo de actividad</h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* ───── STEP 1: Tipo / categoría ───── */}
+        {step === 1 && (
+          <>
+            <Card>
+              <div className="flex items-center gap-2 mb-3">
+                <Tag className="w-5 h-5 text-brand-purple" />
+                <h2 className="font-semibold text-text-primary">Tipo de actividad</h2>
+              </div>
+              {isLoadingCats ? (
+                <div className="flex items-center gap-2 text-text-tertiary py-4">
+                  <Loader className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Cargando categorías…</span>
                 </div>
-                {isLoadingCats ? (
-                  <div className="flex items-center gap-2 text-gray-500 py-4">
-                    <Loader className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">Cargando categorías...</span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
-                      {categories.map(cat => (
-                        <button key={cat.id} type="button" onClick={() => handleCategoryChange(cat.id)}
-                          className={`p-3 rounded-xl border-2 text-left transition-all ${
-                            selectedCategoryId === cat.id
-                              ? 'border-purple-500 bg-purple-50'
-                              : 'border-gray-200 bg-white hover:border-gray-300'
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+                    {categories.map((cat) => {
+                      const active = selectedCategoryId === cat.id
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => handleCategoryChange(cat.id)}
+                          className={`p-3 rounded-md text-left transition ${
+                            active
+                              ? 'bg-brand-purple/15 border border-brand-purple/50'
+                              : 'bg-surface-card border border-brd-subtle hover:border-brd-purple'
                           }`}
                         >
                           <div className="text-2xl mb-1">{cat.emoji}</div>
-                          <div className="text-xs font-semibold text-gray-900 leading-tight">{cat.name}</div>
-                          <div className="text-xs text-gray-400 mt-0.5">{cat.basePoints} pts base</div>
+                          <div className="text-xs font-semibold text-text-primary leading-tight">{cat.name}</div>
+                          <div className="text-[11px] text-text-tertiary mt-0.5">{cat.basePoints} pts base</div>
                         </button>
-                      ))}
-                    </div>
-
-                    {selectedCat?.subcategories && selectedCat.subcategories.length > 0 && (
-                      <div>
-                        <p className="text-sm font-medium text-gray-700 mb-2">¿Qué tipo concretamente?</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {selectedCat.subcategories.map(sub => {
-                            const preview = previewSubPts(Number(sub.basePointsModifier))
-                            const isSelected = selectedSubcategoryId === sub.id
-                            return (
-                              <button key={sub.id} type="button"
-                                onClick={() => setSelectedSubcategoryId(sub.id === selectedSubcategoryId ? '' : sub.id)}
-                                className={`p-2.5 rounded-lg border text-left text-sm transition-all flex items-center justify-between ${
-                                  isSelected
-                                    ? 'border-purple-400 bg-purple-50 text-purple-800'
-                                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                                }`}
-                              >
-                                <span>{sub.name}</span>
-                                <span className={`text-xs font-bold ml-2 flex-shrink-0 ${
-                                  isSelected ? 'text-purple-700' : 'text-gray-500'
-                                }`}>
-                                  {preview !== null && startDate
-                                    ? `${preview} pts`
-                                    : `${Math.max(1, Number(selectedCat!.basePoints) + Number(sub.basePointsModifier))} pts`}
-                                </span>
-                              </button>
-                            )
-                          })}
-                        </div>
-                        {!startDate && (
-                          <p className="text-xs text-gray-400 mt-2">💡 Selecciona una fecha para ver los puntos exactos de cada opción</p>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Descripción */}
-              <div className="card">
-                <div className="flex items-center gap-2 mb-3">
-                  <MessageSquare className="w-5 h-5 text-blue-600" />
-                  <h2 className="font-semibold text-gray-900">Descripción</h2>
-                </div>
-                <input type="text" value={title} onChange={e => setTitle(e.target.value)}
-                  placeholder={selectedCat ? `Ej: ${selectedCat.emoji} ${selectedSub?.name || selectedCat.name}` : 'Título del plan'}
-                  className="input-field mb-3" disabled={isSubmitting}
-                />
-                <textarea value={description} onChange={e => setDescription(e.target.value)}
-                  placeholder="¿Por qué quieres hacer esto? Justifica a tu pareja el motivo..."
-                  className="input-field h-20 resize-none" disabled={isSubmitting}
-                />
-              </div>
-
-              {/* Fecha y hora */}
-              <div className="card">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-green-600" />
-                    <h2 className="font-semibold text-gray-900">¿Cuándo?</h2>
+                      )
+                    })}
                   </div>
-                  <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+
+                  {selectedCat?.subcategories && selectedCat.subcategories.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-text-secondary mb-2">¿Qué tipo concretamente?</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {selectedCat.subcategories.map((sub) => {
+                          const preview = previewSubPts(Number(sub.basePointsModifier))
+                          const isSelected = selectedSubcategoryId === sub.id
+                          return (
+                            <button
+                              key={sub.id}
+                              type="button"
+                              onClick={() =>
+                                setSelectedSubcategoryId(sub.id === selectedSubcategoryId ? '' : sub.id)
+                              }
+                              className={`p-2.5 rounded-md text-left text-sm transition flex items-center justify-between ${
+                                isSelected
+                                  ? 'bg-brand-purple/15 border border-brand-purple/50 text-text-primary'
+                                  : 'bg-surface-card border border-brd-subtle text-text-secondary hover:border-brd-purple'
+                              }`}
+                            >
+                              <span>{sub.name}</span>
+                              <span className={`text-xs font-bold ml-2 flex-shrink-0 ${
+                                isSelected ? 'text-brand-purple' : 'text-text-tertiary'
+                              }`}>
+                                {preview !== null && startDate
+                                  ? `${preview} pts`
+                                  : `${Math.max(1, Number(selectedCat!.basePoints) + Number(sub.basePointsModifier))} pts`}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                      {!startDate && (
+                        <p className="text-xs text-text-tertiary mt-2">
+                          Selecciona una fecha en el paso 2 para ver los puntos exactos de cada opción.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </Card>
+
+            {/* Descripción opcional en el paso 1 para que acompañe al título */}
+            <Card>
+              <div className="flex items-center gap-2 mb-3">
+                <MessageSquare className="w-5 h-5 text-brand-indigo" />
+                <h2 className="font-semibold text-text-primary">Descripción</h2>
+                <span className="text-xs text-text-tertiary">(opcional)</span>
+              </div>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder={selectedCat ? `Ej: ${selectedCat.emoji} ${selectedSub?.name || selectedCat.name}` : 'Título del plan'}
+                className="w-full bg-surface-card border border-brd-purple rounded-md px-3 py-2.5 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple/50 mb-3"
+                disabled={isSubmitting}
+              />
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="¿Por qué quieres hacer esto? Justifica a tu pareja el motivo…"
+                className="w-full bg-surface-card border border-brd-purple rounded-md px-3 py-2.5 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple/50 h-20 resize-none"
+                disabled={isSubmitting}
+              />
+            </Card>
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                fullWidth
+                onClick={onBack || (() => navigate('/dashboard'))}
+                disabled={isSubmitting}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                fullWidth
+                disabled={!canAdvanceFromStep1}
+                onClick={() => handleJump(2)}
+              >
+                Siguiente: fecha
+              </Button>
+            </div>
+          </>
+        )}
+
+        {/* ───── STEP 2: Fecha / duración / franja / hijos ───── */}
+        {step === 2 && (
+          <>
+            <Card>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-success" />
+                  <h2 className="font-semibold text-text-primary">¿Cuándo?</h2>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={multiDay}
+                    onChange={(e) => {
+                      setMultiDay(e.target.checked)
+                      if (!e.target.checked) setEndDate('')
+                    }}
+                    className="rounded accent-brand-purple"
+                  />
+                  Varios días
+                </label>
+              </div>
+
+              {!multiDay ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-text-secondary mb-1 block">Fecha *</label>
                     <input
-                      type="checkbox"
-                      checked={multiDay}
-                      onChange={e => {
-                        setMultiDay(e.target.checked)
-                        if (!e.target.checked) setEndDate('')
-                      }}
-                      className="rounded"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full bg-surface-card border border-brd-purple rounded-md px-3 py-2.5 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple/50 [color-scheme:dark]"
+                      required
+                      disabled={isSubmitting}
                     />
-                    Varios días
-                  </label>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-text-secondary mb-1 block">Hora inicio</label>
+                    <input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="w-full bg-surface-card border border-brd-purple rounded-md px-3 py-2.5 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple/50 [color-scheme:dark]"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-text-secondary mb-1 block">Hora fin</label>
+                    <input
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="w-full bg-surface-card border border-brd-purple rounded-md px-3 py-2.5 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple/50 [color-scheme:dark]"
+                      disabled={isSubmitting}
+                    />
+                  </div>
                 </div>
-
-                {!multiDay ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              ) : (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Fecha *</label>
-                      <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-                        className="input-field" required disabled={isSubmitting} />
+                      <label className="text-xs font-medium text-text-secondary mb-1 block">Fecha inicio *</label>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full bg-surface-card border border-brd-purple rounded-md px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple/50 [color-scheme:dark]"
+                        required
+                        disabled={isSubmitting}
+                      />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Hora inicio</label>
-                      <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
-                        className="input-field" disabled={isSubmitting} />
+                      <label className="text-xs font-medium text-text-secondary mb-1 block">Fecha fin *</label>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        min={startDate}
+                        className="w-full bg-surface-card border border-brd-purple rounded-md px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple/50 [color-scheme:dark]"
+                        required
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-text-secondary mb-1 block">Hora inicio</label>
+                      <input
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="w-full bg-surface-card border border-brd-purple rounded-md px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple/50 [color-scheme:dark]"
+                        disabled={isSubmitting}
+                      />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Hora fin</label>
-                      <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
-                        className="input-field" disabled={isSubmitting} />
+                      <label className="text-xs font-medium text-text-secondary mb-1 block">Hora fin</label>
+                      <input
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        className="w-full bg-surface-card border border-brd-purple rounded-md px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple/50 [color-scheme:dark]"
+                        disabled={isSubmitting}
+                      />
                     </div>
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs font-medium text-gray-600 mb-1 block">Fecha inicio *</label>
-                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-                          className="input-field" required disabled={isSubmitting} />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-gray-600 mb-1 block">Fecha fin *</label>
-                        <input type="date" value={endDate}
-                          onChange={e => setEndDate(e.target.value)}
-                          min={startDate}
-                          className="input-field" required disabled={isSubmitting} />
-                      </div>
+                  {startDate && endDate && startDate !== endDate && (
+                    <div className="text-xs text-success bg-success/10 border border-success/30 rounded-md px-3 py-2">
+                      {Math.round(
+                        (new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24) + 1,
+                      )}{' '}
+                      días · del{' '}
+                      {new Date(startDate + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}{' '}
+                      al{' '}
+                      {new Date(endDate + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs font-medium text-gray-600 mb-1 block">Hora inicio</label>
-                        <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
-                          className="input-field" disabled={isSubmitting} />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-gray-600 mb-1 block">Hora fin</label>
-                        <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
-                          className="input-field" disabled={isSubmitting} />
-                      </div>
-                    </div>
-                    {startDate && endDate && startDate !== endDate && (
-                      <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">
-                        📆 {Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24) + 1)} días · del {new Date(startDate + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} al {new Date(endDate + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {startDate && (
-                  <p className="text-xs text-gray-500 mt-2">
-                    📅 {getDayLabel(startDate)} · {getTimeSlotLabel(parseInt(startTime.split(':')[0]), parseInt(startTime.split(':')[1]) || 0)}
-                  </p>
-                )}
-              </div>
-
-              {/* Hijos - solo si hay hijos registrados */}
-              {numChildren > 0 && (
-                <div className="card">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Users className="w-5 h-5 text-orange-500" />
-                    <h2 className="font-semibold text-gray-900">¿Con los niños?</h2>
-                  </div>
-                  <div className="flex gap-3">
-                    <button type="button" onClick={() => setWithChildren(true)}
-                      className={`flex-1 p-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                        withChildren ? 'border-orange-400 bg-orange-50 text-orange-800' : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                      }`}>
-                      👶 Sí, con {numChildren === 1 ? 'el niño/a' : `los ${numChildren} niños`}
-                    </button>
-                    <button type="button" onClick={() => setWithChildren(false)}
-                      className={`flex-1 p-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                        !withChildren ? 'border-blue-400 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                      }`}>
-                      🙋 No, sin niños
-                    </button>
-                  </div>
-                  {withChildren && (
-                    <p className="text-xs text-orange-600 mt-2">
-                      ×{getChildrenMultiplier(numChildren).toFixed(1)} multiplicador — {numChildren} {numChildren === 1 ? 'hijo/a' : 'hijos'} a cargo
-                    </p>
                   )}
                 </div>
               )}
 
-              {/* Compensación */}
-              <div className="card">
-                <div className="flex items-center gap-2 mb-1">
-                  <Gift className="w-5 h-5 text-pink-500" />
-                  <h2 className="font-semibold text-gray-900">Compensación</h2>
-                  <span className="text-xs text-gray-400">(opcional)</span>
+              {startDate && (
+                <p className="text-xs text-text-tertiary mt-3">
+                  {getDayLabel(startDate)} · {getTimeSlotLabel(
+                    parseInt(startTime.split(':')[0]),
+                    parseInt(startTime.split(':')[1]) || 0,
+                  )}
+                </p>
+              )}
+            </Card>
+
+            {/* Hijos */}
+            {numChildren > 0 && (
+              <Card>
+                <div className="flex items-center gap-2 mb-3">
+                  <Users className="w-5 h-5 text-brand-amber" />
+                  <h2 className="font-semibold text-text-primary">¿Con los niños?</h2>
                 </div>
-                <p className="text-xs text-gray-500 mb-3">Ofrecer algo a cambio reduce los puntos que te cuestan esta actividad.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {COMPENSATIONS.map(comp => (
-                    <button key={comp.id} type="button" onClick={() => setCompensation(comp.id)}
-                      className={`p-2.5 rounded-xl border-2 text-left text-sm transition-all ${
-                        compensation === comp.id ? 'border-pink-400 bg-pink-50' : 'border-gray-200 hover:border-gray-300'
-                      }`}>
-                      <div className="font-medium text-gray-800 text-xs">{comp.label}</div>
-                      {comp.discount > 0 && (
-                        <div className="text-xs text-pink-600 mt-0.5">
-                          Ahorra {(comp.discount * 100).toFixed(0)}% de puntos
-                          {pointsCalc && <span className="ml-1 font-bold">(−{Math.round(pointsCalc.total * comp.discount / (1 - pointsCalc.compDiscount))} pts aprox.)</span>}
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setWithChildren(true)}
+                    className={`flex-1 p-3 rounded-md text-sm font-medium transition ${
+                      withChildren
+                        ? 'bg-brand-amber/15 border border-brand-amber/50 text-brand-amber'
+                        : 'bg-surface-card border border-brd-subtle text-text-secondary hover:border-brd-purple'
+                    }`}
+                  >
+                    👶 Sí, con {numChildren === 1 ? 'el niño/a' : `los ${numChildren} niños`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWithChildren(false)}
+                    className={`flex-1 p-3 rounded-md text-sm font-medium transition ${
+                      !withChildren
+                        ? 'bg-brand-indigo/15 border border-brand-indigo/50 text-indigo-300'
+                        : 'bg-surface-card border border-brd-subtle text-text-secondary hover:border-brd-purple'
+                    }`}
+                  >
+                    🙋 No, sin niños
+                  </button>
+                </div>
+                {withChildren && (
+                  <p className="text-xs text-brand-amber mt-2">
+                    ×{getChildrenMultiplier(numChildren).toFixed(1)} multiplicador — {numChildren}{' '}
+                    {numChildren === 1 ? 'hijo/a' : 'hijos'} a cargo
+                  </p>
+                )}
+              </Card>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <Button type="button" variant="outline" fullWidth onClick={() => setStep(1)} disabled={isSubmitting}>
+                Atrás
+              </Button>
+              <Button
+                type="button"
+                fullWidth
+                disabled={!canAdvanceFromStep2}
+                onClick={() => handleJump(3)}
+              >
+                Siguiente: puntos
+              </Button>
+            </div>
+          </>
+        )}
+
+        {/* ───── STEP 3: Puntos + compensación ───── */}
+        {step === 3 && (
+          <>
+            <Card>
+              <div className="flex items-center gap-2 mb-3">
+                <Clock className="w-5 h-5 text-brand-purple" />
+                <h3 className="font-bold text-text-primary">Coste de la actividad</h3>
+              </div>
+
+              <div className="bg-brand-amber/10 border border-brand-amber/30 rounded-md p-3 mb-4 text-xs text-brand-amber">
+                <p className="font-semibold mb-1">¿Cómo funciona?</p>
+                <p className="text-text-secondary">
+                  Cada actividad <strong className="text-text-primary">te cuesta matripuntos</strong>. Las tareas del hogar te los{' '}
+                  <strong className="text-text-primary">devuelven</strong>. Si tu saldo baja de 0, estás "en deuda" con la pareja.
+                </p>
+              </div>
+
+              {pointsCalc ? (
+                <>
+                  <div className="text-center py-5 bg-grad-hero rounded-md mb-4">
+                    <div className="text-[11px] font-bold text-white/70 uppercase tracking-wide mb-1">
+                      Esta actividad te costará
+                    </div>
+                    <div className="text-5xl font-black text-white">−{pointsCalc.total}</div>
+                    <div className="text-sm text-white/80 mt-1">MATRIPUNTOS</div>
+                    {pointsCalc.numDays > 1 && (
+                      <div className="text-xs text-white/80 font-semibold mt-1">{pointsCalc.durationLabel}</div>
+                    )}
+                    {pointsCalc.compDiscount > 0 && (
+                      <div className="text-xs text-white/80 mt-1">Con compensación aplicada</div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowBreakdown(!showBreakdown)}
+                    className="w-full flex items-center justify-between text-sm text-text-secondary hover:text-text-primary mb-2 py-1"
+                  >
+                    <span>Ver cómo se calcula</span>
+                    {showBreakdown ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  </button>
+
+                  {showBreakdown && (
+                    <div className="bg-surface-muted border border-brd-subtle rounded-md p-3 text-xs space-y-1.5 font-mono mb-4 text-text-secondary">
+                      <div className="flex justify-between">
+                        <span>Base {selectedCat?.emoji}</span>
+                        <span className="font-bold text-text-primary">{selectedCat?.basePoints} pts</span>
+                      </div>
+                      {selectedSub && (
+                        <div className="flex justify-between">
+                          <span>Ajuste subcategoría</span>
+                          <span className={Number(selectedSub.basePointsModifier) >= 0 ? 'text-success' : 'text-danger'}>
+                            {Number(selectedSub.basePointsModifier) >= 0 ? '+' : ''}
+                            {Number(selectedSub.basePointsModifier)}
+                          </span>
                         </div>
                       )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Botones */}
-              <div className="flex gap-3 pb-8">
-                <button type="button" onClick={onBack || (() => navigate('/dashboard'))}
-                  className="btn-secondary flex-1" disabled={isSubmitting}>
-                  Cancelar
-                </button>
-                <button type="submit" disabled={!pointsCalc || !startDate || isSubmitting}
-                  className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {isSubmitting ? (
-                    <><Loader className="w-4 h-4 animate-spin" /> Enviando...</>
-                  ) : (
-                    `Proponer a ${partnerName} →`
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* RIGHT: Puntos */}
-            <div className="lg:col-span-1">
-              <div className="card sticky top-24">
-                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-purple-600" />
-                  Coste de la actividad
-                </h3>
-
-                {/* Explanation box */}
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-700">
-                  <p className="font-semibold mb-1">💰 ¿Cómo funciona?</p>
-                  <p>Cada actividad <strong>te cuesta matripuntos</strong>. Las tareas del hogar te los <strong>devuelven</strong>. Si tu saldo baja de 0, estás "en deuda" con la pareja.</p>
-                </div>
-
-                {pointsCalc ? (
-                  <>
-                    <div className="text-center py-5 bg-gradient-to-br from-red-50 to-orange-50 border border-red-100 rounded-xl mb-4">
-                      <div className="text-xs font-bold text-red-500 uppercase tracking-wide mb-1">Esta actividad te costará</div>
-                      <div className="text-5xl font-black text-red-600">−{pointsCalc.total}</div>
-                      <div className="text-sm text-gray-500 mt-1">MATRIPUNTOS</div>
+                      {Number(selectedSub?.basePointsModifier ?? 0) !== 0 && (
+                        <div className="flex justify-between border-t border-brd-subtle pt-1">
+                          <span>Subtotal base</span>
+                          <span className="font-bold text-text-primary">{pointsCalc.effectiveBase} pts</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span>× Hora ({pointsCalc.timeLabel})</span>
+                        <span className={pointsCalc.timeMult > 1 ? 'text-brand-amber font-bold' : 'text-text-primary'}>
+                          {pointsCalc.timeMult.toFixed(1)}×
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>× Día ({pointsCalc.dayMult > 1 ? 'fin semana' : 'entre semana'})</span>
+                        <span className={pointsCalc.dayMult > 1 ? 'text-brand-indigo font-bold' : 'text-text-primary'}>
+                          {pointsCalc.dayMult.toFixed(1)}×
+                        </span>
+                      </div>
                       {pointsCalc.numDays > 1 && (
-                        <div className="text-xs text-purple-600 font-semibold mt-1">{pointsCalc.durationLabel}</div>
+                        <div className="flex justify-between">
+                          <span>× Duración ({pointsCalc.numDays} días)</span>
+                          <span className="text-brand-purple font-bold">{pointsCalc.durationMult.toFixed(1)}×</span>
+                        </div>
+                      )}
+                      {withChildren && (
+                        <div className="flex justify-between">
+                          <span>× Hijos ({numChildren || 1})</span>
+                          <span className="text-brand-amber font-bold">{pointsCalc.childMult.toFixed(1)}×</span>
+                        </div>
                       )}
                       {pointsCalc.compDiscount > 0 && (
-                        <div className="text-xs text-pink-600 mt-1">Con compensación aplicada</div>
+                        <div className="flex justify-between">
+                          <span>− Compensación</span>
+                          <span className="text-success">−{(pointsCalc.compDiscount * 100).toFixed(0)}%</span>
+                        </div>
                       )}
+                      <div className="border-t border-brd-subtle pt-1.5 flex justify-between font-bold">
+                        <span className="text-text-primary">= Coste total</span>
+                        <span className="text-brand-amber">−{pointsCalc.total} pts</span>
+                      </div>
                     </div>
+                  )}
 
-                    <button type="button" onClick={() => setShowBreakdown(!showBreakdown)}
-                      className="w-full flex items-center justify-between text-sm text-gray-600 mb-2 py-1">
-                      <span>Ver cómo se calcula</span>
-                      {showBreakdown ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                    </button>
-
-                    {showBreakdown && (
-                      <div className="bg-gray-50 rounded-xl p-3 text-xs space-y-1.5 font-mono mb-4">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Base {selectedCat?.emoji}</span>
-                          <span className="font-bold">{selectedCat?.basePoints} pts</span>
-                        </div>
-                        {selectedSub && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Ajuste subcategoría</span>
-                            <span className={Number(selectedSub.basePointsModifier) >= 0 ? 'text-green-600' : 'text-red-500'}>
-                              {Number(selectedSub.basePointsModifier) >= 0 ? '+' : ''}{Number(selectedSub.basePointsModifier)}
-                            </span>
-                          </div>
-                        )}
-                        {Number(selectedSub?.basePointsModifier ?? 0) !== 0 && (
-                          <div className="flex justify-between border-t border-gray-200 pt-1">
-                            <span className="text-gray-600">Subtotal base</span>
-                            <span className="font-bold">{pointsCalc.effectiveBase} pts</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">× Hora ({pointsCalc.timeLabel})</span>
-                          <span className={pointsCalc.timeMult > 1 ? 'text-orange-600 font-bold' : ''}>{pointsCalc.timeMult.toFixed(1)}×</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">× Día ({pointsCalc.dayMult > 1 ? 'fin semana' : 'entre semana'})</span>
-                          <span className={pointsCalc.dayMult > 1 ? 'text-blue-600 font-bold' : ''}>{pointsCalc.dayMult.toFixed(1)}×</span>
-                        </div>
-                        {pointsCalc.numDays > 1 && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">× Duración ({pointsCalc.numDays} días)</span>
-                            <span className="text-purple-600 font-bold">{pointsCalc.durationMult.toFixed(1)}×</span>
-                          </div>
-                        )}
-                        {withChildren && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">× Hijos ({numChildren || 1})</span>
-                            <span className="text-orange-600 font-bold">{pointsCalc.childMult.toFixed(1)}×</span>
-                          </div>
-                        )}
-                        {pointsCalc.compDiscount > 0 && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">− Compensación</span>
-                            <span className="text-pink-600">−{(pointsCalc.compDiscount * 100).toFixed(0)}%</span>
-                          </div>
-                        )}
-                        <div className="border-t border-gray-200 pt-1.5 flex justify-between font-bold">
-                          <span>= Coste total</span>
-                          <span className="text-red-600">−{pointsCalc.total} pts</span>
-                        </div>
+                  <div className="space-y-2 text-xs">
+                    {pointsCalc.total >= 150 && (
+                      <div className="bg-danger/10 border border-danger/30 rounded-md p-2 text-danger">
+                        Impacto muy alto — tu pareja revisará con cuidado.
                       </div>
                     )}
-
-                    <div className="space-y-2 text-xs">
-                      {pointsCalc.total >= 150 && (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-red-700">
-                          🔥 Impacto muy alto — tu pareja revisará con cuidado
-                        </div>
-                      )}
-                      {pointsCalc.total >= 50 && pointsCalc.total < 150 && (
-                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-2 text-orange-700">
-                          ⚠️ Impacto moderado — ofrecer compensación ayuda
-                        </div>
-                      )}
-                      {pointsCalc.total < 50 && (
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-2 text-green-700">
-                          ✅ Impacto bajo — fácil de aprobar
-                        </div>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-8 text-gray-400">
-                    <div className="text-3xl mb-2">🎯</div>
-                    <p className="text-sm">Selecciona una categoría y fecha para ver el coste</p>
+                    {pointsCalc.total >= 50 && pointsCalc.total < 150 && (
+                      <div className="bg-warn/10 border border-warn/30 rounded-md p-2 text-warn">
+                        Impacto moderado — ofrecer compensación ayuda.
+                      </div>
+                    )}
+                    {pointsCalc.total < 50 && (
+                      <div className="bg-success/10 border border-success/30 rounded-md p-2 text-success">
+                        Impacto bajo — fácil de aprobar.
+                      </div>
+                    )}
                   </div>
-                )}
+                </>
+              ) : (
+                <div className="text-center py-8 text-text-tertiary">
+                  <div className="text-3xl mb-2">🎯</div>
+                  <p className="text-sm">Completa los pasos anteriores para ver el coste</p>
+                </div>
+              )}
+            </Card>
+
+            {/* Compensación */}
+            <Card>
+              <div className="flex items-center gap-2 mb-1">
+                <Gift className="w-5 h-5 text-brand-purple" />
+                <h2 className="font-semibold text-text-primary">Compensación</h2>
+                <span className="text-xs text-text-tertiary">(opcional)</span>
               </div>
+              <p className="text-xs text-text-secondary mb-3">
+                Ofrecer algo a cambio reduce los puntos que te cuestan esta actividad.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {COMPENSATIONS.map((comp) => {
+                  const active = compensation === comp.id
+                  return (
+                    <button
+                      key={comp.id}
+                      type="button"
+                      onClick={() => setCompensation(comp.id)}
+                      className={`p-2.5 rounded-md text-left text-sm transition ${
+                        active
+                          ? 'bg-brand-purple/15 border border-brand-purple/50 text-text-primary'
+                          : 'bg-surface-card border border-brd-subtle text-text-secondary hover:border-brd-purple'
+                      }`}
+                    >
+                      <div className="font-medium text-xs">{comp.label}</div>
+                      {comp.discount > 0 && (
+                        <div className="text-xs text-brand-purple mt-0.5">
+                          Ahorra {(comp.discount * 100).toFixed(0)}% de puntos
+                          {pointsCalc && (
+                            <span className="ml-1 font-bold">
+                              (−{Math.round((pointsCalc.total * comp.discount) / (1 - pointsCalc.compDiscount))} pts aprox.)
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </Card>
+
+            <div className="flex gap-3 pt-2 pb-4">
+              <Button type="button" variant="outline" fullWidth onClick={() => setStep(2)} disabled={isSubmitting}>
+                Atrás
+              </Button>
+              <Button
+                type="submit"
+                fullWidth
+                disabled={!pointsCalc || !startDate || isSubmitting}
+              >
+                {isSubmitting ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader className="w-4 h-4 animate-spin" />
+                    Enviando…
+                  </span>
+                ) : (
+                  <>Enviar a {partnerName}</>
+                )}
+              </Button>
             </div>
-          </div>
-        </form>
-      </main>
-    </div>
+          </>
+        )}
+      </form>
+    </main>
   )
 }

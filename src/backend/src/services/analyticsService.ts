@@ -1,5 +1,24 @@
 
 import prisma from '../lib/prisma.js'
+import { generateInsight } from './insightHeuristic.js'
+
+// In-memory cache — invalidación natural al reiniciar el proceso
+const insightCache = new Map<string, { at: number; data: any }>()
+const INSIGHT_TTL = 6 * 60 * 60 * 1000  // 6h
+
+// Horas estimadas por categoría (heurística)
+export const CATEGORY_HOURS: Record<string, number> = {
+  cocina:       1.0,
+  banos:        0.5,
+  limpieza:     1.5,
+  compra:       1.0,
+  logistica:    1.0,
+  cuidado:      2.0,
+  mantenimiento:0.75,
+  jardineria:   1.0,
+  mascotas:     0.5,
+  otros:        0.75,
+}
 
 export interface AnalyticsDateRange {
   startDate: Date
@@ -259,6 +278,36 @@ export async function getPointsByCategory(
 }
 
 /**
+ * Get points distribution by category, split by user (you/partner).
+ * Uses TaskLogs (not events) and returns { [category]: { you, partner } }.
+ */
+export async function getPointsByCategoryGrouped(coupleId: string, start?: Date, end?: Date) {
+  const couple = await prisma.couple.findUnique({
+    where: { id: coupleId },
+    include: { users: true },
+  })
+  if (!couple) return {}
+  const [u1, u2] = couple.users
+  const where: any = { coupleId }
+  if (start) where.date = { ...(where.date ?? {}), gte: start }
+  if (end)   where.date = { ...(where.date ?? {}), lte: end }
+
+  const logs = await prisma.taskLog.findMany({
+    where,
+    include: { task: true },
+  })
+  const byCat: Record<string, { you: number; partner: number }> = {}
+  for (const l of logs) {
+    const cat = l.task.category
+    if (!byCat[cat]) byCat[cat] = { you: 0, partner: 0 }
+    const pts = Number(l.pointsFinal ?? 0)
+    if (l.completedBy === u1.id) byCat[cat].you += pts
+    else if (u2 && l.completedBy === u2.id) byCat[cat].partner += pts
+  }
+  return byCat
+}
+
+/**
  * Get weekly trends
  */
 export async function getWeeklyTrends(
@@ -450,5 +499,214 @@ export async function getDailyBreakdown(
     cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000)
   }
 
+  return result
+}
+
+/**
+ * Get time invested (in hours) per user for the given range.
+ * Uses CATEGORY_HOURS heuristic for tasks and actual duration for events.
+ */
+export async function getTimeInvested(coupleId: string, range: 'week' | 'month') {
+  const days = range === 'week' ? 7 : 30
+  const since = new Date()
+  since.setDate(since.getDate() - days)
+
+  const couple = await prisma.couple.findUnique({
+    where: { id: coupleId },
+    include: { users: true },
+  })
+  if (!couple || couple.users.length === 0) return { you: { hours: 0 }, partner: { hours: 0 } }
+
+  const [user1, user2] = couple.users
+  const logs = await prisma.taskLog.findMany({
+    where: { coupleId, date: { gte: since }, status: 'verified' },
+    include: { task: true },
+  })
+  const events = await prisma.event.findMany({
+    where: { coupleId, dateStart: { gte: since }, status: { in: ['accepted', 'forced'] } },
+  })
+
+  function hoursFor(userId: string) {
+    const taskHours = logs
+      .filter(l => l.completedBy === userId)
+      .reduce((sum, l) => sum + (CATEGORY_HOURS[l.task.category] ?? 1.0), 0)
+    const eventHours = events
+      .filter(e => e.createdBy === userId)
+      .reduce((sum, e) => {
+        const ms = new Date(e.dateEnd).getTime() - new Date(e.dateStart).getTime()
+        return sum + ms / (1000 * 60 * 60)
+      }, 0)
+    return Math.round((taskHours + eventHours) * 10) / 10
+  }
+
+  return {
+    you:     { id: user1.id, name: user1.name, hours: hoursFor(user1.id) },
+    partner: user2 ? { id: user2.id, name: user2.name, hours: hoursFor(user2.id) } : null,
+  }
+}
+
+// Franjas horarias: 6-9, 9-12, 12-15, 15-18, 18-21, 21-24
+const HOUR_BUCKETS = [6, 9, 12, 15, 18, 21]
+
+function bucketForHour(h: number): number {
+  if (h < 6) return 21
+  for (let i = HOUR_BUCKETS.length - 1; i >= 0; i--) {
+    if (h >= HOUR_BUCKETS[i]) return HOUR_BUCKETS[i]
+  }
+  return HOUR_BUCKETS[0]
+}
+
+/**
+ * Get activity heatmap: 7 days (Mon-Sun) × 6 hour buckets.
+ * Combines TaskLogs and accepted/forced Events.
+ */
+export async function getHeatmap(coupleId: string, weeks: number = 4) {
+  const since = new Date()
+  since.setDate(since.getDate() - weeks * 7)
+
+  const logs = await prisma.taskLog.findMany({
+    where: { coupleId, date: { gte: since } },
+  })
+  const events = await prisma.event.findMany({
+    where: { coupleId, dateStart: { gte: since }, status: { in: ['accepted', 'forced'] } },
+  })
+
+  // key = `${dow}-${bucket}`, value = count
+  const map = new Map<string, number>()
+  function add(date: Date) {
+    const dow = (date.getDay() + 6) % 7 // L=0, D=6
+    const bucket = bucketForHour(date.getHours())
+    const key = `${dow}-${bucket}`
+    map.set(key, (map.get(key) ?? 0) + 1)
+  }
+  logs.forEach(l => add(new Date(l.date)))
+  events.forEach(e => add(new Date(e.dateStart)))
+
+  const max = Math.max(1, ...Array.from(map.values()))
+  const grid: { dow: number; bucket: number; count: number; norm: number }[] = []
+  for (let dow = 0; dow < 7; dow++) {
+    for (const bucket of HOUR_BUCKETS) {
+      const count = map.get(`${dow}-${bucket}`) ?? 0
+      grid.push({ dow, bucket, count, norm: Math.round((count / max) * 4) })
+    }
+  }
+  return { grid, buckets: HOUR_BUCKETS }
+}
+
+/**
+ * Get completion rate (% verified vs total TaskLogs) per user for the given range.
+ */
+export async function getCompletionRate(coupleId: string, range: 'week' | 'month') {
+  const days = range === 'week' ? 7 : 30
+  const since = new Date()
+  since.setDate(since.getDate() - days)
+
+  const couple = await prisma.couple.findUnique({
+    where: { id: coupleId },
+    include: { users: true },
+  })
+  if (!couple || couple.users.length === 0) return { you: 0, partner: 0 }
+
+  const [user1, user2] = couple.users
+
+  async function rateFor(userId: string) {
+    const total = await prisma.taskLog.count({
+      where: { coupleId, completedBy: userId, date: { gte: since } },
+    })
+    if (total === 0) return 0
+    const verified = await prisma.taskLog.count({
+      where: { coupleId, completedBy: userId, date: { gte: since }, status: 'verified' },
+    })
+    return Math.round((verified / total) * 100)
+  }
+
+  return {
+    you:     { id: user1.id, name: user1.name, pct: await rateFor(user1.id) },
+    partner: user2 ? { id: user2.id, name: user2.name, pct: await rateFor(user2.id) } : null,
+  }
+}
+
+/**
+ * Get monthly insight (heurístico, con templates + cache 6h).
+ */
+export async function getMonthlyInsight(coupleId: string, month: number, year: number) {
+  const key = `${coupleId}-${year}-${month}`
+  const cached = insightCache.get(key)
+  if (cached && Date.now() - cached.at < INSIGHT_TTL) return cached.data
+
+  // Métricas del mes
+  const start = new Date(year, month - 1, 1)
+  const end   = new Date(year, month,   1)
+  const prevStart = new Date(year, month - 2, 1)
+  const prevEnd   = new Date(year, month - 1, 1)
+
+  const couple = await prisma.couple.findUnique({
+    where: { id: coupleId },
+    include: { users: true },
+  })
+  if (!couple || couple.users.length < 1) {
+    return { text: 'Aún no hay datos suficientes este mes.', bullets: [] }
+  }
+  const [u1, u2] = couple.users
+
+  // Top category por user
+  async function topCat(userId: string) {
+    const logs = await prisma.taskLog.findMany({
+      where: { coupleId, completedBy: userId, date: { gte: start, lt: end } },
+      include: { task: true },
+    })
+    const counts = new Map<string, number>()
+    logs.forEach(l => counts.set(l.task.category, (counts.get(l.task.category) ?? 0) + 1))
+    const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1])
+    return sorted[0] ? { name: sorted[0][0], count: sorted[0][1] } : null
+  }
+
+  // Time split
+  const time = await getTimeInvested(coupleId, 'month')
+  const totalH = (time.you?.hours ?? 0) + (time.partner?.hours ?? 0)
+  const timePctUser1 = totalH > 0 ? Math.round(((time.you?.hours ?? 0) / totalH) * 100) : 50
+
+  // Equity current vs prev
+  const curr = await prisma.coupleScore.findFirst({
+    where: { coupleId, weekStartDate: { gte: start, lt: end } },
+    orderBy: { weekStartDate: 'desc' },
+  })
+  const prev = await prisma.coupleScore.findFirst({
+    where: { coupleId, weekStartDate: { gte: prevStart, lt: prevEnd } },
+    orderBy: { weekStartDate: 'desc' },
+  })
+  const equityDelta = curr && prev ? Math.round(Number(curr.equilibrium) - Number(prev.equilibrium)) : 0
+
+  // Worst category
+  const allLogs = await prisma.taskLog.findMany({
+    where: { coupleId, date: { gte: start, lt: end } },
+    include: { task: true },
+  })
+  const byCat = new Map<string, { u1: number; u2: number }>()
+  allLogs.forEach(l => {
+    const cur = byCat.get(l.task.category) ?? { u1: 0, u2: 0 }
+    if (l.completedBy === u1.id) cur.u1++
+    else if (u2 && l.completedBy === u2.id) cur.u2++
+    byCat.set(l.task.category, cur)
+  })
+  let worst: string | null = null
+  let worstDiff = 0
+  byCat.forEach((v, k) => {
+    const diff = Math.abs(v.u1 - v.u2)
+    if (diff > worstDiff) { worstDiff = diff; worst = k }
+  })
+  if (worstDiff < 3) worst = null
+
+  const result = generateInsight({
+    user1Name: u1.name,
+    user2Name: u2?.name ?? 'tu pareja',
+    topCategoryUser1: await topCat(u1.id),
+    topCategoryUser2: u2 ? await topCat(u2.id) : null,
+    timePctUser1,
+    equityDelta,
+    worstCategory: worst,
+  }, month)
+
+  insightCache.set(key, { at: Date.now(), data: result })
   return result
 }

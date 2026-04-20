@@ -9,14 +9,11 @@ interface AppState {
   isLoading: boolean
   error: string | null
   isAuthenticated: boolean
-  theme: 'dark' | 'light'
 
   setUser: (user: User | null) => void
   setCouple: (couple: Couple | null) => void
   setError: (error: string | null) => void
   reset: () => void
-  toggleTheme: () => void
-  setTheme: (theme: 'dark' | 'light') => void
 
   // Auth actions
   login: (email: string, password: string) => Promise<void>
@@ -38,22 +35,11 @@ export const useAppStore = create<AppState>((set) => ({
   isLoading: false,
   error: null,
   isAuthenticated: false,
-  theme: (localStorage.getItem('matri-theme') as 'dark' | 'light') ?? 'dark',
 
   setUser: (user) => set({ user }),
   setCouple: (couple) => set({ couple }),
   setError: (error) => set({ error }),
   reset: () => set({ user: null, couple: null, error: null, isAuthenticated: false }),
-  toggleTheme: () =>
-    set((s) => {
-      const next = s.theme === 'dark' ? 'light' : 'dark'
-      localStorage.setItem('matri-theme', next)
-      return { theme: next }
-    }),
-  setTheme: (theme) => {
-    localStorage.setItem('matri-theme', theme)
-    set({ theme })
-  },
 
   login: async (email, password) => {
     set({ isLoading: true, error: null })
@@ -117,13 +103,6 @@ export const useAppStore = create<AppState>((set) => ({
         isAuthenticated: true,
         isLoading: false,
       })
-
-      // Sync theme from server preference
-      if (userResponse?.user?.theme) {
-        const serverTheme = userResponse.user.theme as 'dark' | 'light'
-        localStorage.setItem('matri-theme', serverTheme)
-        set({ theme: serverTheme })
-      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load user data'
       set({ error: message, isLoading: false, isAuthenticated: false })

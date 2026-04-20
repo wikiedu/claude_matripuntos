@@ -1,886 +1,784 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, RotateCcw, AlertCircle, Loader, Info, RefreshCw, Link2, Mail, CheckCircle, Copy } from 'lucide-react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, ChevronRight, Copy, CheckCircle, Loader, Mail, Download, Trash2, ExternalLink } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
-import { Button } from '../components/Button'
-import { Alert } from '../components/Alert'
-import { Card, CardTitle, CardContent } from '../components/Card'
-import { AvatarSelector } from '../components/AvatarSelector'
+import { Button } from '../components/v2/primitives/Button'
+import { Input } from '../components/v2/primitives/Input'
+import { Pill } from '../components/v2/primitives/Pill'
+import { Card } from '../components/v2/primitives/Card'
+import { PremiumInterestModal } from '../components/v2/premium/PremiumInterestModal'
 import { RuleProposalCard } from '../components/RuleProposalCard'
 
-interface ConfigData {
-  numChildren: number
-  timezone: string
-  language: string
-  tasksConfig: { [key: string]: number }
-  multipliersConfig: { [key: string]: any }
+// -----------------------------------------------------------------------------
+// Constants
+// -----------------------------------------------------------------------------
+
+const AVATAR_EMOJIS = [
+  '🐼', '🦊', '🐧', '🐸', '🦄', '🐯', '🐻', '🦁', '🐨',
+  '🐙', '🦋', '🐺', '🦝', '🐮', '🐷', '🐰', '🐵', '🐹',
+]
+
+const AVATAR_COLORS = [
+  '#7c3aed', '#1d4ed8', '#0891b2', '#059669',
+  '#d97706', '#dc2626', '#be185d', '#9333ea',
+]
+
+const MOOD_OPTIONS = [
+  { value: '', label: 'Sin estado' },
+  { value: '😊', label: '😊 Feliz' },
+  { value: '😎', label: '😎 Chill' },
+  { value: '😴', label: '😴 Cansado' },
+  { value: '😰', label: '😰 Ansioso' },
+  { value: '😐', label: '😐 Normal' },
+]
+
+type SectionSlug =
+  | 'profile'
+  | 'couple'
+  | 'notifications'
+  | 'premium'
+  | 'rules'
+  | 'language-theme'
+  | 'privacy'
+
+const SECTIONS: Array<{
+  slug: SectionSlug
+  emoji: string
+  title: string
+  subtitle: (ctx: { partnerName?: string; userName?: string; avatarEmoji?: string }) => string
+}> = [
+  { slug: 'profile',         emoji: '👤', title: 'Perfil y avatar',      subtitle: (c) => `${c.userName ?? 'Tú'} · ${c.avatarEmoji ?? '🐼'}` },
+  { slug: 'couple',          emoji: '💕', title: 'Pareja',                subtitle: (c) => c.partnerName ? `${c.partnerName} · vinculado` : 'Sin pareja' },
+  { slug: 'notifications',   emoji: '🔔', title: 'Notificaciones',        subtitle: () => 'Push, email, horarios' },
+  { slug: 'premium',         emoji: '👑', title: 'Suscripción Premium',   subtitle: () => 'Gratis' },
+  { slug: 'rules',           emoji: '📜', title: 'Reglas de puntos',      subtitle: () => 'Multiplicadores' },
+  { slug: 'language-theme',  emoji: '🎨', title: 'Idioma y tema',         subtitle: () => 'Español · Oscuro' },
+  { slug: 'privacy',         emoji: '🔒', title: 'Privacidad y datos',    subtitle: () => 'Exportar, eliminar' },
+]
+
+// -----------------------------------------------------------------------------
+// Shared UI helpers
+// -----------------------------------------------------------------------------
+
+function SectionHeader({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <div className="flex items-center gap-3 mb-5">
+      <button
+        onClick={onBack}
+        className="p-2 -ml-2 rounded-md hover:bg-surface-muted text-text-primary"
+        aria-label="Volver"
+      >
+        <ArrowLeft className="w-5 h-5" />
+      </button>
+      <h1 className="text-lg font-extrabold text-text-primary">{title}</h1>
+    </div>
+  )
 }
 
-interface PageProps {
-  onBack?: () => void
+function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={() => !disabled && onChange(!checked)}
+      disabled={disabled}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${checked ? 'bg-brand-amber' : 'bg-surface-muted border border-brd-subtle'}`}
+      aria-pressed={checked}
+    >
+      <span
+        className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`}
+      />
+    </button>
+  )
 }
 
-const TASK_CATEGORY_LABELS: Record<string, string> = {
-  cocina: '🍳 Cocina',
-  limpieza: '🧹 Limpieza',
-  compra: '🛒 Compras',
-  logistica: '📋 Logística',
-  cuidado: '👶 Cuidado de hijos',
-  baños: '🚿 Baños',
-  mantenimiento: '🔧 Mantenimiento',
-  jardineria: '🌿 Jardín',
-  mascotas: '🐾 Mascotas',
+function Banner({ type, message }: { type: 'success' | 'error'; message: string }) {
+  const tone = type === 'success'
+    ? 'bg-success/10 border-success/30 text-success'
+    : 'bg-danger/10 border-danger/30 text-danger'
+  return (
+    <div className={`rounded-md border px-3 py-2 text-xs font-semibold ${tone} mb-3`}>
+      {message}
+    </div>
+  )
 }
 
-const TIME_SLOT_LABELS: Record<string, string> = {
-  mañana: '☀️ Mañana (6h–14h)',
-  tarde: '🌅 Tarde (14h–20h)',
-  noche: '🌙 Noche (20h–23h)',
-  madrugada: '🌛 Madrugada (0h–6h)',
+function DoubleConfirmModal({
+  open, title, firstMessage, secondMessage, confirmLabel, onCancel, onConfirm, isLoading,
+}: {
+  open: boolean
+  title: string
+  firstMessage: string
+  secondMessage: string
+  confirmLabel: string
+  onCancel: () => void
+  onConfirm: () => void
+  isLoading?: boolean
+}) {
+  const [step, setStep] = useState<1 | 2>(1)
+
+  useEffect(() => { if (open) setStep(1) }, [open])
+
+  if (!open) return null
+  const msg = step === 1 ? firstMessage : secondMessage
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/55 backdrop-blur-sm z-[80]" onClick={onCancel} />
+      <div className="fixed left-0 right-0 bottom-0 z-[81] max-w-[500px] mx-auto bg-surface-elevated border-t border-brd-purple rounded-t-xl p-4 pb-6">
+        <h3 className="text-base font-extrabold text-text-primary mb-2">{title}</h3>
+        <p className="text-sm text-text-secondary mb-4">{msg}</p>
+        <div className="flex gap-2">
+          <Button variant="ghost" fullWidth onClick={onCancel}>Cancelar</Button>
+          <Button
+            variant="danger"
+            fullWidth
+            disabled={isLoading}
+            onClick={() => {
+              if (step === 1) setStep(2)
+              else onConfirm()
+            }}
+          >
+            {isLoading ? 'Procesando…' : step === 1 ? 'Continuar' : confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </>
+  )
 }
 
-export default function Settings({ onBack }: PageProps) {
-  const navigate = useNavigate()
+// -----------------------------------------------------------------------------
+// Section: Index
+// -----------------------------------------------------------------------------
+
+function SettingsIndex() {
+  const nav = useNavigate()
   const { user, couple } = useAppStore()
-  const [activeTab, setActiveTab] = useState<'general' | 'tareas' | 'multiplicadores' | 'reglas' | 'pareja'>('general')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [isSaving, setIsSaving] = useState(false)
-  const [resetState, setResetState] = useState<'idle' | 'requesting'>('idle')
-  const [isResetting, setIsResetting] = useState(false)
-  const [hasPendingResetFromPartner, setHasPendingResetFromPartner] = useState(false)
-
-  // Partner linking state
-  const [partnerMode, setPartnerMode] = useState<'idle' | 'invite' | 'link'>('idle')
-  const [partnerEmail, setPartnerEmail] = useState('')
-  const [partnerActionLoading, setPartnerActionLoading] = useState(false)
-  const [partnerActionError, setPartnerActionError] = useState<string | null>(null)
-  const [inviteLink, setInviteLink] = useState<string | null>(null)
-  const [linkSuccess, setLinkSuccess] = useState(false)
-  const [copiedLink, setCopiedLink] = useState(false)
-
-  // Pending link requests sent TO me
-  const [pendingLinkRequests, setPendingLinkRequests] = useState<Array<{ id: string; fromUser: { id: string; name: string; email: string } }>>([])
-  const [linkRequestActionLoading, setLinkRequestActionLoading] = useState(false)
-
-  const [config, setConfig] = useState<ConfigData>({
-    numChildren: couple?.numChildren || 0,
-    timezone: 'Europe/Madrid',
-    language: couple?.language || 'es',
-    tasksConfig: {
-      cocina: 12,
-      limpieza: 10,
-      compra: 15,
-      logistica: 8,
-      cuidado: 18,
-      baños: 12,
-      mantenimiento: 15,
-      jardineria: 12,
-      mascotas: 8,
-    },
-    multipliersConfig: {
-      franja: {
-        mañana: 1.0,
-        tarde: 1.1,
-        noche: 1.4,
-        madrugada: 1.6,
-      },
-      dia: {
-        entre_semana: 1.0,
-        fin_de_semana: 1.2,
-      },
-      hijos: {
-        '0': 1.0,
-        '1': 1.4,
-        '2': 1.8,
-        '3+': 2.2,
-      },
-    },
-  })
-
-  const otherUser = couple?.users?.find((u) => u.id !== user?.id)
-
-  useEffect(() => {
-    const loadConfiguration = async () => {
-      try {
-        setIsLoading(true)
-        const response = await apiClient.configuration.get()
-        if (response.configuration) {
-          const c = response.configuration
-          setConfig({
-            numChildren: c.numChildren ?? couple?.numChildren ?? 0,
-            timezone: c.timezone || 'Europe/Madrid',
-            language: c.language || 'es',
-            tasksConfig: Object.keys(c.tasksConfig || {}).length > 0 ? c.tasksConfig : config.tasksConfig,
-            multipliersConfig: Object.keys(c.multipliersConfig || {}).length > 0 ? c.multipliersConfig : config.multipliersConfig,
-          })
-        }
-      } catch (err) {
-        console.warn('Could not load configuration:', err)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    if (couple?.id) {
-      loadConfiguration()
-      // Check for pending reset request from partner
-      apiClient.notifications.getAll({ unreadOnly: true }).then((res: any) => {
-        const notifications = res.notifications || res || []
-        const pending = notifications.some((n: any) => n.type === 'reset_requested' && n.userId === user?.id)
-        setHasPendingResetFromPartner(pending)
-      }).catch(() => {/* silent */})
-    }
-    // Always fetch pending link requests (even for solo users without a couple)
-    apiClient.invitations.pendingLinkRequests().then((res: any) => {
-      setPendingLinkRequests(res.requests || [])
-    }).catch(() => {/* silent */})
-  }, [couple?.id])
-
-  const { data: rulesData } = useQuery({
-    queryKey: ['rules'],
-    queryFn: () => apiClient.rules.getAll()
-  })
-
-  const handleSave = async () => {
-    setIsSaving(true)
-    setError(null)
-    setSuccess(null)
-    try {
-      await apiClient.configuration.update({
-        tasksConfig: config.tasksConfig,
-        multipliersConfig: config.multipliersConfig,
-      })
-      setSuccess('¡Configuración guardada con éxito!')
-      setTimeout(() => setSuccess(null), 3000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar la configuración')
-    } finally {
-      setIsSaving(false)
-    }
+  const partner = couple?.users?.find((u) => u.id !== user?.id)
+  const ctx = {
+    partnerName: partner?.name,
+    userName: user?.name,
+    avatarEmoji: user?.avatarEmoji ?? '🐼',
   }
 
-  const handleResetDefaults = async () => {
-    if (!confirm('¿Restaurar toda la configuración a los valores por defecto?')) return
-    try {
-      setIsSaving(true)
-      await apiClient.configuration.reset()
-      const response = await apiClient.configuration.get()
-      if (response.configuration) {
-        const c = response.configuration
-        setConfig({
-          numChildren: c.numChildren ?? 0,
-          timezone: c.timezone || 'Europe/Madrid',
-          language: c.language || 'es',
-          tasksConfig: c.tasksConfig || config.tasksConfig,
-          multipliersConfig: c.multipliersConfig || config.multipliersConfig,
-        })
-      }
-      setSuccess('✅ Configuración restaurada a valores por defecto')
-      setTimeout(() => setSuccess(null), 3000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al restaurar')
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const handleAcceptLinkRequest = async (invitationId: string) => {
-    setLinkRequestActionLoading(true)
-    try {
-      const result = await apiClient.invitations.acceptLinkPartner(invitationId)
-      // Store new JWT and reload user data
-      apiClient.setToken(result.token)
-      await useAppStore.getState().loadUserData()
-      window.location.reload()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al aceptar la solicitud')
-    } finally {
-      setLinkRequestActionLoading(false)
-    }
-  }
-
-  const handleRejectLinkRequest = async (invitationId: string) => {
-    setLinkRequestActionLoading(true)
-    try {
-      await apiClient.invitations.rejectLinkPartner(invitationId)
-      setPendingLinkRequests(prev => prev.filter(r => r.id !== invitationId))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al rechazar la solicitud')
-    } finally {
-      setLinkRequestActionLoading(false)
-    }
-  }
-
-  const handleInvitePartner = async () => {
-    if (!partnerEmail.trim()) return
-    setPartnerActionLoading(true)
-    setPartnerActionError(null)
-    try {
-      const result = await apiClient.invitations.invitePartner({ inviteeEmail: partnerEmail.trim() })
-      setInviteLink(result.invitation?.invitationLink || null)
-    } catch (err) {
-      setPartnerActionError(err instanceof Error ? err.message : 'Error al crear invitación')
-    } finally {
-      setPartnerActionLoading(false)
-    }
-  }
-
-  const handleLinkPartner = async () => {
-    if (!partnerEmail.trim()) return
-    setPartnerActionLoading(true)
-    setPartnerActionError(null)
-    try {
-      await apiClient.invitations.linkPartner({ partnerEmail: partnerEmail.trim() })
-      setLinkSuccess(true)
-      // Reload couple data
-      await (useAppStore.getState() as any).loadUserData?.()
-      window.location.reload()
-    } catch (err) {
-      setPartnerActionError(err instanceof Error ? err.message : 'Error al vincular pareja')
-    } finally {
-      setPartnerActionLoading(false)
-    }
-  }
-
-  const handleRequestReset = async () => {
-    setIsResetting(true)
-    setError(null)
-    try {
-      await apiClient.points.requestReset()
-      setResetState('idle')
-      setSuccess('📩 Solicitud enviada a tu pareja. Cuando acepte, los puntos se resetearán.')
-      setTimeout(() => setSuccess(null), 6000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al enviar la solicitud')
-    } finally {
-      setIsResetting(false)
-    }
-  }
-
-  const handleConfirmReset = async () => {
-    setIsResetting(true)
-    setError(null)
-    try {
-      await apiClient.points.confirmReset()
-      setHasPendingResetFromPartner(false)
-      setResetState('idle')
-      setSuccess('🔄 ¡Puntos reseteados a cero! El saldo de ambos empieza desde cero.')
-      setTimeout(() => setSuccess(null), 6000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al resetear los puntos')
-    } finally {
-      setIsResetting(false)
-    }
-  }
-
-  const TABS = [
-    { key: 'general' as const, label: '⚙️ General' },
-    { key: 'tareas' as const, label: '🏠 Puntos Tareas' },
-    { key: 'multiplicadores' as const, label: '×️ Multiplicadores' },
-    { key: 'reglas' as const, label: '📋 Reglas' },
-    { key: 'pareja' as const, label: '💑 Tu Pareja' },
-  ]
+  const avatarEmoji = user?.avatarEmoji ?? '🐼'
+  const avatarColor = user?.avatarColor ?? '#7c3aed'
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--matri-bg)', color: 'var(--matri-text)' }}>
-      <header style={{ background: 'var(--matri-card-bg)', borderBottom: '1px solid var(--matri-card-border)' }} className="sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button onClick={onBack || (() => navigate('/dashboard'))} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
-            </button>
-            <h1 className="text-2xl font-bold" style={{ color: 'var(--matri-text)' }}>Configuración</h1>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={handleResetDefaults} disabled={isSaving}>
-              <RotateCcw className="w-4 h-4" />
-              Restaurar
-            </Button>
-            <Button variant="primary" size="sm" onClick={handleSave} isLoading={isSaving}>
-              <Save className="w-4 h-4" />
-              Guardar
-            </Button>
+    <div className="space-y-4">
+      {/* Mini header with avatar */}
+      <div className="flex items-center gap-3 p-4 rounded-lg bg-surface-card border border-brd-subtle">
+        <div
+          className="flex-shrink-0 rounded-full flex items-center justify-center"
+          style={{
+            width: 72,
+            height: 72,
+            background: `linear-gradient(135deg, ${avatarColor}, ${avatarColor}dd)`,
+            fontSize: 36,
+          }}
+        >
+          {avatarEmoji}
+        </div>
+        <div className="min-w-0">
+          <p className="text-lg font-extrabold text-text-primary truncate">{user?.name ?? 'Usuario'}</p>
+          {user?.email && (
+            <p className="text-xs text-text-secondary truncate">{user.email}</p>
+          )}
+        </div>
+      </div>
+
+      {/* 7 Section rows */}
+      <div className="space-y-2">
+        {SECTIONS.map((s) => (
+          <button
+            key={s.slug}
+            onClick={() => nav(`/settings/${s.slug}`)}
+            className="w-full flex items-center gap-3 p-3 rounded-md bg-surface-card border border-brd-subtle hover:bg-surface-elevated text-left transition-colors"
+          >
+            <span className="text-[32px] leading-none flex-shrink-0">{s.emoji}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-text-primary">{s.title}</p>
+              <p className="text-xs text-text-secondary truncate">{s.subtitle(ctx)}</p>
+            </div>
+            {s.slug === 'premium' && <Pill tone="amber">Upgrade</Pill>}
+            <ChevronRight className="w-4 h-4 text-text-tertiary flex-shrink-0" />
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Section: Profile
+// -----------------------------------------------------------------------------
+
+function ProfileSection({ onBack }: { onBack: () => void }) {
+  const { user } = useAppStore()
+  const [emoji, setEmoji] = useState(user?.avatarEmoji ?? '🐼')
+  const [color, setColor] = useState(user?.avatarColor ?? '#7c3aed')
+  const [mood, setMood]   = useState<string>(user?.currentMood ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError]   = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+
+  async function save() {
+    setSaving(true); setError(null); setSuccess(null)
+    try {
+      await apiClient.profile.updateMe({
+        avatarEmoji: emoji,
+        avatarColor: color,
+        ...(mood ? { currentMood: mood } : {}),
+      })
+      useAppStore.setState((s: any) => ({
+        user: s.user ? { ...s.user, avatarEmoji: emoji, avatarColor: color, currentMood: mood || null } : s.user,
+      }))
+      setSuccess('Perfil actualizado')
+      setTimeout(() => setSuccess(null), 2500)
+    } catch (err: any) {
+      setError(err?.message ?? 'Error al guardar')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div>
+      <SectionHeader title="Perfil y avatar" onBack={onBack} />
+      {error   && <Banner type="error"   message={error} />}
+      {success && <Banner type="success" message={success} />}
+
+      <Card className="space-y-5">
+        <div>
+          <label className="text-xs font-semibold text-text-secondary block mb-1.5">Nombre</label>
+          <Input value={user?.name ?? ''} disabled />
+          <p className="text-[11px] italic text-text-tertiary mt-1">Para cambiar tu nombre, contacta soporte</p>
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold text-text-secondary block mb-2">Avatar</label>
+          <div className="grid grid-cols-6 gap-2">
+            {AVATAR_EMOJIS.map((e) => (
+              <button
+                key={e}
+                onClick={() => setEmoji(e)}
+                className={`aspect-square rounded-md flex items-center justify-center text-2xl transition-all ${
+                  emoji === e ? 'bg-brand-purple/30 border-2 border-brand-purple' : 'bg-surface-muted border border-brd-subtle hover:bg-surface-elevated'
+                }`}
+              >
+                {e}
+              </button>
+            ))}
           </div>
         </div>
-      </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
-        {success && <Alert type="success" message={success} onClose={() => setSuccess(null)} />}
+        <div>
+          <label className="text-xs font-semibold text-text-secondary block mb-2">Color</label>
+          <div className="flex flex-wrap gap-2">
+            {AVATAR_COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => setColor(c)}
+                className={`w-10 h-10 rounded-full transition-transform ${color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-surface-card scale-110' : ''}`}
+                style={{ background: c }}
+                aria-label={`Color ${c}`}
+              />
+            ))}
+          </div>
+        </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl flex-wrap">
-          {TABS.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                activeTab === tab.key ? 'bg-white text-primary shadow-sm' : 'text-gray-600 hover:text-gray-800'
-              }`}
+        <div>
+          <label className="text-xs font-semibold text-text-secondary block mb-1.5">Estado de ánimo</label>
+          <select
+            value={mood}
+            onChange={(e) => setMood(e.target.value)}
+            className="w-full bg-surface-card border border-brd-purple rounded-md px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:border-brand-purple"
+          >
+            {MOOD_OPTIONS.map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <Button variant="primary" fullWidth onClick={save} disabled={saving}>
+          {saving ? 'Guardando…' : 'Guardar cambios'}
+        </Button>
+      </Card>
+    </div>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Section: Couple
+// -----------------------------------------------------------------------------
+
+function CoupleSection({ onBack }: { onBack: () => void }) {
+  const { user, couple } = useAppStore()
+  const partner = couple?.users?.find((u) => u.id !== user?.id)
+
+  const [email, setEmail] = useState('')
+  const [inviteLink, setInviteLink] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [unlinkOpen, setUnlinkOpen] = useState(false)
+
+  async function sendInvite() {
+    if (!email.trim()) return
+    setLoading(true); setError(null)
+    try {
+      const result = await apiClient.invitations.invitePartner({ inviteeEmail: email.trim() })
+      setInviteLink(result.invitation?.invitationLink || null)
+    } catch (err: any) {
+      setError(err?.message ?? 'Error al crear invitación')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div>
+      <SectionHeader title="Pareja" onBack={onBack} />
+      {error && <Banner type="error" message={error} />}
+
+      {partner ? (
+        <Card className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center text-2xl"
+              style={{
+                background: `linear-gradient(135deg, ${partner.avatarColor ?? '#7c3aed'}, ${partner.avatarColor ?? '#7c3aed'}dd)`,
+              }}
             >
-              {tab.label}
-            </button>
-          ))}
+              {partner.avatarEmoji ?? '💕'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-extrabold text-text-primary">{partner.name}</p>
+              <p className="text-xs text-text-secondary truncate">{partner.email}</p>
+              <Pill tone="success" className="mt-1">💕 Vinculado</Pill>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-brd-subtle">
+            <p className="text-xs text-text-tertiary mb-2">Ya tienes una pareja vinculada. Si quieres invitar a otra persona, primero desvincula.</p>
+            <Button variant="ghost" fullWidth disabled>Invitar a otra persona</Button>
+          </div>
+
+          <div className="pt-2">
+            <p className="text-xs font-semibold text-text-secondary mb-2">Zona de peligro</p>
+            <Button variant="danger" fullWidth onClick={() => setUnlinkOpen(true)}>
+              Desvincular pareja
+            </Button>
+          </div>
+
+          <DoubleConfirmModal
+            open={unlinkOpen}
+            title="Desvincular pareja"
+            firstMessage={`¿Seguro que quieres desvincularte de ${partner.name}?`}
+            secondMessage="Esta acción no se puede deshacer. Perderás el acceso al historial compartido."
+            confirmLabel="Confirmar desvinculación"
+            onCancel={() => setUnlinkOpen(false)}
+            onConfirm={() => {
+              // No backend endpoint yet — show help text via error banner
+              setUnlinkOpen(false)
+              setError('Disponible en v1.5 — contacta soporte para desvincular ahora')
+            }}
+          />
+        </Card>
+      ) : (
+        <Card className="space-y-4">
+          <div className="text-center">
+            <div className="text-4xl mb-2">💔</div>
+            <p className="text-sm font-bold text-text-primary">Sin pareja</p>
+            <p className="text-xs text-text-secondary">Invita a alguien para empezar a usar Matripuntos juntos.</p>
+          </div>
+
+          {!inviteLink && (
+            <div className="space-y-3">
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="pareja@ejemplo.com"
+                label="Email de tu pareja"
+              />
+              <Button
+                variant="primary"
+                fullWidth
+                onClick={sendInvite}
+                disabled={loading || !email.trim()}
+              >
+                {loading ? 'Enviando…' : (
+                  <span className="flex items-center justify-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Enviar invitación
+                  </span>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {inviteLink && (
+            <div className="space-y-3">
+              <div className="rounded-md bg-success/10 border border-success/30 p-3">
+                <p className="text-xs font-bold text-success mb-1.5">Enlace generado</p>
+                <p className="text-[11px] text-text-secondary mb-2">Comparte este enlace con tu pareja. Caduca en 7 días.</p>
+                <div className="flex items-center gap-2 bg-surface-elevated border border-brd-subtle rounded-md px-2 py-1.5">
+                  <p className="text-[11px] text-text-primary flex-1 truncate font-mono">{inviteLink}</p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(inviteLink)
+                      setCopied(true)
+                      setTimeout(() => setCopied(false), 2000)
+                    }}
+                    className="flex-shrink-0 text-text-primary hover:text-brand-purple"
+                  >
+                    {copied ? <CheckCircle className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <Button variant="ghost" fullWidth onClick={() => { setInviteLink(null); setEmail('') }}>
+                Volver
+              </Button>
+            </div>
+          )}
+        </Card>
+      )}
+    </div>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Section: Notifications
+// -----------------------------------------------------------------------------
+
+const PREFS_EMAIL_KEY = 'matripuntos.prefs.email'
+const PREFS_QUIET_KEY = 'matripuntos.prefs.quietHours'
+
+function NotificationsSection({ onBack }: { onBack: () => void }) {
+  const [emailOn, setEmailOn] = useState(() => {
+    const raw = localStorage.getItem(PREFS_EMAIL_KEY)
+    return raw === null ? true : raw === 'true'
+  })
+  const [quietFrom, setQuietFrom] = useState('22:00')
+  const [quietTo, setQuietTo] = useState('08:00')
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PREFS_QUIET_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed.from) setQuietFrom(parsed.from)
+        if (parsed.to)   setQuietTo(parsed.to)
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  function saveEmail(v: boolean) {
+    setEmailOn(v)
+    localStorage.setItem(PREFS_EMAIL_KEY, String(v))
+  }
+
+  function saveQuiet(from: string, to: string) {
+    setQuietFrom(from); setQuietTo(to)
+    localStorage.setItem(PREFS_QUIET_KEY, JSON.stringify({ from, to }))
+  }
+
+  return (
+    <div>
+      <SectionHeader title="Notificaciones" onBack={onBack} />
+      <Card className="space-y-4">
+        {/* Push — disabled v1.4 */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-text-primary">Notificaciones push</p>
+            <p className="text-[11px] text-text-tertiary">Disponible en v2.1</p>
+          </div>
+          <Toggle checked={false} onChange={() => {}} disabled />
         </div>
 
-        {/* ── GENERAL ── */}
-        {activeTab === 'general' && (
-          <Card>
-            <CardTitle>Configuración General</CardTitle>
-            <CardContent>
-              <div className="space-y-6">
-                {isLoading ? (
-                  <div className="flex items-center gap-2 text-gray-500 py-4">
-                    <Loader className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">Cargando configuración...</span>
-                  </div>
-                ) : (
-                  <>
-                    {/* Tu info */}
-                    <div className="p-4 bg-gray-50 rounded-xl">
-                      <p className="text-sm font-semibold text-gray-700 mb-3">Tu cuenta</p>
-                      <div className="space-y-1 text-sm text-gray-600">
-                        <p><span className="font-medium">Nombre:</span> {user?.name}</p>
-                        <p><span className="font-medium">Email:</span> {user?.email}</p>
-                        <p><span className="font-medium">Pareja:</span> {couple?.name || `${user?.name} & ${otherUser?.name || '...'}`}</p>
-                      </div>
-                    </div>
+        <div className="h-px bg-brd-subtle" />
 
-                    {/* Sección Avatar */}
-                    <div style={{ marginBottom: 24, background: 'var(--matri-card-bg)', border: '1px solid var(--matri-card-border)', borderRadius: 12, padding: 16 }}>
-                      <h3 style={{ color: 'var(--matri-text)', fontWeight: 600, marginBottom: 12 }}>Tu avatar</h3>
-                      <AvatarSelector
-                        currentEmoji={user?.avatarEmoji ?? '🐼'}
-                        currentColor={user?.avatarColor ?? '#7c3aed'}
-                        onChange={async (emoji: string, color: string) => {
-                          await apiClient.profile.updateMe({ avatarEmoji: emoji, avatarColor: color })
-                          useAppStore.setState((s: any) => ({
-                            user: s.user ? { ...s.user, avatarEmoji: emoji, avatarColor: color } : s.user
-                          }))
-                        }}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-2">Número de hijos</label>
-                      <input
-                        type="number"
-                        value={config.numChildren}
-                        onChange={(e) => setConfig({ ...config, numChildren: Math.max(0, parseInt(e.target.value) || 0) })}
-                        min="0"
-                        max="20"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                        placeholder="0"
-                      />
-                      <p className="text-xs text-gray-500 mt-2">
-                        Introduce el número exacto de hijos. Cuando hay niños a cargo, las actividades aplican un multiplicador adicional de puntos.
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-2">Zona horaria</label>
-                      <select
-                        value={config.timezone}
-                        onChange={(e) => setConfig({ ...config, timezone: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                      >
-                        <option value="Europe/Madrid">Europe/Madrid (España)</option>
-                        <option value="Europe/London">Europe/London (Reino Unido)</option>
-                        <option value="Europe/Paris">Europe/Paris (Francia)</option>
-                        <option value="America/New_York">America/New_York (USA Este)</option>
-                        <option value="America/Los_Angeles">America/Los_Angeles (USA Oeste)</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-2">Idioma</label>
-                      <select
-                        value={config.language}
-                        onChange={(e) => setConfig({ ...config, language: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                      >
-                        <option value="es">🇪🇸 Español</option>
-                        <option value="en">🇬🇧 English</option>
-                        <option value="fr">🇫🇷 Français</option>
-                      </select>
-                    </div>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* ── PUNTOS TAREAS ── */}
-        {activeTab === 'tareas' && (
-          <Card>
-            <CardTitle>Puntos Base por Categoría de Tareas</CardTitle>
-            <CardContent>
-              <div className="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                <div className="flex gap-2">
-                  <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-blue-700">
-                    <p className="font-semibold mb-1">¿Qué son los puntos base?</p>
-                    <p>Cada categoría tiene un valor de referencia. Cuando creas una tarea (ej: "Limpiar el baño" en la categoría <em>Baños</em>), se usa este valor como punto de partida. Los multiplicadores de horario y día se aplican encima.</p>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-4">
-                {Object.entries(config.tasksConfig).map(([cat, pts]) => (
-                  <div key={cat} className="flex items-center gap-4">
-                    <label className="flex-1 text-sm font-medium text-gray-800">
-                      {TASK_CATEGORY_LABELS[cat] || cat}
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={pts}
-                        onChange={(e) => setConfig({ ...config, tasksConfig: { ...config.tasksConfig, [cat]: parseFloat(e.target.value) } })}
-                        step="1"
-                        min="1"
-                        max="50"
-                        className="w-20 text-center px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary text-sm"
-                      />
-                      <span className="text-sm text-gray-500 w-6">pts</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* ── MULTIPLICADORES ── */}
-        {activeTab === 'multiplicadores' && (
-          <div className="space-y-5">
-            <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
-              <div className="flex gap-2">
-                <Info className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-indigo-700">
-                  <p className="font-semibold mb-1">¿Cómo funcionan los multiplicadores?</p>
-                  <p>Los puntos finales se calculan como: <strong>Base × Franja horaria × Día × Hijos</strong>. Por ejemplo, una actividad de noche en fin de semana con 1 hijo: 15 pts × 1.4 × 1.2 × 1.4 ≈ 35 pts.</p>
-                </div>
-              </div>
-            </div>
-
-            <Card>
-              <CardTitle>Franja horaria</CardTitle>
-              <CardContent>
-                <div className="space-y-3">
-                  {Object.entries(config.multipliersConfig.franja || {}).map(([slot, factor]) => (
-                    <div key={slot} className="flex items-center gap-4">
-                      <span className="flex-1 text-sm text-gray-700">{TIME_SLOT_LABELS[slot] || slot}</span>
-                      <div className="flex items-center gap-2">
-                        <div className="w-32 bg-gray-200 rounded-full h-2">
-                          <div className="bg-indigo-500 h-2 rounded-full" style={{ width: `${Math.min(((factor as number) / 2) * 100, 100)}%` }} />
-                        </div>
-                        <span className="font-bold text-indigo-700 w-10 text-right">×{(factor as number).toFixed(1)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardTitle>Día de la semana</CardTitle>
-              <CardContent>
-                <div className="space-y-3">
-                  {Object.entries(config.multipliersConfig.dia || { entre_semana: 1.0, fin_de_semana: 1.2 }).map(([dia, factor]) => (
-                    <div key={dia} className="flex items-center gap-4">
-                      <span className="flex-1 text-sm text-gray-700">{dia === 'entre_semana' ? '📅 Entre semana (L–V)' : '🎉 Fin de semana (S–D)'}</span>
-                      <span className="font-bold text-indigo-700">×{(factor as number).toFixed(1)}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardTitle>Hijos a cargo</CardTitle>
-              <CardContent>
-                <div className="space-y-3">
-                  {Object.entries(config.multipliersConfig.hijos || {}).map(([n, factor]) => (
-                    <div key={n} className="flex items-center gap-4">
-                      <span className="flex-1 text-sm text-gray-700">{n === '0' ? '🙋 Sin hijos' : `👶 ${n} hijo${n === '1' ? '' : 's'} a cargo`}</span>
-                      <span className="font-bold text-orange-600">×{(factor as number).toFixed(1)}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+        {/* Email */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-text-primary">Notificaciones por email</p>
+            <p className="text-[11px] text-text-secondary">Resúmenes semanales y alertas importantes</p>
           </div>
-        )}
+          <Toggle checked={emailOn} onChange={saveEmail} />
+        </div>
 
-        {/* ── REGLAS ── */}
-        {activeTab === 'reglas' && (
-          <>
-          <Card>
-            <CardTitle>Reglas del Sistema</CardTitle>
-            <CardContent>
-              <div className="mb-5 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-                <div className="flex gap-2">
-                  <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-yellow-700">
-                    Estas son las reglas activas del sistema de puntos. Están optimizadas para un uso justo y equilibrado.
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-5">
-                <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
-                  <div className="text-2xl">🔄</div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900 mb-1">Rondas de negociación</p>
-                    <p className="text-sm text-gray-600">Cada solicitud de actividad permite <strong>2 rondas</strong> de contra-propuesta antes de decidir. Esto da margen para negociar fechas, compensaciones y condiciones.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
-                  <div className="text-2xl">💰</div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900 mb-1">Descuento máximo por compensación</p>
-                    <p className="text-sm text-gray-600">Una compensación puede reducir el coste de la actividad hasta un máximo del <strong>30%</strong>. Siempre se cobra al menos 1 punto.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
-                  <div className="text-2xl">🏆</div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900 mb-1">Puntos máximos por actividad</p>
-                    <p className="text-sm text-gray-600">Ninguna actividad puede valer más de <strong>500 puntos</strong>, para evitar desequilibrios extremos.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
-                  <div className="text-2xl">✅</div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900 mb-1">Verificación de tareas</p>
-                    <p className="text-sm text-gray-600">Las tareas registradas quedan en estado <em>pendiente</em> hasta que tu pareja las verifique. Solo entonces se suman los puntos al saldo definitivo.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
-                  <div className="text-2xl">⚖️</div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900 mb-1">Saldo en negativo</p>
-                    <p className="text-sm text-gray-600">El saldo puede ser negativo. Indica que esa persona está "en deuda" con la pareja: ha disfrutado de más actividades personales de las que ha compensado con tareas.</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="h-px bg-brd-subtle" />
 
-          {/* Reglas del Juego */}
-          <section className="mt-6">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-amber-400 mb-3 px-1">
-              📋 Reglas del Juego
-            </h2>
-            <p className="text-xs text-gray-500 mb-3 leading-relaxed">
-              Las reglas que ambos habéis acordado. Cualquiera puede proponer un cambio — el otro debe aprobar.
-            </p>
-
-            {/* Rules list */}
-            <div className="space-y-2 mb-4">
-              {(rulesData?.rules || []).map((rule: any) => (
-                <div key={rule.key} className="flex gap-3 items-start rounded-xl p-3"
-                     style={{ background: 'rgba(26,16,53,0.85)', border: '1px solid rgba(168,85,247,0.15)' }}>
-                  <div className="text-lg">📌</div>
-                  <div>
-                    <div className="text-xs font-semibold text-white">{rule.description}</div>
-                    <div className="text-[11px] text-amber-400 mt-0.5">{String(rule.value ?? 'automático')}</div>
-                    <span className="inline-block mt-1 text-[9px] px-2 py-0.5 rounded-full"
-                          style={{ background: 'rgba(34,197,94,0.12)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.25)' }}>
-                      ✓ Acordado
-                    </span>
-                  </div>
-                </div>
-              ))}
+        {/* Quiet hours */}
+        <div>
+          <p className="text-sm font-bold text-text-primary mb-1">Horas de silencio</p>
+          <p className="text-[11px] text-text-secondary mb-3">No recibirás notificaciones en este rango</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-semibold text-text-secondary block mb-1">Desde</label>
+              <input
+                type="time"
+                value={quietFrom}
+                onChange={(e) => saveQuiet(e.target.value, quietTo)}
+                className="w-full bg-surface-card border border-brd-purple rounded-md px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-brand-purple"
+              />
             </div>
+            <div>
+              <label className="text-[11px] font-semibold text-text-secondary block mb-1">Hasta</label>
+              <input
+                type="time"
+                value={quietTo}
+                onChange={(e) => saveQuiet(quietFrom, e.target.value)}
+                className="w-full bg-surface-card border border-brd-purple rounded-md px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-brand-purple"
+              />
+            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  )
+}
 
-            {/* Pending proposals */}
-            {(rulesData?.proposals || []).filter((p: any) => p.status === 'pending').map((proposal: any) => (
-              <div key={proposal.id} className="mb-3">
-                <p className="text-[10px] uppercase tracking-wide text-amber-400 font-bold mb-1.5">⏳ Propuesta pendiente</p>
-                <RuleProposalCard proposal={proposal} currentUserId={user?.id || ''} />
+// -----------------------------------------------------------------------------
+// Section: Premium
+// -----------------------------------------------------------------------------
+
+function PremiumSection({ onBack }: { onBack: () => void }) {
+  const [modalOpen, setModalOpen] = useState(false)
+  return (
+    <div>
+      <SectionHeader title="Suscripción Premium" onBack={onBack} />
+      <Card className="text-center space-y-3">
+        <div className="w-16 h-16 mx-auto rounded-full bg-grad-cta flex items-center justify-center text-4xl">👑</div>
+        <div>
+          <p className="text-sm text-text-secondary">Tu plan actual</p>
+          <div className="flex items-center justify-center gap-2 mt-1">
+            <p className="text-lg font-extrabold text-text-primary">Gratis</p>
+            <Pill tone="amber">Upgrade</Pill>
+          </div>
+        </div>
+        <ul className="text-left text-xs text-text-primary space-y-1.5 bg-surface-muted border border-brd-subtle rounded-md p-3">
+          <li>✅ Rondas de negociación ilimitadas</li>
+          <li>✅ Analítica avanzada completa</li>
+          <li>✅ Histórico sin límite</li>
+          <li>✅ Badge 👑 en tu perfil</li>
+        </ul>
+        <Button variant="primary" fullWidth onClick={() => setModalOpen(true)}>
+          Avísame cuando salga
+        </Button>
+      </Card>
+
+      <PremiumInterestModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        source="settings_premium_cta"
+      />
+    </div>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Section: Rules
+// -----------------------------------------------------------------------------
+
+function RulesSection({ onBack }: { onBack: () => void }) {
+  const { user } = useAppStore()
+  const { data: rulesData, isLoading } = useQuery({
+    queryKey: ['rules'],
+    queryFn: () => apiClient.rules.getAll(),
+  })
+
+  const rules = rulesData?.rules ?? []
+  const pendingProposals = (rulesData?.proposals ?? []).filter((p: any) => p.status === 'pending')
+
+  return (
+    <div>
+      <SectionHeader title="Reglas de puntos" onBack={onBack} />
+
+      <Card className="mb-4">
+        <p className="text-xs text-text-secondary leading-relaxed">
+          Las reglas del sistema de puntos acordadas por la pareja. Cualquiera puede proponer un cambio — el otro debe aprobar.
+        </p>
+      </Card>
+
+      {isLoading && (
+        <div className="flex items-center gap-2 text-text-tertiary text-xs py-4">
+          <Loader className="w-4 h-4 animate-spin" /> Cargando…
+        </div>
+      )}
+
+      {!isLoading && (
+        <>
+          <div className="space-y-2 mb-4">
+            {rules.length === 0 && (
+              <Card><p className="text-xs text-text-tertiary text-center">No hay reglas acordadas aún.</p></Card>
+            )}
+            {rules.map((rule: any) => (
+              <div
+                key={rule.key}
+                className="flex gap-3 items-start rounded-md p-3 bg-surface-card border border-brd-subtle"
+              >
+                <div className="text-lg">📌</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold text-text-primary">{rule.description}</div>
+                  <div className="text-[11px] text-brand-amber mt-0.5">{String(rule.value ?? 'automático')}</div>
+                  <Pill tone="success" className="mt-1">✓ Acordado</Pill>
+                </div>
               </div>
             ))}
+          </div>
 
-            <button
-              onClick={() => {/* propose modal - future */}}
-              className="w-full mt-2 py-2.5 rounded-xl text-xs text-purple-400"
-              style={{ background: 'transparent', border: '1px dashed rgba(168,85,247,0.3)' }}>
-              + Proponer nueva regla
-            </button>
-          </section>
-          </>
-        )}
+          {pendingProposals.length > 0 && (
+            <div className="space-y-3 mb-4">
+              <p className="text-[10px] uppercase tracking-wide text-brand-amber font-bold">⏳ Propuestas pendientes</p>
+              {pendingProposals.map((p: any) => (
+                <RuleProposalCard key={p.id} proposal={p} currentUserId={user?.id ?? ''} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
 
-        {/* ── PAREJA ── */}
-        {activeTab === 'pareja' && (
-          <Card>
-            <CardTitle>Tu Pareja</CardTitle>
-            <CardContent>
-              {/* Pending link requests — shown regardless of partner status */}
-              {pendingLinkRequests.length > 0 && (
-                <div className="mb-5 space-y-3">
-                  {pendingLinkRequests.map(req => (
-                    <div key={req.id} className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
-                      <p className="text-sm font-semibold text-indigo-900 mb-1">💌 Solicitud de vinculación</p>
-                      <p className="text-sm text-indigo-800 mb-3">
-                        <strong>{req.fromUser.name}</strong> ({req.fromUser.email}) quiere vincularse contigo como pareja.
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleRejectLinkRequest(req.id)}
-                          disabled={linkRequestActionLoading}
-                          className="flex-1 py-2 px-3 border border-gray-300 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
-                        >
-                          Rechazar
-                        </button>
-                        <button
-                          onClick={() => handleAcceptLinkRequest(req.id)}
-                          disabled={linkRequestActionLoading}
-                          className="flex-1 py-2 px-3 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                          {linkRequestActionLoading ? <Loader className="w-4 h-4 animate-spin" /> : null}
-                          Aceptar vinculación
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+// -----------------------------------------------------------------------------
+// Section: Language & Theme
+// -----------------------------------------------------------------------------
 
-              {otherUser ? (
-                <div className="space-y-5">
-                  <div className="p-5 bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-xl">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white text-xl font-bold">
-                        {otherUser.name?.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-bold text-gray-900 text-lg">{otherUser.name}</p>
-                        <p className="text-sm text-gray-600">{otherUser.email}</p>
-                        <span className="inline-block text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full mt-1">✅ Conectado</span>
-                      </div>
-                    </div>
-                  </div>
+function LanguageThemeSection({ onBack }: { onBack: () => void }) {
+  return (
+    <div>
+      <SectionHeader title="Idioma y tema" onBack={onBack} />
+      <Card className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-text-primary">Idioma</p>
+            <p className="text-xs text-text-secondary">Español</p>
+          </div>
+          <Pill tone="indigo">Próximamente</Pill>
+        </div>
+        <div className="h-px bg-brd-subtle" />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-text-primary">Tema</p>
+            <p className="text-xs text-text-secondary">Oscuro (único tema en v1.4)</p>
+          </div>
+          <Pill tone="indigo">Próximamente</Pill>
+        </div>
+      </Card>
+    </div>
+  )
+}
 
-                  <div className="p-4 bg-gray-50 rounded-xl">
-                    <p className="text-sm font-semibold text-gray-700 mb-3">Vuestra pareja</p>
-                    <p className="text-sm text-gray-600">
-                      Nombre: <span className="font-medium">{couple?.name || `${user?.name} & ${otherUser.name}`}</span>
-                    </p>
-                  </div>
+// -----------------------------------------------------------------------------
+// Section: Privacy
+// -----------------------------------------------------------------------------
 
-                  {/* Reset de puntos — partner has pending request */}
-                  {hasPendingResetFromPartner && (
-                    <div className="p-4 bg-red-50 border border-red-300 rounded-xl">
-                      <div className="flex items-start gap-3 mb-3">
-                        <RefreshCw className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-semibold text-red-800">Tu pareja quiere resetear los puntos</p>
-                          <p className="text-xs text-red-700 mt-1">
-                            <strong>{otherUser?.name}</strong> ha solicitado resetear todos los saldos a cero. ¿Confirmas?
-                          </p>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-red-100 border border-red-200 rounded-lg text-xs text-red-800 mb-3">
-                        🚨 <strong>Acción irreversible.</strong> Al confirmar, todos los puntos de los dos se eliminarán permanentemente.
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => setHasPendingResetFromPartner(false)} className="flex-1 py-2 px-3 border border-gray-300 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50">
-                          Rechazar
-                        </button>
-                        <button
-                          onClick={handleConfirmReset}
-                          disabled={isResetting}
-                          className="flex-1 py-2 px-3 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
-                        >
-                          {isResetting ? <Loader className="w-3 h-3 animate-spin" /> : '🗑️'}
-                          Confirmar reset
-                        </button>
-                      </div>
-                    </div>
-                  )}
+function PrivacySection({ onBack }: { onBack: () => void }) {
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-                  {/* Reset de puntos — request */}
-                  {!hasPendingResetFromPartner && (
-                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl">
-                      <div className="flex items-start gap-3 mb-3">
-                        <RefreshCw className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-semibold text-orange-800">Solicitar reset de puntos</p>
-                          <p className="text-xs text-orange-700 mt-1">
-                            Reinicia todos los saldos a cero. Se enviará una notificación a <strong>{otherUser?.name}</strong> para que confirme.
-                          </p>
-                        </div>
-                      </div>
+  // Export/delete endpoints do not exist in backend yet — buttons are disabled.
+  const exportAvailable = false
+  const deleteAvailable = false
 
-                      {resetState === 'idle' && (
-                        <button
-                          onClick={() => setResetState('requesting')}
-                          className="w-full py-2.5 px-4 border-2 border-orange-400 text-orange-700 rounded-xl text-sm font-medium hover:bg-orange-100 transition-colors flex items-center justify-center gap-2"
-                        >
-                          <RefreshCw className="w-4 h-4" />
-                          Solicitar reset de puntos
-                        </button>
-                      )}
+  return (
+    <div>
+      <SectionHeader title="Privacidad y datos" onBack={onBack} />
+      {error && <Banner type="error" message={error} />}
 
-                      {resetState === 'requesting' && (
-                        <div className="space-y-3">
-                          <div className="p-3 bg-orange-100 rounded-lg text-xs text-orange-800">
-                            ⚠️ Se enviará una notificación a <strong>{otherUser?.name}</strong>. Cuando acepte en su app, los puntos se resetearán.
-                          </div>
-                          <div className="flex gap-2">
-                            <button onClick={() => setResetState('idle')} className="flex-1 py-2 px-3 border border-gray-300 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50">
-                              Cancelar
-                            </button>
-                            <button
-                              onClick={handleRequestReset}
-                              disabled={isResetting}
-                              className="flex-1 py-2 px-3 bg-orange-500 text-white rounded-xl text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
-                            >
-                              {isResetting ? <Loader className="w-3 h-3 animate-spin" /> : null}
-                              Enviar solicitud
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+      <Card className="space-y-3">
+        {/* Export */}
+        <div>
+          <Button
+            variant="ghost"
+            fullWidth
+            disabled={!exportAvailable}
+            onClick={() => { /* No-op — not available */ }}
+          >
+            <span className="flex items-center justify-center gap-2">
+              <Download className="w-4 h-4" />
+              Exportar mis datos (JSON)
+            </span>
+          </Button>
+          {!exportAvailable && (
+            <p className="text-[11px] text-text-tertiary mt-1 text-center">Próximamente</p>
+          )}
+        </div>
 
-                  <div>
-                    <p className="text-sm font-medium text-gray-700 mb-3">Zona de peligro</p>
-                    <button className="w-full py-3 px-4 border-2 border-red-300 text-red-700 rounded-xl text-sm font-medium hover:bg-red-50 transition-colors flex items-center justify-center gap-2">
-                      <AlertCircle className="w-4 h-4" />
-                      Desconectar asociación
-                    </button>
-                    <p className="text-xs text-gray-500 mt-2">
-                      ⚠️ Esto desconectará vuestra cuenta compartida y archivará todo el historial.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  <div className="p-5 bg-gray-50 rounded-xl text-center">
-                    <div className="text-4xl mb-3">💑</div>
-                    <p className="font-semibold text-gray-800 mb-1">Aún no tienes pareja conectada</p>
-                    <p className="text-sm text-gray-500">Elige cómo conectar con tu pareja:</p>
-                  </div>
+        {/* Delete account */}
+        <div>
+          <Button
+            variant="danger"
+            fullWidth
+            disabled={!deleteAvailable}
+            onClick={() => setDeleteOpen(true)}
+          >
+            <span className="flex items-center justify-center gap-2">
+              <Trash2 className="w-4 h-4" />
+              Eliminar mi cuenta
+            </span>
+          </Button>
+          {!deleteAvailable && (
+            <p className="text-[11px] text-text-tertiary mt-1 text-center">Próximamente</p>
+          )}
+        </div>
 
-                  {/* Option buttons */}
-                  {partnerMode === 'idle' && (
-                    <div className="grid grid-cols-1 gap-3">
-                      <button
-                        onClick={() => { setPartnerMode('link'); setPartnerActionError(null); setPartnerEmail('') }}
-                        className="w-full flex items-center gap-3 p-4 border-2 border-indigo-200 rounded-xl hover:bg-indigo-50 transition-colors text-left"
-                      >
-                        <Link2 className="w-5 h-5 text-indigo-600 flex-shrink-0" />
-                        <div>
-                          <p className="font-semibold text-gray-900 text-sm">Mi pareja ya tiene cuenta</p>
-                          <p className="text-xs text-gray-500">Vincula directamente con su email</p>
-                        </div>
-                      </button>
-                      <button
-                        onClick={() => { setPartnerMode('invite'); setPartnerActionError(null); setPartnerEmail(''); setInviteLink(null) }}
-                        className="w-full flex items-center gap-3 p-4 border-2 border-purple-200 rounded-xl hover:bg-purple-50 transition-colors text-left"
-                      >
-                        <Mail className="w-5 h-5 text-purple-600 flex-shrink-0" />
-                        <div>
-                          <p className="font-semibold text-gray-900 text-sm">Invitar a mi pareja</p>
-                          <p className="text-xs text-gray-500">Genera un enlace de invitación para que se registre</p>
-                        </div>
-                      </button>
-                    </div>
-                  )}
+        <div className="h-px bg-brd-subtle" />
 
-                  {/* Link by email */}
-                  {partnerMode === 'link' && !linkSuccess && (
-                    <div className="space-y-3">
-                      <p className="text-sm font-medium text-gray-700">Email de tu pareja (debe tener cuenta en Matripuntos):</p>
-                      <input
-                        type="email"
-                        value={partnerEmail}
-                        onChange={e => setPartnerEmail(e.target.value)}
-                        placeholder="pareja@ejemplo.com"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                      />
-                      {partnerActionError && (
-                        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{partnerActionError}</p>
-                      )}
-                      <div className="flex gap-2">
-                        <button onClick={() => { setPartnerMode('idle'); setPartnerActionError(null) }} className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50">
-                          Cancelar
-                        </button>
-                        <button
-                          onClick={handleLinkPartner}
-                          disabled={partnerActionLoading || !partnerEmail.trim()}
-                          className="flex-1 py-2.5 px-4 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                          {partnerActionLoading ? <Loader className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-                          Vincular pareja
-                        </button>
-                      </div>
-                    </div>
-                  )}
+        <a
+          href="/tos"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 text-xs text-brand-purple hover:underline"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+          Términos y condiciones
+        </a>
+      </Card>
 
-                  {/* Invite flow */}
-                  {partnerMode === 'invite' && !inviteLink && (
-                    <div className="space-y-3">
-                      <p className="text-sm font-medium text-gray-700">Email de tu pareja (le llegará el enlace):</p>
-                      <input
-                        type="email"
-                        value={partnerEmail}
-                        onChange={e => setPartnerEmail(e.target.value)}
-                        placeholder="pareja@ejemplo.com"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-                      />
-                      {partnerActionError && (
-                        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{partnerActionError}</p>
-                      )}
-                      <div className="flex gap-2">
-                        <button onClick={() => { setPartnerMode('idle'); setPartnerActionError(null) }} className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50">
-                          Cancelar
-                        </button>
-                        <button
-                          onClick={handleInvitePartner}
-                          disabled={partnerActionLoading || !partnerEmail.trim()}
-                          className="flex-1 py-2.5 px-4 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                          {partnerActionLoading ? <Loader className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-                          Generar enlace
-                        </button>
-                      </div>
-                    </div>
-                  )}
+      <DoubleConfirmModal
+        open={deleteOpen}
+        title="Eliminar cuenta"
+        firstMessage="¿Seguro que quieres eliminar tu cuenta?"
+        secondMessage="Esta acción es irreversible. Tus datos serán eliminados permanentemente."
+        confirmLabel="Eliminar definitivamente"
+        onCancel={() => setDeleteOpen(false)}
+        onConfirm={() => {
+          setDeleteOpen(false)
+          setError('Funcionalidad próximamente — contacta soporte si necesitas eliminar tu cuenta ahora.')
+        }}
+      />
+    </div>
+  )
+}
 
-                  {/* Invite link result */}
-                  {partnerMode === 'invite' && inviteLink && (
-                    <div className="space-y-3">
-                      <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
-                        <p className="text-sm font-semibold text-green-800 mb-2">✅ Enlace generado</p>
-                        <p className="text-xs text-green-700 mb-3">Comparte este enlace con tu pareja. Caduca en 7 días.</p>
-                        <div className="flex items-center gap-2 bg-white border border-green-300 rounded-lg px-3 py-2">
-                          <p className="text-xs text-gray-700 flex-1 truncate font-mono">{inviteLink}</p>
-                          <button
-                            onClick={() => { navigator.clipboard.writeText(inviteLink); setCopiedLink(true); setTimeout(() => setCopiedLink(false), 2000) }}
-                            className="flex-shrink-0 text-green-700 hover:text-green-900"
-                          >
-                            {copiedLink ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-                      <button onClick={() => { setPartnerMode('idle'); setInviteLink(null) }} className="w-full py-2.5 px-4 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50">
-                        Volver
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </main>
+// -----------------------------------------------------------------------------
+// Orchestrator
+// -----------------------------------------------------------------------------
+
+export default function Settings() {
+  const { section } = useParams<{ section?: string }>()
+  const nav = useNavigate()
+  const goIndex = () => nav('/settings')
+
+  let content: JSX.Element
+  switch (section as SectionSlug | undefined) {
+    case 'profile':         content = <ProfileSection         onBack={goIndex} />; break
+    case 'couple':          content = <CoupleSection          onBack={goIndex} />; break
+    case 'notifications':   content = <NotificationsSection   onBack={goIndex} />; break
+    case 'premium':         content = <PremiumSection         onBack={goIndex} />; break
+    case 'rules':           content = <RulesSection           onBack={goIndex} />; break
+    case 'language-theme':  content = <LanguageThemeSection   onBack={goIndex} />; break
+    case 'privacy':         content = <PrivacySection         onBack={goIndex} />; break
+    default:                content = <SettingsIndex />
+  }
+
+  return (
+    <div className="max-w-[500px] mx-auto px-4 py-4 pb-24 text-text-primary">
+      {content}
     </div>
   )
 }

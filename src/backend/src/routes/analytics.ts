@@ -111,11 +111,14 @@ router.get('/points-by-category', async (req: Request, res: Response) => {
   try {
     const coupleId = (req as any).user.coupleId
     const { startDate, endDate } = req.query
+    const grouped = req.query.groupByUser === 'true'
 
     const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30))
     const end = endDate ? new Date(endDate as string) : new Date()
 
-    const distribution = await analyticsService.getPointsByCategory(coupleId, start, end)
+    const distribution = grouped
+      ? await analyticsService.getPointsByCategoryGrouped(coupleId, start, end)
+      : await analyticsService.getPointsByCategory(coupleId, start, end)
 
     res.json({
       message: 'Points by category retrieved',
@@ -232,6 +235,71 @@ router.get('/daily-breakdown', async (req: Request, res: Response) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to retrieve daily breakdown'
     res.status(500).json({ error: message })
+  }
+})
+
+/**
+ * GET /api/analytics/time-invested
+ * Horas invertidas por usuario (tareas con heurística por categoría + duración de eventos).
+ * Query: ?range=week|month (default: week)
+ */
+router.get('/time-invested', async (req: Request, res: Response) => {
+  try {
+    const coupleId = (req as any).user.coupleId
+    const range = (req.query.range as 'week' | 'month') ?? 'week'
+    const data = await analyticsService.getTimeInvested(coupleId, range)
+    res.json({ success: true, data })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Error' })
+  }
+})
+
+/**
+ * GET /api/analytics/heatmap
+ * Actividad por día de semana × franja horaria (7×6 grid).
+ * Query: ?weeks=4 (default: 4, min: 1, max: 52)
+ */
+router.get('/heatmap', async (req: Request, res: Response) => {
+  try {
+    const coupleId = (req as any).user.coupleId
+    const weeks = Math.max(1, Math.min(52, Number(req.query.weeks ?? 4)))
+    const data = await analyticsService.getHeatmap(coupleId, weeks)
+    res.json({ success: true, data })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Error' })
+  }
+})
+
+/**
+ * GET /api/analytics/completion-rate
+ * % de TaskLogs verificadas vs totales por usuario.
+ * Query: ?range=week|month (default: month)
+ */
+router.get('/completion-rate', async (req, res) => {
+  try {
+    const coupleId = (req as any).user.coupleId
+    const range = (req.query.range as 'week' | 'month') ?? 'month'
+    const data = await analyticsService.getCompletionRate(coupleId, range)
+    res.json({ success: true, data })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Error' })
+  }
+})
+
+/**
+ * GET /api/analytics/insight
+ * Insight heurístico mensual con templates + cache 6h.
+ * Query: ?month=4&year=2026 (default: mes/año actual)
+ */
+router.get('/insight', async (req, res) => {
+  try {
+    const coupleId = (req as any).user.coupleId
+    const month = Number(req.query.month ?? new Date().getMonth() + 1)
+    const year  = Number(req.query.year  ?? new Date().getFullYear())
+    const data = await analyticsService.getMonthlyInsight(coupleId, month, year)
+    res.json({ success: true, data })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Error' })
   }
 })
 

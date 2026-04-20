@@ -1,231 +1,182 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { Loader, ChevronRight } from 'lucide-react'
-import { useAppStore } from '../store/useAppStore'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { apiClient } from '../services/apiClient'
-import OnboardingStep1 from '../components/onboarding/OnboardingStep1'
-import OnboardingStep2 from '../components/onboarding/OnboardingStep2'
-import OnboardingStep3 from '../components/onboarding/OnboardingStep3'
-import OnboardingStep4 from '../components/onboarding/OnboardingStep4'
-import OnboardingJoinFlow from '../components/onboarding/OnboardingJoinFlow'
+import { useAppStore } from '../store/useAppStore'
+import { StepWelcome } from './onboarding/StepWelcome'
+import { StepProfile } from './onboarding/StepProfile'
+import { StepPair } from './onboarding/StepPair'
+import { StepRules } from './onboarding/StepRules'
+import { StepCategories } from './onboarding/StepCategories'
+import { StepDone } from './onboarding/StepDone'
 
-type OnboardingStep = 1 | 2 | 3 | 4
-
-interface OnboardingData {
-  // User profile
-  surname?: string
-  dateOfBirth?: string
-  weeklyWorkHours?: number
-  workMode?: 'presencial' | 'teletrabajo' | 'hibrido'
-  taskPreferencesLoves?: string[]
-  taskPreferencesDislikes?: string[]
-
-  // Couple profile
-  homeType?: 'piso' | 'casa' | 'otro'
-  homeSizeM2?: number
-
-  // Family
-  children?: Array<{
-    name: string
-    dateOfBirth: string
-    livesWithUser1: boolean
-    livesWithUser2: boolean
-  }>
-  pets?: Array<{
-    name: string
-    type: string
-    quantity: number
-  }>
-
-  // Partner invitation
-  partnerEmail?: string
-  invitationMethod?: 'email' | 'link'
+export interface OnboardingData {
+  avatarEmoji: string
+  avatarColor: string
+  pairMethod: 'email' | 'code' | 'solo'
+  pairEmail: string
+  pairCode: string
+  rules: { nightMult: number; weeklyBonus: number }
+  categories: string[]
 }
 
+const DEFAULT_CATEGORIES = [
+  'cocina',
+  'banos',
+  'limpieza',
+  'compra',
+  'logistica',
+  'cuidado',
+  'mantenimiento',
+  'jardineria',
+  'mascotas',
+]
+
 export default function Onboarding() {
-  const navigate = useNavigate()
-  const { token } = useParams<{ token: string }>()
+  const nav = useNavigate()
+  const location = useLocation()
+  const { token } = useParams<{ token?: string }>()
   const { user } = useAppStore()
 
-  // Check if joining via invitation link
+  const [step, setStep] = useState(0)
+  const [data, setData] = useState<OnboardingData>({
+    avatarEmoji: '🐼',
+    avatarColor: '#7c3aed',
+    pairMethod: 'code',
+    pairEmail: '',
+    pairCode: '',
+    rules: { nightMult: 1.5, weeklyBonus: 0.25 },
+    categories: [...DEFAULT_CATEGORIES],
+  })
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  // Auto-skip past Welcome/Profile/Pair if user arrived via invitation link
+  // Token means they are already paired — pre-fill and jump straight to Rules.
   useEffect(() => {
-    if (token) {
-      // This is a join flow
-      return
+    const params = new URLSearchParams(location.search)
+    const urlToken = token ?? params.get('token') ?? ''
+    if (urlToken) {
+      setData((prev) => ({ ...prev, pairMethod: 'code', pairCode: urlToken }))
+      setStep(3)
     }
+  }, [token, location.search])
 
-    // If already authenticated and completed onboarding, go to dashboard
-    if (user?.hasCompletedOnboarding) {
-      navigate('/dashboard')
-    }
-  }, [token, user, navigate])
+  // If user already completed onboarding, skip to dashboard
+  useEffect(() => {
+    if (user?.hasCompletedOnboarding) nav('/dashboard')
+  }, [user?.hasCompletedOnboarding, nav])
 
-  const [currentStep, setCurrentStep] = useState<OnboardingStep>(1)
-  const [isLoading, setIsLoading] = useState(false)
-  const [data, setData] = useState<OnboardingData>({})
-  const [error, setError] = useState<string | null>(null)
-
-  const handleStepChange = (stepData: Partial<OnboardingData>, nextStep?: number) => {
-    setData(prev => ({ ...prev, ...stepData }))
-    if (nextStep) {
-      setCurrentStep(nextStep as OnboardingStep)
-      window.scrollTo(0, 0)
-    }
+  function update(patch: Partial<OnboardingData>) {
+    setData((prev) => ({ ...prev, ...patch }))
   }
 
-  const handleSubmit = async () => {
+  async function finish() {
+    setBusy(true)
+    setErr(null)
     try {
-      setIsLoading(true)
-      setError(null)
-
-      // Save user profile
-      if (user?.id) {
-        await apiClient.profile.completeUserProfile({
-          surname: data.surname,
-          dateOfBirth: data.dateOfBirth,
-          weeklyWorkHours: data.weeklyWorkHours,
-          workMode: data.workMode,
-          taskPreferencesLoves: data.taskPreferencesLoves,
-          taskPreferencesDislikes: data.taskPreferencesDislikes,
-        })
-      }
-
-      // Save couple profile
-      await apiClient.profile.createCoupleProfile({
-        homeType: data.homeType,
-        homeSizeM2: data.homeSizeM2,
+      // 1. Persist avatar
+      await apiClient.profile.updateMe({
+        avatarEmoji: data.avatarEmoji,
+        avatarColor: data.avatarColor,
       })
 
-      // Add children if any
-      if (data.children && data.children.length > 0) {
-        for (const child of data.children) {
-          await apiClient.family.addChild(child)
+      // 2. Persist rule multipliers
+      await apiClient.configuration.update({
+        multipliersConfig: {
+          nightMult: data.rules.nightMult,
+          weekendBonus: data.rules.weeklyBonus,
+        },
+      })
+
+      // 3. Partner invite (non-blocking if it fails)
+      if (data.pairMethod === 'email' && data.pairEmail.includes('@')) {
+        try {
+          await apiClient.request('/auth/invite-partner', {
+            method: 'POST',
+            body: JSON.stringify({ inviteeEmail: data.pairEmail }),
+          })
+        } catch {
+          // Non-blocking: user can re-invite later from settings
         }
       }
+      // TODO: persist categories when backend supports it
 
-      // Add pets if any
-      if (data.pets && data.pets.length > 0) {
-        for (const pet of data.pets) {
-          await apiClient.family.addPet(pet)
-        }
-      }
+      // 4. Flip hasCompletedOnboarding + create minimal UserProfile
+      await apiClient.request('/profile/user', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      })
 
-      // If partner email provided, send invitation
-      if (data.partnerEmail) {
-        await apiClient.invitations.invitePartner({
-          inviteeEmail: data.partnerEmail,
-        })
-      }
+      // 5. Refresh store so redirect works with fresh flag
+      await useAppStore
+        .getState()
+        .loadUserData()
+        .catch(() => {})
 
-      navigate('/dashboard')
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to complete onboarding'
-      setError(message)
-      console.error('Onboarding error:', err)
+      nav('/dashboard')
+    } catch (e: any) {
+      setErr(e?.message ?? 'Error al guardar tu configuración')
     } finally {
-      setIsLoading(false)
+      setBusy(false)
     }
   }
 
-  // If joining via invitation link
-  if (token) {
-    return <OnboardingJoinFlow token={token} />
-  }
+  const next = () => setStep((s) => Math.min(5, s + 1))
+  const prev = () => setStep((s) => Math.max(0, s - 1))
+
+  const total = 6
+  const pct = Math.round(((step + 1) / total) * 100)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-2xl mx-auto px-4 py-6">
+    <main className="bg-surface-base min-h-screen px-6 flex flex-col">
+      <div className="flex-1 flex flex-col py-8 max-w-md mx-auto w-full">
+        {step > 0 && step < 5 && (
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-lg">
-              M
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">Matripuntos</h1>
-          </div>
-          <p className="text-gray-600">Vamos a completar tu perfil</p>
-        </div>
-
-        {/* Progress bar */}
-        <div className="bg-gray-100">
-          <div className="max-w-2xl mx-auto px-4 py-3">
-            <div className="flex items-center justify-between text-sm text-gray-600">
-              <span>Paso {currentStep} de 4</span>
-              <div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all duration-300"
-                  style={{ width: `${(currentStep / 4) * 100}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main content */}
-      <main className="max-w-2xl mx-auto px-4 py-8">
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-            {error}
-          </div>
-        )}
-
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader className="w-8 h-8 text-primary animate-spin" />
-            <span className="ml-2 text-gray-600">Guardando datos...</span>
-          </div>
-        ) : (
-          <>
-            {currentStep === 1 && (
-              <OnboardingStep1
-                data={data}
-                onChange={handleStepChange}
-              />
-            )}
-            {currentStep === 2 && (
-              <OnboardingStep2
-                data={data}
-                onChange={handleStepChange}
-              />
-            )}
-            {currentStep === 3 && (
-              <OnboardingStep3
-                data={data}
-                onChange={handleStepChange}
-              />
-            )}
-            {currentStep === 4 && (
-              <OnboardingStep4
-                data={data}
-                onChange={handleStepChange}
-                onSubmit={handleSubmit}
-                isLoading={isLoading}
-              />
-            )}
-          </>
-        )}
-
-        {/* Navigation buttons */}
-        {!isLoading && currentStep > 1 && (
-          <div className="mt-8 flex gap-4">
             <button
-              onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1) as OnboardingStep)}
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              onClick={prev}
+              className="text-text-secondary text-xl"
+              aria-label="Atrás"
             >
-              ← Atrás
+              ←
             </button>
-            {currentStep < 4 && (
-              <button
-                onClick={() => setCurrentStep((prev) => Math.min(4, prev + 1) as OnboardingStep)}
-                className="flex-1 px-4 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary-600 transition-colors flex items-center justify-center gap-2"
-              >
-                Siguiente <ChevronRight className="w-5 h-5" />
-              </button>
-            )}
+            <div className="flex-1 h-1 bg-brd-subtle rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-brand-purple to-brand-amber transition-all"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <span className="text-[11px] text-text-tertiary font-semibold">
+              {step + 1}/{total}
+            </span>
           </div>
         )}
-      </main>
-    </div>
+
+        {step === 0 && <StepWelcome onNext={next} />}
+        {step === 1 && (
+          <StepProfile
+            userName={user?.name ?? 'Tú'}
+            data={data}
+            onChange={update}
+            onNext={next}
+          />
+        )}
+        {step === 2 && <StepPair data={data} onChange={update} onNext={next} />}
+        {step === 3 && <StepRules data={data} onChange={update} onNext={next} />}
+        {step === 4 && (
+          <StepCategories data={data} onChange={update} onNext={next} />
+        )}
+        {step === 5 && (
+          <StepDone
+            data={data}
+            userName={user?.name ?? 'Tú'}
+            pairMethod={data.pairMethod}
+            inviteeEmail={data.pairEmail}
+            onFinish={finish}
+            busy={busy}
+            err={err}
+          />
+        )}
+      </div>
+    </main>
   )
 }

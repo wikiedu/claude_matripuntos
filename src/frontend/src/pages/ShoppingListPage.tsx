@@ -1,9 +1,17 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ShoppingCart, Plus, Trash2, Archive } from 'lucide-react'
+import { ShoppingCart, Plus, Trash2, Archive, ChevronDown, ChevronRight } from 'lucide-react'
 import { apiClient } from '../services/apiClient'
 import { useShoppingList } from '../hooks/useShoppingList'
-import { BottomNav } from '../components/BottomNav'
+import { Button } from '../components/v2/primitives/Button'
+import { Input } from '../components/v2/primitives/Input'
+import { Pill } from '../components/v2/primitives/Pill'
+import {
+  CATEGORIES,
+  CATEGORY_ORDER,
+  inferCategory,
+  type ShoppingCategoryKey,
+} from '../utils/shoppingCategory'
 import type { ShoppingItem } from '../types'
 
 export default function ShoppingListPage() {
@@ -11,6 +19,7 @@ export default function ShoppingListPage() {
   const { data, isLoading } = useShoppingList()
   const [newText, setNewText] = useState('')
   const [confirmArchive, setConfirmArchive] = useState(false)
+  const [showCompleted, setShowCompleted] = useState(true)
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['shopping'] })
 
@@ -41,172 +50,217 @@ export default function ShoppingListPage() {
     addMutation.mutate(text)
   }
 
+  // ─── Derivations ──────────────────────────────────────────────────────────
+  const activeItems = data?.active?.items ?? []
+  const history = data?.history ?? []
+
+  const { pendingByCategory, pendingCount, completedItems } = useMemo(() => {
+    const pending: Record<ShoppingCategoryKey, ShoppingItem[]> = {
+      fresco: [], despensa: [], hogar: [], mascotas: [], otros: [],
+    }
+    const done: ShoppingItem[] = []
+    for (const item of activeItems) {
+      if (item.isChecked) done.push(item)
+      else pending[inferCategory(item.text)].push(item)
+    }
+    for (const cat of CATEGORY_ORDER) {
+      pending[cat].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    }
+    done.sort((a, b) => (b.checkedAt ?? '').localeCompare(a.checkedAt ?? ''))
+    const pendCount = CATEGORY_ORDER.reduce((n, c) => n + pending[c].length, 0)
+    return { pendingByCategory: pending, pendingCount: pendCount, completedItems: done }
+  }, [activeItems])
+
+  const suggestedCategory = newText.trim() ? inferCategory(newText) : null
+
   if (isLoading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ color: 'var(--matri-text-3)' }}>Cargando...</span>
-      </div>
+      <main className="px-4 pt-8 pb-6">
+        <p className="text-center text-sm text-text-tertiary">Cargando...</p>
+      </main>
     )
   }
 
-  const active = data?.active
-  const history = data?.history ?? []
-  const pendingCount = active?.items.filter(i => !i.isChecked).length ?? 0
-
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--matri-bg)', paddingBottom: 80 }}>
-      {/* Header */}
-      <header style={{
-        position: 'sticky', top: 0, zIndex: 50,
-        background: 'var(--matri-card-bg)',
-        borderBottom: '1px solid var(--matri-card-border)',
-        padding: '16px',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <ShoppingCart size={20} color="var(--matri-amber)" />
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--matri-text)' }}>Lista de la compra</h1>
-          {pendingCount > 0 && (
-            <span style={{
-              background: 'rgba(245,158,11,0.15)', color: 'var(--matri-amber)',
-              fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-              border: '1px solid rgba(245,158,11,0.3)',
-            }}>
-              {pendingCount} pendientes
-            </span>
-          )}
+    <main className="px-4 pt-2 pb-6">
+      {/* Title row */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <ShoppingCart className="w-5 h-5 text-brand-amber" />
+          <h1 className="text-2xl font-extrabold text-text-primary">Lista de la compra</h1>
         </div>
-      </header>
+      </div>
 
-      <div style={{ padding: 16 }}>
-        {/* Add item input */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <input
+      {/* Counter */}
+      <p className="text-xs text-text-secondary mb-4">
+        <span className="font-bold text-text-primary">{pendingCount}</span> pendientes
+        <span className="mx-1 text-text-tertiary">·</span>
+        <span className="font-bold text-text-primary">{completedItems.length}</span> completados
+      </p>
+
+      {/* Add item */}
+      <div className="mb-2 flex gap-2">
+        <div className="flex-1">
+          <Input
             value={newText}
             onChange={e => setNewText(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleAdd()}
-            placeholder="Añadir item... (Enter)"
-            style={{
-              flex: 1, background: 'var(--matri-card-bg)',
-              border: '1px solid var(--matri-card-border)',
-              borderRadius: 10, padding: '10px 14px',
-              color: 'var(--matri-text)', fontSize: 13,
-            }}
+            placeholder="Añadir item… (Enter)"
+            aria-label="Añadir item a la lista"
           />
+        </div>
+        <Button
+          onClick={handleAdd}
+          disabled={!newText.trim() || addMutation.isPending}
+          aria-label="Añadir"
+          className="flex items-center justify-center"
+        >
+          <Plus className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Category auto-suggest */}
+      {suggestedCategory && (
+        <p className="text-[11px] text-text-tertiary mb-4">
+          → Se añadirá en {CATEGORIES[suggestedCategory].emoji} {CATEGORIES[suggestedCategory].label}
+        </p>
+      )}
+      {!suggestedCategory && <div className="mb-4" />}
+
+      {/* Empty state */}
+      {activeItems.length === 0 && (
+        <div className="rounded-lg bg-surface-card border border-brd-subtle p-6 text-center">
+          <p className="text-sm text-text-secondary">Lista vacía — añade el primer item</p>
+        </div>
+      )}
+
+      {/* Pending items grouped by category */}
+      {pendingCount > 0 && (
+        <div className="space-y-4 mb-4">
+          {CATEGORY_ORDER.map(cat => {
+            const items = pendingByCategory[cat]
+            if (items.length === 0) return null
+            return (
+              <section key={cat}>
+                <div className="flex items-center gap-2 mb-2 px-1">
+                  <span className="text-base">{CATEGORIES[cat].emoji}</span>
+                  <h2 className="text-[11px] font-bold uppercase tracking-wide text-text-secondary">
+                    {CATEGORIES[cat].label}
+                  </h2>
+                  <span className="text-[11px] text-text-tertiary">· {items.length}</span>
+                </div>
+                <div className="space-y-1.5">
+                  {items.map(item => (
+                    <ShoppingItemRow
+                      key={item.id}
+                      item={item}
+                      category={cat}
+                      onToggle={() => toggleMutation.mutate({ id: item.id, isChecked: true })}
+                      onDelete={() => deleteMutation.mutate(item.id)}
+                      busy={toggleMutation.isPending || deleteMutation.isPending}
+                    />
+                  ))}
+                </div>
+              </section>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Completed today (collapsible) */}
+      {completedItems.length > 0 && (
+        <div className="mb-4">
           <button
-            onClick={handleAdd}
-            disabled={!newText.trim() || addMutation.isPending}
-            style={{
-              background: 'linear-gradient(135deg,#f59e0b,#d97706)',
-              border: 'none', borderRadius: 10, padding: '0 14px',
-              color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center',
-            }}
+            type="button"
+            onClick={() => setShowCompleted(v => !v)}
+            className="w-full flex items-center gap-2 py-2 px-3 rounded-md bg-surface-muted border border-brd-subtle text-text-secondary hover:text-text-primary transition"
           >
-            <Plus size={18} />
+            {showCompleted ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            <span className="text-xs font-semibold">
+              Completados hoy · {completedItems.length}
+            </span>
           </button>
-        </div>
-
-        {/* Active list items */}
-        <div style={{ marginBottom: 16 }}>
-          {(active?.items ?? []).length === 0 && (
-            <p style={{ color: 'var(--matri-text-3)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
-              Lista vacía — añade el primer item
-            </p>
-          )}
-          {(active?.items ?? []).map((item: ShoppingItem) => (
-            <div key={item.id} style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              background: 'var(--matri-card-bg)',
-              border: '1px solid var(--matri-card-border)',
-              borderRadius: 10, padding: '10px 12px', marginBottom: 6,
-            }}>
-              <input
-                type="checkbox"
-                checked={item.isChecked}
-                onChange={() => toggleMutation.mutate({ id: item.id, isChecked: !item.isChecked })}
-                style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#f59e0b' }}
-              />
-              <span style={{
-                flex: 1, fontSize: 13, color: 'var(--matri-text)',
-                textDecoration: item.isChecked ? 'line-through' : 'none',
-                opacity: item.isChecked ? 0.5 : 1,
-              }}>
-                {item.text}
-              </span>
-              <button
-                onClick={() => deleteMutation.mutate(item.id)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
-              >
-                <Trash2 size={14} color="#ef4444" />
-              </button>
+          {showCompleted && (
+            <div className="space-y-1.5 mt-2">
+              {completedItems.map(item => (
+                <ShoppingItemRow
+                  key={item.id}
+                  item={item}
+                  category={inferCategory(item.text)}
+                  onToggle={() => toggleMutation.mutate({ id: item.id, isChecked: false })}
+                  onDelete={() => deleteMutation.mutate(item.id)}
+                  busy={toggleMutation.isPending || deleteMutation.isPending}
+                />
+              ))}
             </div>
-          ))}
+          )}
         </div>
+      )}
 
-        {/* Archive button */}
-        {(active?.items ?? []).length > 0 && (
-          <div style={{ marginBottom: 24 }}>
-            {!confirmArchive ? (
-              <button
-                onClick={() => setConfirmArchive(true)}
-                style={{
-                  width: '100%', padding: '10px', borderRadius: 10, cursor: 'pointer',
-                  background: 'transparent', border: '1px dashed rgba(168,85,247,0.3)',
-                  color: '#a855f7', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                }}
+      {/* Archive button */}
+      {activeItems.length > 0 && (
+        <div className="mb-6">
+          {!confirmArchive ? (
+            <Button
+              variant="outline"
+              fullWidth
+              onClick={() => setConfirmArchive(true)}
+            >
+              <span className="inline-flex items-center justify-center gap-2">
+                <Archive className="w-4 h-4" />
+                Archivar lista y empezar nueva
+              </span>
+            </Button>
+          ) : (
+            <div className="flex gap-2">
+              <Button
+                variant="primary"
+                fullWidth
+                onClick={() => archiveMutation.mutate()}
+                disabled={archiveMutation.isPending}
               >
-                <Archive size={14} /> Archivar lista y empezar nueva
-              </button>
-            ) : (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  onClick={() => archiveMutation.mutate()}
-                  disabled={archiveMutation.isPending}
-                  style={{
-                    flex: 1, padding: '10px', borderRadius: 10, cursor: 'pointer',
-                    background: 'linear-gradient(135deg,#a855f7,#7c3aed)',
-                    border: 'none', color: '#fff', fontSize: 12, fontWeight: 700,
-                  }}
-                >
-                  Confirmar archivo
-                </button>
-                <button
-                  onClick={() => setConfirmArchive(false)}
-                  style={{
-                    flex: 1, padding: '10px', borderRadius: 10, cursor: 'pointer',
-                    background: 'transparent', border: '1px solid var(--matri-card-border)',
-                    color: 'var(--matri-text-3)', fontSize: 12,
-                  }}
-                >
-                  Cancelar
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+                Confirmar archivo
+              </Button>
+              <Button
+                variant="ghost"
+                fullWidth
+                onClick={() => setConfirmArchive(false)}
+              >
+                Cancelar
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
-        {/* History accordion */}
-        {history.length > 0 && (
-          <div>
-            <p style={{ color: 'var(--matri-text-3)', fontSize: 10, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 10, fontWeight: 700 }}>
-              Listas anteriores
-            </p>
+      {/* History */}
+      {history.length > 0 && (
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-wide text-text-tertiary mb-2">
+            Listas anteriores
+          </p>
+          <div className="space-y-2">
             {history.map(list => (
-              <details key={list.id} style={{ marginBottom: 8 }}>
-                <summary style={{
-                  background: 'var(--matri-card-bg)',
-                  border: '1px solid var(--matri-card-border)',
-                  borderRadius: 10, padding: '10px 14px',
-                  fontSize: 12, color: 'var(--matri-text-2)', cursor: 'pointer',
-                  listStyle: 'none',
-                }}>
-                  {new Date(list.archivedAt!).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} · {list.items.length} items
+              <details
+                key={list.id}
+                className="rounded-lg bg-surface-card border border-brd-subtle overflow-hidden"
+              >
+                <summary className="cursor-pointer list-none px-4 py-2.5 text-sm text-text-secondary flex items-center justify-between">
+                  <span>
+                    {list.archivedAt
+                      ? new Date(list.archivedAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+                      : '—'}
+                    <span className="mx-1 text-text-tertiary">·</span>
+                    {list.items.length} items
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-text-tertiary" />
                 </summary>
-                <div style={{ paddingLeft: 12, paddingTop: 4 }}>
+                <div className="px-4 pb-3 pt-1 border-t border-brd-subtle">
                   {list.items.map(item => (
-                    <div key={item.id} style={{
-                      fontSize: 12, color: 'var(--matri-text-3)', padding: '4px 0',
-                      textDecoration: item.isChecked ? 'line-through' : 'none',
-                    }}>
+                    <div
+                      key={item.id}
+                      className={`text-xs py-1 ${item.isChecked ? 'text-text-tertiary line-through' : 'text-text-secondary'}`}
+                    >
                       {item.isChecked ? '✓' : '·'} {item.text}
                     </div>
                   ))}
@@ -214,10 +268,55 @@ export default function ShoppingListPage() {
               </details>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+    </main>
+  )
+}
 
-      <BottomNav />
+// ─── Row component ─────────────────────────────────────────────────────────
+interface ShoppingItemRowProps {
+  item: ShoppingItem
+  category: ShoppingCategoryKey
+  onToggle: () => void
+  onDelete: () => void
+  busy?: boolean
+}
+
+function ShoppingItemRow({ item, category, onToggle, onDelete, busy }: ShoppingItemRowProps) {
+  const cat = CATEGORIES[category]
+  return (
+    <div className={`flex items-center gap-2 rounded-lg bg-surface-card border border-brd-subtle pr-2 ${busy ? 'opacity-60' : ''}`}>
+      <label className="flex items-center justify-center w-11 h-11 cursor-pointer flex-shrink-0">
+        <input
+          type="checkbox"
+          checked={item.isChecked}
+          onChange={onToggle}
+          disabled={busy}
+          className="w-5 h-5 accent-brand-amber cursor-pointer disabled:cursor-not-allowed"
+          aria-label={item.isChecked ? 'Marcar como pendiente' : 'Marcar como completado'}
+        />
+      </label>
+      <span
+        className={`flex-1 min-w-0 truncate text-sm ${
+          item.isChecked ? 'text-text-tertiary line-through' : 'text-text-primary'
+        }`}
+      >
+        {item.text}
+      </span>
+      <Pill tone={item.isChecked ? 'purple' : 'amber'} className="flex-shrink-0">
+        <span>{cat.emoji}</span>
+        <span className="hidden sm:inline">{cat.label}</span>
+      </Pill>
+      <button
+        type="button"
+        onClick={onDelete}
+        disabled={busy}
+        aria-label="Eliminar"
+        className="p-2 rounded-md text-danger/80 hover:text-danger hover:bg-danger/10 transition flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
     </div>
   )
 }

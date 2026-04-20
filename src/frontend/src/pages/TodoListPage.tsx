@@ -1,17 +1,23 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckSquare, Trash2, Eye, EyeOff } from 'lucide-react'
+import { CheckSquare, Trash2, Pencil, X, Check, Plus } from 'lucide-react'
 import { apiClient } from '../services/apiClient'
 import { useTodos } from '../hooks/useTodos'
-import { BottomNav } from '../components/BottomNav'
+import { Button } from '../components/v2/primitives/Button'
+import { Input } from '../components/v2/primitives/Input'
+import { Pill } from '../components/v2/primitives/Pill'
 import type { Todo } from '../types'
+
+type TabKey = 'mine' | 'shared'
 
 export default function TodoListPage() {
   const queryClient = useQueryClient()
   const { data, isLoading } = useTodos()
+  const [tab, setTab] = useState<TabKey>('mine')
   const [newText, setNewText] = useState('')
   const [newDueDate, setNewDueDate] = useState('')
   const [newShared, setNewShared] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['todos'] })
 
@@ -21,19 +27,24 @@ export default function TodoListPage() {
       dueDate: newDueDate || undefined,
       isShared: newShared,
     }),
-    onSuccess: () => { setNewText(''); setNewDueDate(''); setNewShared(false); invalidate() },
+    onSuccess: () => {
+      setNewText('')
+      setNewDueDate('')
+      setNewShared(false)
+      invalidate()
+    },
   })
 
-  const toggleMutation = useMutation({
+  const toggleCompleteMutation = useMutation({
     mutationFn: ({ id, isCompleted }: { id: string; isCompleted: boolean }) =>
       apiClient.todos.update(id, { isCompleted }),
     onSuccess: invalidate,
   })
 
-  const toggleShareMutation = useMutation({
-    mutationFn: ({ id, isShared }: { id: string; isShared: boolean }) =>
-      apiClient.todos.update(id, { isShared }),
-    onSuccess: invalidate,
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { text?: string; dueDate?: string | null; isShared?: boolean } }) =>
+      apiClient.todos.update(id, data),
+    onSuccess: () => { setEditingId(null); invalidate() },
   })
 
   const deleteMutation = useMutation({
@@ -46,185 +57,330 @@ export default function TodoListPage() {
     createMutation.mutate()
   }
 
+  const mine = data?.mine ?? []
+  const partnerShared = data?.partnerShared ?? []
+
+  const minePending = useMemo(() => mine.filter(t => !t.isCompleted).length, [mine])
+
   if (isLoading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ color: 'var(--matri-text-3)' }}>Cargando...</span>
+      <main className="px-4 pt-8 pb-6">
+        <p className="text-center text-sm text-text-tertiary">Cargando...</p>
+      </main>
+    )
+  }
+
+  return (
+    <main className="px-4 pt-2 pb-6">
+      {/* Title row */}
+      <div className="flex items-center gap-2 mb-4">
+        <CheckSquare className="w-5 h-5 text-brand-amber" />
+        <h1 className="text-2xl font-extrabold text-text-primary">To-dos</h1>
+      </div>
+
+      {/* Segment */}
+      <div className="mb-4">
+        <Segment<TabKey>
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'mine', label: 'Mis to-dos', badge: minePending },
+            { value: 'shared', label: 'Compartidos con pareja', badge: partnerShared.length },
+          ]}
+        />
+      </div>
+
+      {tab === 'mine' ? (
+        <>
+          {/* Add form */}
+          <div className="rounded-lg bg-surface-card border border-brd-subtle p-3 mb-4">
+            <Input
+              value={newText}
+              onChange={e => setNewText(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleCreate()}
+              placeholder="Nuevo to-do… (Enter)"
+              aria-label="Texto del to-do"
+            />
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                type="date"
+                value={newDueDate}
+                onChange={e => setNewDueDate(e.target.value)}
+                className="flex-1 bg-surface-muted border border-brd-subtle rounded-md px-3 py-2 text-xs text-text-secondary focus:outline-none focus:border-brand-purple"
+                aria-label="Fecha"
+              />
+              <button
+                type="button"
+                onClick={() => setNewShared(v => !v)}
+                aria-pressed={newShared}
+                className={`px-3 py-2 rounded-md text-xs font-semibold border transition ${
+                  newShared
+                    ? 'bg-brand-purple/15 text-brand-purple border-brand-purple/30'
+                    : 'bg-surface-muted text-text-secondary border-brd-subtle hover:text-text-primary'
+                }`}
+              >
+                {newShared ? 'Compartido' : 'Solo yo'}
+              </button>
+              <Button
+                onClick={handleCreate}
+                disabled={!newText.trim() || createMutation.isPending}
+                size="sm"
+              >
+                <span className="inline-flex items-center gap-1">
+                  <Plus className="w-4 h-4" />
+                  Añadir
+                </span>
+              </Button>
+            </div>
+          </div>
+
+          {/* My todos list */}
+          {mine.length === 0 ? (
+            <div className="rounded-lg bg-surface-card border border-brd-subtle p-6 text-center">
+              <p className="text-sm text-text-secondary">Sin to-dos — añade el primero</p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {mine.map(todo => (
+                <TodoItemRow
+                  key={todo.id}
+                  todo={todo}
+                  isEditing={editingId === todo.id}
+                  onStartEdit={() => setEditingId(todo.id)}
+                  onCancelEdit={() => setEditingId(null)}
+                  onSaveEdit={(patch) => updateMutation.mutate({ id: todo.id, data: patch })}
+                  onToggleComplete={() =>
+                    toggleCompleteMutation.mutate({ id: todo.id, isCompleted: !todo.isCompleted })
+                  }
+                  onDelete={() => deleteMutation.mutate(todo.id)}
+                  saving={updateMutation.isPending}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Shared tab (read-only) */}
+          {partnerShared.length === 0 ? (
+            <div className="rounded-lg bg-surface-card border border-brd-subtle p-6 text-center">
+              <p className="text-sm text-text-secondary">Tu pareja no ha compartido ningún to-do aún</p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {partnerShared.map(todo => (
+                <SharedTodoRow key={todo.id} todo={todo} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </main>
+  )
+}
+
+// ─── My todo row ──────────────────────────────────────────────────────────
+interface TodoItemRowProps {
+  todo: Todo
+  isEditing: boolean
+  onStartEdit: () => void
+  onCancelEdit: () => void
+  onSaveEdit: (patch: { text?: string; dueDate?: string | null; isShared?: boolean }) => void
+  onToggleComplete: () => void
+  onDelete: () => void
+  saving?: boolean
+}
+
+function TodoItemRow({
+  todo, isEditing, onStartEdit, onCancelEdit, onSaveEdit, onToggleComplete, onDelete, saving,
+}: TodoItemRowProps) {
+  const [text, setText] = useState(todo.text)
+  const [dueDate, setDueDate] = useState(todo.dueDate ? todo.dueDate.slice(0, 10) : '')
+  const [isShared, setIsShared] = useState(todo.isShared)
+
+  // Reset local state when entering edit mode (in case the source todo changed).
+  const startEdit = () => {
+    setText(todo.text)
+    setDueDate(todo.dueDate ? todo.dueDate.slice(0, 10) : '')
+    setIsShared(todo.isShared)
+    onStartEdit()
+  }
+
+  const save = () => {
+    const t = text.trim()
+    if (!t) return
+    onSaveEdit({
+      text: t,
+      dueDate: dueDate || null,
+      isShared,
+    })
+  }
+
+  if (isEditing) {
+    return (
+      <div className="rounded-lg bg-surface-elevated border border-brand-purple/40 p-3 space-y-2">
+        <Input
+          value={text}
+          onChange={e => setText(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && save()}
+          autoFocus
+          aria-label="Editar texto"
+        />
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={dueDate}
+            onChange={e => setDueDate(e.target.value)}
+            className="flex-1 bg-surface-muted border border-brd-subtle rounded-md px-3 py-2 text-xs text-text-secondary focus:outline-none focus:border-brand-purple"
+            aria-label="Fecha"
+          />
+          <button
+            type="button"
+            onClick={() => setIsShared(v => !v)}
+            aria-pressed={isShared}
+            className={`px-3 py-2 rounded-md text-xs font-semibold border transition ${
+              isShared
+                ? 'bg-brand-purple/15 text-brand-purple border-brand-purple/30'
+                : 'bg-surface-muted text-text-secondary border-brd-subtle hover:text-text-primary'
+            }`}
+          >
+            {isShared ? 'Compartido' : 'Solo yo'}
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="primary" size="sm" fullWidth onClick={save} disabled={!text.trim() || saving}>
+            <span className="inline-flex items-center justify-center gap-1">
+              <Check className="w-4 h-4" /> Guardar
+            </span>
+          </Button>
+          <Button variant="ghost" size="sm" fullWidth onClick={onCancelEdit}>
+            <span className="inline-flex items-center justify-center gap-1">
+              <X className="w-4 h-4" /> Cancelar
+            </span>
+          </Button>
+        </div>
       </div>
     )
   }
 
-  const mine = data?.mine ?? []
-  const partnerShared = data?.partnerShared ?? []
-
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--matri-bg)', paddingBottom: 80 }}>
-      {/* Header */}
-      <header style={{
-        position: 'sticky', top: 0, zIndex: 50,
-        background: 'var(--matri-card-bg)',
-        borderBottom: '1px solid var(--matri-card-border)',
-        padding: '16px',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <CheckSquare size={20} color="var(--matri-amber)" />
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--matri-text)' }}>To-dos</h1>
-          {mine.filter(t => !t.isCompleted).length > 0 && (
-            <span style={{
-              background: 'rgba(96,165,250,0.15)', color: '#60a5fa',
-              fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-              border: '1px solid rgba(96,165,250,0.3)',
-            }}>
-              {mine.filter(t => !t.isCompleted).length} pendientes
+    <div className="flex items-center gap-2 rounded-lg bg-surface-card border border-brd-subtle pr-2">
+      <label className="flex items-center justify-center w-11 h-11 cursor-pointer flex-shrink-0">
+        <input
+          type="checkbox"
+          checked={todo.isCompleted}
+          onChange={onToggleComplete}
+          className="w-5 h-5 accent-brand-amber cursor-pointer"
+          aria-label={todo.isCompleted ? 'Marcar como pendiente' : 'Marcar como completado'}
+        />
+      </label>
+      <div className="flex-1 min-w-0 py-2">
+        <p
+          className={`truncate text-sm ${
+            todo.isCompleted ? 'text-text-tertiary line-through' : 'text-text-primary'
+          }`}
+        >
+          {todo.text}
+        </p>
+        <div className="flex items-center gap-2 mt-0.5">
+          {todo.dueDate && (
+            <span className="text-[11px] text-text-tertiary">
+              📅 {new Date(todo.dueDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
             </span>
           )}
+          {todo.isShared && <Pill tone="purple">compartido</Pill>}
         </div>
-      </header>
-
-      <div style={{ padding: 16 }}>
-        {/* Add todo form */}
-        <div style={{
-          background: 'var(--matri-card-bg)',
-          border: '1px solid var(--matri-card-border)',
-          borderRadius: 12, padding: 14, marginBottom: 16,
-        }}>
-          <input
-            value={newText}
-            onChange={e => setNewText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleCreate()}
-            placeholder="Nuevo to-do... (Enter)"
-            style={{
-              width: '100%', background: 'transparent', border: 'none',
-              color: 'var(--matri-text)', fontSize: 13, outline: 'none', marginBottom: 8,
-            }}
-          />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input
-              type="date"
-              value={newDueDate}
-              onChange={e => setNewDueDate(e.target.value)}
-              style={{
-                flex: 1, background: 'rgba(255,255,255,0.05)',
-                border: '1px solid var(--matri-card-border)',
-                borderRadius: 8, padding: '6px 10px', color: 'var(--matri-text-2)', fontSize: 11,
-              }}
-            />
-            <button
-              onClick={() => setNewShared(!newShared)}
-              title={newShared ? 'Compartido con pareja' : 'Solo yo'}
-              style={{
-                background: newShared ? 'rgba(168,85,247,0.15)' : 'rgba(255,255,255,0.05)',
-                border: `1px solid ${newShared ? 'rgba(168,85,247,0.3)' : 'var(--matri-card-border)'}`,
-                borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
-                color: newShared ? '#a855f7' : 'var(--matri-text-3)', fontSize: 11,
-              }}
-            >
-              {newShared ? <Eye size={14} /> : <EyeOff size={14} />}
-            </button>
-            <button
-              onClick={handleCreate}
-              disabled={!newText.trim() || createMutation.isPending}
-              style={{
-                background: 'linear-gradient(135deg,#f59e0b,#d97706)',
-                border: 'none', borderRadius: 8, padding: '6px 14px',
-                color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-              }}
-            >
-              Añadir
-            </button>
-          </div>
-        </div>
-
-        {/* My todos */}
-        <p style={{ color: 'var(--matri-text-3)', fontSize: 10, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8, fontWeight: 700 }}>
-          Mis to-dos
-        </p>
-        {mine.length === 0 && (
-          <p style={{ color: 'var(--matri-text-3)', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>
-            Sin to-dos — añade el primero
-          </p>
-        )}
-        {mine.map((todo: Todo) => (
-          <div key={todo.id} style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            background: 'var(--matri-card-bg)',
-            border: '1px solid var(--matri-card-border)',
-            borderRadius: 10, padding: '10px 12px', marginBottom: 6,
-          }}>
-            <input
-              type="checkbox"
-              checked={todo.isCompleted}
-              onChange={() => toggleMutation.mutate({ id: todo.id, isCompleted: !todo.isCompleted })}
-              style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#f59e0b' }}
-            />
-            <div style={{ flex: 1 }}>
-              <span style={{
-                fontSize: 13, color: 'var(--matri-text)',
-                textDecoration: todo.isCompleted ? 'line-through' : 'none',
-                opacity: todo.isCompleted ? 0.5 : 1,
-              }}>
-                {todo.text}
-              </span>
-              {todo.dueDate && (
-                <p style={{ fontSize: 10, color: 'var(--matri-text-3)', marginTop: 2 }}>
-                  📅 {new Date(todo.dueDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-                </p>
-              )}
-            </div>
-            <button
-              onClick={() => toggleShareMutation.mutate({ id: todo.id, isShared: !todo.isShared })}
-              title={todo.isShared ? 'Dejar de compartir' : 'Compartir con pareja'}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
-            >
-              {todo.isShared
-                ? <Eye size={14} color="#a855f7" />
-                : <EyeOff size={14} color="var(--matri-text-3)" />}
-            </button>
-            <button
-              onClick={() => deleteMutation.mutate(todo.id)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
-            >
-              <Trash2 size={14} color="#ef4444" />
-            </button>
-          </div>
-        ))}
-
-        {/* Partner shared todos */}
-        {partnerShared.length > 0 && (
-          <div style={{ marginTop: 24 }}>
-            <p style={{ color: 'var(--matri-text-3)', fontSize: 10, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8, fontWeight: 700 }}>
-              Compartidos por tu pareja
-            </p>
-            {partnerShared.map((todo: Todo) => (
-              <div key={todo.id} style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                background: 'rgba(168,85,247,0.05)',
-                border: '1px solid rgba(168,85,247,0.15)',
-                borderRadius: 10, padding: '10px 12px', marginBottom: 6,
-              }}>
-                <input type="checkbox" checked={todo.isCompleted} disabled style={{ width: 16, height: 16 }} />
-                <div style={{ flex: 1 }}>
-                  <span style={{
-                    fontSize: 13, color: 'var(--matri-text-2)',
-                    textDecoration: todo.isCompleted ? 'line-through' : 'none',
-                    opacity: todo.isCompleted ? 0.5 : 1,
-                  }}>
-                    {todo.text}
-                  </span>
-                  {todo.dueDate && (
-                    <p style={{ fontSize: 10, color: 'var(--matri-text-3)', marginTop: 2 }}>
-                      📅 {new Date(todo.dueDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-                    </p>
-                  )}
-                </div>
-                <Eye size={12} color="#a855f7" />
-              </div>
-            ))}
-          </div>
-        )}
       </div>
+      <button
+        type="button"
+        onClick={startEdit}
+        aria-label="Editar"
+        className="p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-muted transition flex-shrink-0"
+      >
+        <Pencil className="w-4 h-4" />
+      </button>
+      <button
+        type="button"
+        onClick={onDelete}
+        aria-label="Eliminar"
+        className="p-2 rounded-md text-danger/80 hover:text-danger hover:bg-danger/10 transition flex-shrink-0"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  )
+}
 
-      <BottomNav />
+// ─── Shared (partner) todo row — read-only ──────────────────────────────────
+function SharedTodoRow({ todo }: { todo: Todo }) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg bg-brand-purple/5 border border-brand-purple/20 pr-3">
+      <div className="flex items-center justify-center w-11 h-11 flex-shrink-0">
+        <input
+          type="checkbox"
+          checked={todo.isCompleted}
+          disabled
+          className="w-5 h-5 accent-brand-purple cursor-not-allowed opacity-80"
+          aria-label="Solo lectura"
+        />
+      </div>
+      <div className="flex-1 min-w-0 py-2">
+        <p
+          className={`truncate text-sm ${
+            todo.isCompleted ? 'text-text-tertiary line-through' : 'text-text-secondary'
+          }`}
+        >
+          {todo.text}
+        </p>
+        <div className="flex items-center gap-2 mt-0.5">
+          {todo.dueDate && (
+            <span className="text-[11px] text-text-tertiary">
+              📅 {new Date(todo.dueDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+            </span>
+          )}
+          <Pill tone="purple">compartido</Pill>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Segment control (same pattern used in Tasks.tsx) ──────────────────────
+function Segment<T extends string>({
+  value, onChange, options,
+}: {
+  value: T
+  onChange: (v: T) => void
+  options: { value: T; label: string; badge?: number }[]
+}) {
+  return (
+    <div className="inline-flex gap-1 p-1 rounded-lg bg-surface-card border border-brd-subtle">
+      {options.map(opt => {
+        const active = value === opt.value
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className={`relative px-3 py-1.5 rounded-md text-xs font-semibold transition flex items-center gap-1.5 ${
+              active
+                ? 'bg-grad-cta text-white shadow-md shadow-brand-amber/30'
+                : 'bg-transparent text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            {opt.label}
+            {opt.badge !== undefined && opt.badge > 0 && (
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                  active ? 'bg-white/20 text-white' : 'bg-danger/80 text-white'
+                }`}
+              >
+                {opt.badge}
+              </span>
+            )}
+          </button>
+        )
+      })}
     </div>
   )
 }
