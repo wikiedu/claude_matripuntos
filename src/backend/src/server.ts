@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import rateLimit from 'express-rate-limit'
 import authRoutes from './routes/authRoutes.js'
 import eventRoutes from './routes/eventRoutes.js'
 import taskRoutes from './routes/taskRoutes.js'
@@ -25,6 +26,7 @@ import todoRoutes from './routes/todos.js'
 import cron from 'node-cron'
 import { runWeeklyGeneration } from './services/recurringTaskService.js'
 import { sendWeeklyDigests } from './services/digestService.js'
+import { PrismaClient } from '@prisma/client'
 
 dotenv.config()
 
@@ -32,11 +34,26 @@ const app = express()
 const PORT = process.env.PORT || 3000
 
 // Middleware
+const allowedOrigins = process.env.FRONTEND_URL
+  ? [process.env.FRONTEND_URL]
+  : ['http://localhost:5173', 'http://localhost:4173']
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true)
+    cb(new Error('Not allowed by CORS'))
+  },
   credentials: true,
 }))
-app.use(express.json())
+app.use(express.json({ limit: '1mb' }))
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -44,7 +61,7 @@ app.get('/api/health', (req, res) => {
 })
 
 // Routes
-app.use('/api/auth', authRoutes)
+app.use('/api/auth', authLimiter, authRoutes)
 app.use('/api/events', eventRoutes)
 app.use('/api/tasks', taskRoutes)
 app.use('/api/negotiations', negotiationRoutes)
@@ -100,6 +117,42 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 cron.schedule('0 8 * * 1', () => {
   runWeeklyGeneration().catch(err => console.error('recurringTask cron error:', err))
   sendWeeklyDigests().catch(err => console.error('digest cron error:', err))
+})
+
+// Auto-accept pending TaskLogs older than 24h — runs every hour
+cron.schedule('0 * * * *', async () => {
+  const prisma = new PrismaClient()
+  try {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    const pending = await prisma.taskLog.findMany({
+      where: { status: 'pending', createdAt: { lt: cutoff } },
+    })
+    for (const log of pending) {
+      await prisma.$transaction([
+        prisma.taskLog.update({
+          where: { id: log.id },
+          data: { status: 'verified', verifiedAt: new Date() },
+        }),
+        prisma.pointsTransaction.create({
+          data: {
+            coupleId: log.coupleId,
+            userId: log.completedBy ?? undefined,
+            type: 'task_completed',
+            relatedTaskLogId: log.id,
+            amount: log.pointsFinal,
+            description: 'Auto-verificado tras 24h sin respuesta',
+          },
+        }),
+      ])
+    }
+    if (pending.length > 0) {
+      console.log(`[cron] Auto-verified ${pending.length} task log(s)`)
+    }
+  } catch (err) {
+    console.error('[cron] auto-accept error:', err)
+  } finally {
+    await prisma.$disconnect()
+  }
 })
 
 app.listen(PORT, () => {

@@ -6,7 +6,10 @@ import { config } from 'dotenv'
 config()
 
 import prisma from '../lib/prisma.js'
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+const JWT_SECRET = process.env.JWT_SECRET
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+  throw new Error('JWT_SECRET env var must be set and at least 32 characters long')
+}
 const JWT_EXPIRY = '7d'
 
 // Hash password
@@ -161,7 +164,7 @@ export const signupCouple = async (
     // Create couple
     const couple = await prisma.couple.create({
       data: {
-        secretKey: Math.random().toString(36).substring(2, 34),
+        secretKey: crypto.randomBytes(16).toString('hex'),
         language,
         users: {
           create: [

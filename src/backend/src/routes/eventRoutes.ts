@@ -6,20 +6,28 @@ const router = express.Router()
 import prisma from '../lib/prisma.js'
 
 // Validation schemas
-const createEventSchema = z.object({
-  type: z.string().min(1, 'Activity type is required'),
-  title: z.string().optional(),
-  description: z.string().optional(),
+const eventBaseSchema = z.object({
+  type: z.string().min(1, 'Activity type is required').max(100).trim(),
+  title: z.string().max(200).trim().optional(),
+  description: z.string().max(1000).trim().optional(),
   dateStart: z.string().datetime(),
   dateEnd: z.string().datetime(),
   hasChildren: z.boolean().optional().default(false),
-  numChildren: z.number().optional().default(0),
-  pointsBase: z.number().positive('Points must be positive'),
-  compensation: z.string().optional(),
-  compensationDiscount: z.number().optional().default(1.0),
+  numChildren: z.number().int().min(0).max(10).optional().default(0),
+  pointsBase: z.number().positive('Points must be positive').max(500),
+  compensation: z.string().max(200).trim().optional(),
+  compensationDiscount: z.number().min(0).max(1).optional().default(1.0),
 })
 
-const updateEventSchema = createEventSchema.partial()
+const createEventSchema = eventBaseSchema.refine(
+  d => new Date(d.dateStart) < new Date(d.dateEnd),
+  { message: 'dateEnd must be after dateStart', path: ['dateEnd'] }
+)
+
+const updateEventSchema = eventBaseSchema.partial().refine(
+  d => !d.dateStart || !d.dateEnd || new Date(d.dateStart) < new Date(d.dateEnd),
+  { message: 'dateEnd must be after dateStart', path: ['dateEnd'] }
+)
 
 // Create event (activity request)
 router.post('/', authMiddleware, async (req: Request, res: Response): Promise<void> => {

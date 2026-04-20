@@ -15,20 +15,20 @@ const achievementEngine = new AchievementEngine(prisma)
 
 // Validation schemas
 const createTaskSchema = z.object({
-  name: z.string().min(1, 'Task name is required'),
-  description: z.string().optional(),
+  name: z.string().min(1, 'Task name is required').max(200).trim(),
+  description: z.string().max(1000).trim().optional(),
   category: z.enum(['cocina', 'baños', 'limpieza', 'compra', 'logistica', 'cuidado', 'mantenimiento', 'jardineria', 'mascotas']),
-  pointsBase: z.number().positive('Points must be positive').optional().default(1.0),
+  pointsBase: z.number().positive('Points must be positive').max(100).optional().default(1.0),
   isDefault: z.boolean().optional().default(false),
 })
 
 const createTaskLogSchema = z.object({
   date: z.string().min(1, 'Date is required'),
-  pointsBase: z.number().positive('Points must be positive'),
-  modifier: z.string().optional(),
-  modifierValue: z.number().optional().default(1.0),
-  pointsFinal: z.number().positive('Final points must be positive'),
-  notes: z.string().optional(),
+  pointsBase: z.number().positive('Points must be positive').max(100),
+  modifier: z.string().max(100).trim().optional(),
+  modifierValue: z.number().min(0).max(10).optional().default(1.0),
+  pointsFinal: z.number().positive('Final points must be positive').max(500),
+  notes: z.string().max(500).trim().optional(),
 })
 
 const updateTaskLogSchema = z.object({
