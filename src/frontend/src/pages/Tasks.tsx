@@ -512,18 +512,20 @@ export default function Tasks() {
         />
       </div>
 
-      {/* Tab navigation — restyled segment */}
-      <div className="mb-4">
-        <Segment<'mis_tareas' | 'verificar' | 'historial'>
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: 'mis_tareas', label: '✅ Mis Tareas' },
-            { value: 'verificar', label: '👀 Verificar', badge: partnerPendingLogs.length },
-            { value: 'historial', label: '📋 Historial' },
-          ]}
-        />
-      </div>
+      {/* Tab navigation — only in Lista view */}
+      {view === 'list' && (
+        <div className="mb-4">
+          <Segment<'mis_tareas' | 'verificar' | 'historial'>
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'mis_tareas', label: '✅ Mis Tareas' },
+              { value: 'verificar', label: '👀 Verificar', badge: partnerPendingLogs.length },
+              { value: 'historial', label: '📋 Historial' },
+            ]}
+          />
+        </div>
+      )}
 
       {/* Inline banners */}
       {error && (
