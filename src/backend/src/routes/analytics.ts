@@ -267,4 +267,20 @@ router.get('/heatmap', async (req: Request, res: Response) => {
   }
 })
 
+/**
+ * GET /api/analytics/completion-rate
+ * % de TaskLogs verificadas vs totales por usuario.
+ * Query: ?range=week|month (default: month)
+ */
+router.get('/completion-rate', async (req, res) => {
+  try {
+    const coupleId = (req as any).user.coupleId
+    const range = (req.query.range as 'week' | 'month') ?? 'month'
+    const data = await analyticsService.getCompletionRate(coupleId, range)
+    res.json({ success: true, data })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Error' })
+  }
+})
+
 export default router

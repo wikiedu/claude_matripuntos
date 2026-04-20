@@ -557,3 +557,36 @@ export async function getHeatmap(coupleId: string, weeks: number = 4) {
   }
   return { grid, buckets: HOUR_BUCKETS }
 }
+
+/**
+ * Get completion rate (% verified vs total TaskLogs) per user for the given range.
+ */
+export async function getCompletionRate(coupleId: string, range: 'week' | 'month') {
+  const days = range === 'week' ? 7 : 30
+  const since = new Date()
+  since.setDate(since.getDate() - days)
+
+  const couple = await prisma.couple.findUnique({
+    where: { id: coupleId },
+    include: { users: true },
+  })
+  if (!couple || couple.users.length === 0) return { you: 0, partner: 0 }
+
+  const [user1, user2] = couple.users
+
+  async function rateFor(userId: string) {
+    const total = await prisma.taskLog.count({
+      where: { coupleId, completedBy: userId, date: { gte: since } },
+    })
+    if (total === 0) return 0
+    const verified = await prisma.taskLog.count({
+      where: { coupleId, completedBy: userId, date: { gte: since }, status: 'verified' },
+    })
+    return Math.round((verified / total) * 100)
+  }
+
+  return {
+    you:     { id: user1.id, name: user1.name, pct: await rateFor(user1.id) },
+    partner: user2 ? { id: user2.id, name: user2.name, pct: await rateFor(user2.id) } : null,
+  }
+}
