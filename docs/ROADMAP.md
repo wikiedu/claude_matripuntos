@@ -13,7 +13,7 @@
 | v1.1 | La Chispa | ✅ En producción | `main` | `v1.1` |
 | v1.2 | El Juego | ✅ En producción | `main` | `v1.2` |
 | v1.3 | La Casa | ✅ En producción | `main` | `v1.3` |
-| v1.4 | La Evolución (diseño v2) | En diseño | `feature/v1.4-la-evolucion` | — |
+| v1.4 | La Evolución (diseño v2) | Spec aprobado | `feature/v1.4-la-evolucion` | — |
 | v2.0 | Hogar 360 | Planificado | `feature/v2.0-hogar-360` | — |
 | v2.1 | Conectados | Planificado | `feature/v2.1-conectados` | — |
 | v3.0 | Premium | Futuro | `feature/v3.0-premium` | — |
@@ -84,14 +84,22 @@ Primera versión presentable a usuarios externos.
 
 ## v1.4 · La Evolución (diseño v2)
 
-**Foco:** Rediseño UX completo según Claude Design + pantalla Analytics dedicada.
+**Foco:** Rediseño UX completo end-to-end según Claude Design v2 + pantalla Analytics dedicada + Premium teaser.
 
-**Scope (en diseño, pendiente spec):**
+**Spec aprobado:** `docs/superpowers/specs/2026-04-20-v1.4-la-evolucion-design.md`
+
+**Scope cerrado:**
 - Navegación nueva: Inicio · Tareas · Calendario · Analítica (Logros → menú ⋯ del header)
-- Dashboard condensado: Balance+Nivel hero fusionado, StreakStrip compacto, frase diaria, tareas arriba del fold
-- FAB menú con 📅 Actividad / 🛒 Compra / 📝 To-do (diferencia clara con "Tareas")
-- Nueva pantalla Analytics: pestaña Básico (4 gráficos) + Avanzado (5 gráficos, overlay premium visible-bloqueado)
+- Dashboard condensado: BalanceLevelHero fusionado, StreakStrip compacto, frase diaria, tareas arriba del fold
+- FAB menú con 📅 Actividad / 🛒 Compra / 📝 To-do
+- Nueva pantalla Analytics: 3 tabs (Básico 4 gráficos · Avanzado 5 gráficos blur+overlay · Movimientos)
 - Header con saludo temporal, mood partner, bell + menú ⋯ (Logros, Perfil, Pareja, Reglas, Ajustes, Ayuda, Logout)
+- Redesign full de las 16 pantallas (incluyendo Login/Signup/Onboarding 6 pasos/Calendar/Settings/Achievements/Shopping/Todos/History→Movements/RequestActivity/RequestInbox/NotFound)
+- Dark-only: se elimina el toggle theme
+- Tokens del bundle v2 vía `tailwind.config.js` extend + `globals.css`
+- Backend: 4 endpoints analytics nuevos (time-invested, heatmap, completion-rate, insight heurístico) + tabla `PremiumInterest` + `POST /api/premium/interest`
+- Google/Apple OAuth botones visibles pero disabled (backend OAuth real → v2.1)
+- Stripe → v3.0 (en v1.4 el CTA Premium solo captura email de interés)
 
 ---
 
