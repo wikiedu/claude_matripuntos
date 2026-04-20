@@ -267,6 +267,7 @@ export const loginUser = async (email: string, password: string) => {
         coupleId: user.coupleId,
         role: user.roleInHome,
         timezone: user.timezone,
+        hasCompletedOnboarding: user.hasCompletedOnboarding,
       }
     }
   } catch (error) {

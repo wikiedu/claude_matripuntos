@@ -74,13 +74,19 @@ export default function Onboarding() {
     setBusy(true)
     setErr(null)
     try {
-      // 1. Persist avatar
+      // 1. Create UserProfile + flip hasCompletedOnboarding (must go first — PUT /profile/me needs the row to exist)
+      await apiClient.request('/profile/user', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      })
+
+      // 2. Persist avatar
       await apiClient.profile.updateMe({
         avatarEmoji: data.avatarEmoji,
         avatarColor: data.avatarColor,
       })
 
-      // 2. Persist rule multipliers
+      // 3. Persist rule multipliers
       await apiClient.configuration.update({
         multipliersConfig: {
           nightMult: data.rules.nightMult,
@@ -88,7 +94,7 @@ export default function Onboarding() {
         },
       })
 
-      // 3. Partner invite (non-blocking if it fails)
+      // 4. Partner invite (non-blocking if it fails)
       if (data.pairMethod === 'email' && data.pairEmail.includes('@')) {
         try {
           await apiClient.request('/auth/invite-partner', {
@@ -100,12 +106,6 @@ export default function Onboarding() {
         }
       }
       // TODO: persist categories when backend supports it
-
-      // 4. Flip hasCompletedOnboarding + create minimal UserProfile
-      await apiClient.request('/profile/user', {
-        method: 'POST',
-        body: JSON.stringify({}),
-      })
 
       // 5. Refresh store so redirect works with fresh flag
       await useAppStore

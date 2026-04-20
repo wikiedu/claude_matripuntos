@@ -162,6 +162,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response): Promise<v
         timezone: (user as any).timezone,
         notificationsPush: (user as any).notificationsPush,
         notificationsEmail: (user as any).notificationsEmail,
+        hasCompletedOnboarding: (user as any).hasCompletedOnboarding,
         // Profile fields
         avatarEmoji: myProfile?.avatarEmoji ?? '🐼',
         avatarColor: myProfile?.avatarColor ?? '#7c3aed',
