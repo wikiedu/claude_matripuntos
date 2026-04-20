@@ -8,13 +8,20 @@ interface Props {
   onNext: () => void
 }
 
-const EMOJIS = ['🐼', '🦊', '🦉', '🐱', '🐰', '🐸', '🦄', '🐧']
+const EMOJIS = [
+  '🧑', '👩', '👨', '🧒', '👶', '🦊',
+  '🐻', '🐯', '🦁', '🐼', '🐨', '🐰',
+  '🌸', '🌻', '🌙', '⭐', '🔥', '💎',
+]
 const COLORS = [
   { value: '#7c3aed', name: 'purple' },
   { value: '#f59e0b', name: 'amber' },
   { value: '#ec4899', name: 'pink' },
   { value: '#10b981', name: 'emerald' },
   { value: '#6366f1', name: 'indigo' },
+  { value: '#14b8a6', name: 'teal' },
+  { value: '#f472b6', name: 'rose' },
+  { value: '#a3e635', name: 'lime' },
 ]
 
 export function StepProfile({ userName, data, onChange, onNext }: Props) {
@@ -40,7 +47,7 @@ export function StepProfile({ userName, data, onChange, onNext }: Props) {
 
       <div className="flex flex-col gap-2">
         <span className="text-xs font-semibold text-text-secondary">Tu avatar</span>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-6 gap-2">
           {EMOJIS.map((e) => {
             const active = data.avatarEmoji === e
             return (
@@ -64,7 +71,7 @@ export function StepProfile({ userName, data, onChange, onNext }: Props) {
 
       <div className="flex flex-col gap-2">
         <span className="text-xs font-semibold text-text-secondary">Tu color</span>
-        <div className="flex gap-3 justify-between">
+        <div className="grid grid-cols-8 gap-2">
           {COLORS.map((c) => {
             const active = data.avatarColor === c.value
             return (
@@ -72,7 +79,7 @@ export function StepProfile({ userName, data, onChange, onNext }: Props) {
                 key={c.value}
                 type="button"
                 onClick={() => onChange({ avatarColor: c.value })}
-                className={`w-12 h-12 rounded-full transition ${
+                className={`aspect-square rounded-full transition ${
                   active ? 'ring-2 ring-offset-2 ring-offset-surface-base ring-text-primary scale-110' : ''
                 }`}
                 style={{ backgroundColor: c.value }}

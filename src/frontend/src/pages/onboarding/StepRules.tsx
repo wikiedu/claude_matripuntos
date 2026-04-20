@@ -59,10 +59,10 @@ function SliderRow({ label, description, value, decrease, increase, disabledMinu
 }
 
 export function StepRules({ data, onChange, onNext }: Props) {
-  const { dailyMult, weeklyBonus } = data.rules
+  const { nightMult, weeklyBonus } = data.rules
 
-  const setDaily = (v: number) =>
-    onChange({ rules: { ...data.rules, dailyMult: round(clamp(v, 1.0, 2.0), 1) } })
+  const setNight = (v: number) =>
+    onChange({ rules: { ...data.rules, nightMult: round(clamp(v, 1.2, 1.6), 1) } })
   const setWeekly = (v: number) =>
     onChange({ rules: { ...data.rules, weeklyBonus: round(clamp(v, 0, 0.5), 2) } })
 
@@ -71,23 +71,23 @@ export function StepRules({ data, onChange, onNext }: Props) {
       <div>
         <h2 className="text-xl font-extrabold text-text-primary">Ajusta las reglas</h2>
         <p className="text-sm text-text-secondary mt-1">
-          Estos multiplican tus puntos diarios y semanales. Puedes ajustarlos luego.
+          Estos multiplican los puntos en franja nocturna y en fin de semana. Puedes ajustarlos luego.
         </p>
       </div>
 
       <SliderRow
-        label="Multiplicador diario"
-        description="Se aplica a las tareas completadas cada día."
-        value={`×${dailyMult.toFixed(1)}`}
-        decrease={() => setDaily(dailyMult - 0.1)}
-        increase={() => setDaily(dailyMult + 0.1)}
-        disabledMinus={dailyMult <= 1.0}
-        disabledPlus={dailyMult >= 2.0}
+        label="Multiplicador nocturno"
+        description="Se aplica a las tareas hechas por la noche."
+        value={`×${nightMult.toFixed(1)}`}
+        decrease={() => setNight(nightMult - 0.1)}
+        increase={() => setNight(nightMult + 0.1)}
+        disabledMinus={nightMult <= 1.2}
+        disabledPlus={nightMult >= 1.6}
       />
 
       <SliderRow
-        label="Bonus semanal"
-        description="Extra si cumples el objetivo semanal."
+        label="Bonus fin de semana"
+        description="Extra aplicado a sábado y domingo."
         value={`+${Math.round(weeklyBonus * 100)}%`}
         decrease={() => setWeekly(weeklyBonus - 0.05)}
         increase={() => setWeekly(weeklyBonus + 0.05)}

@@ -4,19 +4,37 @@ import type { OnboardingData } from '../Onboarding'
 interface Props {
   data: OnboardingData
   userName: string
+  pairMethod: OnboardingData['pairMethod']
+  inviteeEmail: string
   onFinish: () => void
   busy: boolean
   err: string | null
 }
 
-const PAIR_LABEL: Record<OnboardingData['pairMethod'], string> = {
-  email: 'Invitación por email',
-  code:  'Con código recibido',
-  solo:  'Empezar en solitario',
+function pairStatusLine(
+  pairMethod: OnboardingData['pairMethod'],
+  inviteeEmail: string,
+): string {
+  if (pairMethod === 'email' && inviteeEmail.trim().length > 0) {
+    return `Invitación enviada a ${inviteeEmail}`
+  }
+  if (pairMethod === 'code') {
+    return 'Vinculado con tu pareja'
+  }
+  return 'Solo/a por ahora — puedes invitar a tu pareja más tarde'
 }
 
-export function StepDone({ data, userName, onFinish, busy, err }: Props) {
-  const { rules, categories, avatarEmoji, avatarColor, pairMethod, pairEmail } = data
+export function StepDone({
+  data,
+  userName,
+  pairMethod,
+  inviteeEmail,
+  onFinish,
+  busy,
+  err,
+}: Props) {
+  const { rules, categories, avatarEmoji, avatarColor } = data
+  const partnerStatus = pairStatusLine(pairMethod, inviteeEmail)
 
   return (
     <div className="flex-1 flex flex-col gap-6 py-4">
@@ -49,10 +67,7 @@ export function StepDone({ data, userName, onFinish, busy, err }: Props) {
           <div className="flex-1">
             <div className="text-xs text-text-tertiary">Conexión con pareja</div>
             <div className="text-sm font-bold text-text-primary">
-              {PAIR_LABEL[pairMethod]}
-              {pairMethod === 'email' && pairEmail && (
-                <span className="text-text-secondary font-normal"> · {pairEmail}</span>
-              )}
+              {partnerStatus}
             </div>
           </div>
         </li>
@@ -62,7 +77,7 @@ export function StepDone({ data, userName, onFinish, busy, err }: Props) {
           <div className="flex-1">
             <div className="text-xs text-text-tertiary">Reglas</div>
             <div className="text-sm font-bold text-text-primary">
-              Diario ×{rules.dailyMult.toFixed(1)} · Semanal +{Math.round(rules.weeklyBonus * 100)}%
+              Nocturno ×{rules.nightMult.toFixed(1)} · Fin de semana +{Math.round(rules.weeklyBonus * 100)}%
             </div>
           </div>
         </li>
@@ -82,7 +97,7 @@ export function StepDone({ data, userName, onFinish, busy, err }: Props) {
 
       <div className="mt-auto">
         <Button variant="primary" size="lg" fullWidth onClick={onFinish} disabled={busy}>
-          {busy ? 'Guardando…' : '¡Empezamos! →'}
+          {busy ? 'Guardando…' : 'Entrar a Matripuntos 💕'}
         </Button>
       </div>
     </div>

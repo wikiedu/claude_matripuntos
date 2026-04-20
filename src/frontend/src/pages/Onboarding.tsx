@@ -15,7 +15,7 @@ export interface OnboardingData {
   pairMethod: 'email' | 'code' | 'solo'
   pairEmail: string
   pairCode: string
-  rules: { dailyMult: number; weeklyBonus: number }
+  rules: { nightMult: number; weeklyBonus: number }
   categories: string[]
 }
 
@@ -44,19 +44,20 @@ export default function Onboarding() {
     pairMethod: 'code',
     pairEmail: '',
     pairCode: '',
-    rules: { dailyMult: 1.5, weeklyBonus: 0.25 },
+    rules: { nightMult: 1.5, weeklyBonus: 0.25 },
     categories: [...DEFAULT_CATEGORIES],
   })
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
-  // Auto-skip to Profile step if user arrived via invitation link
+  // Auto-skip past Welcome/Profile/Pair if user arrived via invitation link
+  // Token means they are already paired — pre-fill and jump straight to Rules.
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     const urlToken = token ?? params.get('token') ?? ''
     if (urlToken) {
       setData((prev) => ({ ...prev, pairMethod: 'code', pairCode: urlToken }))
-      setStep(1)
+      setStep(3)
     }
   }, [token, location.search])
 
@@ -82,8 +83,8 @@ export default function Onboarding() {
       // 2. Persist rule multipliers
       await apiClient.configuration.update({
         multipliersConfig: {
-          dailyMult: data.rules.dailyMult,
-          weeklyBonus: data.rules.weeklyBonus,
+          nightMult: data.rules.nightMult,
+          weekendBonus: data.rules.weeklyBonus,
         },
       })
 
@@ -168,6 +169,8 @@ export default function Onboarding() {
           <StepDone
             data={data}
             userName={user?.name ?? 'Tú'}
+            pairMethod={data.pairMethod}
+            inviteeEmail={data.pairEmail}
             onFinish={finish}
             busy={busy}
             err={err}
