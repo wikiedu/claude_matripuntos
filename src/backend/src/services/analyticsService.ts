@@ -1,5 +1,10 @@
 
 import prisma from '../lib/prisma.js'
+import { generateInsight } from './insightHeuristic.js'
+
+// In-memory cache — invalidación natural al reiniciar el proceso
+const insightCache = new Map<string, { at: number; data: any }>()
+const INSIGHT_TTL = 6 * 60 * 60 * 1000  // 6h
 
 // Horas estimadas por categoría (heurística)
 export const CATEGORY_HOURS: Record<string, number> = {
@@ -589,4 +594,89 @@ export async function getCompletionRate(coupleId: string, range: 'week' | 'month
     you:     { id: user1.id, name: user1.name, pct: await rateFor(user1.id) },
     partner: user2 ? { id: user2.id, name: user2.name, pct: await rateFor(user2.id) } : null,
   }
+}
+
+/**
+ * Get monthly insight (heurístico, con templates + cache 6h).
+ */
+export async function getMonthlyInsight(coupleId: string, month: number, year: number) {
+  const key = `${coupleId}-${year}-${month}`
+  const cached = insightCache.get(key)
+  if (cached && Date.now() - cached.at < INSIGHT_TTL) return cached.data
+
+  // Métricas del mes
+  const start = new Date(year, month - 1, 1)
+  const end   = new Date(year, month,   1)
+  const prevStart = new Date(year, month - 2, 1)
+  const prevEnd   = new Date(year, month - 1, 1)
+
+  const couple = await prisma.couple.findUnique({
+    where: { id: coupleId },
+    include: { users: true },
+  })
+  if (!couple || couple.users.length < 1) {
+    return { text: 'Aún no hay datos suficientes este mes.', bullets: [] }
+  }
+  const [u1, u2] = couple.users
+
+  // Top category por user
+  async function topCat(userId: string) {
+    const logs = await prisma.taskLog.findMany({
+      where: { coupleId, completedBy: userId, date: { gte: start, lt: end } },
+      include: { task: true },
+    })
+    const counts = new Map<string, number>()
+    logs.forEach(l => counts.set(l.task.category, (counts.get(l.task.category) ?? 0) + 1))
+    const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1])
+    return sorted[0] ? { name: sorted[0][0], count: sorted[0][1] } : null
+  }
+
+  // Time split
+  const time = await getTimeInvested(coupleId, 'month')
+  const totalH = (time.you?.hours ?? 0) + (time.partner?.hours ?? 0)
+  const timePctUser1 = totalH > 0 ? Math.round(((time.you?.hours ?? 0) / totalH) * 100) : 50
+
+  // Equity current vs prev
+  const curr = await prisma.coupleScore.findFirst({
+    where: { coupleId, weekStartDate: { gte: start, lt: end } },
+    orderBy: { weekStartDate: 'desc' },
+  })
+  const prev = await prisma.coupleScore.findFirst({
+    where: { coupleId, weekStartDate: { gte: prevStart, lt: prevEnd } },
+    orderBy: { weekStartDate: 'desc' },
+  })
+  const equityDelta = curr && prev ? Math.round(Number(curr.equilibrium) - Number(prev.equilibrium)) : 0
+
+  // Worst category
+  const allLogs = await prisma.taskLog.findMany({
+    where: { coupleId, date: { gte: start, lt: end } },
+    include: { task: true },
+  })
+  const byCat = new Map<string, { u1: number; u2: number }>()
+  allLogs.forEach(l => {
+    const cur = byCat.get(l.task.category) ?? { u1: 0, u2: 0 }
+    if (l.completedBy === u1.id) cur.u1++
+    else if (u2 && l.completedBy === u2.id) cur.u2++
+    byCat.set(l.task.category, cur)
+  })
+  let worst: string | null = null
+  let worstDiff = 0
+  byCat.forEach((v, k) => {
+    const diff = Math.abs(v.u1 - v.u2)
+    if (diff > worstDiff) { worstDiff = diff; worst = k }
+  })
+  if (worstDiff < 3) worst = null
+
+  const result = generateInsight({
+    user1Name: u1.name,
+    user2Name: u2?.name ?? 'tu pareja',
+    topCategoryUser1: await topCat(u1.id),
+    topCategoryUser2: u2 ? await topCat(u2.id) : null,
+    timePctUser1,
+    equityDelta,
+    worstCategory: worst,
+  }, month)
+
+  insightCache.set(key, { at: Date.now(), data: result })
+  return result
 }

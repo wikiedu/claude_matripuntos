@@ -283,4 +283,21 @@ router.get('/completion-rate', async (req, res) => {
   }
 })
 
+/**
+ * GET /api/analytics/insight
+ * Insight heurístico mensual con templates + cache 6h.
+ * Query: ?month=4&year=2026 (default: mes/año actual)
+ */
+router.get('/insight', async (req, res) => {
+  try {
+    const coupleId = (req as any).user.coupleId
+    const month = Number(req.query.month ?? new Date().getMonth() + 1)
+    const year  = Number(req.query.year  ?? new Date().getFullYear())
+    const data = await analyticsService.getMonthlyInsight(coupleId, month, year)
+    res.json({ success: true, data })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Error' })
+  }
+})
+
 export default router
