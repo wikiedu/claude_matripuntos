@@ -1,6 +1,20 @@
 
 import prisma from '../lib/prisma.js'
 
+// Horas estimadas por categoría (heurística)
+export const CATEGORY_HOURS: Record<string, number> = {
+  cocina:       1.0,
+  banos:        0.5,
+  limpieza:     1.5,
+  compra:       1.0,
+  logistica:    1.0,
+  cuidado:      2.0,
+  mantenimiento:0.75,
+  jardineria:   1.0,
+  mascotas:     0.5,
+  otros:        0.75,
+}
+
 export interface AnalyticsDateRange {
   startDate: Date
   endDate: Date
@@ -451,4 +465,47 @@ export async function getDailyBreakdown(
   }
 
   return result
+}
+
+/**
+ * Get time invested (in hours) per user for the given range.
+ * Uses CATEGORY_HOURS heuristic for tasks and actual duration for events.
+ */
+export async function getTimeInvested(coupleId: string, range: 'week' | 'month') {
+  const days = range === 'week' ? 7 : 30
+  const since = new Date()
+  since.setDate(since.getDate() - days)
+
+  const couple = await prisma.couple.findUnique({
+    where: { id: coupleId },
+    include: { users: true },
+  })
+  if (!couple || couple.users.length === 0) return { you: { hours: 0 }, partner: { hours: 0 } }
+
+  const [user1, user2] = couple.users
+  const logs = await prisma.taskLog.findMany({
+    where: { coupleId, date: { gte: since }, status: 'verified' },
+    include: { task: true },
+  })
+  const events = await prisma.event.findMany({
+    where: { coupleId, dateStart: { gte: since }, status: { in: ['accepted', 'forced'] } },
+  })
+
+  function hoursFor(userId: string) {
+    const taskHours = logs
+      .filter(l => l.completedBy === userId)
+      .reduce((sum, l) => sum + (CATEGORY_HOURS[l.task.category] ?? 1.0), 0)
+    const eventHours = events
+      .filter(e => e.createdBy === userId)
+      .reduce((sum, e) => {
+        const ms = new Date(e.dateEnd).getTime() - new Date(e.dateStart).getTime()
+        return sum + ms / (1000 * 60 * 60)
+      }, 0)
+    return Math.round((taskHours + eventHours) * 10) / 10
+  }
+
+  return {
+    you:     { id: user1.id, name: user1.name, hours: hoursFor(user1.id) },
+    partner: user2 ? { id: user2.id, name: user2.name, hours: hoursFor(user2.id) } : null,
+  }
 }

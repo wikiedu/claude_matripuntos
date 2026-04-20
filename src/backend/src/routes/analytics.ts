@@ -235,4 +235,20 @@ router.get('/daily-breakdown', async (req: Request, res: Response) => {
   }
 })
 
+/**
+ * GET /api/analytics/time-invested
+ * Horas invertidas por usuario (tareas con heurística por categoría + duración de eventos).
+ * Query: ?range=week|month (default: week)
+ */
+router.get('/time-invested', async (req: Request, res: Response) => {
+  try {
+    const coupleId = (req as any).user.coupleId
+    const range = (req.query.range as 'week' | 'month') ?? 'week'
+    const data = await analyticsService.getTimeInvested(coupleId, range)
+    res.json({ success: true, data })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Error' })
+  }
+})
+
 export default router
