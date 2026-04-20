@@ -13,7 +13,7 @@
 | v1.1 | La Chispa | ✅ En producción | `main` | `v1.1` |
 | v1.2 | El Juego | ✅ En producción | `main` | `v1.2` |
 | v1.3 | La Casa | ✅ En producción | `main` | `v1.3` |
-| v1.4 | La Evolución (diseño v2) | Spec aprobado | `feature/v1.4-la-evolucion` | — |
+| v1.4 | La Evolución (diseño v2) | ⏳ Listo para merge | `feature/v1.4-la-evolucion` | — |
 | v2.0 | Hogar 360 | Planificado | `feature/v2.0-hogar-360` | — |
 | v2.1 | Conectados | Planificado | `feature/v2.1-conectados` | — |
 | v3.0 | Premium | Futuro | `feature/v3.0-premium` | — |
