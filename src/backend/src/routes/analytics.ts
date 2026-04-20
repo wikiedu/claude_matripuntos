@@ -111,11 +111,14 @@ router.get('/points-by-category', async (req: Request, res: Response) => {
   try {
     const coupleId = (req as any).user.coupleId
     const { startDate, endDate } = req.query
+    const grouped = req.query.groupByUser === 'true'
 
     const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30))
     const end = endDate ? new Date(endDate as string) : new Date()
 
-    const distribution = await analyticsService.getPointsByCategory(coupleId, start, end)
+    const distribution = grouped
+      ? await analyticsService.getPointsByCategoryGrouped(coupleId, start, end)
+      : await analyticsService.getPointsByCategory(coupleId, start, end)
 
     res.json({
       message: 'Points by category retrieved',

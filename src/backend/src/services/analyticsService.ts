@@ -278,6 +278,36 @@ export async function getPointsByCategory(
 }
 
 /**
+ * Get points distribution by category, split by user (you/partner).
+ * Uses TaskLogs (not events) and returns { [category]: { you, partner } }.
+ */
+export async function getPointsByCategoryGrouped(coupleId: string, start?: Date, end?: Date) {
+  const couple = await prisma.couple.findUnique({
+    where: { id: coupleId },
+    include: { users: true },
+  })
+  if (!couple) return {}
+  const [u1, u2] = couple.users
+  const where: any = { coupleId }
+  if (start) where.date = { ...(where.date ?? {}), gte: start }
+  if (end)   where.date = { ...(where.date ?? {}), lte: end }
+
+  const logs = await prisma.taskLog.findMany({
+    where,
+    include: { task: true },
+  })
+  const byCat: Record<string, { you: number; partner: number }> = {}
+  for (const l of logs) {
+    const cat = l.task.category
+    if (!byCat[cat]) byCat[cat] = { you: 0, partner: 0 }
+    const pts = Number(l.pointsFinal ?? 0)
+    if (l.completedBy === u1.id) byCat[cat].you += pts
+    else if (u2 && l.completedBy === u2.id) byCat[cat].partner += pts
+  }
+  return byCat
+}
+
+/**
  * Get weekly trends
  */
 export async function getWeeklyTrends(
