@@ -703,7 +703,7 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
                     onClick={() => setWithChildren(false)}
                     className={`flex-1 p-3 rounded-md text-sm font-medium transition ${
                       !withChildren
-                        ? 'bg-brand-indigo/15 border border-brand-indigo/50 text-[#a5b4fc]'
+                        ? 'bg-brand-indigo/15 border border-brand-indigo/50 text-indigo-300'
                         : 'bg-surface-card border border-brd-subtle text-text-secondary hover:border-brd-purple'
                     }`}
                   >

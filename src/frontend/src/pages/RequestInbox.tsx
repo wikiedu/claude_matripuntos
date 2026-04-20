@@ -198,6 +198,7 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
   const [disputingLog, setDisputingLog] = useState<TaskLogItem | null>(null)
   const [disputeReason, setDisputeReason] = useState('')
   const [isDisputing, setIsDisputing] = useState(false)
+  const [isForcing, setIsForcing] = useState(false)
 
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -286,6 +287,27 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
       setError(err instanceof Error ? err.message : 'Error al responder')
     } finally {
       setIsResponding(false)
+    }
+  }
+
+  const handleForce = async () => {
+    if (!selectedEvent) return
+    const negs = selectedEvent.negotiations || []
+    const target = negs.filter((n) => n.responseType === 'awaiting').pop() || negs[negs.length - 1]
+    if (!target?.id) { setError('No se encontró la negociación activa.'); return }
+
+    setIsForcing(true)
+    setError(null)
+    try {
+      await apiClient.negotiations.force(target.id)
+      setSuccess('Actividad forzada. Puntos descontados de tu saldo.')
+      setSelectedEvent(null)
+      setTimeout(() => setSuccess(null), 5000)
+      await loadAll()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al forzar la actividad')
+    } finally {
+      setIsForcing(false)
     }
   }
 
@@ -405,7 +427,7 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
               </div>
             )}
             {selectedEvent.compensation && (
-              <div className="mt-3 bg-brand-indigo/10 border border-brand-indigo/30 rounded-md p-3 text-sm text-[#a5b4fc]">
+              <div className="mt-3 bg-brand-indigo/10 border border-brand-indigo/30 rounded-md p-3 text-sm text-indigo-300">
                 <strong className="text-text-primary">Compensación ofrecida:</strong>{' '}
                 {getCompensationLabel(selectedEvent.compensation)}
               </div>
@@ -531,8 +553,16 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
                   <p className="text-xs text-text-tertiary mb-2">
                     Has agotado tus rondas gratuitas ({maxRounds}). Puedes forzar la actividad pagando los puntos de tu saldo.
                   </p>
-                  <Button variant="danger" size="sm">
-                    Forzar y pagar ({pts} pts)
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={handleForce}
+                    disabled={isForcing}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      {isForcing && <Loader className="w-4 h-4 animate-spin" />}
+                      Forzar y pagar ({pts} pts)
+                    </span>
                   </Button>
                 </div>
               )}
