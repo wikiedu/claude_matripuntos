@@ -9,7 +9,6 @@ import {
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
 import { toLocalDateString, formatLocalDate, formatLocalWeekDay } from '../utils/dateUtils'
-import { BottomNav } from '../components/BottomNav'
 import { WeeklyTaskView } from '../components/WeeklyTaskView'
 import { TaskScheduleForm } from '../components/TaskScheduleForm'
 import type { TaskSchedule } from '../types'
@@ -834,7 +833,6 @@ export default function Tasks({ onBack }: { onBack?: () => void }) {
           </>
         )}
       </main>
-      <BottomNav />
     </div>
   )
 }

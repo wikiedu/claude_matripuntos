@@ -8,7 +8,6 @@ import { NotificationBell } from '../components/NotificationBell'
 import { RecentMovementItem } from '../components/RecentMovementItem'
 import { type RecentActivity } from '../types/activity'
 import { AchievementsWidget } from '../components/AchievementsWidget'
-import { BottomNav } from '../components/BottomNav'
 import { StreakWidget } from '../components/StreakWidget'
 import { useShoppingList } from '../hooks/useShoppingList'
 import { useTodos } from '../hooks/useTodos'
@@ -478,7 +477,6 @@ export default function Dashboard() {
           </>
         )}
       </main>
-      <BottomNav />
     </div>
   )
 }

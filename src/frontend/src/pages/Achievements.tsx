@@ -1,5 +1,4 @@
 import { Award } from 'lucide-react'
-import { BottomNav } from '../components/BottomNav'
 import { LevelProgress } from '../components/LevelProgress'
 import { AchievementsMap } from '../components/AchievementsMap'
 
@@ -21,7 +20,6 @@ export default function Achievements() {
           <AchievementsMap />
         </div>
       </main>
-      <BottomNav />
     </div>
   )
 }

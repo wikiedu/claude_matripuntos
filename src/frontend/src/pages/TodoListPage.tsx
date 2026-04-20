@@ -3,7 +3,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { CheckSquare, Trash2, Eye, EyeOff } from 'lucide-react'
 import { apiClient } from '../services/apiClient'
 import { useTodos } from '../hooks/useTodos'
-import { BottomNav } from '../components/BottomNav'
 import type { Todo } from '../types'
 
 export default function TodoListPage() {
@@ -223,8 +222,6 @@ export default function TodoListPage() {
           </div>
         )}
       </div>
-
-      <BottomNav />
     </div>
   )
 }

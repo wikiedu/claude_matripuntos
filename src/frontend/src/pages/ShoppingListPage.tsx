@@ -3,7 +3,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ShoppingCart, Plus, Trash2, Archive } from 'lucide-react'
 import { apiClient } from '../services/apiClient'
 import { useShoppingList } from '../hooks/useShoppingList'
-import { BottomNav } from '../components/BottomNav'
 import type { ShoppingItem } from '../types'
 
 export default function ShoppingListPage() {
@@ -216,8 +215,6 @@ export default function ShoppingListPage() {
           </div>
         )}
       </div>
-
-      <BottomNav />
     </div>
   )
 }

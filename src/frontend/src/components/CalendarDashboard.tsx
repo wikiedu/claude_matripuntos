@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Home, Calendar, List } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
-import { BottomNav } from './BottomNav'
 
 interface AppEvent {
   id: string
@@ -375,7 +374,6 @@ export const CalendarDashboard: React.FC = () => {
           </div>
         )}
       </main>
-      <BottomNav />
     </div>
   )
 }
