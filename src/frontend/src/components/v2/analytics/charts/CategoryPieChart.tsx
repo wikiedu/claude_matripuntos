@@ -4,7 +4,7 @@ interface Category { name: string; value: number; color: string; emoji: string }
 interface Props { categories: Category[] }
 
 export function CategoryPieChart({ categories }: Props) {
-  if (categories.length === 0) {
+  if (!Array.isArray(categories) || categories.length === 0) {
     return (
       <div className="mx-4 mb-3.5">
         <Card className="text-center text-text-secondary text-xs py-6">

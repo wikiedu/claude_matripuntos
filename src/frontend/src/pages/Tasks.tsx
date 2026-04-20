@@ -324,6 +324,7 @@ export default function Tasks() {
   const [verifyingId, setVerifyingId] = useState<string | null>(null)
   const [showAddSheet, setShowAddSheet] = useState(false)
   const [addingFromCatalog, setAddingFromCatalog] = useState<string | null>(null)
+  const [showCatalog, setShowCatalog] = useState(false)
 
   // View state
   const [view, setView] = useState<'list' | 'week'>('list')
@@ -680,29 +681,43 @@ export default function Tasks() {
                 </section>
               )}
 
-              {/* Section: Catálogo */}
+              {/* Section: Catálogo (collapsed by default) */}
               {visibleCatalog.length > 0 && (
                 <section>
-                  <h2 className="text-sm font-bold text-text-primary mb-2">Catálogo</h2>
-                  <div className="rounded-md bg-surface-card border border-brd-subtle overflow-hidden">
-                    {visibleCatalog.map((group) => (
-                      <div key={group.category}>
-                        <div className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wide text-text-tertiary bg-surface-muted border-b border-brd-subtle">
-                          {CATEGORY_EMOJI[group.category]} {CATEGORY_LABEL[group.category]}
+                  <button
+                    type="button"
+                    onClick={() => setShowCatalog((v) => !v)}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-md bg-surface-card border border-brd-subtle text-sm font-semibold text-text-primary hover:bg-surface-muted transition-colors"
+                  >
+                    <span>
+                      📚 {showCatalog ? 'Ocultar catálogo' : 'Ver catálogo'}
+                      <span className="ml-1.5 text-xs font-normal text-text-tertiary">
+                        ({visibleCatalog.reduce((s, g) => s + g.tasks.length, 0)} ideas)
+                      </span>
+                    </span>
+                    <span className="text-text-tertiary text-xs">{showCatalog ? '▲' : '▼'}</span>
+                  </button>
+                  {showCatalog && (
+                    <div className="mt-2 rounded-md bg-surface-card border border-brd-subtle overflow-hidden">
+                      {visibleCatalog.map((group) => (
+                        <div key={group.category}>
+                          <div className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wide text-text-tertiary bg-surface-muted border-b border-brd-subtle">
+                            {CATEGORY_EMOJI[group.category]} {CATEGORY_LABEL[group.category]}
+                          </div>
+                          {group.tasks.map((t) => (
+                            <TaskCatalogRow
+                              key={`${group.category}-${t.name}`}
+                              name={t.name}
+                              pts={t.pts}
+                              desc={t.desc}
+                              busy={addingFromCatalog === t.name}
+                              onAdd={() => handleCreateFromCatalog(t.name, group.category, t.pts, t.desc)}
+                            />
+                          ))}
                         </div>
-                        {group.tasks.map((t) => (
-                          <TaskCatalogRow
-                            key={`${group.category}-${t.name}`}
-                            name={t.name}
-                            pts={t.pts}
-                            desc={t.desc}
-                            busy={addingFromCatalog === t.name}
-                            onAdd={() => handleCreateFromCatalog(t.name, group.category, t.pts, t.desc)}
-                          />
-                        ))}
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </section>
               )}
             </div>
