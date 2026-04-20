@@ -53,13 +53,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 // App Routes Component
 function AppRoutes() {
-  const { isAuthenticated, loadUserData, theme } = useAppStore()
-
-  useEffect(() => {
-    const html = document.documentElement
-    html.classList.remove('dark', 'light')
-    html.classList.add(theme)
-  }, [theme])
+  const { isAuthenticated, loadUserData } = useAppStore()
 
   useEffect(() => {
     // Check if user has a token and try to load their data

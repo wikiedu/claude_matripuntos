@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { BarChart3, Plus, Settings, LogOut, TrendingUp, TrendingDown, Loader, PieChart, Calendar, Sun, Moon } from 'lucide-react'
+import { BarChart3, Plus, Settings, LogOut, TrendingUp, TrendingDown, Loader, PieChart, Calendar } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient, fetchRecentActivity } from '../services/apiClient'
 import { NotificationBell } from '../components/NotificationBell'
@@ -42,7 +42,7 @@ interface BalanceData {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { user, couple, logout, toggleTheme, theme } = useAppStore()
+  const { user, couple, logout } = useAppStore()
   const [refreshCounter] = useState(0)
   const [events, setEvents] = useState<Event[]>([])
   const [pendingTaskCount, setPendingTaskCount] = useState(0)
@@ -142,16 +142,6 @@ export default function Dashboard() {
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button
-            onClick={async () => {
-              toggleTheme()
-              const newTheme = theme === 'dark' ? 'light' : 'dark'
-              await apiClient.profile.updateMe({ theme: newTheme })
-            }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--matri-text-2)', padding: 4 }}
-          >
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
           <NotificationBell />
           <Avatar
             emoji={user?.avatarEmoji ?? '🐼'}
