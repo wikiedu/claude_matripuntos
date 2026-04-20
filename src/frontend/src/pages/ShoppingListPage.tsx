@@ -283,16 +283,17 @@ interface ShoppingItemRowProps {
   busy?: boolean
 }
 
-function ShoppingItemRow({ item, category, onToggle, onDelete }: ShoppingItemRowProps) {
+function ShoppingItemRow({ item, category, onToggle, onDelete, busy }: ShoppingItemRowProps) {
   const cat = CATEGORIES[category]
   return (
-    <div className="flex items-center gap-2 rounded-lg bg-surface-card border border-brd-subtle pr-2">
+    <div className={`flex items-center gap-2 rounded-lg bg-surface-card border border-brd-subtle pr-2 ${busy ? 'opacity-60' : ''}`}>
       <label className="flex items-center justify-center w-11 h-11 cursor-pointer flex-shrink-0">
         <input
           type="checkbox"
           checked={item.isChecked}
           onChange={onToggle}
-          className="w-5 h-5 accent-brand-amber cursor-pointer"
+          disabled={busy}
+          className="w-5 h-5 accent-brand-amber cursor-pointer disabled:cursor-not-allowed"
           aria-label={item.isChecked ? 'Marcar como pendiente' : 'Marcar como completado'}
         />
       </label>
@@ -310,8 +311,9 @@ function ShoppingItemRow({ item, category, onToggle, onDelete }: ShoppingItemRow
       <button
         type="button"
         onClick={onDelete}
+        disabled={busy}
         aria-label="Eliminar"
-        className="p-2 rounded-md text-danger/80 hover:text-danger hover:bg-danger/10 transition flex-shrink-0"
+        className="p-2 rounded-md text-danger/80 hover:text-danger hover:bg-danger/10 transition flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <Trash2 className="w-4 h-4" />
       </button>
