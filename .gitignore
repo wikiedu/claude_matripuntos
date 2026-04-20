@@ -56,3 +56,18 @@ coverage/
 
 # Deploy credentials (never commit)
 .deploy-credentials
+
+# Production env (frontend build-time, keep local)
+src/frontend/.env.production
+
+# Local tooling artifacts (swarm/flow state, agent caches)
+.claude-flow/
+src/backend/.claude-flow/
+.claude/agents/
+.claude/commands/
+.claude/helpers/
+.claude/skills/
+.claude/settings.json
+.mcp.json
+.swarm/
+ruvector.db
