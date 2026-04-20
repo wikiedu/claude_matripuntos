@@ -1,81 +1,114 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAppStore } from '../store/useAppStore'
+import { useNavigate, Link } from 'react-router-dom'
 import { apiClient } from '../services/apiClient'
+import { useAppStore } from '../store/useAppStore'
+import { Button } from '../components/v2/primitives/Button'
+import { Input } from '../components/v2/primitives/Input'
 
 export default function Signup() {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
-  const [formError, setFormError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const [step, setStep] = useState<1 | 2>(1)
+  const [email, setEmail]       = useState('')
+  const [pwd, setPwd]           = useState('')
+  const [confirm, setConfirm]   = useState('')
+  const [accept, setAccept]     = useState(false)
+  const [name, setName]         = useState('')
+  const [showPwd, setShowPwd]   = useState(false)
+  const [loading, setLoading]   = useState(false)
+  const [err, setErr]           = useState<string | null>(null)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const step1Valid =
+    email.includes('@') &&
+    pwd.length >= 6 &&
+    confirm === pwd &&
+    accept
+
+  const step2Valid = name.trim().length >= 2
+
+  function goStep2(e: React.FormEvent) {
     e.preventDefault()
-    setFormError('')
-    setIsLoading(true)
-    if (!email || !password || !name) {
-      setFormError('Please fill all fields'); setIsLoading(false); return
+    setErr(null)
+    if (!step1Valid) {
+      if (!email.includes('@'))        return setErr('Introduce un email válido')
+      if (pwd.length < 6)              return setErr('La contraseña necesita al menos 6 caracteres')
+      if (confirm !== pwd)             return setErr('Las contraseñas no coinciden')
+      if (!accept)                     return setErr('Debes aceptar los términos')
     }
+    setStep(2)
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!step2Valid) {
+      setErr('Tu nombre necesita al menos 2 caracteres')
+      return
+    }
+    setLoading(true); setErr(null)
     try {
       const data = await apiClient.request('/auth/signup', {
         method: 'POST',
-        body: JSON.stringify({ email, password, name, language: 'es' }),
+        body: JSON.stringify({ email, password: pwd, name: name.trim(), language: 'es' }),
       })
-
-      // Store token so apiClient can use it for subsequent requests
       apiClient.setToken(data.token)
-
-      // Populate Zustand store directly from signup response.
-      // New users have no couple yet, so we skip getCouple() and set couple to null.
       useAppStore.getState().setUser(data.user)
       useAppStore.getState().setCouple(null)
-      // Mark as authenticated so ProtectedRoute lets us through
       useAppStore.setState({ isAuthenticated: true })
-
-      navigate('/dashboard')
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Signup failed')
+      navigate('/onboarding')
+    } catch (e: any) {
+      setErr(e?.message ?? 'Error al crear la cuenta')
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-lg shadow-xl p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Matripuntos</h1>
-            <p className="text-gray-600">Create your account</p>
-          </div>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {formError && <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{formError}</div>}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="John Doe" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" disabled={isLoading} />
+    <main className="bg-surface-base min-h-screen px-6 flex flex-col">
+      <div className="flex-1 flex flex-col justify-center py-10 max-w-md mx-auto w-full">
+        <div className="text-center mb-6">
+          <div className="w-[72px] h-[72px] rounded-[20px] mx-auto mb-4 bg-gradient-to-br from-brand-amber to-brand-purple flex items-center justify-center text-4xl shadow-xl shadow-brand-purple/40">💕</div>
+          <h1 className="text-2xl font-extrabold text-text-primary tracking-tight m-0">Crea tu cuenta</h1>
+          <div className="text-[13px] text-text-secondary mt-1">Paso {step} de 2</div>
+        </div>
+
+        <div className="flex gap-1 mb-6">
+          <div className={`h-1 flex-1 rounded-full ${step >= 1 ? 'bg-brand-purple' : 'bg-brd-subtle'}`} />
+          <div className={`h-1 flex-1 rounded-full ${step >= 2 ? 'bg-brand-purple' : 'bg-brd-subtle'}`} />
+        </div>
+
+        {step === 1 && (
+          <form onSubmit={goStep2} className="flex flex-col gap-3">
+            <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required />
+            <div className="relative">
+              <Input label="Contraseña (mín. 6)" type={showPwd ? 'text' : 'password'} value={pwd} onChange={e => setPwd(e.target.value)} autoComplete="new-password" required />
+              <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-2 bottom-2 text-text-secondary text-lg" aria-label="Mostrar contraseña">👁</button>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" disabled={isLoading} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password (min 8)</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" disabled={isLoading} />
-            </div>
-            <button type="submit" disabled={isLoading} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition-colors">
-              {isLoading ? 'Creating...' : 'Create Account'}
-            </button>
+            <Input label="Confirmar contraseña" type={showPwd ? 'text' : 'password'} value={confirm} onChange={e => setConfirm(e.target.value)} autoComplete="new-password" required />
+            <label className="flex items-center gap-2 text-xs text-text-secondary mt-1">
+              <input type="checkbox" checked={accept} onChange={e => setAccept(e.target.checked)} className="accent-brand-purple" />
+              Acepto los términos y la política de privacidad
+            </label>
+            {err && <div className="text-xs text-danger">{err}</div>}
+            <Button variant="primary" fullWidth size="lg" type="submit" disabled={!step1Valid} className="mt-2">
+              Siguiente →
+            </Button>
           </form>
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-center text-gray-600 text-sm mb-4">Already have an account?</p>
-            <button onClick={() => navigate('/login')} className="w-full border border-indigo-600 text-indigo-600 hover:bg-indigo-50 font-medium py-2 px-4 rounded-lg transition-colors">
-              Log In
-            </button>
-          </div>
+        )}
+
+        {step === 2 && (
+          <form onSubmit={submit} className="flex flex-col gap-3">
+            <Input label="¿Cómo te llamas?" type="text" value={name} onChange={e => setName(e.target.value)} autoComplete="given-name" required autoFocus />
+            {err && <div className="text-xs text-danger">{err}</div>}
+            <Button variant="primary" fullWidth size="lg" type="submit" disabled={!step2Valid || loading} className="mt-2">
+              {loading ? 'Creando…' : 'Crear cuenta'}
+            </Button>
+            <button type="button" onClick={() => { setStep(1); setErr(null) }} className="text-xs text-text-secondary mt-1 self-center">← volver</button>
+          </form>
+        )}
+
+        <div className="text-center mt-8 text-xs text-text-secondary">
+          ¿Ya tienes cuenta? <Link to="/login" className="text-brand-purple font-bold">Inicia sesión →</Link>
         </div>
       </div>
-    </div>
+    </main>
   )
 }
