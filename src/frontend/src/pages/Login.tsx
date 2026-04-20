@@ -1,106 +1,62 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAppStore } from '../store/useAppStore'
+import { Button } from '../components/v2/primitives/Button'
+import { Input } from '../components/v2/primitives/Input'
 
 export default function Login() {
-  const navigate = useNavigate()
-  const { login, error, isLoading } = useAppStore()
+  const nav = useNavigate()
+  const { login } = useAppStore()
+  const [email, setEmail]     = useState('')
+  const [pwd, setPwd]         = useState('')
+  const [showPwd, setShowPwd] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [err, setErr]         = useState<string | null>(null)
 
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [formError, setFormError] = useState('')
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function submit(e: React.FormEvent) {
     e.preventDefault()
-    setFormError('')
-
-    if (!email || !password) {
-      setFormError('Please fill in all fields')
-      return
-    }
-
+    setLoading(true); setErr(null)
     try {
-      await login(email, password)
-      navigate('/dashboard')
-    } catch (err) {
-      setFormError(error || 'Login failed. Please try again.')
+      await login(email, pwd)
+      const user = useAppStore.getState().user
+      nav(user?.hasCompletedOnboarding ? '/dashboard' : '/onboarding')
+    } catch (e: any) {
+      setErr(e?.message ?? 'Error al iniciar sesión')
+    } finally {
+      setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-lg shadow-xl p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Matripuntos</h1>
-            <p className="text-gray-600">Manage couple responsibilities equitably</p>
+    <main className="bg-surface-base min-h-screen px-6 flex flex-col">
+      <div className="flex-1 flex flex-col justify-center py-10 max-w-md mx-auto w-full">
+        <div className="text-center mb-8">
+          <div className="w-[72px] h-[72px] rounded-[20px] mx-auto mb-4 bg-gradient-to-br from-brand-amber to-brand-purple flex items-center justify-center text-4xl shadow-xl shadow-brand-purple/40">💕</div>
+          <h1 className="text-2xl font-extrabold text-text-primary tracking-tight m-0">Matripuntos</h1>
+          <div className="text-[13px] text-text-secondary mt-1">Equilibrio en pareja</div>
+        </div>
+        <form onSubmit={submit} className="flex flex-col gap-3">
+          <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required />
+          <div className="relative">
+            <Input label="Contraseña" type={showPwd ? 'text' : 'password'} value={pwd} onChange={e => setPwd(e.target.value)} autoComplete="current-password" required />
+            <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-2 bottom-2 text-text-secondary text-lg" aria-label="Mostrar contraseña">👁</button>
           </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {(formError || error) && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-                {formError || error}
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="user@example.com"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                disabled={isLoading}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-            >
-              {isLoading ? 'Logging in...' : 'Login'}
-            </button>
-          </form>
-
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-center text-gray-600 text-sm mb-4">
-              Don't have an account? Create one to get started.
-            </p>
-            <button
-              onClick={() => navigate('/signup')}
-              className="w-full border border-indigo-600 text-indigo-600 hover:bg-indigo-50 font-medium py-2 px-4 rounded-lg transition-colors"
-            >
-              Sign Up
-            </button>
-          </div>
-
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-xs">
-            <p className="font-semibold mb-1">Demo Credentials:</p>
-            <p>Email: user@example.com</p>
-            <p>Password: password123</p>
-          </div>
+          {err && <div className="text-xs text-danger">{err}</div>}
+          <button type="button" className="text-[11px] text-brand-purple self-end">olvidé mi contraseña →</button>
+          <Button variant="primary" fullWidth size="lg" type="submit" disabled={loading}>
+            {loading ? 'Entrando…' : 'Entrar'}
+          </Button>
+        </form>
+        <div className="flex items-center gap-3 my-5 text-xs text-text-tertiary">
+          <div className="flex-1 h-px bg-brd-subtle" />o<div className="flex-1 h-px bg-brd-subtle" />
+        </div>
+        <Button variant="outline" fullWidth disabled title="Disponible pronto">Continuar con Google</Button>
+        <div className="h-2" />
+        <Button variant="outline" fullWidth disabled title="Disponible pronto">Continuar con Apple</Button>
+        <div className="text-center mt-6 text-xs text-text-secondary">
+          ¿Primera vez aquí? <Link to="/signup" className="text-brand-purple font-bold">Crea tu cuenta →</Link>
         </div>
       </div>
-    </div>
+    </main>
   )
 }
