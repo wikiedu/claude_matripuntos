@@ -13,8 +13,14 @@ html {
 }
 
 body {
-  @apply bg-white text-gray-900 antialiased;
+  background: linear-gradient(180deg, #0f0a1e 0%, #1a0f35 100%);
+  min-height: 100vh;
+  color: #e2e8f0;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
+
+.tabular-nums { font-variant-numeric: tabular-nums; }
 
 /* Custom utilities */
 @layer components {
