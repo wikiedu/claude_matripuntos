@@ -7,7 +7,7 @@ interface Props {
 
 const LEFT = [
   { id: 'dashboard', label: 'Inicio',     icon: Home,       to: '/dashboard' },
-  { id: 'tasks',     label: 'Tareas',     icon: CheckSquare, to: '/tasks' },
+  { id: 'home',      label: 'Hogar',      icon: CheckSquare, to: '/home' },
 ]
 const RIGHT = [
   { id: 'calendar',  label: 'Calendario', icon: Calendar,   to: '/calendar' },
