@@ -133,16 +133,6 @@ function AppRoutes() {
       <Route path="/inbox" element={<Navigate to="/home/activities" replace />} />
       <Route path="/request-inbox" element={<Navigate to="/home/activities" replace />} />
 
-      {/* TEMPORARY route — Fase 2 will add /home/activities/:id; Fase 3 removes this */}
-      <Route
-        path="/request-inbox/:id"
-        element={
-          <ProtectedRoute>
-            <AuthedLayout><ActivityDetail /></AuthedLayout>
-          </ProtectedRoute>
-        }
-      />
-
       {/* /home/* routes */}
       <Route
         path="/home"
