@@ -10,7 +10,7 @@ import { BalanceLevelHero } from '../components/v2/dashboard/BalanceLevelHero'
 import { StreakStrip } from '../components/v2/dashboard/StreakStrip'
 import { ActivitiesBanner } from '../components/v2/dashboard/ActivitiesBanner'
 import { TodayTasksSection } from '../components/v2/dashboard/TodayTasksSection'
-import { RecentMovements } from '../components/v2/dashboard/RecentMovements'
+import { RecentMovementsTabs } from '../components/v2/dashboard/RecentMovementsTabs'
 import { QuickPreviews } from '../components/v2/dashboard/QuickPreviews'
 import { CATEGORY_EMOJI } from '../components/v2/tasks/CategoryFilterStrip'
 import { toLocalDateString } from '../utils/dateUtils'
@@ -18,6 +18,10 @@ import type { RecentActivity } from '../types/activity'
 import type { Task, TaskLog } from '../types/index'
 
 const LEVEL_ORDER = ['nido', 'brote', 'hogar', 'raices', 'diamante', 'leyenda', 'eterno']
+
+function deriveKind(a: RecentActivity): 'activity' | 'task' {
+  return a.type === 'event' || a.type === 'negotiation' ? 'activity' : 'task'
+}
 
 export default function Dashboard() {
   const { user, couple } = useAppStore()
@@ -105,12 +109,14 @@ export default function Dashboard() {
   const neededXp = currentXp + xpToNext
 
   const usersById = new Map((couple.users ?? []).map((u) => [u.id, u.name]))
-  const movements = recentActivities.slice(0, 3).map((a) => ({
+  const movements = recentActivities.slice(0, 50).map((a) => ({
     id: a.id,
     userName: a.userId ? (usersById.get(a.userId) ?? user.name) : user.name,
     action: a.name,
     delta: a.delta ?? 0,
     when: new Date(a.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
+    kind: deriveKind(a),
+    refId: a.relatedId,
   }))
 
   async function handleComplete(taskId: string) {
@@ -162,7 +168,7 @@ export default function Dashboard() {
         onComplete={handleComplete}
         partnerName={partner?.name ?? 'Tu pareja'}
       />
-      <RecentMovements movements={movements} />
+      <RecentMovementsTabs movements={movements} />
       <QuickPreviews
         shoppingPending={pendingShopping}
         todoPending={pendingTodos}

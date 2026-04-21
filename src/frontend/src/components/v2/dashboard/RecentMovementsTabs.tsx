@@ -1,0 +1,89 @@
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Avatar } from '../primitives/Avatar'
+
+export interface MovementVM {
+  id: string
+  userName: string
+  userAvatarEmoji?: string
+  userAvatarColor?: string
+  action: string
+  delta: number
+  when: string
+  kind: 'activity' | 'task'
+  refId: string
+}
+
+interface Props { movements: MovementVM[] }
+type Tab = 'all' | 'activity' | 'task'
+
+export function RecentMovementsTabs({ movements }: Props) {
+  const nav = useNavigate()
+  const [tab, setTab] = useState<Tab>('all')
+
+  const filtered = useMemo(
+    () => (tab === 'all' ? movements : movements.filter((m) => m.kind === tab)).slice(0, 3),
+    [movements, tab],
+  )
+
+  function onRowTap(m: MovementVM) {
+    if (m.kind === 'activity') nav(`/home/activities/${m.refId}`)
+    else nav(`/home/tasks?logId=${m.refId}`)
+  }
+
+  return (
+    <div className="mx-4 mb-3.5">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-bold text-text-primary m-0">Últimos movimientos</h3>
+        <div className="flex gap-1">
+          <ChipTab active={tab === 'all'}      onClick={() => setTab('all')}>Todo</ChipTab>
+          <ChipTab active={tab === 'activity'} onClick={() => setTab('activity')}>Actividades</ChipTab>
+          <ChipTab active={tab === 'task'}     onClick={() => setTab('task')}>Tareas</ChipTab>
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="text-[11px] text-text-tertiary text-center py-3">Aún no hay movimientos.</p>
+      ) : (
+        <div className="rounded-md bg-[rgba(26,16,53,0.3)] overflow-hidden">
+          {filtered.map((m, i) => (
+            <button
+              type="button"
+              key={m.id}
+              onClick={() => onRowTap(m)}
+              className={['flex items-center gap-2 px-3 py-2.5 w-full text-left bg-transparent border-0',
+                i > 0 ? 'border-t border-brd-subtle' : ''].join(' ')}
+            >
+              <Avatar emoji={m.userAvatarEmoji} color={m.userAvatarColor} size="sm" />
+              <div className="flex-1 min-w-0 text-xs">
+                <span className="text-text-primary font-semibold">{m.userName}</span>
+                <span className="text-text-secondary"> · {m.action}</span>
+              </div>
+              <span className={`text-xs font-bold tabular-nums ${m.delta >= 0 ? 'text-success' : 'text-danger'}`}>
+                {m.delta >= 0 ? '+' : ''}{m.delta.toFixed(1)} MP
+              </span>
+              <span className="text-[10px] text-text-tertiary">{m.when}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <button onClick={() => nav('/analytics?tab=movements')} className="text-xs text-brand-purple font-bold mt-2">
+        Ver historial completo →
+      </button>
+    </div>
+  )
+}
+
+function ChipTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        'px-2.5 py-1 rounded-full text-[10px] font-bold',
+        active ? 'bg-brand-amber text-white' : 'bg-surface-elevated text-text-secondary border border-brd-subtle',
+      ].join(' ')}
+    >{children}</button>
+  )
+}
