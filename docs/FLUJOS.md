@@ -39,7 +39,18 @@
 
 **Step 3 — Perfil:** hijos, mascotas, tipo de hogar
 **Step 4 — Configuración inicial:** tareas base, multiplicadores
-**Join Flow:** partner recibe link con token → acepta → vinculado al couple
+
+### Join Flow por link (v1.4 — un solo paso)
+
+Cuando User B llega a `/onboarding/join/:token` **sin cuenta previa**, se renderiza `StepJoinAccount` (no el wizard):
+
+1. Frontend llama a `apiClient.invitations.validateToken(token)` para obtener `inviterName` + `inviteeEmail` (readonly)
+2. User B introduce sólo **nombre + contraseña** (el email lo hereda del token)
+3. `registerWithInvitation({ token, email, password, name })` crea el user, lo vincula al couple del invitador y devuelve JWT
+4. Frontend guarda token, hace `PUT /profile/me { hasCompletedOnboarding: true }` (upsert), carga datos
+5. Redirect directo a `/dashboard` — se salta Steps 3/4 porque el invitador ya configuró el hogar
+
+Fallbacks: token expirado → pantalla "pídele nuevo link". Token inválido → "esta invitación no existe". Email ya registrado → "inicia sesión".
 
 ---
 
@@ -89,15 +100,17 @@ Regla: máx 1-2 notificaciones/día por usuario para no saturar.
 
 ## Flujo 8: Invitar Pareja por Email
 
-1. User A (logueado) va a Settings → "Invitar Pareja"
-2. Introduce email de User B → POST `/api/auth/invite`
-3. Backend: crea Invitation (tipo=email_invite, expira en 48h), genera token único
-4. Frontend muestra link copiable: `/onboarding/join?token=XXX&email=bob@example.com`
-5. User B recibe link (manual o email futuro)
-6. User B abre link → página `/onboarding/join` con email pre-rellenado
-7. User B introduce nombre + password → POST `/api/auth/accept-invite`
-8. Backend valida token, crea User B, crea Couple vinculando ambos
-9. Ambos redirigidos a `/dashboard` con pareja formada
+1. User A (logueado) va a Settings → "Tu Pareja" → "Invitar"
+2. Introduce email de User B → `POST /api/invitations`
+3. Backend: crea `Invitation` (expira en 48h) con token único
+4. Frontend muestra link copiable: `https://matripuntos.app/onboarding/join/:token`
+5. User B recibe link (manual / email / WhatsApp)
+6. User B abre link → frontend detecta `token` + usuario no logueado → renderiza `StepJoinAccount`
+7. User B ve "<inviterName> te ha invitado", email readonly, introduce nombre + password
+8. `POST /api/invitations/register-with-invitation` → crea User B, valida/consume el token, vincula al couple
+9. Frontend marca onboarded y navega a `/dashboard` — sin pasar por Steps 3/4
+
+Ver **Flujo 3 · Join Flow por link** arriba para el detalle del frontend.
 
 ---
 

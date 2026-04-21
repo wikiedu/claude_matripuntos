@@ -31,7 +31,7 @@ export function StepJoinAccount({ token }: Props) {
 
   useEffect(() => {
     let cancelled = false
-    apiClient.auth
+    apiClient.invitations
       .validateToken(token)
       .then((res: any) => {
         if (cancelled) return
@@ -71,7 +71,7 @@ export function StepJoinAccount({ token }: Props) {
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const res: any = await apiClient.auth.registerWithInvitation({
+      const res: any = await apiClient.invitations.registerWithInvitation({
         token,
         email: info.inviteeEmail,
         password,

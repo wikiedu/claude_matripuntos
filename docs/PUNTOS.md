@@ -1,9 +1,12 @@
 # Sistema de Puntos — Matripuntos
 
-## Tareas Recurrentes (Diarias) — Base Fija
+> **Fuente de verdad del catálogo de tareas:** `src/frontend/src/pages/Tasks.tsx` (`TASK_CATALOG`).
+> Esta tabla histórica refleja el rebalance pre-v1.4 (rango 1–2 MP). Tras v1.4 (Lote 4) el catálogo activo va de **2 a 18 MP** para que el esfuerzo quede mejor representado. Si editas puntos base, edita el catálogo frontend — este doc es referencia histórica.
 
-| Tarea | Pts base | Modificadores |
-|-------|----------|---------------|
+## Tareas Recurrentes (Diarias) — Histórico MVP 1
+
+| Tarea | Pts base (MVP 1) | Modificadores |
+|-------|-----------------:|---------------|
 | Cocina (desayuno/comida/cena) | 2.0 | +0.5 visita 5+ · +0.25 dietas especiales |
 | Baños + poner a dormir niños | 1.5 | +0.5 con 3+ niños o enfermo · +1.0 rabieta (necesita validación) |
 | Limpieza/orden diaria | 1.5 | +1.0 limpieza profunda · +1.5 post-fiesta |
@@ -11,6 +14,22 @@
 | Logística escolar/deberes | 1.0 | — |
 | Cuidado directo (juego, actividades) | 1.5 | +0.5 actividad programada fuera |
 | **Total si una persona hace todo** | **8.5** | — |
+
+## Catálogo v1.4 — Muestreo (rango 2–18 MP)
+
+| Tarea | Pts base | Categoría |
+|-------|---------:|-----------|
+| Preparar el desayuno | 6 | cocina |
+| Cocinar la comida | 10 | cocina |
+| Cocinar la cena | 12 | cocina |
+| Fregar los platos | 8 | cocina |
+| Poner la lavadora | 6 | limpieza |
+| Pasar la aspiradora | 10 | limpieza |
+| Hacer la compra semanal | 18 | compra |
+| Llevar/recoger niños al cole | 8 | cuidado |
+| Acostar a los niños | 7 | cuidado |
+| Sacar a pasear al perro | 5 | mascotas |
+| Hacer deberes con los niños | 1–2 | cuidado |
 
 ---
 
