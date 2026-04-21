@@ -1,6 +1,3 @@
-// ActivityDetail page — extracted from RequestInbox.tsx (Task 1.2 of Actividades module).
-// Route-driven: reads event id from useParams, fetches via React Query.
-
 import { useState, useEffect } from 'react'
 import {
   ChevronLeft, Check, X, Edit, Calendar, Loader, Clock,
