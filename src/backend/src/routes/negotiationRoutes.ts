@@ -70,6 +70,8 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
         status: 'pending',
         negotiationRound: 1,
         pointsCalculated: new Decimal(data.pointsProposed),
+        lastProposedBy: req.userId,
+        lastProposedPoints: new Decimal(data.pointsProposed),
       },
     })
 
@@ -243,6 +245,8 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
         data: {
           negotiationRound: nextRound,
           pointsCalculated: new Decimal(data.pointsProposed),
+          lastProposedBy: req.userId,
+          lastProposedPoints: new Decimal(data.pointsProposed),
         },
       })
     } else {

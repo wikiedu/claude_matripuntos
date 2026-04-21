@@ -128,6 +128,10 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
         pointsAgreed: e.pointsAgreed?.toString() || null,
         status: e.status,
         negotiationRound: e.negotiationRound,
+        // createdBy / lastProposedBy are needed by the frontend to split
+        // "pending for me to respond" vs "waiting for partner response".
+        createdBy: e.createdBy,
+        lastProposedBy: e.lastProposedBy,
         creator: e.creator ? {
           id: e.creator.id,
           name: e.creator.name,

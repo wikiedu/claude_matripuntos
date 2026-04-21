@@ -378,6 +378,18 @@ export default function Tasks() {
 
   const filteredTasks = cat === 'all' ? tasks : tasks.filter((t) => t.category?.toLowerCase() === cat)
 
+  // A task is "done for now" if anyone in the couple has a log for it
+  // (pending or verified) dated today, or has a pending-verification log from
+  // any recent day. Those logs already surface in the "pendientes de verificación"
+  // widget above; re-listing them in Hoy confuses the user into thinking they
+  // need to redo the task. Once partner verifies/disputes, the task reappears.
+  const taskIdsHiddenFromToday = new Set<string>()
+  for (const l of allLogs) {
+    if (l.date?.toString().startsWith(today)) taskIdsHiddenFromToday.add(l.taskId)
+    if (l.status === 'pending') taskIdsHiddenFromToday.add(l.taskId)
+  }
+  const todayTasks = filteredTasks.filter((t) => !taskIdsHiddenFromToday.has(t.id))
+
   // Week bounds (in local time) — used for the "Esta semana" section
   const weekBounds = (() => {
     const start = new Date()
@@ -627,19 +639,23 @@ export default function Tasks() {
                 <h2 className="text-sm font-bold text-text-primary mb-2 flex items-center gap-2">
                   <span>🔥 Hoy</span>
                   <span className="text-xs font-normal text-text-tertiary">
-                    {myTodayLogs.length}/{filteredTasks.length}
+                    {myTodayLogs.length}/{todayTasks.length}
                   </span>
                 </h2>
-                {filteredTasks.length === 0 ? (
+                {todayTasks.length === 0 ? (
                   <div className="rounded-md bg-surface-card border border-brd-subtle p-6 text-center">
-                    <div className="text-3xl mb-2">🏠</div>
+                    <div className="text-3xl mb-2">{filteredTasks.length === 0 ? '🏠' : '🎉'}</div>
                     <p className="text-sm font-semibold text-text-primary mb-1">
-                      {cat === 'all' ? 'Sin tareas en tu lista' : 'Sin tareas en esta categoría'}
+                      {filteredTasks.length === 0
+                        ? (cat === 'all' ? 'Sin tareas en tu lista' : 'Sin tareas en esta categoría')
+                        : 'Todo al día'}
                     </p>
                     <p className="text-xs text-text-secondary mb-3">
-                      {cat === 'all' ? 'Añade tareas del catálogo o crea las tuyas' : 'Revisa el catálogo abajo'}
+                      {filteredTasks.length === 0
+                        ? (cat === 'all' ? 'Añade tareas del catálogo o crea las tuyas' : 'Revisa el catálogo abajo')
+                        : 'Todas las tareas de hoy están hechas o pendientes de verificación.'}
                     </p>
-                    {cat === 'all' && (
+                    {filteredTasks.length === 0 && cat === 'all' && (
                       <Button size="sm" onClick={() => setShowAddSheet(true)}>
                         <span className="inline-flex items-center gap-1">
                           <Plus className="w-4 h-4" /> Nueva tarea
@@ -649,7 +665,7 @@ export default function Tasks() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {filteredTasks.map((task) => {
+                    {todayTasks.map((task) => {
                       const myLog = myTodayLogsByTask.get(task.id)
                       const doneToday = !!myLog
                       return (

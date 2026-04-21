@@ -41,10 +41,21 @@ export function useActivities() {
 
     for (const e of events) {
       if (e.status === 'pending') {
-        if (e.lastProposedBy !== meId) {
-          pending.push(e)
-        } else if (e.createdBy === meId) {
+        // Resolve who made the last move. Prefer the explicit Event.lastProposedBy
+        // field; fall back to the latest negotiation's proposer (backend sorts
+        // negotiations desc by createdAt, so [0] is the latest); final fallback
+        // is the event creator (for events stuck in pending with no negotiations).
+        const lastProposer =
+          e.lastProposedBy
+          ?? e.negotiations?.[0]?.proposedBy
+          ?? e.creator?.id
+          ?? e.createdBy
+        if (lastProposer && lastProposer === meId) {
+          // I made the last move → waiting for partner to respond
           waiting.push(e)
+        } else {
+          // Partner made the last move → it's my turn to respond
+          pending.push(e)
         }
       } else if (e.status === 'accepted' || e.status === 'rejected' || e.status === 'forced') {
         history.push(e)

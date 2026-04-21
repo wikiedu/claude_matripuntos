@@ -62,25 +62,26 @@ export default function Dashboard() {
     if (!tasksRes?.tasks) return []
     const today = toLocalDateString(new Date())
     const logs = logsRes?.logs ?? []
-    // A task is already "done" today if there is any log for it whose local date
-    // is today — regardless of who completed it (pair-level completion).
-    const taskIdsLoggedToday = new Set(
-      logs
-        .filter((l) => l.date && toLocalDateString(l.date) === today)
-        .map((l) => l.taskId),
-    )
+    // A task is "done for now" if there is a log for it dated today (any status)
+    // OR a pending-verification log from any recent day. Pending logs already
+    // show up in the verification widget; re-listing them in Hoy confuses the
+    // user into thinking the task still needs doing. Once the partner verifies
+    // or disputes, the task reappears.
+    const taskIdsHidden = new Set<string>()
+    for (const l of logs) {
+      if (l.date && toLocalDateString(l.date) === today) taskIdsHidden.add(l.taskId)
+      if (l.status === 'pending') taskIdsHidden.add(l.taskId)
+    }
     // Mirror the Tasks page "Hoy" logic: a task belongs to today's list if it is
     // either (a) unscheduled (catalog/recurring), (b) scheduled exactly today, or
-    // (c) overdue (scheduled for a past date and still not done). Previously we
-    // required scheduledFor === today, which hid every catalog-added task the
-    // user never explicitly dated, making the Dashboard lie about pending work.
+    // (c) overdue (scheduled for a past date and still not done).
     return tasksRes.tasks
       .filter((t) => {
         if (!t.scheduledFor) return true
         const sf = toLocalDateString(t.scheduledFor)
         return sf <= today
       })
-      .filter((t) => !taskIdsLoggedToday.has(t.id))
+      .filter((t) => !taskIdsHidden.has(t.id))
       // Keep the full pending list so the "N pendientes" badge is accurate —
       // TodayTasksSection itself caps the visible rows at 3 and links to /tasks.
       .map((t) => ({
