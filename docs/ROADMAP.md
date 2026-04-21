@@ -14,6 +14,7 @@
 | v1.2 | El Juego | ✅ En producción | `main` | `v1.2` |
 | v1.3 | La Casa | ✅ En producción | `main` | `v1.3` |
 | v1.4 | La Evolución (diseño v2) | ⏳ Listo para merge | `feature/v1.4-la-evolucion` | — |
+| v1.5 | Red de Seguridad (tests + CI) | Planificado | `feature/v1.5-red-de-seguridad` | — |
 | v2.0 | Hogar 360 | Planificado | `feature/v2.0-hogar-360` | — |
 | v2.1 | Conectados | Planificado | `feature/v2.1-conectados` | — |
 | v3.0 | Premium | Futuro | `feature/v3.0-premium` | — |
@@ -103,9 +104,62 @@ Primera versión presentable a usuarios externos.
 
 ---
 
+## v1.5 · Red de Seguridad
+
+**Foco:** Cerrar la deuda histórica de tests del frontend y pasar a una política *test-first* para todo lo que venga después. Cobertura retroactiva de los flujos que más duelen si se rompen (auth, balance, negociación, disputa de tareas), no cobertura exhaustiva línea por línea.
+
+**Contexto:** el backend ya tiene Jest configurado con tests en `auth`, `recurringTaskService`, `gamificationService`, `analyticsService` y `achievementEngine`. El frontend, hasta v1.4, se valida a mano vía `npm run dev`. El módulo Actividades (2026-04-21) introduce Vitest + RTL como parte de su Fase 0; v1.5 consolida ese setup y extiende la cobertura al resto del código.
+
+**Scope cerrado:**
+
+### 1. Infraestructura común (heredada de Actividades)
+- Vitest + @testing-library/react + jsdom ya instalados como efecto colateral del módulo Actividades.
+- `vitest.config.ts`, `src/test/setup.ts`, `src/test/renderWithProviders.tsx` ya existen.
+- v1.5 añade: CI en GitHub Actions que corre `npm run test` (front) + `npm run test` (back) + `npm run type-check` en cada push a `main` y en cada PR.
+
+### 2. Cobertura retroactiva del frontend — flujos críticos
+Un test de integración (RTL) por flujo, no más. Preferimos ancho antes que profundidad.
+
+| Origen | Flujo | Qué prueba |
+|---|---|---|
+| MVP 1 | Login + Signup | Redirect según auth, validaciones de formulario |
+| MVP 1 | Onboarding (4 pasos) | Avanzar/retroceder, no se puede saltar pasos |
+| MVP 1 | Crear actividad (wizard RequestActivity) | Validaciones, preview de puntos, submit |
+| MVP 1 | Balance + historial | `BalanceLevelHero` renderiza nombres y números correctos |
+| MVP 1 | Disputa de tarea | Panel de disputa, submit, invalidaciones |
+| v1.1 | `DailyPhrase` + mood partner | Render condicional, click de mood abre sheet |
+| v1.2 | `AchievementBadge` + mapa de logros | Render de estado unlocked/locked |
+| v1.2 | `StreakStrip` | Multiplier + freezer disponibles |
+| v1.3 | Shopping list add/check | Toggle, borrado, persistencia |
+| v1.3 | To-dos personal | Crear, completar, filtrar mios/compartidos |
+| v1.4 | Analytics tabs (Básico/Avanzado/Movimientos) | Cambio de tab, blur overlay en Premium |
+| v1.4 | FAB action sheet | Abrir, 3 opciones, navegación correcta |
+| Actividades | Banner + /home/* | Ya cubierto por el propio módulo — se hereda |
+
+### 3. Cobertura retroactiva del backend
+- `pointsCalculator` — test unitario completo con la tabla de factores del `docs/PUNTOS.md`.
+- `negotiationEngine` — aceptar, rechazar, contraofertar, forzar, rondas agotadas.
+- `eventRoutes` — happy path + 401 + 404 + rondas agotadas.
+- `taskRoutes` + auto-accept 24h cron — crear log, disputar, cron marca verified.
+- `notificationService` — sólo se crea al responder (no al crear).
+
+### 4. Política *test-first* a partir de v2.0
+- Plantilla de PR con casilla "tests incluidos para el cambio". 
+- Cobertura mínima 70% **de los archivos modificados** (no del repo entero). Se mide con `vitest --coverage` + `jest --coverage`.
+- Cualquier bug cerrado añade test de regresión antes de cerrar el ticket.
+
+**No-objetivos:**
+- No se persiguen porcentajes globales de cobertura ni tests E2E con Playwright (se evaluará en v2.1 si hace falta).
+- No se reescriben features existentes para facilitar testing; si una zona resiste test, se documenta y se deja TODO.
+
+**Branch:** `feature/v1.5-red-de-seguridad` · **Tag al merge:** `v1.5`
+
+---
+
 ## v2.0 · Hogar 360
 
-**Foco:** App completa de la vida en pareja.
+**Foco:** App completa de la vida en pareja.  
+**Política de tests:** test-first activada desde v1.5 (ver sección anterior). Cada feature nueva entra con sus tests Vitest/Jest; CI bloquea el merge si falla.
 
 **Features:**
 - **Módulo Calendario Mejorado:**
