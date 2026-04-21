@@ -384,6 +384,7 @@ class ApiClient {
       avatarColor?: string
       theme?: string
       currentMood?: string
+      hasCompletedOnboarding?: boolean
     }) =>
       this.request('/profile/me', {
         method: 'PUT',
