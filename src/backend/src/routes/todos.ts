@@ -73,14 +73,32 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
   }
 })
 
-// PUT /api/todos/:id — update (owner only)
+// PUT /api/todos/:id — owner can update anything; partner can only toggle
+// isCompleted on shared todos (B3). Notify the owner when partner toggles.
 router.put('/:id', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.userId!
-    const todo = await prisma.todo.findFirst({ where: { id: req.params.id, userId } })
+    const coupleId = req.coupleId!
+    const todo = await prisma.todo.findFirst({ where: { id: req.params.id, coupleId } })
     if (!todo) { res.status(404).json({ error: 'To-do no encontrado' }); return }
 
     const updates = updateTodoSchema.parse(req.body)
+    const isOwner = todo.userId === userId
+    const isPartnerOnSharedTodo = !isOwner && todo.isShared
+
+    if (!isOwner && !isPartnerOnSharedTodo) {
+      res.status(403).json({ error: 'No puedes modificar este to-do' }); return
+    }
+
+    // Partner is restricted to flipping isCompleted on shared todos.
+    if (isPartnerOnSharedTodo) {
+      const touched = Object.keys(updates)
+      const allowed = touched.every(k => k === 'isCompleted')
+      if (!allowed || updates.isCompleted === undefined) {
+        res.status(403).json({ error: 'Solo puedes marcar como completado' }); return
+      }
+    }
+
     const data: Record<string, unknown> = { ...updates }
     if (updates.dueDate !== undefined) {
       data.dueDate = updates.dueDate ? new Date(updates.dueDate) : null
@@ -90,6 +108,24 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response): Promise<
     }
 
     const updated = await prisma.todo.update({ where: { id: todo.id }, data })
+
+    // Notify the owner when the partner toggles completion on a shared todo.
+    if (isPartnerOnSharedTodo && updates.isCompleted !== undefined) {
+      const actor = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } })
+      await prisma.notification.create({
+        data: {
+          coupleId,
+          userId: todo.userId,
+          type: 'TODO_TOGGLED',
+          title: updates.isCompleted ? 'To-do compartido completado' : 'To-do compartido reabierto',
+          message: updates.isCompleted
+            ? `${actor?.name ?? 'Tu pareja'} marcó "${todo.text}" como hecho.`
+            : `${actor?.name ?? 'Tu pareja'} reabrió "${todo.text}".`,
+          isRead: false,
+        },
+      })
+    }
+
     res.json(updated)
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ error: err.errors[0].message }); return }

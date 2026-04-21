@@ -424,14 +424,38 @@ function CoupleSection({ onBack }: { onBack: () => void }) {
                 <p className="text-xs font-bold text-success mb-1.5">Enlace generado</p>
                 <p className="text-[11px] text-text-secondary mb-2">Comparte este enlace con tu pareja. Caduca en 7 días.</p>
                 <div className="flex items-center gap-2 bg-surface-elevated border border-brd-subtle rounded-md px-2 py-1.5">
-                  <p className="text-[11px] text-text-primary flex-1 truncate font-mono">{inviteLink}</p>
+                  <input
+                    type="text"
+                    readOnly
+                    value={inviteLink}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onClick={(e) => e.currentTarget.select()}
+                    className="text-[11px] text-text-primary flex-1 font-mono bg-transparent border-0 outline-none min-w-0 truncate"
+                    aria-label="Enlace de invitación"
+                  />
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(inviteLink)
-                      setCopied(true)
-                      setTimeout(() => setCopied(false), 2000)
+                    onClick={async () => {
+                      try {
+                        if (navigator.clipboard?.writeText) {
+                          await navigator.clipboard.writeText(inviteLink)
+                        } else {
+                          // Fallback for non-secure contexts / old browsers
+                          const ta = document.createElement('textarea')
+                          ta.value = inviteLink
+                          ta.style.position = 'fixed'; ta.style.opacity = '0'
+                          document.body.appendChild(ta); ta.select()
+                          document.execCommand('copy')
+                          document.body.removeChild(ta)
+                        }
+                        setCopied(true)
+                        setTimeout(() => setCopied(false), 2000)
+                      } catch {
+                        // If all else fails, at least the user can long-press/select the visible input
+                        setError('No se pudo copiar automáticamente. Selecciona el enlace y cópialo manualmente.')
+                      }
                     }}
                     className="flex-shrink-0 text-text-primary hover:text-brand-purple"
+                    aria-label="Copiar enlace"
                   >
                     {copied ? <CheckCircle className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
                   </button>

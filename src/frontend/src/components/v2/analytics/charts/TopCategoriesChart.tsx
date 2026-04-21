@@ -1,9 +1,9 @@
 import { Card } from '../../primitives/Card'
 
 interface Row { cat: string; you: number; partner: number }
-interface Props { data: Row[] }
+interface Props { data: Row[]; youName?: string; partnerName?: string }
 
-export function TopCategoriesChart({ data }: Props) {
+export function TopCategoriesChart({ data, youName = 'Tú', partnerName = 'Pareja' }: Props) {
   if (data.length === 0) {
     return (
       <div className="mx-4 mb-3.5">
@@ -21,6 +21,18 @@ export function TopCategoriesChart({ data }: Props) {
         <div className="text-[11px] text-text-secondary mt-0.5">¿Quién cubre qué?</div>
       </div>
       <Card>
+        {/* Legend so the purple/amber bars are identifiable (B7) */}
+        <div className="flex items-center gap-4 mb-3">
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block w-3 h-2 rounded-sm bg-gradient-to-r from-brand-purple to-brand-purple-dark" />
+            <span className="text-[11px] text-text-secondary">{youName}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block w-3 h-2 rounded-sm bg-gradient-to-r from-brand-amber-dark to-brand-amber" />
+            <span className="text-[11px] text-text-secondary">{partnerName}</span>
+          </div>
+        </div>
+
         <div className="flex flex-col gap-2.5">
           {data.map(d => (
             <div key={d.cat}>

@@ -25,16 +25,30 @@ const CAT_LABEL: Record<string, string> = {
 
 const DOW = ['D', 'L', 'M', 'X', 'J', 'V', 'S']
 
+// Turn unknown slugs like "salida_y_amigos" into "Salida Y Amigos" so the UI
+// never shows raw underscores to the user (B5).
+function prettifySlug(slug: string): string {
+  if (!slug) return 'Otros'
+  return slug
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}
+
 function normalizeCats(raw: unknown) {
   if (!raw || typeof raw !== 'object') return []
   const entries = Object.entries(raw as Record<string, number>)
     .filter(([, v]) => typeof v === 'number' && v > 0)
-  return entries.map(([key, value]) => ({
-    name: CAT_LABEL[key] ?? key,
-    value,
-    color: CAT_COLORS[key] ?? CAT_COLORS.other,
-    emoji: CAT_EMOJI[key] ?? CAT_EMOJI.other,
-  }))
+  return entries.map(([key, value]) => {
+    const k = key.toLowerCase()
+    return {
+      name: CAT_LABEL[k] ?? prettifySlug(key),
+      value,
+      color: CAT_COLORS[k] ?? CAT_COLORS.other,
+      emoji: CAT_EMOJI[k] ?? CAT_EMOJI.other,
+    }
+  })
 }
 
 // Backend /analytics/daily-activity returns an array of {date, count, totalPoints, types}.
@@ -54,7 +68,7 @@ function normalizeDaily(raw: unknown) {
 }
 
 // Backend /points/chart-data returns { chartData: [{idx, date, [youName]: cumulative, [partnerName]?: cumulative}], youName, partnerName }.
-// The couple balance is the gap between "you" and "partner" — positive when "you" has earned more.
+// Return both cumulative series so we can plot two lines (user request B4).
 function normalizeDailyBalance(raw: unknown) {
   if (!raw || typeof raw !== 'object') return []
   const r = raw as { chartData?: any[]; youName?: string; partnerName?: string | null }
@@ -63,7 +77,8 @@ function normalizeDailyBalance(raw: unknown) {
   const partnerKey = r.partnerName ?? ''
   return r.chartData.map((d: any) => ({
     label: String(d.date ?? ''),
-    balance: Number(d[youKey] ?? 0) - (partnerKey ? Number(d[partnerKey] ?? 0) : 0),
+    you: Number(d[youKey] ?? 0),
+    partner: partnerKey ? Number(d[partnerKey] ?? 0) : 0,
   }))
 }
 
@@ -92,7 +107,7 @@ export function BasicAnalytics() {
     <>
       <WeeklyBarsChart days={dayList} youName={youName} partnerName={partnerName} />
       <CategoryPieChart categories={catList} />
-      <BalanceEvolutionChart points={balancePoints} subtitle="Saldo diario · últimos 30 días" trendUnit="30 días" />
+      <BalanceEvolutionChart points={balancePoints} youName={youName} partnerName={partnerName} subtitle="Puntos acumulados · últimos 30 días" trendUnit="30 días" />
       <TimeInvestedChart you={time?.you ?? { name: youName, hours: 0 }} partner={time?.partner ?? { name: partnerName, hours: 0 }} />
     </>
   )

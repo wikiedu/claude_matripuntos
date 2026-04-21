@@ -219,7 +219,9 @@ router.post('/invite', authMiddleware, async (req: Request, res: Response): Prom
     if (!req.userId) { res.status(401).json({ error: 'User ID not found' }); return }
     const validated = inviteSchema.parse(req.body)
     const inv = await createInvitation(req.userId, validated.toEmail)
-    res.json({ message: 'Invitation sent', token: inv.token, inviteLink: `http://localhost:5173/onboarding/join?token=${inv.token}&email=${validated.toEmail}` })
+    // Prefer FRONTEND_URL in production; fall back to request origin then localhost for dev.
+    const origin = process.env.FRONTEND_URL || req.headers.origin || 'http://localhost:5173'
+    res.json({ message: 'Invitation sent', token: inv.token, inviteLink: `${origin}/onboarding/join?token=${inv.token}&email=${encodeURIComponent(validated.toEmail)}` })
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : 'Failed' })
   }
@@ -231,9 +233,10 @@ router.post('/accept-invite', async (req: Request, res: Response): Promise<void>
     const validated = acceptInviteSchema.parse(req.body)
     const inv = await getInvitationByToken(validated.token)
     if (!inv || inv.toEmail !== validated.email) { res.status(400).json({ error: 'Invalid invitation' }); return }
+    // signupUser now detects pending invites and auto-links to the inviter's couple.
     const newUser = await signupUser(validated.email, validated.password, validated.name, validated.language)
-    const couple = await acceptEmailInvitation(validated.token, newUser.id)
-    const token = jwt.sign({ userId: newUser.id, coupleId: couple.id }, process.env.JWT_SECRET!, { expiresIn: '7d' })
+    const couple = await prisma.couple.findUnique({ where: { id: newUser.coupleId! }, include: { users: true } })
+    const token = jwt.sign({ userId: newUser.id, coupleId: newUser.coupleId! }, process.env.JWT_SECRET!, { expiresIn: '7d' })
     res.status(201).json({ message: 'Account created and linked', couple, token })
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : 'Failed' })

@@ -63,8 +63,10 @@ router.post('/invite-partner', authenticateToken, async (req: Request, res: Resp
       },
     })
 
-    // Generate invitation link
-    const invitationLink = `${process.env.FRONTEND_URL}/onboarding/join/${token}`
+    // Generate invitation link. Prefer FRONTEND_URL in prod; fall back to request
+    // origin header then localhost for dev, so we never emit `undefined/onboarding/...`.
+    const origin = process.env.FRONTEND_URL || (req.headers.origin as string) || 'http://localhost:5173'
+    const invitationLink = `${origin}/onboarding/join/${token}`
 
     res.status(201).json({
       message: 'Invitation created successfully',

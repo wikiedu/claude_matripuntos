@@ -45,7 +45,10 @@ export const verifyToken = (token: string): { userId: string; coupleId: string }
   }
 }
 
-// Signup a single user — creates a solo couple so the user has a coupleId from day 1
+// Signup a single user.
+// If a pending email invitation exists for this address, link the new user
+// to the inviter's existing couple and auto-accept the invitation (B1 fix).
+// Otherwise, create a solo couple so the user has a coupleId from day 1.
 export async function signupUser(
   email: string,
   password: string,
@@ -60,6 +63,47 @@ export async function signupUser(
     }
 
     const passwordHash = await hashPassword(password)
+
+    // B1: If there's a pending email invitation for this address, attach the new
+    // user to the inviter's couple instead of creating a new solo couple.
+    const pendingInvite = await prisma.invitation.findFirst({
+      where: {
+        toEmail: email,
+        type: 'email_invite',
+        status: 'pending',
+        expiresAt: { gt: new Date() },
+      },
+      include: { fromUser: { select: { id: true, coupleId: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    if (pendingInvite?.fromUser?.coupleId) {
+      const inviterCouple = await prisma.couple.findUnique({
+        where: { id: pendingInvite.fromUser.coupleId },
+        include: { users: true },
+      })
+      if (inviterCouple && inviterCouple.users.length < 2) {
+        const linkedUser = await prisma.user.create({
+          data: {
+            email,
+            passwordHash,
+            name,
+            coupleId: inviterCouple.id,
+            roleInHome: 'equal',
+            timezone: 'Europe/Madrid',
+            hasCompletedOnboarding: false,
+            notificationsPush: true,
+            notificationsEmail: true,
+          },
+          select: { id: true, email: true, name: true, coupleId: true },
+        })
+        await prisma.invitation.update({
+          where: { id: pendingInvite.id },
+          data: { status: 'accepted', toUserId: linkedUser.id },
+        })
+        return linkedUser
+      }
+    }
 
     // Create a solo couple so all couple-scoped features work immediately
     const couple = await prisma.couple.create({

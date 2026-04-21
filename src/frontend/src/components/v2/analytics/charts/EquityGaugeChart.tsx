@@ -1,11 +1,27 @@
 import { Card } from '../../primitives/Card'
 
-interface Props { score: number; delta?: number }
+interface Props { score: number; delta?: number; hasData?: boolean }
 
-export function EquityGaugeChart({ score, delta }: Props) {
+export function EquityGaugeChart({ score, delta, hasData = true }: Props) {
   const clamped = Math.max(0, Math.min(100, score))
   const label = clamped >= 85 ? 'Excelente' : clamped >= 70 ? 'Bien' : clamped >= 50 ? 'Mejorable' : 'Desigual'
   const circumference = 314
+
+  if (!hasData) {
+    return (
+      <div className="mx-4 mb-3.5">
+        <div className="mb-2.5">
+          <div className="text-sm font-bold text-text-primary">⚖️ Índice de equidad</div>
+          <div className="text-[11px] text-text-secondary mt-0.5">0 = desigual · 100 = perfecto</div>
+        </div>
+        <Card className="text-center text-text-secondary text-xs py-6">
+          ⚖️ Aún no hay suficientes datos para calcular la equidad.<br />
+          <span className="text-text-tertiary">Registra tareas y eventos durante una semana para verla aquí.</span>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="mx-4 mb-3.5">
       <div className="mb-2.5">

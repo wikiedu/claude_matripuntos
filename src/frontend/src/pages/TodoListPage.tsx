@@ -311,17 +311,24 @@ function TodoItemRow({
   )
 }
 
-// ─── Shared (partner) todo row — read-only ──────────────────────────────────
+// ─── Shared (partner) todo row — partner may toggle completion (B3) ────────
 function SharedTodoRow({ todo }: { todo: Todo }) {
+  const queryClient = useQueryClient()
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, isCompleted }: { id: string; isCompleted: boolean }) =>
+      apiClient.todos.update(id, { isCompleted }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['todos'] }),
+  })
   return (
     <div className="flex items-center gap-2 rounded-lg bg-brand-purple/5 border border-brand-purple/20 pr-3">
       <div className="flex items-center justify-center w-11 h-11 flex-shrink-0">
         <input
           type="checkbox"
           checked={todo.isCompleted}
-          disabled
-          className="w-5 h-5 accent-brand-purple cursor-not-allowed opacity-80"
-          aria-label="Solo lectura"
+          onChange={(e) => toggleMutation.mutate({ id: todo.id, isCompleted: e.target.checked })}
+          disabled={toggleMutation.isPending}
+          className="w-5 h-5 accent-brand-purple cursor-pointer"
+          aria-label="Marcar como hecho"
         />
       </div>
       <div className="flex-1 min-w-0 py-2">

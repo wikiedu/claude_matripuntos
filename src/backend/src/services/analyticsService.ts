@@ -70,7 +70,7 @@ export async function getCoupleAnalytics(
   coupleId: string,
   startDate: Date,
   endDate: Date
-): Promise<AnalyticsMetrics> {
+): Promise<AnalyticsMetrics & { equilibrium: number; equityDelta: number; hasEquityData: boolean }> {
   const events = await prisma.event.findMany({
     where: {
       coupleId,
@@ -109,6 +109,23 @@ export async function getCoupleAnalytics(
 
   const mostActiveDay = Object.entries(eventsByDay).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A'
 
+  // B6: include equity gauge data from the CoupleScore table so the Advanced
+  // Analytics "Índice de Equidad" gauge has something to render.
+  const latest = await prisma.coupleScore.findFirst({
+    where: { coupleId },
+    orderBy: { weekStartDate: 'desc' },
+  })
+  const previous = latest
+    ? await prisma.coupleScore.findFirst({
+        where: { coupleId, weekStartDate: { lt: latest.weekStartDate } },
+        orderBy: { weekStartDate: 'desc' },
+      })
+    : null
+  const equilibrium = latest ? Number(latest.equilibrium) : 0
+  const equityDelta = latest && previous
+    ? Math.round(Number(latest.equilibrium) - Number(previous.equilibrium))
+    : 0
+
   return {
     totalEvents: events.length,
     totalPoints,
@@ -117,6 +134,9 @@ export async function getCoupleAnalytics(
     averageNegotiationRounds: avgRounds,
     mostActiveDay,
     totalAchievements: achievements.length,
+    equilibrium,
+    equityDelta,
+    hasEquityData: Boolean(latest),
   }
 }
 

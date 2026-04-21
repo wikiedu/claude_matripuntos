@@ -7,6 +7,7 @@ import { TopCategoriesChart } from './charts/TopCategoriesChart'
 import { MonthlyInsightCard } from './charts/MonthlyInsightCard'
 import { PremiumOverlay } from './PremiumOverlay'
 import { fetchAnalytics } from './analyticsUtils'
+import { useAppStore } from '../../../store/useAppStore'
 
 const BRAND_PURPLE = '#7c3aed'
 const BRAND_AMBER  = '#f59e0b'
@@ -37,6 +38,11 @@ interface Props {
 export function AdvancedAnalytics({ isPremium, onOpenInterest }: Props) {
   const [overlayDismissed, setOverlayDismissed] = useState(false)
   const showOverlay = !isPremium && !overlayDismissed
+  const user   = useAppStore(s => s.user)
+  const couple = useAppStore(s => s.couple)
+  const users  = (couple as any)?.users ?? []
+  const youName     = user?.name ?? 'Tú'
+  const partnerName = users.find((u: any) => u.id !== user?.id)?.name ?? 'Pareja'
   const { data: heat }   = useQuery({ queryKey: ['a-heat'],  queryFn: () => fetchAnalytics('/analytics/heatmap?weeks=4') })
   const { data: rate }   = useQuery({ queryKey: ['a-rate'],  queryFn: () => fetchAnalytics('/analytics/completion-rate?range=month') })
   const { data: over }   = useQuery({ queryKey: ['a-over'],  queryFn: () => fetchAnalytics('/analytics/couple') })
@@ -64,8 +70,8 @@ export function AdvancedAnalytics({ isPremium, onOpenInterest }: Props) {
           { who: rate?.you?.name ?? 'Tú',      pct: rate?.you?.pct ?? 0,      color: BRAND_PURPLE },
           { who: rate?.partner?.name ?? 'Pareja', pct: rate?.partner?.pct ?? 0, color: BRAND_AMBER },
         ]} />
-        <EquityGaugeChart score={Number(over?.equilibrium ?? 0)} delta={over?.equityDelta ?? 0} />
-        <TopCategoriesChart data={topArr} />
+        <EquityGaugeChart score={Number(over?.equilibrium ?? 0)} delta={over?.equityDelta ?? 0} hasData={Boolean(over?.hasEquityData)} />
+        <TopCategoriesChart data={topArr} youName={youName} partnerName={partnerName} />
         <MonthlyInsightCard text={insig?.text ?? 'Aún no hay suficiente actividad este mes.'} bullets={insig?.bullets ?? []} />
       </div>
       {showOverlay && (
