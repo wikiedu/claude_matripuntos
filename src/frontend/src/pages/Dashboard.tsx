@@ -64,10 +64,20 @@ export default function Dashboard() {
         .filter((l) => l.date && toLocalDateString(l.date) === today)
         .map((l) => l.taskId),
     )
+    // Mirror the Tasks page "Hoy" logic: a task belongs to today's list if it is
+    // either (a) unscheduled (catalog/recurring), (b) scheduled exactly today, or
+    // (c) overdue (scheduled for a past date and still not done). Previously we
+    // required scheduledFor === today, which hid every catalog-added task the
+    // user never explicitly dated, making the Dashboard lie about pending work.
     return tasksRes.tasks
-      .filter((t) => t.scheduledFor && toLocalDateString(t.scheduledFor) === today)
+      .filter((t) => {
+        if (!t.scheduledFor) return true
+        const sf = toLocalDateString(t.scheduledFor)
+        return sf <= today
+      })
       .filter((t) => !taskIdsLoggedToday.has(t.id))
-      .slice(0, 3)
+      // Keep the full pending list so the "N pendientes" badge is accurate —
+      // TodayTasksSection itself caps the visible rows at 3 and links to /tasks.
       .map((t) => ({
         id: t.id,
         name: t.name,
