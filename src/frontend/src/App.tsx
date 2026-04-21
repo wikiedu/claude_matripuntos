@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { useAppStore } from './store/useAppStore'
 import { apiClient } from './services/apiClient'
 import Login from './pages/Login'
@@ -20,8 +20,10 @@ import ShoppingListPage from './pages/ShoppingListPage'
 import TodoListPage from './pages/TodoListPage'
 import Notifications from './pages/Notifications'
 import NotFound from './pages/NotFound'
+import Home from './pages/Home'
 import { OnboardingLanding } from './pages/onboarding/OnboardingLanding'
 import { AuthedLayout } from './layout/AuthedLayout'
+import { HomeSelector, HomeView } from './components/v2/home/HomeSelector'
 import './App.css'
 
 export const queryClient = new QueryClient({
@@ -51,6 +53,28 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   return children
+}
+
+// HomeShell — inline wrapper for /home/tasks and /home/activities
+function HomeShell({ view, children, activitiesCount }: {
+  view: HomeView
+  children: React.ReactNode
+  activitiesCount: number
+}) {
+  const nav = useNavigate()
+  useEffect(() => {
+    window.localStorage.setItem('home_last_selector', view)
+  }, [view])
+  return (
+    <>
+      <HomeSelector
+        active={view}
+        activitiesCount={activitiesCount}
+        onChange={(v) => nav(`/home/${v}`)}
+      />
+      {children}
+    </>
+  )
 }
 
 // App Routes Component
@@ -104,23 +128,9 @@ function AppRoutes() {
         }
       />
 
-      <Route
-        path="/inbox"
-        element={
-          <ProtectedRoute>
-            <AuthedLayout><RequestInbox /></AuthedLayout>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/request-inbox"
-        element={
-          <ProtectedRoute>
-            <AuthedLayout><RequestInbox /></AuthedLayout>
-          </ProtectedRoute>
-        }
-      />
+      {/* Legacy redirects */}
+      <Route path="/inbox" element={<Navigate to="/home/activities" replace />} />
+      <Route path="/request-inbox" element={<Navigate to="/home/activities" replace />} />
 
       {/* TEMPORARY route — Fase 2 will add /home/activities/:id; Fase 3 removes this */}
       <Route
@@ -132,14 +142,46 @@ function AppRoutes() {
         }
       />
 
+      {/* /home/* routes */}
       <Route
-        path="/tasks"
+        path="/home"
+        element={<ProtectedRoute><AuthedLayout><Home /></AuthedLayout></ProtectedRoute>}
+      />
+      <Route
+        path="/home/tasks"
         element={
           <ProtectedRoute>
-            <AuthedLayout><Tasks /></AuthedLayout>
+            <AuthedLayout>
+              <HomeShell view="tasks" activitiesCount={0}>
+                <Tasks />
+              </HomeShell>
+            </AuthedLayout>
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/home/activities"
+        element={
+          <ProtectedRoute>
+            <AuthedLayout>
+              <HomeShell view="activities" activitiesCount={0}>
+                <RequestInbox />
+              </HomeShell>
+            </AuthedLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/home/activities/:id"
+        element={
+          <ProtectedRoute>
+            <AuthedLayout><ActivityDetail /></AuthedLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Legacy redirect */}
+      <Route path="/tasks" element={<Navigate to="/home/tasks" replace />} />
 
       {/* History legacy route → redirect to Analytics movements tab */}
       <Route path="/history" element={<Navigate to="/analytics?tab=movements" replace />} />
