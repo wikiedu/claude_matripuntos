@@ -150,14 +150,24 @@ export class NegotiationEngine {
       let updatedEvent: Event
 
       switch (response.action) {
-        case 'accept':
-          updatedEvent = await prisma.event.update({
-            where: { id: eventId },
+        case 'accept': {
+          // Atomic state transition: only the first concurrent accept succeeds.
+          // If event is already accepted/rejected/forced, updateMany returns count=0
+          // and we abort — preventing duplicate event_accepted point transactions.
+          const accepted = await prisma.event.updateMany({
+            where: {
+              id: eventId,
+              status: { in: ['draft', 'pending', 'proposed', 'counter_proposal'] },
+            },
             data: {
               status: 'accepted',
               pointsAgreed: lastNegotiation.pointsProposed,
             },
           })
+          if (accepted.count === 0) {
+            throw new Error('Event already resolved')
+          }
+          updatedEvent = await prisma.event.findUniqueOrThrow({ where: { id: eventId } })
 
           // Record acceptance
           await prisma.negotiation.create({
@@ -184,6 +194,7 @@ export class NegotiationEngine {
             },
           })
           break
+        }
 
         case 'reject':
           updatedEvent = await prisma.event.update({

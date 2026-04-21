@@ -108,6 +108,12 @@ Primera versión presentable a usuarios externos.
 **Foco:** App completa de la vida en pareja.
 
 **Features:**
+- **Módulo Calendario Mejorado:**
+  - Vista día completo por horas con planificación visual (tareas + eventos + to-dos)
+  - Click en día → abre vista día con timeline horario
+  - Crear/editar tareas directamente desde calendario (hoy sólo se puede crear actividad)
+  - Mostrar TaskLogs recurrentes en el mes, no sólo eventos
+  - Drag & drop para reprogramar tareas entre días
 - Calendario avanzado (eventos sin puntos: citas, cumpleaños, vacaciones; vistas día/semana/mes)
 - Journaling de pareja (privado por defecto, compartible, sin social)
 - Aniversarios e hitos especiales con logro desbloqueable

@@ -29,7 +29,7 @@ import { runWeeklyGeneration } from './services/recurringTaskService.js'
 import { sendWeeklyDigests } from './services/digestService.js'
 import { resetFreezersOnMonday, updateDailyStreak, calculateAndSaveXP } from './services/gamificationService.js'
 import { checkAllAchievements } from './services/achievementCheckService.js'
-import { PrismaClient } from '@prisma/client'
+import prisma from './lib/prisma.js'
 
 dotenv.config()
 
@@ -132,7 +132,6 @@ cron.schedule('0 0 * * 1', () => {
 
 // Auto-accept pending TaskLogs older than 24h — runs every hour
 cron.schedule('0 * * * *', async () => {
-  const prisma = new PrismaClient()
   try {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
     const pending = await prisma.taskLog.findMany({
@@ -173,8 +172,6 @@ cron.schedule('0 * * * *', async () => {
     }
   } catch (err) {
     console.error('[cron] auto-accept error:', err)
-  } finally {
-    await prisma.$disconnect()
   }
 })
 

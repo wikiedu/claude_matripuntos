@@ -110,22 +110,27 @@ router.put('/:id/read', authMiddleware, async (req: Request, res: Response): Pro
       return
     }
 
-    const notification = await prisma.notification.findFirst({
-      where: {
-        id: req.params.id,
-        userId: req.userId,
-      },
+    // updateMany evita race condition: el WHERE compuesto (id + userId)
+    // va en la misma query que el update, así nadie puede marcar como
+    // leída una notificación que no sea suya aunque adivine el id.
+    const updateResult = await prisma.notification.updateMany({
+      where: { id: req.params.id, userId: req.userId },
+      data: { isRead: true },
     })
 
-    if (!notification) {
+    if (updateResult.count === 0) {
       res.status(404).json({ error: 'Notification not found' })
       return
     }
 
-    const updated = await prisma.notification.update({
+    const updated = await prisma.notification.findUnique({
       where: { id: req.params.id },
-      data: { isRead: true },
     })
+
+    if (!updated) {
+      res.status(404).json({ error: 'Notification not found' })
+      return
+    }
 
     res.json({
       notification: {
@@ -176,21 +181,16 @@ router.delete('/:id', authMiddleware, async (req: Request, res: Response): Promi
       return
     }
 
-    const notification = await prisma.notification.findFirst({
-      where: {
-        id: req.params.id,
-        userId: req.userId,
-      },
+    // deleteMany con WHERE compuesto (id + userId) garantiza que no se puede
+    // borrar una notificación ajena ni aunque se adivine el id.
+    const deleteResult = await prisma.notification.deleteMany({
+      where: { id: req.params.id, userId: req.userId },
     })
 
-    if (!notification) {
+    if (deleteResult.count === 0) {
       res.status(404).json({ error: 'Notification not found' })
       return
     }
-
-    await prisma.notification.delete({
-      where: { id: req.params.id },
-    })
 
     res.json({ message: 'Notification deleted successfully' })
   } catch (error) {

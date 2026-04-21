@@ -132,26 +132,39 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
       return
     }
 
-    // Update current negotiation
-    const updated = await prisma.negotiation.update({
-      where: { id: req.params.negotiationId },
+    // Atomic state transition: only the first request to flip responseType off
+    // 'awaiting' proceeds. Prevents concurrent responses from double-awarding points.
+    const transition = await prisma.negotiation.updateMany({
+      where: { id: req.params.negotiationId, responseType: 'awaiting' },
       data: {
         responseType: data.responseType,
         respondedBy: req.userId,
         respondedAt: new Date(),
       },
     })
+    if (transition.count === 0) {
+      res.status(409).json({ error: 'Negotiation already responded to' })
+      return
+    }
 
     // Handle response
     if (data.responseType === 'accepted') {
-      // Accept the proposal
-      await prisma.event.update({
-        where: { id: negotiation.eventId },
+      // Accept the proposal — guarded on event.status so a concurrent force
+      // on the same event cannot be overwritten (and vice versa).
+      const acceptTransition = await prisma.event.updateMany({
+        where: {
+          id: negotiation.eventId,
+          status: { in: ['draft', 'pending'] },
+        },
         data: {
           status: 'accepted',
           pointsAgreed: negotiation.pointsProposed,
         },
       })
+      if (acceptTransition.count === 0) {
+        res.status(409).json({ error: 'Event already resolved' })
+        return
+      }
 
       const creatorId = negotiation.event.createdBy
       if (!creatorId) {
@@ -259,8 +272,8 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
     res.json({
       message: 'Negotiation response recorded',
       negotiation: {
-        id: updated.id,
-        responseType: updated.responseType,
+        id: req.params.negotiationId,
+        responseType: data.responseType,
       },
     })
   } catch (error) {
@@ -380,14 +393,23 @@ router.post('/:negotiationId/force', authMiddleware, async (req: Request, res: R
       return
     }
 
-    // Accept the points and deduct from balance
-    await prisma.event.update({
-      where: { id: negotiation.eventId },
+    // Atomic state transition: event must still be in a pre-resolved state.
+    // If another request accepted/rejected/forced concurrently, updateMany returns
+    // count=0 and we bail out — no duplicate forced_payment transaction is created.
+    const eventTransition = await prisma.event.updateMany({
+      where: {
+        id: negotiation.eventId,
+        status: { in: ['draft', 'pending'] },
+      },
       data: {
         status: 'forced',
         pointsAgreed: negotiation.pointsProposed,
       },
     })
+    if (eventTransition.count === 0) {
+      res.status(409).json({ error: 'Event already resolved' })
+      return
+    }
 
     // Create deduction transaction
     await prisma.pointsTransaction.create({

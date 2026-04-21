@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import { verifyToken } from '../services/authService.js'
+import prisma from '../lib/prisma.js'
 
 // Extend Express Request type to include auth data
 declare global {
@@ -12,11 +13,11 @@ declare global {
   }
 }
 
-export const authMiddleware = (
+export const authMiddleware = async (
   req: Request,
   res: Response,
   next: NextFunction
-): void => {
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization
 
@@ -33,9 +34,21 @@ export const authMiddleware = (
       return
     }
 
-    req.userId = decoded.userId
-    req.coupleId = decoded.coupleId
-    req.user = { id: decoded.userId, coupleId: decoded.coupleId }
+    // Verify the user still exists and hasn't been moved to another couple —
+    // a zombie token (user deleted or re-linked) must not authenticate.
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, coupleId: true },
+    })
+
+    if (!user || user.coupleId !== decoded.coupleId) {
+      res.status(401).json({ error: 'User no longer valid' })
+      return
+    }
+
+    req.userId = user.id
+    req.coupleId = user.coupleId
+    req.user = { id: user.id, coupleId: user.coupleId }
 
     next()
   } catch (error) {
