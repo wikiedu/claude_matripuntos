@@ -109,3 +109,51 @@ Registro de decisiones de producto y técnicas tomadas durante el desarrollo. Ca
 
 ### scripts/patch-onboarded.mjs
 **Decisión:** Script one-shot para parchear cuentas existentes (Ana/Bruno del seed pre-fix) marcándolas como onboarded via la nueva ruta. Útil cuando el seed corre contra un backend que todavía no tenía la ruta actualizada, o para recuperar cuentas de pruebas anteriores sin tener que re-seedearlas.
+
+---
+
+## 2026-04-22 · Módulo Actividades · `/home/tasks` + `/home/activities`
+
+Sub-proyecto independiente (fuera del roadmap principal) que reestructura los flujos de tareas recurrentes y actividades negociables en dos pantallas hermanas bajo `/home/*`, y convierte el Dashboard en el punto de acción unificado. Branch `feature/actividades-module` → merge fast-forward a `main` (2026-04-22).
+
+Spec: `docs/superpowers/specs/2026-04-21-actividades-module-design.md`  
+Plan: `docs/superpowers/plans/2026-04-21-actividades-module.md`
+
+### Separación Tareas / Actividades bajo `/home`
+**Decisión:** La ruta `/tasks` se divide en dos secciones hermanas accesibles desde un sub-selector: `/home/tasks` (tareas recurrentes del catálogo) y `/home/activities` (actividades puntuales negociables). La bottom nav pasa a un item único "Hogar" (`/home`) que recuerda la última sub-sección visitada vía `localStorage`.
+**Alternativas descartadas:** Dos items separados en la bottom nav (rompe la jerarquía de 5 posiciones con FAB central); mantener `/tasks` mezclando ambos conceptos (era la fuente de la confusión en v1.4).
+**Razón:** Tareas recurrentes y actividades negociables tienen verbos distintos (completar vs. negociar/aceptar/rechazar) y cadencias distintas (diarias vs. puntuales). Mezclarlas en una sola vista obligaba al usuario a filtrar mentalmente. La bottom nav mantiene 5 slots; el sub-selector queda dentro del contenedor `/home`.
+
+### Legacy redirects preservados
+**Decisión:** `/tasks`, `/inbox`, `/request-inbox` siguen existiendo como `<Navigate to="/home/..." replace />` para no romper links externos, notificaciones push históricas ni deep-links en el bundle antiguo cacheado en el navegador del usuario.
+**Razón:** El FTP sirve los assets nuevos pero los service workers / pestañas abiertas pueden seguir resolviendo rutas viejas durante horas. Los redirects son baratos y evitan 404s en producción.
+
+### Fuente única de eventos con derivación en cliente
+**Decisión técnica:** Un solo query `['events', 'all']` (hook `useActivities`) trae todos los eventos una vez; los conteos `pendingCount` / `waitingCount` / las listas activas e históricas se derivan en cliente con `useMemo`. La invalidación es centralizada: helper `useInvalidateActivity(eventId?)` dispara 7 claves en fan-out (`events/all`, `events/:id`, `balance`, `recentActivity`, `gamification/status`, `achievements/map`, `notifications`).
+**Alternativas descartadas:** Un query por pestaña (pending / waiting / history) — duplicaba peticiones y creaba estados de carga desincronizados entre Dashboard y Activities. Server-side filtering — el volumen cabe en cliente y permite que el banner del Dashboard y la lista de Activities compartan el mismo cache.
+**Razón:** El banner accionable del Dashboard y las tabs de Activities leen el mismo dominio; forzarlos a compartir un solo cache elimina race conditions donde aceptar un evento desde el Dashboard dejaba la lista de Activities desactualizada.
+
+### Banner accionable en el Dashboard
+**Decisión:** `ActivitiesBanner` reemplaza el antiguo resumen pasivo "Tienes N pendientes" por hasta 2 `ActivityActionCard` con botones Aceptar / Rechazar / Contraoferta directamente embebidos. Overflow "…y N más · Ver todas →" lleva a `/home/activities`. Sección secundaria con las solicitudes propias pendientes de respuesta del partner.
+**Razón:** El flujo antiguo obligaba a 3 navegaciones (Dashboard → RequestInbox → detalle → responder). El banner resuelve el 80% de las respuestas en un solo tap sin salir del Dashboard.
+
+### `CounterOfferSheet` como componente presentacional
+**Decisión:** Bottom sheet reutilizable con inputs de puntos + mensaje opcional. Validación local (`n > 0`), sin lógica de mutación — el parent (ActivitiesBanner o ActivityDetail) inyecta `onSubmit` con el `eventId` y `negotiationId` correctos.
+**Razón:** El mismo sheet se usa desde 2 puntos (Dashboard banner y detalle de actividad). Dejarlo presentacional evita duplicar el `respond.mutate` y mantiene la invalidación centralizada en el parent.
+
+### `RecentMovementsTabs` con tabs All / Actividades / Tareas
+**Decisión:** Sustituye al antiguo `RecentMovements`. Muestra los últimos 3 movimientos filtrados por tipo. Tap en una fila navega a `/home/activities/:refId` si `kind === 'activity'` o a `/home/tasks?logId=:refId` si `kind === 'task'`. La derivación `kind` vive en `Dashboard.tsx` (`deriveKind(a)`) leyendo `RecentActivity.type`.
+**Alternativas descartadas:** Widget separado por cada tipo — ocupaba doble espacio en el Dashboard; filtro servidor — el tipo ya viene del backend, no justifica roundtrip.
+
+### Vitest + React Testing Library como Fase 0
+**Decisión:** Se adopta Vitest + `@testing-library/react` + `jsdom` en el frontend como parte del sub-proyecto Actividades, no como proyecto aparte. `vitest.config.ts`, `src/test/setup.ts`, `src/test/renderWithProviders.tsx` e integración con `tsconfig` entran en este branch.
+**Razón:** El módulo necesitaba tests desde el día 1 (custom hook `useActivities` + invalidación multi-key son difíciles de validar a mano). Empujar la infra al merge de v1.5 hubiese bloqueado el módulo o dejado código sin cubrir. v1.5 hereda la infra y consolida la cobertura retroactiva.
+
+### Retiro de `RequestInbox` + `RecentMovements`
+**Decisión:** `src/frontend/src/pages/RequestInbox.tsx` (158 líneas tras poda) y `src/frontend/src/components/v2/dashboard/RecentMovements.tsx` (44 líneas) se eliminan. El flujo de verificación de TaskLogs pasa a formar parte de `/home/tasks` y el widget Recent queda reemplazado por el que tiene tabs.
+**Razón:** Tras la división, `RequestInbox` quedaba como una pantalla intermedia sin propósito (ya sin la pestaña de activity) y el widget sin tabs se quedaba corto para el nuevo dominio mezclado.
+
+### Patrón `vi.hoisted` para mocks mutables entre tests
+**Decisión técnica:** Los tests que mockean `apiClient` declaran estado compartido con `const mockState = vi.hoisted(() => ({ events: [] as any[] }))` y lo mutan en `beforeEach`. El `vi.mock` cierra sobre `mockState` y cada test mueve el contenido antes de renderizar.
+**Alternativas descartadas:** `vi.doMock` dentro de cada test — no funciona si el módulo ya está cacheado por un `vi.mock` hoisteado previo; reiniciar el módulo con `vi.resetModules` en cada test — lento y rompe la simetría con el resto del stack de providers.
+**Razón:** `vi.mock` se hoistea al top del archivo antes de cualquier declaración, así que el único forma de parametrizar el mock por test sin que se caché es hoistear también el estado y mutarlo. Patrón ya documentado en Vitest pero fácil de olvidar.

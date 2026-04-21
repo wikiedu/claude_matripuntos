@@ -1,6 +1,6 @@
 # Matripuntos — Roadmap de Versiones
 
-> Estado actualizado: 2026-04-20  
+> Estado actualizado: 2026-04-22  
 > Spec completo: `docs/superpowers/specs/2026-04-11-roadmap-versiones-design.md`
 
 ---
@@ -14,6 +14,7 @@
 | v1.2 | El Juego | ✅ En producción | `main` | `v1.2` |
 | v1.3 | La Casa | ✅ En producción | `main` | `v1.3` |
 | v1.4 | La Evolución (diseño v2) | ⏳ Listo para merge | `feature/v1.4-la-evolucion` | — |
+| — | Módulo Actividades (`/home/*`) | ✅ En producción (2026-04-22) | `feature/actividades-module` → `main` | — |
 | v1.5 | Red de Seguridad (tests + CI) | Planificado | `feature/v1.5-red-de-seguridad` | — |
 | v2.0 | Hogar 360 | Planificado | `feature/v2.0-hogar-360` | — |
 | v2.1 | Conectados | Planificado | `feature/v2.1-conectados` | — |
