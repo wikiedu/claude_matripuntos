@@ -18,7 +18,7 @@ export function ActivityWaitingCard({ activity, onOpen }: Props) {
     <button
       type="button"
       onClick={() => onOpen(activity.id)}
-      className="w-full text-left bg-transparent border-0 p-0 mx-4 mb-2 block"
+      className="w-full text-left bg-transparent border-0 p-0 block"
     >
       <Card className="p-3 border-dashed opacity-80">
         <div className="flex justify-between items-start gap-2">

@@ -183,16 +183,18 @@ function ActiveView({
           <h3 className="mx-4 mt-4 mb-2 text-[10px] font-bold uppercase tracking-wider text-text-tertiary">
             Tus solicitudes esperando ({waiting.length})
           </h3>
-          {waiting.map((ev) => {
-            const vm = toVM(ev)
-            return (
-              <ActivityWaitingCard
-                key={ev.id}
-                activity={{ ...vm, partnerName }}
-                onOpen={onOpen}
-              />
-            )
-          })}
+          <div className="mx-4 flex flex-col gap-2">
+            {waiting.map((ev) => {
+              const vm = toVM(ev)
+              return (
+                <ActivityWaitingCard
+                  key={ev.id}
+                  activity={{ ...vm, partnerName }}
+                  onOpen={onOpen}
+                />
+              )
+            })}
+          </div>
         </section>
       )}
     </>
@@ -221,30 +223,32 @@ function HistoryView({
             : '📋 Aún no has cerrado ninguna actividad.'}
         </div>
       )}
-      {history.map((ev) => {
-        const vm = toVM(ev)
-        return (
-          <button
-            key={ev.id}
-            type="button"
-            onClick={() => onOpen(ev.id)}
-            className="w-full text-left bg-transparent border-0 p-0 mx-4 mb-2 block"
-          >
-            <div className="bg-surface-elevated border border-brd-subtle rounded-lg p-3 flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <Pill tone={statusTone(ev.status)}>{statusLabel(ev.status)}</Pill>
-                  <span className="text-sm font-bold text-text-primary truncate">{vm.title}</span>
+      <div className="mx-4 flex flex-col gap-2">
+        {history.map((ev) => {
+          const vm = toVM(ev)
+          return (
+            <button
+              key={ev.id}
+              type="button"
+              onClick={() => onOpen(ev.id)}
+              className="w-full text-left bg-transparent border-0 p-0 block"
+            >
+              <div className="bg-surface-elevated border border-brd-subtle rounded-lg p-3 flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Pill tone={statusTone(ev.status)}>{statusLabel(ev.status)}</Pill>
+                    <span className="text-sm font-bold text-text-primary truncate">{vm.title}</span>
+                  </div>
+                  <div className="text-[11px] text-text-secondary mt-1">
+                    {ev.creator?.name ?? '—'} · {vm.whenLabel}{ev.negotiationRound > 1 ? ` · ronda ${ev.negotiationRound}` : ''}
+                  </div>
                 </div>
-                <div className="text-[11px] text-text-secondary mt-1">
-                  {ev.creator?.name ?? '—'} · {vm.whenLabel}{ev.negotiationRound > 1 ? ` · ronda ${ev.negotiationRound}` : ''}
-                </div>
+                <span className="text-sm font-bold text-danger tabular-nums">−{vm.pointsCalculated} MP</span>
               </div>
-              <span className="text-sm font-bold text-danger tabular-nums">−{vm.pointsCalculated} MP</span>
-            </div>
-          </button>
-        )
-      })}
+            </button>
+          )
+        })}
+      </div>
     </>
   )
 }
