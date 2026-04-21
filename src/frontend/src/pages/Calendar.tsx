@@ -4,10 +4,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Loader, Plus, X } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
-import type { Event as AppEvent } from '../types/index'
+import type { Event as AppEvent, TaskLog } from '../types/index'
 import { MonthGrid } from '../components/v2/calendar/MonthGrid'
 import { WeekStripChart } from '../components/v2/calendar/WeekStripChart'
 import { EventCardV2 } from '../components/v2/calendar/EventCardV2'
@@ -122,6 +123,41 @@ export const Calendar: React.FC = () => {
     if (!isAuthenticated) return
     loadEvents()
   }, [isAuthenticated, loadEvents, year, month])
+
+  // Task logs — completed/verified tareas show up on their own day so the
+  // calendar reflects actual lived activity, not just future events.
+  const { data: logsRes } = useQuery({
+    queryKey: ['taskLogs', 'all'],
+    queryFn: () => apiClient.tasks.getAllLogs() as Promise<{ logs: TaskLog[] }>,
+    enabled: isAuthenticated && !!couple?.id,
+    staleTime: 60_000,
+  })
+
+  // Pseudo-events for the calendar grid so MonthGrid/WeekStripChart can render
+  // a single merged list. Marked with type 'tarea' so MonthGrid picks the ✅ emoji.
+  // These are display-only: tapping them is disabled downstream (not clickable
+  // as negotiation cards, since they aren't Events).
+  const taskLogPseudoEvents = useMemo<AppEvent[]>(() => {
+    const logs = logsRes?.logs ?? []
+    return logs
+      .filter((l) => !!l.date)
+      .map((l) => ({
+        id: `log-${l.id}`,
+        coupleId: (couple?.id ?? '') as string,
+        createdBy: l.completedBy?.id ?? '',
+        type: 'tarea',
+        title: l.task?.name ?? 'Tarea',
+        dateStart: l.date,
+        dateEnd: l.date,
+        pointsCalculated: l.pointsFinal,
+        status: 'accepted',
+      })) as AppEvent[]
+  }, [logsRes, couple?.id])
+
+  const calendarEntries = useMemo(
+    () => [...events, ...taskLogPseudoEvents],
+    [events, taskLogPseudoEvents],
+  )
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
@@ -256,7 +292,7 @@ export const Calendar: React.FC = () => {
               <MonthGrid
                 year={year}
                 month={month}
-                events={events}
+                events={calendarEntries}
                 selectedDate={selectedDate}
                 onSelect={setSelectedDate}
                 onLongPress={handleLongPress}
@@ -298,7 +334,7 @@ export const Calendar: React.FC = () => {
               <WeekStripChart
                 year={year}
                 week={week}
-                events={events}
+                events={calendarEntries}
                 user={user ? { id: user.id, name: user.name } : undefined}
                 partner={partner}
                 onSelectDate={setSelectedDate}

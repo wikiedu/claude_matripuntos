@@ -4,6 +4,7 @@ import { CategoryPieChart } from './charts/CategoryPieChart'
 import { BalanceEvolutionChart } from './charts/BalanceEvolutionChart'
 import { TimeInvestedChart } from './charts/TimeInvestedChart'
 import { fetchAnalytics } from './analyticsUtils'
+import { apiClient } from '../../../services/apiClient'
 import { useAppStore } from '../../../store/useAppStore'
 
 // Palette mirrors CategoryFilterStrip — keeps pie matching the Tasks filter colors.
@@ -52,13 +53,17 @@ function normalizeDaily(raw: unknown) {
   })
 }
 
-// Backend /analytics/weekly-trends returns [{label, events, points}].
-// BalanceEvolutionChart expects [{label, balance}]; we use points as a proxy for net activity.
-function normalizeWeekly(raw: unknown) {
-  if (!Array.isArray(raw)) return []
-  return raw.map((w: any) => ({
-    label: String(w.label ?? ''),
-    balance: Number(w.points ?? 0),
+// Backend /points/chart-data returns { chartData: [{idx, date, [youName]: cumulative, [partnerName]?: cumulative}], youName, partnerName }.
+// The couple balance is the gap between "you" and "partner" — positive when "you" has earned more.
+function normalizeDailyBalance(raw: unknown) {
+  if (!raw || typeof raw !== 'object') return []
+  const r = raw as { chartData?: any[]; youName?: string; partnerName?: string | null }
+  if (!Array.isArray(r.chartData)) return []
+  const youKey = r.youName ?? 'Tú'
+  const partnerKey = r.partnerName ?? ''
+  return r.chartData.map((d: any) => ({
+    label: String(d.date ?? ''),
+    balance: Number(d[youKey] ?? 0) - (partnerKey ? Number(d[partnerKey] ?? 0) : 0),
   }))
 }
 
@@ -71,18 +76,23 @@ export function BasicAnalytics() {
 
   const { data: daily }  = useQuery({ queryKey: ['a-daily'],  queryFn: () => fetchAnalytics('/analytics/daily-activity') })
   const { data: cats }   = useQuery({ queryKey: ['a-cats'],   queryFn: () => fetchAnalytics('/analytics/points-by-category') })
-  const { data: trends } = useQuery({ queryKey: ['a-trends'], queryFn: () => fetchAnalytics('/analytics/weekly-trends?weeks=4') })
+  // /points/chart-data?days=30 returns daily cumulative balance — the 30-day evolution chart
+  // that used to live in Analítica Básica. It's not behind the /analytics prefix (no .data wrap).
+  const { data: balance30 } = useQuery({
+    queryKey: ['p-chart', 30],
+    queryFn: () => apiClient.request('/points/chart-data?days=30'),
+  })
   const { data: time }   = useQuery({ queryKey: ['a-time'],   queryFn: () => fetchAnalytics('/analytics/time-invested?range=week') })
 
   const catList  = normalizeCats(cats)
   const dayList  = normalizeDaily(daily)
-  const weekList = normalizeWeekly(trends)
+  const balancePoints = normalizeDailyBalance(balance30)
 
   return (
     <>
       <WeeklyBarsChart days={dayList} youName={youName} partnerName={partnerName} />
       <CategoryPieChart categories={catList} />
-      <BalanceEvolutionChart weeks={weekList} />
+      <BalanceEvolutionChart points={balancePoints} subtitle="Saldo diario · últimos 30 días" trendUnit="30 días" />
       <TimeInvestedChart you={time?.you ?? { name: youName, hours: 0 }} partner={time?.partner ?? { name: partnerName, hours: 0 }} />
     </>
   )

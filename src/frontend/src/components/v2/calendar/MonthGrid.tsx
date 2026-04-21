@@ -23,6 +23,7 @@ const TYPE_EMOJI: Record<string, string> = {
   ausencia: '🏃',
   cuidado: '👶',
   ocio: '🎉',
+  tarea: '✅',
 }
 
 function emojiFor(type: string | undefined): string {

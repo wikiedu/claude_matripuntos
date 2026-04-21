@@ -11,6 +11,24 @@ import { fetchAnalytics } from './analyticsUtils'
 const BRAND_PURPLE = '#7c3aed'
 const BRAND_AMBER  = '#f59e0b'
 
+// Mirror the Spanish labels + emojis used in Tasks/BasicAnalytics so the advanced
+// chart doesn't surface raw slugs like "cocina" or "baños" as headings.
+const CAT_LABEL: Record<string, string> = {
+  cocina: 'Cocina', limpieza: 'Limpieza', baños: 'Baños', compra: 'Compra',
+  logistica: 'Logística', cuidado: 'Cuidado', mantenimiento: 'Mantenimiento',
+  jardineria: 'Jardinería', mascotas: 'Mascotas', other: 'Otros',
+}
+const CAT_EMOJI: Record<string, string> = {
+  cocina: '🍳', limpieza: '🧹', baños: '🛁', compra: '🛒', logistica: '📋',
+  cuidado: '👶', mantenimiento: '🔧', jardineria: '🌿', mascotas: '🐾', other: '📦',
+}
+const labelFor = (slug: string) => {
+  const key = slug?.toLowerCase?.() ?? ''
+  const emoji = CAT_EMOJI[key] ?? CAT_EMOJI.other
+  const label = CAT_LABEL[key] ?? (slug ? slug.charAt(0).toUpperCase() + slug.slice(1) : 'Otros')
+  return `${emoji} ${label}`
+}
+
 interface Props {
   isPremium: boolean
   onOpenInterest: () => void
@@ -26,16 +44,21 @@ export function AdvancedAnalytics({ isPremium, onOpenInterest }: Props) {
   const { data: insig }  = useQuery({ queryKey: ['a-insig'], queryFn: () => fetchAnalytics('/analytics/insight') })
 
   const topArr = topRaw && typeof topRaw === 'object'
-    ? Object.entries(topRaw as Record<string, { you?: number; partner?: number }>).map(([cat, v]) => ({
-        cat,
-        you: v?.you ?? 0,
-        partner: v?.partner ?? 0,
-      }))
+    ? Object.entries(topRaw as Record<string, { you?: number; partner?: number }>)
+        .map(([cat, v]) => ({
+          cat: labelFor(cat),
+          you: Number(v?.you ?? 0),
+          partner: Number(v?.partner ?? 0),
+        }))
+        .filter(r => r.you > 0 || r.partner > 0)
+        .sort((a, b) => (b.you + b.partner) - (a.you + a.partner))
     : []
 
   return (
     <div className="relative">
-      <div style={{ filter: isPremium ? 'none' : 'blur(3px)', pointerEvents: isPremium ? 'auto' : 'none', userSelect: isPremium ? 'auto' : 'none' }}>
+      {/* Blur tracks the overlay — dismissing it lets the user see/scroll the charts.
+          Tied to isPremium would leave charts blurred forever for free users. */}
+      <div style={{ filter: showOverlay ? 'blur(3px)' : 'none', pointerEvents: showOverlay ? 'none' : 'auto', userSelect: showOverlay ? 'none' : 'auto' }}>
         <HeatmapChart grid={heat?.grid ?? []} buckets={heat?.buckets ?? [6,9,12,15,18,21]} hint="Más activos los jueves a las 18-21h" />
         <CompletionRateChart rows={[
           { who: rate?.you?.name ?? 'Tú',      pct: rate?.you?.pct ?? 0,      color: BRAND_PURPLE },
