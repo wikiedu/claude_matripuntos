@@ -62,17 +62,21 @@ function rnd(arr) { return arr[Math.floor(Math.random() * arr.length)] }
 function chance(p) { return Math.random() < p }
 
 // ── Seed plan ─────────────────────────────────────────────────────────────────
+// Tareas tomadas del catálogo real (frontend Tasks.tsx → TASK_CATALOG) para
+// que los puntos cuadren con lo que el usuario vería al añadir una tarea
+// desde la app. Antes el seed inventaba puntos bajos (1.0, 1.5) que no se
+// correspondían con nada y rompía la coherencia frente al catálogo.
 const SEED_TASKS = [
-  { name: 'Cocina desayuno',       category: 'cocina',    pointsBase: 2.0 },
-  { name: 'Cocina comida',         category: 'cocina',    pointsBase: 2.0 },
-  { name: 'Cocina cena',           category: 'cocina',    pointsBase: 2.0 },
-  { name: 'Limpieza cocina',       category: 'limpieza',  pointsBase: 1.5 },
-  { name: 'Baños + dormir niños',  category: 'baños',     pointsBase: 1.5 },
-  { name: 'Compra súper',          category: 'compra',    pointsBase: 1.0 },
-  { name: 'Cole / deberes',        category: 'logistica', pointsBase: 1.0 },
-  { name: 'Jugar con los niños',   category: 'cuidado',   pointsBase: 1.5 },
-  { name: 'Pasear al perro',       category: 'mascotas',  pointsBase: 1.0 },
-  { name: 'Colada + planchado',    category: 'limpieza',  pointsBase: 1.5 },
+  { name: 'Cocinar la cena',              category: 'cocina',     pointsBase: 12 },
+  { name: 'Cocinar la comida',            category: 'cocina',     pointsBase: 10 },
+  { name: 'Preparar el desayuno',         category: 'cocina',     pointsBase: 6  },
+  { name: 'Fregar los platos',            category: 'cocina',     pointsBase: 8  },
+  { name: 'Pasar la aspiradora',          category: 'limpieza',   pointsBase: 10 },
+  { name: 'Poner la lavadora',            category: 'limpieza',   pointsBase: 6  },
+  { name: 'Hacer la compra semanal',      category: 'compra',     pointsBase: 18 },
+  { name: 'Llevar/recoger niños al cole', category: 'cuidado',    pointsBase: 8  },
+  { name: 'Acostar a los niños',          category: 'cuidado',    pointsBase: 7  },
+  { name: 'Sacar a pasear al perro',      category: 'mascotas',   pointsBase: 5  },
 ]
 
 const SEED_CHILDREN = [

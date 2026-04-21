@@ -90,7 +90,7 @@ const TASK_CATALOG: { category: string; tasks: { name: string; pts: number; desc
     { name: 'Limpiar terraza / balcón', pts: 10 },
   ]},
   { category: 'mascotas', tasks: [
-    { name: 'Sacar a pasear al perro', pts: 8 }, { name: 'Dar de comer a la mascota', pts: 4 },
+    { name: 'Sacar a pasear al perro', pts: 5 }, { name: 'Dar de comer a la mascota', pts: 4 },
     { name: 'Limpiar zona de la mascota', pts: 8 }, { name: 'Llevar al veterinario', pts: 12 },
   ]},
 ]
