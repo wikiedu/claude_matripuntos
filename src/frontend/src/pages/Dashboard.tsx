@@ -8,6 +8,7 @@ import { useTodos } from '../hooks/useTodos'
 import { DailyPhrase } from '../components/v2/dashboard/DailyPhrase'
 import { BalanceLevelHero } from '../components/v2/dashboard/BalanceLevelHero'
 import { StreakStrip } from '../components/v2/dashboard/StreakStrip'
+import { ActivitiesBanner } from '../components/v2/dashboard/ActivitiesBanner'
 import { TodayTasksSection } from '../components/v2/dashboard/TodayTasksSection'
 import { RecentMovements } from '../components/v2/dashboard/RecentMovements'
 import { QuickPreviews } from '../components/v2/dashboard/QuickPreviews'
@@ -155,6 +156,7 @@ export default function Dashboard() {
         multiplier={Number(gamificationStatus?.combinedMultiplier ?? gamificationStatus?.dailyMultiplier ?? 1.0)}
         freezes={gamificationStatus?.freezerAvailable ? 1 : 0}
       />
+      <ActivitiesBanner />
       <TodayTasksSection
         tasks={todayTasks}
         onComplete={handleComplete}
