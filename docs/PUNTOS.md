@@ -14,20 +14,33 @@
 
 ---
 
-## Actividades Puntuales — Tabla Base (sin multiplicadores)
+## Categorías de Evento — Puntos Base (Lote 4)
+
+Al crear un evento, estos son los puntos base según categoría:
+
+| Categoría | Pts base |
+|-----------|---------:|
+| 🍽️ Gastronomía | 10 |
+| ✈️ Escapadas & Viajes | 18 |
+| 🎭 Ocio & Cultura | 7 |
+| 🏋️ Deporte & Bienestar | 6 |
+| 👨‍👩‍👧 Familia & Social | 8 |
+| 🏢 Trabajo & Obligaciones | 7 |
+| 🎮 Ocio Personal | 6 |
+
+## Actividades Puntuales — Ejemplos (con multiplicadores aplicados)
 
 | Tipo | Duración | 0 hijos | 1 hijo | 2 hijos | 3+ hijos |
 |------|----------|---------|--------|---------|----------|
-| Cena + copas | 4-6h | 6-10 | 8-14 | 12-18 | 16-22 |
-| Desayuno/brunch | 2-3h | 2-3 | 3-4 | 4-6 | 6-8 |
-| Fin de semana | 24-36h | 20-30 | 28-42 | 40-56 | 56-72 |
-| Despedida soltero | 12-24h | 15-25 | 20-35 | 30-50 | 42-70 |
-| Maratón/evento deportivo | 4-8h | 6-12 | 8-16 | 12-24 | 16-32 |
-| Viaje de trabajo | 24-48h+ | 30-50 | 42-70 | 60-100 | 84-140 |
-| Deporte/yoga/gym | 1-2h | 2-3 | 3-4 | 4-6 | 6-8 |
-| Cita médica/trámite | 1-3h | 1-2 | 2-3 | 3-4 | 4-6 |
-| Compra/recados importantes | 2-4h | 2-4 | 3-6 | 4-8 | 6-10 |
-| Cena familiar (ambos) | 3-4h | 0 | 0 | 0 | 0 |
+| Cena + copas noche | 4h | 11 | 15 | 20 | 24 |
+| Desayuno/brunch | 2-3h | 6 | 8 | 11 | 13 |
+| Fin de semana escapada | 24-36h | 19 | 27 | 34 | 42 |
+| Despedida soltero (alto impacto) | 12-24h | 12 | 17 | 22 | 27 |
+| Boda (alto impacto) | 10h | 21 | 29 | 38 | 46 |
+| Maratón/evento deportivo | 4-8h | 6 | 8 | 11 | 13 |
+| Viaje de trabajo (necesaria) | 24-48h | 13 | 18 | 23 | 28 |
+| Deporte/yoga/gym | 1-2h | 5 | 7 | 9 | 11 |
+| Cita médica/trámite | 1-3h | 5 | 7 | 9 | 11 |
 
 ---
 
@@ -36,19 +49,19 @@
 ### Factor Tipo de Actividad
 | Tipo | Multiplicador |
 |------|--------------|
-| Necesaria (médico, trabajo obligatorio) | ×0.7 |
-| Salud (deporte, terapia, descanso) | ×0.85 |
+| Necesaria (médico, trabajo, trámite) | ×0.7 |
+| Salud (deporte, yoga, bienestar) | ×0.85 |
 | Ocio social (cena, fiesta, casual) | ×1.0 |
-| Alto impacto (despedida, viaje con resaca) | ×1.2 |
+| Alto impacto (boda, despedida, viaje con resaca) | ×1.4 |
 
 ### Factor Franja Horaria
 | Franja | Multiplicador |
 |--------|--------------|
-| 07:00 – 09:30 (mañana rutina) | ×1.4 |
+| 07:00 – 09:30 (mañana rutina) | ×1.3 |
 | 09:30 – 17:30 (día normal) | ×1.0 |
-| 17:30 – 21:30 (tarde/cenas) | ×1.5 |
+| 17:30 – 21:30 (tarde/cenas) | ×1.2 |
 | 21:30 – 01:00 (noche) | ×1.2 |
-| 01:00 – 07:00 (madrugada) | ×1.6 |
+| 01:00 – 07:00 (madrugada) | ×1.5 |
 
 ### Factor Duración
 | Duración | Multiplicador |
@@ -78,19 +91,24 @@ Redondeo: al **0.5 más próximo**.
 
 ### Ejemplos
 
-**Cena + copas viernes noche (4h, 0 hijos):**
+**Cena + copas viernes noche (Gastronomía 10, 4h, 0 hijos):**
 ```
-8 × 1.0 × 1.2 × 1.0 × 1.0 = 9.6 → 10 pts
-```
-
-**Despedida soltero 24h (2 hijos, franja mixta):**
-```
-20 × 1.2 × 1.2 × 1.25 × 1.8 = 64.8 → 65 pts
+10 × 1.0 × 1.2 × 1.1 × 1.0 = 13.2 → 13 pts
 ```
 
-**Médico rutina (1h, día normal, 1 hijo):**
+**Despedida soltero 24h (Ocio Personal 6, 2 hijos, alto impacto):**
 ```
-1 × 0.7 × 1.0 × 1.0 × 1.4 = 0.98 → 1.0 pt
+6 × 1.4 × 1.2 × 1.35 × 1.8 = 24.5 → 24.5 pts
+```
+
+**Boda sábado 10h (Familia & Social 8, 2 hijos, alto impacto):**
+```
+8 × 1.4 × 1.2 × 1.25 × 1.8 = 30.2 → 30 pts
+```
+
+**Médico rutina (Trabajo 7, 1h, día normal, 1 hijo, necesaria):**
+```
+7 × 0.7 × 1.0 × 1.0 × 1.4 = 6.8 → 7 pts
 ```
 
 ---

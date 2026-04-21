@@ -20,12 +20,12 @@ interface PointsContext {
 
 export class PointsCalculator {
   /**
-   * Get time-of-day multiplier
-   * 07:00-09:30 → ×1.4 (mañana temprano)
+   * Get time-of-day multiplier (Lote 4 rebalance)
+   * 07:00-09:30 → ×1.3 (mañana rutina)
    * 09:30-17:30 → ×1.0 (horario normal)
-   * 17:30-21:30 → ×1.5 (tarde-noche)
+   * 17:30-21:30 → ×1.2 (tarde/cenas)
    * 21:30-01:00 → ×1.2 (noche)
-   * 01:00-07:00 → ×1.6 (madrugada)
+   * 01:00-07:00 → ×1.5 (madrugada)
    */
   private getTimeMultiplier(dateStart: Date): number {
     const d = new Date(dateStart)
@@ -33,11 +33,11 @@ export class PointsCalculator {
     const minutes = d.getMinutes()
     const totalMinutes = hours * 60 + minutes
 
-    if (totalMinutes >= 7*60 && totalMinutes < 9*60+30) return 1.4   // 07:00-09:30 mañana temprano
+    if (totalMinutes >= 7*60 && totalMinutes < 9*60+30) return 1.3   // 07:00-09:30 mañana rutina
     if (totalMinutes >= 9*60+30 && totalMinutes < 17*60+30) return 1.0 // 09:30-17:30 horario normal
-    if (totalMinutes >= 17*60+30 && totalMinutes < 21*60+30) return 1.5 // 17:30-21:30 tarde-noche
+    if (totalMinutes >= 17*60+30 && totalMinutes < 21*60+30) return 1.2 // 17:30-21:30 tarde/cenas
     if (totalMinutes >= 21*60+30 || totalMinutes < 1*60) return 1.2   // 21:30-01:00 noche
-    return 1.6 // 01:00-07:00 madrugada
+    return 1.5 // 01:00-07:00 madrugada
   }
 
   /**
@@ -115,11 +115,11 @@ export class PointsCalculator {
   }
 
   /**
-   * Get impact category multiplier
+   * Get impact category multiplier (Lote 4 rebalance · opción C)
    * Necesaria (medical, taxes): ×0.7
    * Health/wellness (sport, yoga): ×0.85
    * Normal social: ×1.0
-   * High impact (long trip, farewell): ×1.2
+   * High impact (long trip, farewell, wedding): ×1.4
    */
   private getImpactMultiplier(eventType: string): number {
     const necessaryTypes = ['gestión médica', 'burocrática', 'viaje de trabajo']
@@ -128,7 +128,7 @@ export class PointsCalculator {
 
     if (necessaryTypes.some((t) => eventType.toLowerCase().includes(t))) return 0.7
     if (healthTypes.some((t) => eventType.toLowerCase().includes(t))) return 0.85
-    if (highImpactTypes.some((t) => eventType.toLowerCase().includes(t))) return 1.2
+    if (highImpactTypes.some((t) => eventType.toLowerCase().includes(t))) return 1.4
 
     return 1.0
   }

@@ -43,6 +43,10 @@ router.post('/children', async (req: Request, res: Response) => {
       },
     })
 
+    // Notify the partner so the change isn't silent — children directly impact
+    // the points multiplier, so the partner needs visibility.
+    await notifyPartnerOnChildChange(user.id, user.coupleId, 'added', data.name)
+
     res.status(201).json({
       message: 'Child added successfully',
       child,
@@ -121,6 +125,8 @@ router.put('/children/:childId', async (req: Request, res: Response) => {
       },
     })
 
+    await notifyPartnerOnChildChange(user.id, user.coupleId, 'updated', updatedChild.name)
+
     res.json({
       message: 'Child updated successfully',
       child: updatedChild,
@@ -161,6 +167,8 @@ router.delete('/children/:childId', async (req: Request, res: Response) => {
     await prisma.child.delete({
       where: { id: childId },
     })
+
+    await notifyPartnerOnChildChange(user.id, user.coupleId, 'removed', child.name)
 
     res.json({ message: 'Child deleted successfully' })
   } catch (error) {
@@ -324,5 +332,45 @@ router.delete('/pets/:petId', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to delete pet' })
   }
 })
+
+// Children affect the points multiplier (childrenMultiplier in PointsCalculator),
+// so the partner gets notified on every change — no silent edits.
+async function notifyPartnerOnChildChange(
+  actorUserId: string,
+  coupleId: string,
+  action: 'added' | 'updated' | 'removed',
+  childName: string,
+) {
+  try {
+    const partner = await prisma.user.findFirst({
+      where: { coupleId, id: { not: actorUserId } },
+      select: { id: true },
+    })
+    if (!partner) return
+    const actor = await prisma.user.findUnique({
+      where: { id: actorUserId },
+      select: { name: true },
+    })
+    const actorName = actor?.name ?? 'Tu pareja'
+    const map = {
+      added:   { title: '👶 Nuevo hijo/a añadido', verb: 'ha añadido' },
+      updated: { title: '👶 Hijo/a actualizado',    verb: 'ha actualizado los datos de' },
+      removed: { title: '👶 Hijo/a eliminado',      verb: 'ha eliminado a' },
+    } as const
+    const { title, verb } = map[action]
+    await prisma.notification.create({
+      data: {
+        coupleId,
+        userId: partner.id,
+        type: 'CHILDREN_CHANGED',
+        title,
+        message: `${actorName} ${verb} ${childName}. Esto afecta al cálculo de puntos.`,
+        isRead: false,
+      },
+    })
+  } catch (err) {
+    console.error('Failed to notify partner about child change:', err)
+  }
+}
 
 export default router

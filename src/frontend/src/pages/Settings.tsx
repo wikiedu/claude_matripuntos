@@ -37,6 +37,7 @@ const MOOD_OPTIONS = [
 type SectionSlug =
   | 'profile'
   | 'couple'
+  | 'children'
   | 'notifications'
   | 'premium'
   | 'rules'
@@ -47,10 +48,11 @@ const SECTIONS: Array<{
   slug: SectionSlug
   emoji: string
   title: string
-  subtitle: (ctx: { partnerName?: string; userName?: string; avatarEmoji?: string }) => string
+  subtitle: (ctx: { partnerName?: string; userName?: string; avatarEmoji?: string; childrenCount?: number }) => string
 }> = [
   { slug: 'profile',         emoji: '👤', title: 'Perfil y avatar',      subtitle: (c) => `${c.userName ?? 'Tú'} · ${c.avatarEmoji ?? '🐼'}` },
   { slug: 'couple',          emoji: '💕', title: 'Pareja',                subtitle: (c) => c.partnerName ? `${c.partnerName} · vinculado` : 'Sin pareja' },
+  { slug: 'children',        emoji: '👶', title: 'Hijos',                 subtitle: (c) => c.childrenCount ? `${c.childrenCount} ${c.childrenCount === 1 ? 'hijo/a' : 'hijos'} registrados` : 'Sin registrar · afecta al cálculo' },
   { slug: 'notifications',   emoji: '🔔', title: 'Notificaciones',        subtitle: () => 'Push, email, horarios' },
   { slug: 'premium',         emoji: '👑', title: 'Suscripción Premium',   subtitle: () => 'Gratis' },
   { slug: 'rules',           emoji: '📜', title: 'Reglas de puntos',      subtitle: () => 'Multiplicadores' },
@@ -155,10 +157,17 @@ function SettingsIndex() {
   const nav = useNavigate()
   const { user, couple } = useAppStore()
   const partner = couple?.users?.find((u) => u.id !== user?.id)
+  // Pull the children count so the Hijos row shows "2 hijos registrados" vs the
+  // empty-state hint that flags the missing data (affects points calc).
+  const { data: children } = useQuery<any[]>({
+    queryKey: ['settings-children-count'],
+    queryFn: () => apiClient.family.getChildren(),
+  })
   const ctx = {
     partnerName: partner?.name,
     userName: user?.name,
     avatarEmoji: user?.avatarEmoji ?? '🐼',
+    childrenCount: Array.isArray(children) ? children.length : 0,
   }
 
   const avatarEmoji = user?.avatarEmoji ?? '🐼'
@@ -394,27 +403,51 @@ function CoupleSection({ onBack }: { onBack: () => void }) {
           </div>
 
           {!inviteLink && (
-            <div className="space-y-3">
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="pareja@ejemplo.com"
-                label="Email de tu pareja"
-              />
-              <Button
-                variant="primary"
-                fullWidth
-                onClick={sendInvite}
-                disabled={loading || !email.trim()}
-              >
-                {loading ? 'Enviando…' : (
+            <div className="space-y-4">
+              {/* Option A — Generate link (works today). Email is used to
+                  auto-link the couple if/when your partner signs up with it. */}
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-text-primary">🔗 Generar enlace</p>
+                <p className="text-[11px] text-text-secondary">
+                  Crea un enlace y compártelo con tu pareja por WhatsApp, SMS o donde prefieras.
+                </p>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="pareja@ejemplo.com"
+                  label="Email de tu pareja"
+                  hint="Al registrarse con este email se vinculará automáticamente a tu cuenta."
+                />
+                <Button
+                  variant="primary"
+                  fullWidth
+                  onClick={sendInvite}
+                  disabled={loading || !email.trim()}
+                >
+                  {loading ? 'Generando…' : (
+                    <span className="flex items-center justify-center gap-2">
+                      <Copy className="w-4 h-4" />
+                      Generar enlace de invitación
+                    </span>
+                  )}
+                </Button>
+              </div>
+
+              {/* Option B — Email (disabled until SMTP is wired up). We keep the
+                  UI here so the flow is ready for v1.5. */}
+              <div className="pt-3 border-t border-brd-subtle space-y-2">
+                <p className="text-xs font-bold text-text-primary">✉️ Enviar por email</p>
+                <div className="rounded-md bg-brand-amber/10 border border-brand-amber/30 p-2.5 text-[11px] text-text-secondary">
+                  ⚠️ De momento no enviamos emails automáticos. Usa “Generar enlace” y compártelo tú mismo. Activaremos el envío por email en la próxima versión.
+                </div>
+                <Button variant="ghost" fullWidth disabled>
                   <span className="flex items-center justify-center gap-2">
                     <Mail className="w-4 h-4" />
-                    Enviar invitación
+                    Enviar invitación por email (próximamente)
                   </span>
-                )}
-              </Button>
+                </Button>
+              </div>
             </div>
           )}
 
@@ -780,6 +813,234 @@ function PrivacySection({ onBack }: { onBack: () => void }) {
 }
 
 // -----------------------------------------------------------------------------
+// Section: Children (Hijos)
+//
+// The Points Calculator uses number of children + special needs as a direct
+// multiplier, so keeping this up to date is load-bearing for correct scoring.
+// Every add/edit/delete notifies the partner on the backend.
+// -----------------------------------------------------------------------------
+
+interface ChildRecord {
+  id: string
+  name: string
+  dateOfBirth: string
+  livesWithUser1?: boolean
+  livesWithUser2?: boolean
+  hasSpecialNeeds?: boolean
+}
+
+function ageFromDate(dobIso: string): string {
+  if (!dobIso) return ''
+  const dob = new Date(dobIso)
+  if (isNaN(dob.getTime())) return ''
+  const now = new Date()
+  let years = now.getFullYear() - dob.getFullYear()
+  const m = now.getMonth() - dob.getMonth()
+  if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) years -= 1
+  if (years < 0) return ''
+  if (years === 0) {
+    const months = Math.max(0, (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth()))
+    return `${months} ${months === 1 ? 'mes' : 'meses'}`
+  }
+  return `${years} ${years === 1 ? 'año' : 'años'}`
+}
+
+function ChildrenSection({ onBack }: { onBack: () => void }) {
+  const [editing, setEditing] = useState<ChildRecord | null>(null)
+  const [formOpen, setFormOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<ChildRecord | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const { data: children, refetch } = useQuery<ChildRecord[]>({
+    queryKey: ['settings-children'],
+    queryFn: () => apiClient.family.getChildren(),
+  })
+
+  function flash(msg: string) {
+    setSuccess(msg)
+    setTimeout(() => setSuccess(null), 2500)
+  }
+
+  async function handleSave(payload: Partial<ChildRecord>) {
+    setLoading(true); setError(null)
+    try {
+      if (editing) {
+        await apiClient.family.updateChild(editing.id, payload)
+        flash('Hijo/a actualizado. Se notificó a tu pareja.')
+      } else {
+        await apiClient.family.addChild(payload)
+        flash('Hijo/a añadido. Se notificó a tu pareja.')
+      }
+      setFormOpen(false)
+      setEditing(null)
+      await refetch()
+    } catch (err: any) {
+      setError(err?.message ?? 'Error al guardar')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirmDelete) return
+    setLoading(true); setError(null)
+    try {
+      await apiClient.family.deleteChild(confirmDelete.id)
+      flash('Hijo/a eliminado. Se notificó a tu pareja.')
+      setConfirmDelete(null)
+      await refetch()
+    } catch (err: any) {
+      setError(err?.message ?? 'Error al eliminar')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const rows = children ?? []
+
+  return (
+    <div>
+      <SectionHeader title="Hijos" onBack={onBack} />
+      {error   && <Banner type="error"   message={error} />}
+      {success && <Banner type="success" message={success} />}
+
+      <Card className="mb-3 space-y-2">
+        <p className="text-xs text-text-secondary leading-relaxed">
+          Registrar a tus hijos es <strong className="text-text-primary">importante para el cálculo de puntos</strong>: cuantos más hijos a cargo durante una ausencia, mayor es el esfuerzo que asume la persona que se queda (x1.4 con 1, x1.8 con 2, x2.2 con 3+).
+        </p>
+        <p className="text-[11px] text-text-tertiary">
+          Cualquier cambio se notifica automáticamente a tu pareja.
+        </p>
+      </Card>
+
+      <div className="space-y-2 mb-3">
+        {rows.length === 0 && (
+          <Card className="text-center text-text-secondary text-xs py-6">
+            👶 Todavía no hay hijos registrados.
+          </Card>
+        )}
+        {rows.map((c) => (
+          <Card key={c.id}>
+            <div className="flex items-center gap-3">
+              <div className="text-2xl">👶</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-text-primary truncate">{c.name}</p>
+                <p className="text-[11px] text-text-secondary">
+                  {ageFromDate(c.dateOfBirth)}
+                  {c.hasSpecialNeeds ? ' · necesidades especiales' : ''}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setEditing(c); setFormOpen(true) }}
+                  className="text-[11px] font-semibold text-brand-purple px-2 py-1 rounded-md hover:bg-brand-purple/10"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(c)}
+                  className="text-[11px] font-semibold text-danger px-2 py-1 rounded-md hover:bg-danger/10"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <Button
+        fullWidth
+        onClick={() => { setEditing(null); setFormOpen(true) }}
+      >
+        + Añadir hijo/a
+      </Button>
+
+      {formOpen && (
+        <ChildFormModal
+          initial={editing}
+          loading={loading}
+          onCancel={() => { setFormOpen(false); setEditing(null) }}
+          onSave={handleSave}
+        />
+      )}
+
+      {confirmDelete && (
+        <DoubleConfirmModal
+          open={true}
+          title={`Eliminar a ${confirmDelete.name}`}
+          firstMessage="¿Seguro que quieres eliminar a este hijo/a?"
+          secondMessage="Se notificará a tu pareja y los puntos futuros se calcularán sin esta persona."
+          confirmLabel="Eliminar definitivamente"
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={handleDelete}
+          isLoading={loading}
+        />
+      )}
+    </div>
+  )
+}
+
+function ChildFormModal({
+  initial, loading, onCancel, onSave,
+}: {
+  initial: ChildRecord | null
+  loading: boolean
+  onCancel: () => void
+  onSave: (payload: Partial<ChildRecord>) => void
+}) {
+  const [name, setName] = useState(initial?.name ?? '')
+  const [dob, setDob] = useState(initial?.dateOfBirth ? initial.dateOfBirth.slice(0, 10) : '')
+  const [special, setSpecial] = useState<boolean>(Boolean(initial?.hasSpecialNeeds))
+  const [err, setErr] = useState<string | null>(null)
+
+  function submit() {
+    if (!name.trim()) return setErr('El nombre es obligatorio')
+    if (!dob) return setErr('La fecha de nacimiento es obligatoria')
+    setErr(null)
+    onSave({
+      name: name.trim(),
+      dateOfBirth: dob,
+      hasSpecialNeeds: special,
+    })
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/55 backdrop-blur-sm z-[80]" onClick={onCancel} />
+      <div className="fixed left-0 right-0 bottom-0 z-[81] max-w-[500px] mx-auto bg-surface-elevated border-t border-brd-purple rounded-t-xl p-4 pb-6">
+        <h3 className="text-base font-extrabold text-text-primary mb-3">
+          {initial ? 'Editar hijo/a' : 'Añadir hijo/a'}
+        </h3>
+        {err && <Banner type="error" message={err} />}
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-semibold text-text-secondary block mb-1.5">Nombre</label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Lucía" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-text-secondary block mb-1.5">Fecha de nacimiento</label>
+            <Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
+          </div>
+          <label className="flex items-center gap-3 text-sm text-text-primary">
+            <Toggle checked={special} onChange={setSpecial} />
+            <span>Tiene necesidades especiales <span className="text-[11px] text-text-tertiary">(añade +0.3 al multiplicador)</span></span>
+          </label>
+        </div>
+        <div className="flex gap-2 mt-4">
+          <Button variant="ghost" fullWidth onClick={onCancel}>Cancelar</Button>
+          <Button fullWidth disabled={loading} onClick={submit}>
+            {loading ? 'Guardando…' : (initial ? 'Guardar cambios' : 'Añadir')}
+          </Button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// -----------------------------------------------------------------------------
 // Orchestrator
 // -----------------------------------------------------------------------------
 
@@ -792,6 +1053,7 @@ export default function Settings() {
   switch (section as SectionSlug | undefined) {
     case 'profile':         content = <ProfileSection         onBack={goIndex} />; break
     case 'couple':          content = <CoupleSection          onBack={goIndex} />; break
+    case 'children':        content = <ChildrenSection        onBack={goIndex} />; break
     case 'notifications':   content = <NotificationsSection   onBack={goIndex} />; break
     case 'premium':         content = <PremiumSection         onBack={goIndex} />; break
     case 'rules':           content = <RulesSection           onBack={goIndex} />; break

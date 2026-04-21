@@ -63,8 +63,17 @@ export function AdvancedAnalytics({ isPremium, onOpenInterest }: Props) {
   return (
     <div className="relative">
       {/* Blur tracks the overlay — dismissing it lets the user see/scroll the charts.
-          Tied to isPremium would leave charts blurred forever for free users. */}
-      <div style={{ filter: showOverlay ? 'blur(3px)' : 'none', pointerEvents: showOverlay ? 'none' : 'auto', userSelect: showOverlay ? 'none' : 'auto' }}>
+          Tied to isPremium would leave charts blurred forever for free users.
+          Lower blur (2px) + will-change avoid the janky "zooming" repaint on
+          mobile when scrolling over a large filtered area. */}
+      <div
+        style={{
+          filter: showOverlay ? 'blur(2px)' : 'none',
+          willChange: showOverlay ? 'filter' : 'auto',
+          pointerEvents: showOverlay ? 'none' : 'auto',
+          userSelect: showOverlay ? 'none' : 'auto',
+        }}
+      >
         <HeatmapChart grid={heat?.grid ?? []} buckets={heat?.buckets ?? [6,9,12,15,18,21]} hint="Más activos los jueves a las 18-21h" />
         <CompletionRateChart rows={[
           { who: rate?.you?.name ?? 'Tú',      pct: rate?.you?.pct ?? 0,      color: BRAND_PURPLE },

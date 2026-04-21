@@ -66,6 +66,9 @@ export async function signupUser(
 
     // B1: If there's a pending email invitation for this address, attach the new
     // user to the inviter's couple instead of creating a new solo couple.
+    // Prefer invitation.coupleId (the couple at time of invite) over
+    // fromUser.coupleId so a inviter who later switches couples doesn't drag
+    // the signup into the wrong group.
     const pendingInvite = await prisma.invitation.findFirst({
       where: {
         toEmail: email,
@@ -77,9 +80,10 @@ export async function signupUser(
       orderBy: { createdAt: 'desc' },
     })
 
-    if (pendingInvite?.fromUser?.coupleId) {
+    const targetCoupleId = pendingInvite?.coupleId ?? pendingInvite?.fromUser?.coupleId ?? null
+    if (pendingInvite && targetCoupleId) {
       const inviterCouple = await prisma.couple.findUnique({
-        where: { id: pendingInvite.fromUser.coupleId },
+        where: { id: targetCoupleId },
         include: { users: true },
       })
       if (inviterCouple && inviterCouple.users.length < 2) {
@@ -101,6 +105,19 @@ export async function signupUser(
           where: { id: pendingInvite.id },
           data: { status: 'accepted', toUserId: linkedUser.id },
         })
+        // Notify the inviter so they see the link happened in real time.
+        if (pendingInvite.fromUserId) {
+          await prisma.notification.create({
+            data: {
+              coupleId: inviterCouple.id,
+              userId: pendingInvite.fromUserId,
+              type: 'PARTNER_JOINED',
+              title: '🎉 Tu pareja se ha unido',
+              message: `${name} ha creado su cuenta y ya estáis vinculados.`,
+              isRead: false,
+            },
+          })
+        }
         return linkedUser
       }
     }
@@ -113,7 +130,12 @@ export async function signupUser(
         configurations: {
           create: {
             tasksConfig: JSON.stringify({ cocina: 2.0, baños: 1.5, limpieza: 1.5, compra: 1.0, logistica: 1.0, cuidado: 1.5 }),
-            multipliersConfig: JSON.stringify({ franja: { mañana: 1.0, tarde: 1.1, noche: 1.2 }, hijos: { 0: 1.0, 1: 1.4, 2: 1.8, 3: 2.2 } }),
+            multipliersConfig: JSON.stringify({
+              franja: { mañana: 1.3, normal: 1.0, tarde: 1.2, noche: 1.2, madrugada: 1.5 },
+              duracion: { corta: 1.0, media: 1.1, larga: 1.25, muyLarga: 1.35 },
+              hijos: { 0: 1.0, 1: 1.4, 2: 1.8, 3: 2.2 },
+              impacto: { necesaria: 0.7, salud: 0.85, social: 1.0, alto: 1.4 },
+            }),
             activityTypes: JSON.stringify([]),
           },
         },
@@ -140,13 +162,13 @@ export async function signupUser(
 
     // Create basic event categories so RequestActivity works
     const eventCats = [
-      { name: 'Gastronomía', emoji: '🍽️', basePoints: 15 },
-      { name: 'Escapadas & Viajes', emoji: '✈️', basePoints: 25 },
-      { name: 'Ocio & Cultura', emoji: '🎭', basePoints: 12 },
-      { name: 'Deporte & Bienestar', emoji: '🏋️', basePoints: 10 },
-      { name: 'Familia & Social', emoji: '👨‍👩‍👧', basePoints: 12 },
-      { name: 'Trabajo & Obligaciones', emoji: '🏢', basePoints: 10 },
-      { name: 'Ocio Personal', emoji: '🎮', basePoints: 8 },
+      { name: 'Gastronomía', emoji: '🍽️', basePoints: 10 },
+      { name: 'Escapadas & Viajes', emoji: '✈️', basePoints: 18 },
+      { name: 'Ocio & Cultura', emoji: '🎭', basePoints: 7 },
+      { name: 'Deporte & Bienestar', emoji: '🏋️', basePoints: 6 },
+      { name: 'Familia & Social', emoji: '👨‍👩‍👧', basePoints: 8 },
+      { name: 'Trabajo & Obligaciones', emoji: '🏢', basePoints: 7 },
+      { name: 'Ocio Personal', emoji: '🎮', basePoints: 6 },
     ]
     for (const cat of eventCats) {
       await prisma.category.create({
@@ -228,12 +250,14 @@ export const signupCouple = async (
               activityTypes: {
                 cena: 1.0,
                 viaje: 1.2,
-                despedida: 1.3,
+                despedida: 1.4,
               },
               franja: {
-                mañana: 1.0,
-                tarde: 1.1,
+                mañana: 1.3,
+                normal: 1.0,
+                tarde: 1.2,
                 noche: 1.2,
+                madrugada: 1.5,
               },
               duracion: {
                 corta: 1.0,
@@ -246,7 +270,13 @@ export const signupCouple = async (
                 1: 1.4,
                 2: 1.8,
                 3: 2.2,
-              }
+              },
+              impacto: {
+                necesaria: 0.7,
+                salud: 0.85,
+                social: 1.0,
+                alto: 1.4,
+              },
             }),
           }
         },

@@ -61,6 +61,10 @@ export default function TodoListPage() {
   const partnerShared = data?.partnerShared ?? []
 
   const minePending = useMemo(() => mine.filter(t => !t.isCompleted).length, [mine])
+  // Shared tab = everything shared in the couple: mine marked shared + partner's shared.
+  // Sort: pending first, then most recently created.
+  const mineShared = useMemo(() => mine.filter(t => t.isShared), [mine])
+  const sharedCount = mineShared.length + partnerShared.length
 
   if (isLoading) {
     return (
@@ -85,7 +89,7 @@ export default function TodoListPage() {
           onChange={setTab}
           options={[
             { value: 'mine', label: 'Mis to-dos', badge: minePending },
-            { value: 'shared', label: 'Compartidos con pareja', badge: partnerShared.length },
+            { value: 'shared', label: 'Compartidos con pareja', badge: sharedCount },
           ]}
         />
       </div>
@@ -161,16 +165,51 @@ export default function TodoListPage() {
         </>
       ) : (
         <>
-          {/* Shared tab (read-only) */}
-          {partnerShared.length === 0 ? (
+          {/* Shared tab: mine-shared (fully editable) + partner-shared (toggle-only). */}
+          {sharedCount === 0 ? (
             <div className="rounded-lg bg-surface-card border border-brd-subtle p-6 text-center">
-              <p className="text-sm text-text-secondary">Tu pareja no ha compartido ningún to-do aún</p>
+              <p className="text-sm text-text-secondary">
+                Aún no hay to-dos compartidos. Marca uno como “Compartido” al crearlo o editarlo.
+              </p>
             </div>
           ) : (
-            <div className="space-y-1.5">
-              {partnerShared.map(todo => (
-                <SharedTodoRow key={todo.id} todo={todo} />
-              ))}
+            <div className="space-y-4">
+              {mineShared.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wide mb-1.5">
+                    Creados por ti
+                  </p>
+                  <div className="space-y-1.5">
+                    {mineShared.map(todo => (
+                      <TodoItemRow
+                        key={todo.id}
+                        todo={todo}
+                        isEditing={editingId === todo.id}
+                        onStartEdit={() => setEditingId(todo.id)}
+                        onCancelEdit={() => setEditingId(null)}
+                        onSaveEdit={(patch) => updateMutation.mutate({ id: todo.id, data: patch })}
+                        onToggleComplete={() =>
+                          toggleCompleteMutation.mutate({ id: todo.id, isCompleted: !todo.isCompleted })
+                        }
+                        onDelete={() => deleteMutation.mutate(todo.id)}
+                        saving={updateMutation.isPending}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {partnerShared.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wide mb-1.5">
+                    Creados por tu pareja
+                  </p>
+                  <div className="space-y-1.5">
+                    {partnerShared.map(todo => (
+                      <SharedTodoRow key={todo.id} todo={todo} />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </>

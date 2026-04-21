@@ -21,6 +21,8 @@ const METHODS: Array<{
 
 export function StepPair({ data, onChange, onNext }: Props) {
   const emailValid = data.pairMethod !== 'email' || data.pairEmail.includes('@')
+  const codeValid  = data.pairMethod !== 'code'  || data.pairCode.trim().length >= 8
+  const canAdvance = emailValid && codeValid
 
   return (
     <div className="flex-1 flex flex-col gap-5 py-4">
@@ -59,13 +61,18 @@ export function StepPair({ data, onChange, onNext }: Props) {
       </div>
 
       {data.pairMethod === 'email' && (
-        <Input
-          label="Email de tu pareja"
-          type="email"
-          value={data.pairEmail}
-          onChange={(e) => onChange({ pairEmail: e.target.value })}
-          placeholder="pareja@ejemplo.com"
-        />
+        <>
+          <Input
+            label="Email de tu pareja"
+            type="email"
+            value={data.pairEmail}
+            onChange={(e) => onChange({ pairEmail: e.target.value })}
+            placeholder="pareja@ejemplo.com"
+          />
+          <div className="rounded-md bg-brand-amber/10 border border-brand-amber/30 p-2.5 text-[11px] text-text-secondary">
+            ⚠️ De momento no enviamos emails reales. Puedes poner un mail ficticio para probar — no recibirá nada.
+          </div>
+        </>
       )}
 
       {data.pairMethod === 'code' && (
@@ -73,13 +80,13 @@ export function StepPair({ data, onChange, onNext }: Props) {
           label="Código de invitación"
           value={data.pairCode}
           onChange={(e) => onChange({ pairCode: e.target.value })}
-          placeholder="Pega aquí el código"
-          hint="La unión por código se completará cuando tu pareja te invite."
+          placeholder="Pega aquí el código (mín. 8 caracteres)"
+          hint="Pega el código que te ha compartido tu pareja."
         />
       )}
 
       <div className="mt-auto">
-        <Button variant="primary" size="lg" fullWidth onClick={onNext} disabled={!emailValid}>
+        <Button variant="primary" size="lg" fullWidth onClick={onNext} disabled={!canAdvance}>
           Siguiente →
         </Button>
       </div>

@@ -181,12 +181,18 @@ export const Calendar: React.FC = () => {
     setSelectedDate(null)
   }
 
-  // Events on the selected day
+  // Events on the selected day (real Events, tappable for negotiation detail)
   const eventsOnSelected = selectedDate
     ? events.filter((ev) => {
         if (!ev.dateStart) return false
         return toLocalDateString(ev.dateStart) === selectedDate
       })
+    : []
+
+  // Task logs on the selected day — display-only rows so task-only days
+  // don't appear empty in the drawer. Not tappable (they are not Events).
+  const tasksOnSelected = selectedDate
+    ? (logsRes?.logs ?? []).filter((l) => !!l.date && toLocalDateString(l.date) === selectedDate)
     : []
 
   // Events in the current ISO week (monday..sunday of currentDate)
@@ -301,7 +307,7 @@ export const Calendar: React.FC = () => {
               {selectedDate && (
                 <section className="mt-4">
                   <h2 className="text-sm font-bold text-text-primary mb-2">
-                    Eventos del día{' '}
+                    Actividad del día{' '}
                     <span className="text-text-secondary font-normal">
                       {new Intl.DateTimeFormat('es-ES', {
                         day: 'numeric',
@@ -309,21 +315,44 @@ export const Calendar: React.FC = () => {
                       }).format(new Date(`${selectedDate}T00:00:00`))}
                     </span>
                   </h2>
-                  {eventsOnSelected.length === 0 ? (
+                  {eventsOnSelected.length === 0 && tasksOnSelected.length === 0 ? (
                     <div className="rounded-md bg-surface-card border border-brd-subtle p-6 text-center">
-                      <p className="text-sm text-text-secondary">
-                        Sin eventos este día
-                      </p>
+                      <p className="text-sm text-text-secondary">Sin actividad este día</p>
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      {eventsOnSelected.map((ev) => (
-                        <EventCardV2
-                          key={ev.id}
-                          event={ev}
-                          onTap={() => setSelectedEvent(ev)}
-                        />
-                      ))}
+                    // Smart scroll: once the combined list grows beyond ~6 rows
+                    // (~22rem) we cap the height and let the user scroll inside
+                    // the drawer instead of pushing the rest of the page down.
+                    <div
+                      className={`space-y-3 ${
+                        eventsOnSelected.length + tasksOnSelected.length > 6
+                          ? 'max-h-[22rem] overflow-y-auto pr-1'
+                          : ''
+                      }`}
+                    >
+                      {eventsOnSelected.length > 0 && (
+                        <div className="space-y-2">
+                          {eventsOnSelected.map((ev) => (
+                            <EventCardV2
+                              key={ev.id}
+                              event={ev}
+                              onTap={() => setSelectedEvent(ev)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      {tasksOnSelected.length > 0 && (
+                        <div>
+                          <p className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wide mb-1.5">
+                            Tareas completadas ({tasksOnSelected.length})
+                          </p>
+                          <div className="space-y-1.5">
+                            {tasksOnSelected.map((l) => (
+                              <TaskLogRow key={l.id} log={l} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </section>
@@ -408,6 +437,27 @@ export const Calendar: React.FC = () => {
         )}
       </BottomSheet>
     </main>
+  )
+}
+
+// Simple non-interactive row for a completed TaskLog on the selected day.
+function TaskLogRow({ log }: { log: TaskLog }) {
+  const name = log.task?.name ?? 'Tarea'
+  const pts = typeof log.pointsFinal === 'number' ? log.pointsFinal : Number(log.pointsFinal ?? 0)
+  const who = log.completedBy?.name
+  return (
+    <div className="flex items-center gap-3 p-2.5 rounded-lg bg-surface-card border border-brd-subtle">
+      <div className="w-9 h-9 rounded-md bg-success/10 border border-success/30 flex items-center justify-center text-base flex-shrink-0">
+        ✅
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold text-text-primary truncate">{name}</div>
+        {who && <div className="text-[11px] text-text-secondary truncate">{who}</div>}
+      </div>
+      <div className="text-[11px] font-bold text-brand-amber tabular-nums flex-shrink-0">
+        +{pts} pts
+      </div>
+    </div>
   )
 }
 

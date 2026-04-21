@@ -37,7 +37,16 @@ export function HeatmapChart({ grid, buckets, hint }: Props) {
         <div className="text-[11px] text-text-secondary mt-0.5">Cuándo completáis más tareas</div>
       </div>
       <Card>
-        <div className="grid gap-[3px]" style={{ gridTemplateColumns: `20px repeat(${buckets.length}, 1fr)` }}>
+        {/* max-w caps cell size on wider viewports so the grid doesn't look
+            zoomed-in; touchAction avoids iOS double-tap-zoom on the cells. */}
+        <div
+          className="grid gap-[3px] mx-auto"
+          style={{
+            gridTemplateColumns: `20px repeat(${buckets.length}, minmax(0, 1fr))`,
+            maxWidth: 360,
+            touchAction: 'manipulation',
+          }}
+        >
           <div />
           {buckets.map(h => <div key={h} className="text-[9px] text-text-tertiary text-center">{h}h</div>)}
           {DAYS.map((d, di) => (
@@ -56,7 +65,14 @@ export function HeatmapChart({ grid, buckets, hint }: Props) {
                     aria-label={tooltip}
                     onClick={() => setActive(c ?? { dow: di, bucket: b, norm: 0, count: 0 })}
                     className="aspect-square rounded-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/40 hover:ring-1 hover:ring-brand-purple/60"
-                    style={{ background: COLORS[Math.min(4, Math.max(0, norm))] }}
+                    // touchAction + tap-highlight avoid the iOS double-tap zoom
+                    // and grey flash that made the heatmap feel like it was
+                    // zooming/jumping when tapping cells.
+                    style={{
+                      background: COLORS[Math.min(4, Math.max(0, norm))],
+                      touchAction: 'manipulation',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
                   />
                 )
               })}
