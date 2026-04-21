@@ -1,7 +1,7 @@
 # CLAUDE.md — Matripuntos
 
 ## 0. REGLAS DE SESIÓN
-- **Parada al 75% de contexto:** cuando el uso de contexto de la sesión se acerque al 75% (≈150k/200k tokens), detente en el siguiente punto de control natural (tras un commit, tras un deploy, al cerrar un bug), avisa al usuario con un resumen de lo hecho/pendiente y sugiere `/compact` o abrir una sesión nueva. No arranques tareas nuevas pasado ese umbral.
+- **Aviso al 75% de contexto:** cuando el uso de contexto de la sesión se acerque al 75% (≈150k/200k tokens), detente en el siguiente punto de control natural (tras un commit, tras un deploy, al cerrar un bug) y **pregunta al usuario** si continuar o cerrar con `/compact`. En el aviso incluye: (1) resumen de lo hecho, (2) lo pendiente, (3) tu recomendación (seguir / compactar / abrir sesión nueva). NO arranques tareas nuevas pasado ese umbral sin OK explícito del usuario.
 - Los permisos están en modo wildcard en `.claude/settings.local.json` — puedes ejecutar Bash/Edit/Write sin pedir confirmación, salvo acciones destructivas o de alcance compartido (push --force, drop table, envíos externos), que siempre confirman antes.
 
 ## 1. PROYECTO
