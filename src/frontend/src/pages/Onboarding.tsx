@@ -8,6 +8,7 @@ import { StepPair } from './onboarding/StepPair'
 import { StepRules } from './onboarding/StepRules'
 import { StepCategories } from './onboarding/StepCategories'
 import { StepDone } from './onboarding/StepDone'
+import { StepJoinAccount } from './onboarding/StepJoinAccount'
 
 export interface OnboardingData {
   avatarEmoji: string
@@ -50,16 +51,25 @@ export default function Onboarding() {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
-  // Auto-skip past Welcome/Profile/Pair if user arrived via invitation link
-  // Token means they are already paired — pre-fill and jump straight to Rules.
+  // Resolve the invitation token from /onboarding/join/:token or ?token=...
+  const params = new URLSearchParams(location.search)
+  const urlToken = token ?? params.get('token') ?? ''
+
+  // If we have a token but no logged-in user, this is a fresh invitee opening
+  // the link from their inbox — they don't have an account yet. Show the
+  // single-step join screen instead of dropping them into the middle of the
+  // wizard (which used to land on StepRules and explode on submit because
+  // every protected POST would 401).
+  const showJoinAccountFlow = urlToken && !user
+
+  // If a logged-in user opens the invite link, just pre-fill the pair code
+  // and skip straight to Rules — they already have an account.
   useEffect(() => {
-    const params = new URLSearchParams(location.search)
-    const urlToken = token ?? params.get('token') ?? ''
-    if (urlToken) {
+    if (urlToken && user) {
       setData((prev) => ({ ...prev, pairMethod: 'code', pairCode: urlToken }))
       setStep(3)
     }
-  }, [token, location.search])
+  }, [urlToken, user])
 
   // If user already completed onboarding, skip to dashboard
   useEffect(() => {
@@ -126,6 +136,18 @@ export default function Onboarding() {
 
   const total = 6
   const pct = Math.round(((step + 1) / total) * 100)
+
+  // Invitee landing — pre-account. Render the single-step join screen and
+  // bypass the wizard entirely.
+  if (showJoinAccountFlow) {
+    return (
+      <main className="bg-surface-base min-h-screen px-6 flex flex-col">
+        <div className="flex-1 flex flex-col py-8 max-w-md mx-auto w-full">
+          <StepJoinAccount token={urlToken} />
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className="bg-surface-base min-h-screen px-6 flex flex-col">

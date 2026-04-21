@@ -223,22 +223,32 @@ router.get('/couple', async (req: Request, res: Response) => {
 
 /**
  * PUT /api/profile/me
- * Update current user's avatar, mood, and/or theme
+ * Update current user's profile preferences (avatar/mood/theme) and/or
+ * the `hasCompletedOnboarding` flag on the parent User. Creates an empty
+ * UserProfile lazily — useful for seed scripts and the invite-link flow,
+ * where the user exists but no profile row has been created yet.
  */
 router.put('/me', async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id
-    const { avatarEmoji, avatarColor, theme, currentMood } = req.body
+    const { avatarEmoji, avatarColor, theme, currentMood, hasCompletedOnboarding } = req.body
 
-    // Ensure profile exists
-    const existing = await prisma.userProfile.findUnique({ where: { userId } })
-    if (!existing) {
-      return res.status(404).json({ error: 'Profile not found. Complete onboarding first.' })
-    }
-
-    const updated = await prisma.userProfile.update({
+    // Lazily create the UserProfile row if missing. Avoids the chicken-and-egg
+    // problem where the seed / invite-flow needs to flip onboarding before any
+    // profile exists.
+    const profile = await prisma.userProfile.upsert({
       where: { userId },
-      data: {
+      update: {
+        ...(avatarEmoji !== undefined && { avatarEmoji }),
+        ...(avatarColor !== undefined && { avatarColor }),
+        ...(theme !== undefined && { theme }),
+        ...(currentMood !== undefined && {
+          currentMood,
+          moodUpdatedAt: new Date(),
+        }),
+      },
+      create: {
+        userId,
         ...(avatarEmoji !== undefined && { avatarEmoji }),
         ...(avatarColor !== undefined && { avatarColor }),
         ...(theme !== undefined && { theme }),
@@ -249,8 +259,16 @@ router.put('/me', async (req: Request, res: Response) => {
       },
     })
 
-    res.json({ message: 'Profile updated', profile: updated })
+    if (typeof hasCompletedOnboarding === 'boolean') {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { hasCompletedOnboarding },
+      })
+    }
+
+    res.json({ message: 'Profile updated', profile })
   } catch (error) {
+    console.error('Error updating profile:', error)
     res.status(500).json({ error: 'Failed to update profile' })
   }
 })
