@@ -7,6 +7,7 @@ import { HeaderMenu } from '../components/v2/layout/HeaderMenu'
 import { FabActionSheet } from '../components/v2/layout/FabActionSheet'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
+import type { AchievementMapNode } from '../types/index'
 
 export function AuthedLayout({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -14,16 +15,29 @@ export function AuthedLayout({ children }: { children: ReactNode }) {
   const { user, couple, logout } = useAppStore()
   const nav = useNavigate()
 
-  // Unread notifications count (polled so the bell dot stays fresh).
+  // Unread notifications count (polled so the bell badge stays fresh).
   // The hook is always called (before the null-return) so rules-of-hooks are preserved.
+  // Backend returns { unreadCount } (see notificationRoutes.ts:98) — accept both
+  // shapes so old clients keep working if we ever change it.
   const { data: unreadRes } = useQuery({
     queryKey: ['notifications', 'unread-count'],
-    queryFn: () => apiClient.notifications.getUnreadCount() as Promise<{ count?: number }>,
+    queryFn: () =>
+      apiClient.notifications.getUnreadCount() as Promise<{ unreadCount?: number; count?: number }>,
     enabled: !!user,
     refetchInterval: 30_000,
     staleTime: 10_000,
   })
-  const unreadCount = unreadRes?.count ?? 0
+  const unreadCount = unreadRes?.unreadCount ?? unreadRes?.count ?? 0
+
+  // Achievement counts for HeaderMenu → "Logros" subtitle.
+  const { data: achievementsMap } = useQuery<AchievementMapNode[]>({
+    queryKey: ['achievements', 'map'],
+    queryFn: () => apiClient.achievements.getMap(),
+    enabled: !!user,
+    staleTime: 60_000,
+  })
+  const unlockedCount = (achievementsMap ?? []).filter((n) => n.status === 'unlocked').length
+  const totalAchievements = achievementsMap?.length ?? 0
 
   if (!user) return null
 
@@ -47,7 +61,7 @@ export function AuthedLayout({ children }: { children: ReactNode }) {
         userMood={user.currentMood ?? null}
         partnerMood={partnerMood}
         partnerName={partner?.name ?? null}
-        hasUnreadNotif={unreadCount > 0}
+        unreadCount={unreadCount}
         onBell={() => nav('/notifications')}
         onMenu={() => setMenuOpen(true)}
         onAvatar={() => nav('/settings/profile')}
@@ -56,6 +70,8 @@ export function AuthedLayout({ children }: { children: ReactNode }) {
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         partnerName={partner?.name ?? null}
+        unlockedCount={unlockedCount}
+        totalAchievements={totalAchievements}
         onLogout={handleLogout}
       />
       {children}

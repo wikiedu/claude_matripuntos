@@ -83,6 +83,9 @@ export interface Task {
   category: 'cocina' | 'baños' | 'limpieza' | 'compra' | 'logistica' | 'cuidado' | 'mantenimiento' | 'jardineria' | 'mascotas'
   pointsBase: number | string
   isDefault?: boolean
+  scheduledFor?: string | null
+  isRecurring?: boolean
+  frequency?: string | null
 }
 
 export interface TaskLog {

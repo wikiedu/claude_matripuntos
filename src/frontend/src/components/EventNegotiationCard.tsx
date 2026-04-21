@@ -1,6 +1,20 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../services/apiClient'
 import { Check, X, MessageSquare, Clock } from 'lucide-react'
+
+// Keys that downstream screens (Dashboard, Analytics, Achievements, Bell) depend on.
+// Invalidating after accept/reject/counter keeps points and activity feeds fresh
+// whenever the user negotiates from any entry point that uses this card (Calendar, etc.).
+const DOWNSTREAM_QUERY_KEYS: (readonly unknown[])[] = [
+  ['balance'],
+  ['recentActivity'],
+  ['gamification', 'status'],
+  ['achievements', 'map'],
+  ['notifications'],
+  ['notifications', 'unread-count'],
+  ['taskLogs', 'pending'],
+]
 
 interface NegotiationStatus {
   eventId: string
@@ -35,6 +49,13 @@ export const EventNegotiationCard = ({
   const [showResponses, setShowResponses] = useState(false)
   const isCreator = createdBy === currentUserId
   const isResponder = !isCreator
+  const queryClient = useQueryClient()
+
+  const invalidateDownstream = () => {
+    for (const key of DOWNSTREAM_QUERY_KEYS) {
+      queryClient.invalidateQueries({ queryKey: key })
+    }
+  }
 
   const loadStatus = async () => {
     try {
@@ -71,6 +92,7 @@ export const EventNegotiationCard = ({
       setLoading(true)
       await apiClient.negotiation.respondToProposal(eventId, 'accept')
       await loadStatus()
+      invalidateDownstream()
       onStatusChange?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to accept proposal')
@@ -86,6 +108,7 @@ export const EventNegotiationCard = ({
       setLoading(true)
       await apiClient.negotiation.respondToProposal(eventId, 'reject')
       await loadStatus()
+      invalidateDownstream()
       onStatusChange?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reject proposal')
@@ -104,6 +127,7 @@ export const EventNegotiationCard = ({
         'Preferimos hablarlo en persona'
       )
       await loadStatus()
+      invalidateDownstream()
       onStatusChange?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to mark as pending conversation')

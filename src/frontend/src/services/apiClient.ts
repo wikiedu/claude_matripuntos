@@ -9,6 +9,10 @@ const API_BASE_URL = (import.meta as any).env.VITE_API_URL ?? (
 // Simple API client with automatic token management
 class ApiClient {
   private token: string | null = null
+  // Callback registered by App.tsx to purge Zustand store + React Query cache
+  // when a 401 fires. Kept as a callback (not a direct import of useAppStore)
+  // to avoid a circular dependency — the store imports apiClient.
+  private onUnauthorized: (() => void) | null = null
 
   setToken(token: string) {
     this.token = token
@@ -26,6 +30,10 @@ class ApiClient {
   clearToken() {
     this.token = null
     localStorage.removeItem('auth_token')
+  }
+
+  setOnUnauthorized(cb: (() => void) | null) {
+    this.onUnauthorized = cb
   }
 
   private getHeaders(): HeadersInit {
@@ -53,9 +61,16 @@ class ApiClient {
 
     if (!response.ok) {
       if (response.status === 401) {
-        // Token expired or invalid
+        // Token expired or invalid. Purge local auth state, clear the React
+        // Query cache via the registered callback, and redirect — unless we're
+        // already on a public auth page (avoids a redirect loop when login/signup
+        // themselves return 401 for bad credentials).
         this.clearToken()
-        window.location.href = '/login'
+        this.onUnauthorized?.()
+        const onAuthPage = /^\/(login|signup|onboarding)/.test(window.location.pathname)
+        if (!onAuthPage) {
+          window.location.href = '/login'
+        }
       }
       const error = await response.json().catch(() => ({ error: 'Request failed' }))
       throw new Error(error.error || `API Error: ${response.statusText}`)

@@ -8,7 +8,7 @@ interface Props {
   userMood?: string | null
   partnerMood?: string | null
   partnerName?: string | null
-  hasUnreadNotif?: boolean
+  unreadCount?: number
   onBell: () => void
   onMenu: () => void
   onAvatar?: () => void
@@ -16,7 +16,7 @@ interface Props {
 
 export function AppHeader({
   userName, userAvatarEmoji, userAvatarColor, userMood,
-  partnerMood, partnerName, hasUnreadNotif, onBell, onMenu, onAvatar,
+  partnerMood, partnerName, unreadCount = 0, onBell, onMenu, onAvatar,
 }: Props) {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Buenos días' : hour < 20 ? 'Buenas tardes' : 'Buenas noches'
@@ -38,8 +38,13 @@ export function AppHeader({
           className="relative w-9 h-9 rounded-md bg-surface-muted border border-brd-purple flex items-center justify-center text-text-primary"
         >
           <Bell size={16} />
-          {hasUnreadNotif && (
-            <span className="absolute top-1.5 right-1.5 w-[7px] h-[7px] rounded-full bg-danger border-[1.5px] border-bg-page" />
+          {unreadCount > 0 && (
+            <span
+              aria-label={`${unreadCount} notificaciones sin leer`}
+              className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-danger text-white text-[9px] font-bold leading-none flex items-center justify-center border-[1.5px] border-bg-page"
+            >
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
           )}
         </button>
         <button

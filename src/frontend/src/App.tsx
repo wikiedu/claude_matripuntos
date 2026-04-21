@@ -57,6 +57,16 @@ function AppRoutes() {
   const { isAuthenticated, loadUserData } = useAppStore()
 
   useEffect(() => {
+    // Register a 401 handler so the apiClient can reset the Zustand store and
+    // purge React Query cache without importing the store directly (circular).
+    apiClient.setOnUnauthorized(() => {
+      useAppStore.getState().reset()
+      queryClient.clear()
+    })
+    return () => apiClient.setOnUnauthorized(null)
+  }, [])
+
+  useEffect(() => {
     // Check if user has a token and try to load their data
     const token = apiClient.getToken()
     if (token && !isAuthenticated) {
