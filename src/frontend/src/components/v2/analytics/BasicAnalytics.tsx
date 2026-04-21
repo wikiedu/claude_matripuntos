@@ -4,6 +4,7 @@ import { CategoryPieChart } from './charts/CategoryPieChart'
 import { BalanceEvolutionChart } from './charts/BalanceEvolutionChart'
 import { TimeInvestedChart } from './charts/TimeInvestedChart'
 import { fetchAnalytics } from './analyticsUtils'
+import { useAppStore } from '../../../store/useAppStore'
 
 // Palette mirrors CategoryFilterStrip — keeps pie matching the Tasks filter colors.
 const CAT_COLORS: Record<string, string> = {
@@ -21,6 +22,8 @@ const CAT_LABEL: Record<string, string> = {
   jardineria: 'Jardinería', mascotas: 'Mascotas', other: 'Otros',
 }
 
+const DOW = ['D', 'L', 'M', 'X', 'J', 'V', 'S']
+
 function normalizeCats(raw: unknown) {
   if (!raw || typeof raw !== 'object') return []
   const entries = Object.entries(raw as Record<string, number>)
@@ -33,20 +36,54 @@ function normalizeCats(raw: unknown) {
   }))
 }
 
+// Backend /analytics/daily-activity returns an array of {date, count, totalPoints, types}.
+// No per-user split exists upstream, so we surface combined activity under "Tú" and leave
+// the partner bar empty until an endpoint provides split data.
+function normalizeDaily(raw: unknown) {
+  if (!Array.isArray(raw)) return []
+  return raw.map((d: any) => {
+    const dt = new Date(d.date)
+    const label = isNaN(dt.getTime()) ? String(d.date ?? '') : DOW[dt.getDay()]
+    return {
+      label,
+      you: Number(d.totalPoints ?? 0),
+      partner: 0,
+    }
+  })
+}
+
+// Backend /analytics/weekly-trends returns [{label, events, points}].
+// BalanceEvolutionChart expects [{label, balance}]; we use points as a proxy for net activity.
+function normalizeWeekly(raw: unknown) {
+  if (!Array.isArray(raw)) return []
+  return raw.map((w: any) => ({
+    label: String(w.label ?? ''),
+    balance: Number(w.points ?? 0),
+  }))
+}
+
 export function BasicAnalytics() {
+  const couple = useAppStore(s => s.couple)
+  const user   = useAppStore(s => s.user)
+  const users  = (couple as any)?.users ?? []
+  const youName     = user?.name ?? 'Tú'
+  const partnerName = users.find((u: any) => u.id !== user?.id)?.name ?? 'Pareja'
+
   const { data: daily }  = useQuery({ queryKey: ['a-daily'],  queryFn: () => fetchAnalytics('/analytics/daily-activity') })
   const { data: cats }   = useQuery({ queryKey: ['a-cats'],   queryFn: () => fetchAnalytics('/analytics/points-by-category') })
   const { data: trends } = useQuery({ queryKey: ['a-trends'], queryFn: () => fetchAnalytics('/analytics/weekly-trends?weeks=4') })
   const { data: time }   = useQuery({ queryKey: ['a-time'],   queryFn: () => fetchAnalytics('/analytics/time-invested?range=week') })
 
-  const catList = normalizeCats(cats)
+  const catList  = normalizeCats(cats)
+  const dayList  = normalizeDaily(daily)
+  const weekList = normalizeWeekly(trends)
 
   return (
     <>
-      <WeeklyBarsChart days={daily?.days ?? []} youName={daily?.youName ?? 'Tú'} partnerName={daily?.partnerName ?? 'Pareja'} />
+      <WeeklyBarsChart days={dayList} youName={youName} partnerName={partnerName} />
       <CategoryPieChart categories={catList} />
-      <BalanceEvolutionChart weeks={trends?.weeks ?? []} />
-      <TimeInvestedChart you={time?.you ?? { name: 'Tú', hours: 0 }} partner={time?.partner ?? { name: 'Pareja', hours: 0 }} />
+      <BalanceEvolutionChart weeks={weekList} />
+      <TimeInvestedChart you={time?.you ?? { name: youName, hours: 0 }} partner={time?.partner ?? { name: partnerName, hours: 0 }} />
     </>
   )
 }

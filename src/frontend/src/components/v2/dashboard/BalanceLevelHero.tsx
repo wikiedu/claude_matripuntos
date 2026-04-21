@@ -13,11 +13,12 @@ export function BalanceLevelHero({
   youName, youBalance, partnerName, partnerBalance,
   level, levelName, current, needed,
 }: Props) {
-  const lead   = youBalance > 0.5
-  const behind = youBalance < -0.5
-  const absBal = Math.abs(youBalance)
-  const leadLabel = lead      ? `Vas ${absBal.toFixed(1)} MP por delante`
-                  : behind    ? `${partnerName} va ${absBal.toFixed(1)} MP por delante`
+  const diff   = youBalance - partnerBalance
+  const lead   = diff > 0.5
+  const behind = diff < -0.5
+  const absDiff = Math.abs(diff)
+  const leadLabel = lead      ? `Vas ${absDiff.toFixed(1)} MP por delante`
+                  : behind    ? `${partnerName} va ${absDiff.toFixed(1)} MP por delante`
                   : 'Estáis empatados'
   const pct = needed > 0 ? Math.min(100, (current / needed) * 100) : 0
 
@@ -27,7 +28,7 @@ export function BalanceLevelHero({
         <div className="min-w-0">
           <p className="m-0 text-[11px] font-semibold tracking-wide text-[rgba(199,210,254,0.9)]">BALANCE DE LA SEMANA</p>
           <p className="m-0 mt-1.5 text-[34px] font-extrabold text-white leading-none tabular-nums tracking-tight">
-            {youBalance >= 0 ? '+' : ''}{youBalance.toFixed(1)}
+            {diff >= 0 ? '+' : ''}{diff.toFixed(1)}
             <span className="text-base font-medium opacity-80 ml-1">MP</span>
           </p>
           <p className="m-0 mt-1.5 text-[13px] font-medium text-white/95">

@@ -92,17 +92,7 @@ export async function signupUser(
       select: { id: true, email: true, name: true, coupleId: true },
     })
 
-    // Create default tasks for the new couple
-    await prisma.task.createMany({
-      data: [
-        { coupleId: couple.id, name: 'Cocinar', category: 'cocina', pointsBase: 2.0, isDefault: true },
-        { coupleId: couple.id, name: 'Limpiar baños', category: 'baños', pointsBase: 1.5, isDefault: true },
-        { coupleId: couple.id, name: 'Limpieza general', category: 'limpieza', pointsBase: 1.5, isDefault: true },
-        { coupleId: couple.id, name: 'Hacer la compra', category: 'compra', pointsBase: 1.0, isDefault: true },
-        { coupleId: couple.id, name: 'Gestiones logísticas', category: 'logistica', pointsBase: 1.0, isDefault: true },
-        { coupleId: couple.id, name: 'Cuidado de los niños', category: 'cuidado', pointsBase: 1.5, isDefault: true },
-      ],
-    })
+    // Tasks start empty — users add their own from the catalog or create new ones.
 
     // Create basic event categories so RequestActivity works
     const eventCats = [

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { HeatmapChart } from './charts/HeatmapChart'
 import { CompletionRateChart } from './charts/CompletionRateChart'
@@ -16,6 +17,8 @@ interface Props {
 }
 
 export function AdvancedAnalytics({ isPremium, onOpenInterest }: Props) {
+  const [overlayDismissed, setOverlayDismissed] = useState(false)
+  const showOverlay = !isPremium && !overlayDismissed
   const { data: heat }   = useQuery({ queryKey: ['a-heat'],  queryFn: () => fetchAnalytics('/analytics/heatmap?weeks=4') })
   const { data: rate }   = useQuery({ queryKey: ['a-rate'],  queryFn: () => fetchAnalytics('/analytics/completion-rate?range=month') })
   const { data: over }   = useQuery({ queryKey: ['a-over'],  queryFn: () => fetchAnalytics('/analytics/couple') })
@@ -42,7 +45,12 @@ export function AdvancedAnalytics({ isPremium, onOpenInterest }: Props) {
         <TopCategoriesChart data={topArr} />
         <MonthlyInsightCard text={insig?.text ?? 'Aún no hay suficiente actividad este mes.'} bullets={insig?.bullets ?? []} />
       </div>
-      {!isPremium && <PremiumOverlay onOpenInterest={onOpenInterest} />}
+      {showOverlay && (
+        <PremiumOverlay
+          onOpenInterest={onOpenInterest}
+          onClose={() => setOverlayDismissed(true)}
+        />
+      )}
     </div>
   )
 }

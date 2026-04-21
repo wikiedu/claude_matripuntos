@@ -1,5 +1,9 @@
 # CLAUDE.md — Matripuntos
 
+## 0. REGLAS DE SESIÓN
+- **Parada al 75% de contexto:** cuando el uso de contexto de la sesión se acerque al 75% (≈150k/200k tokens), detente en el siguiente punto de control natural (tras un commit, tras un deploy, al cerrar un bug), avisa al usuario con un resumen de lo hecho/pendiente y sugiere `/compact` o abrir una sesión nueva. No arranques tareas nuevas pasado ese umbral.
+- Los permisos están en modo wildcard en `.claude/settings.local.json` — puedes ejecutar Bash/Edit/Write sin pedir confirmación, salvo acciones destructivas o de alcance compartido (push --force, drop table, envíos externos), que siempre confirman antes.
+
 ## 1. PROYECTO
 App web gamificada para parejas: gestión equitativa de responsabilidades del hogar mediante puntos negociables. Repo: https://github.com/wikiedu/claude_matripuntos
 
