@@ -9,6 +9,7 @@ import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
 import RequestActivity from './pages/RequestActivity'
 import RequestInbox from './pages/RequestInbox'
+import ActivityDetail from './pages/ActivityDetail'
 import Tasks from './pages/Tasks'
 import Settings from './pages/Settings'
 import Analytics from './pages/Analytics'
@@ -117,6 +118,16 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AuthedLayout><RequestInbox /></AuthedLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* TEMPORARY route — Fase 2 will add /home/activities/:id; Fase 3 removes this */}
+      <Route
+        path="/request-inbox/:id"
+        element={
+          <ProtectedRoute>
+            <AuthedLayout><ActivityDetail /></AuthedLayout>
           </ProtectedRoute>
         }
       />
