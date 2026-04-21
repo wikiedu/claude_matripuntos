@@ -3,12 +3,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { useAppStore } from './store/useAppStore'
 import { apiClient } from './services/apiClient'
+import { useActivities } from './hooks/useActivities'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
 import RequestActivity from './pages/RequestActivity'
-import RequestInbox from './pages/RequestInbox'
+import Activities from './pages/Activities'
 import ActivityDetail from './pages/ActivityDetail'
 import Tasks from './pages/Tasks'
 import Settings from './pages/Settings'
@@ -56,12 +57,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 // HomeShell — inline wrapper for /home/tasks and /home/activities
-function HomeShell({ view, children, activitiesCount }: {
+function HomeShell({ view, children }: {
   view: HomeView
   children: React.ReactNode
-  activitiesCount: number
 }) {
   const nav = useNavigate()
+  const { pendingCount } = useActivities()
   useEffect(() => {
     window.localStorage.setItem('home_last_selector', view)
   }, [view])
@@ -69,7 +70,7 @@ function HomeShell({ view, children, activitiesCount }: {
     <>
       <HomeSelector
         active={view}
-        activitiesCount={activitiesCount}
+        activitiesCount={pendingCount}
         onChange={(v) => nav(`/home/${v}`)}
       />
       {children}
@@ -152,7 +153,7 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AuthedLayout>
-              <HomeShell view="tasks" activitiesCount={0}>
+              <HomeShell view="tasks">
                 <Tasks />
               </HomeShell>
             </AuthedLayout>
@@ -164,8 +165,8 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AuthedLayout>
-              <HomeShell view="activities" activitiesCount={0}>
-                <RequestInbox />
+              <HomeShell view="activities">
+                <Activities />
               </HomeShell>
             </AuthedLayout>
           </ProtectedRoute>
