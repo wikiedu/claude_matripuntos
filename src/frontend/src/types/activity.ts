@@ -21,6 +21,9 @@ export interface RecentActivity {
   name: string;
   date: Date;
   relatedId: string;
+  delta: number;
+  userId: string | null;
+  status: string | null;
 }
 
 /**

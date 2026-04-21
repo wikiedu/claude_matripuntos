@@ -3,6 +3,8 @@ import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
 import { Decimal } from '@prisma/client/runtime/library'
 import { AchievementEngine } from '../services/achievementEngine.js'
+import { updateDailyStreak, calculateAndSaveXP } from '../services/gamificationService.js'
+import { checkAllAchievements } from '../services/achievementCheckService.js'
 import { notifyEventResponded } from '../services/notificationService.js'
 
 const router = express.Router()
@@ -169,13 +171,22 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
         },
       })
 
-      // Trigger achievement check
+      // Trigger achievement check (legacy per-user engine)
       if (negotiation.proposedBy) {
         await achievementEngine.checkAchievements(
           negotiation.proposedBy,
           req.coupleId,
           { type: 'event_accepted', eventId: negotiation.eventId }
         )
+      }
+
+      // Non-fatal gamification updates (new system: streak, XP, couple achievements map)
+      try {
+        await updateDailyStreak(req.coupleId)
+        await calculateAndSaveXP(req.coupleId)
+        await checkAllAchievements(req.coupleId)
+      } catch (gamErr) {
+        console.error('Gamification update error (non-fatal):', gamErr)
       }
     } else if (data.responseType === 'counter_proposed') {
       // Counter-propose

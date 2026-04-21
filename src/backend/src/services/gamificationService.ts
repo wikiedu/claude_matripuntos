@@ -183,19 +183,33 @@ export async function resetFreezersOnMonday(): Promise<void> {
   })
 }
 
+function getCurrentWeekStart(date = new Date()): Date {
+  const d = new Date(date)
+  const day = d.getUTCDay()
+  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1)
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff, 0, 0, 0, 0))
+}
+
+// Evaluates the PREVIOUS week's CoupleScore. Never inflates the streak based on a
+// freshly created score of the current week (which is seeded with equilibrium=50).
+// If no previous score exists, streak stays untouched.
 export async function updateWeeklyStreak(coupleId: string): Promise<void> {
   const couple = await prisma.couple.findUnique({ where: { id: coupleId } })
   if (!couple) return
 
-  const lastScore = await prisma.coupleScore.findFirst({
-    where: { coupleId },
+  const currentWeekStart = getCurrentWeekStart()
+
+  const previousScore = await prisma.coupleScore.findFirst({
+    where: { coupleId, weekStartDate: { lt: currentWeekStart } },
     orderBy: { weekStartDate: 'desc' }
   })
 
-  const equilibrium = lastScore?.equilibrium
-    ? (typeof lastScore.equilibrium === 'object'
-        ? (lastScore.equilibrium as any).toNumber()
-        : Number(lastScore.equilibrium))
+  if (!previousScore) return
+
+  const equilibrium = previousScore.equilibrium
+    ? (typeof previousScore.equilibrium === 'object'
+        ? (previousScore.equilibrium as any).toNumber()
+        : Number(previousScore.equilibrium))
     : 0
 
   if (equilibrium >= 40) {

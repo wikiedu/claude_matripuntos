@@ -41,16 +41,16 @@ export default function Dashboard() {
   const pendingTodos = todosData?.mine.filter((t: { isCompleted: boolean }) => !t.isCompleted).length ?? 0
 
   const levelOrdinal = (LEVEL_ORDER.indexOf(gamificationStatus?.level ?? 'nido') + 1) || 1
-  const xpProgress = gamificationStatus?.xpProgress ?? 0
+  const currentXp = gamificationStatus?.xp ?? 0
   const xpToNext = gamificationStatus?.xpToNext ?? 100
-  const currentXp = Math.round(xpProgress * (xpProgress + xpToNext > 0 ? (xpToNext / (1 - xpProgress || 1)) : 100))
-  const neededXp = Math.max(1, currentXp + xpToNext)
+  const neededXp = currentXp + xpToNext
 
+  const usersById = new Map((couple.users ?? []).map((u) => [u.id, u.name]))
   const movements = recentActivities.slice(0, 3).map((a) => ({
     id: a.id,
-    userName: user.name,
+    userName: a.userId ? (usersById.get(a.userId) ?? user.name) : user.name,
     action: a.name,
-    delta: 0,
+    delta: a.delta ?? 0,
     when: new Date(a.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
   }))
 
@@ -73,7 +73,7 @@ export default function Dashboard() {
       />
       <StreakStrip
         streakDays={gamificationStatus?.dailyStreak ?? 0}
-        multiplier={Number(gamificationStatus?.dailyMultiplier ?? 1.0)}
+        multiplier={Number(gamificationStatus?.combinedMultiplier ?? gamificationStatus?.dailyMultiplier ?? 1.0)}
         freezes={gamificationStatus?.freezerAvailable ? 1 : 0}
       />
       <TodayTasksSection

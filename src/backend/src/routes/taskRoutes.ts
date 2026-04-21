@@ -431,7 +431,7 @@ router.put('/:taskId/logs/:logId/verify', authMiddleware, async (req: Request, r
       })
     }
 
-    // Trigger achievement check
+    // Trigger achievement check (legacy per-user engine)
     let newAchievements: any[] = []
     if (taskLog.completedBy) {
       newAchievements = await achievementEngine.checkAchievements(
@@ -439,6 +439,15 @@ router.put('/:taskId/logs/:logId/verify', authMiddleware, async (req: Request, r
         req.coupleId,
         { type: 'task_verified', taskLogId: req.params.logId }
       )
+    }
+
+    // Non-fatal gamification updates (new system: streak, XP, couple achievements map)
+    try {
+      await updateDailyStreak(req.coupleId)
+      await calculateAndSaveXP(req.coupleId)
+      await checkAllAchievements(req.coupleId)
+    } catch (gamErr) {
+      console.error('Gamification update error (non-fatal):', gamErr)
     }
 
     res.json({

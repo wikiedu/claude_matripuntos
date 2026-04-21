@@ -27,6 +27,8 @@ import premiumRoutes from './routes/premium.js'
 import cron from 'node-cron'
 import { runWeeklyGeneration } from './services/recurringTaskService.js'
 import { sendWeeklyDigests } from './services/digestService.js'
+import { resetFreezersOnMonday, updateDailyStreak, calculateAndSaveXP } from './services/gamificationService.js'
+import { checkAllAchievements } from './services/achievementCheckService.js'
 import { PrismaClient } from '@prisma/client'
 
 dotenv.config()
@@ -123,6 +125,11 @@ cron.schedule('0 8 * * 1', () => {
   sendWeeklyDigests().catch(err => console.error('digest cron error:', err))
 })
 
+// Freezer reset — every Monday at 00:00 UTC
+cron.schedule('0 0 * * 1', () => {
+  resetFreezersOnMonday().catch(err => console.error('resetFreezers cron error:', err))
+})
+
 // Auto-accept pending TaskLogs older than 24h — runs every hour
 cron.schedule('0 * * * *', async () => {
   const prisma = new PrismaClient()
@@ -131,6 +138,7 @@ cron.schedule('0 * * * *', async () => {
     const pending = await prisma.taskLog.findMany({
       where: { status: 'pending', createdAt: { lt: cutoff } },
     })
+    const affectedCouples = new Set<string>()
     for (const log of pending) {
       await prisma.$transaction([
         prisma.taskLog.update({
@@ -148,9 +156,20 @@ cron.schedule('0 * * * *', async () => {
           },
         }),
       ])
+      affectedCouples.add(log.coupleId)
     }
     if (pending.length > 0) {
       console.log(`[cron] Auto-verified ${pending.length} task log(s)`)
+    }
+    // Recompute gamification once per affected couple
+    for (const coupleId of affectedCouples) {
+      try {
+        await updateDailyStreak(coupleId)
+        await calculateAndSaveXP(coupleId)
+        await checkAllAchievements(coupleId)
+      } catch (gamErr) {
+        console.error('[cron] gamification recompute error:', gamErr)
+      }
     }
   } catch (err) {
     console.error('[cron] auto-accept error:', err)

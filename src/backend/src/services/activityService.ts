@@ -10,6 +10,9 @@ export interface RecentActivity {
   name: string;
   date: Date;
   relatedId: string; // For navigation
+  delta: number; // Points impact (0 if not applicable, e.g. rejections or negotiation status changes)
+  userId: string | null; // Attribution: who earned / created / responded
+  status: string | null; // Domain status (accepted/rejected/forced, verified, etc.)
 }
 
 export async function getRecentActivity(
@@ -28,6 +31,10 @@ export async function getRecentActivity(
       id: true,
       type: true,
       title: true,
+      status: true,
+      createdBy: true,
+      pointsAgreed: true,
+      pointsCalculated: true,
       dateEnd: true,
       updatedAt: true
     }
@@ -50,6 +57,8 @@ export async function getRecentActivity(
           name: true
         }
       },
+      completedBy: true,
+      pointsFinal: true,
       verifiedAt: true
     }
   });
@@ -81,12 +90,18 @@ export async function getRecentActivity(
   const activitiesArray: RecentActivity[] = [];
 
   events.forEach(event => {
+    const creditedPoints = event.status === 'rejected'
+      ? 0
+      : Number(event.pointsAgreed ?? event.pointsCalculated ?? 0);
     activitiesArray.push({
       id: event.id,
       type: 'event',
       name: event.title || event.type || 'Event',
       date: event.updatedAt,
-      relatedId: event.id
+      relatedId: event.id,
+      delta: creditedPoints,
+      userId: event.createdBy ?? null,
+      status: event.status ?? null,
     });
   });
 
@@ -96,7 +111,10 @@ export async function getRecentActivity(
       type: 'task',
       name: log.task.name,
       date: log.verifiedAt as Date,
-      relatedId: log.taskId
+      relatedId: log.taskId,
+      delta: Number(log.pointsFinal ?? 0),
+      userId: log.completedBy ?? null,
+      status: 'verified',
     });
   });
 
@@ -106,7 +124,10 @@ export async function getRecentActivity(
       type: 'negotiation',
       name: `Negotiation - ${neg.event.type || 'Event'}`,
       date: neg.respondedAt as Date,
-      relatedId: neg.eventId
+      relatedId: neg.eventId,
+      delta: 0,
+      userId: null,
+      status: null,
     });
   });
 

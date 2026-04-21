@@ -17,7 +17,7 @@ async function evaluateCondition(
   switch (condition.type) {
     case 'tasks_completed': {
       const count = await prisma.taskLog.count({
-        where: { coupleId, status: { in: ['verified', 'pending'] } }
+        where: { coupleId, status: 'verified' }
       })
       return { met: count >= target, current: count, target }
     }
@@ -62,10 +62,22 @@ async function evaluateCondition(
     case 'no_forced_events_days': {
       const daysAgo = new Date()
       daysAgo.setDate(daysAgo.getDate() - target)
-      const forcedCount = await prisma.event.count({
+      const forcedInWindow = await prisma.event.count({
         where: { coupleId, status: 'forced', updatedAt: { gte: daysAgo } }
       })
-      return { met: forcedCount === 0, current: forcedCount === 0 ? target : 0, target }
+      if (forcedInWindow > 0) {
+        return { met: false, current: 0, target }
+      }
+      const lastForced = await prisma.event.findFirst({
+        where: { coupleId, status: 'forced' },
+        orderBy: { updatedAt: 'desc' }
+      })
+      const referenceDate = lastForced?.updatedAt
+        ?? (await prisma.couple.findUnique({ where: { id: coupleId } }))?.createdAt
+      if (!referenceDate) return { met: false, current: 0, target }
+      const daysSince = Math.floor((Date.now() - referenceDate.getTime()) / (24 * 60 * 60 * 1000))
+      const current = Math.min(target, Math.max(0, daysSince))
+      return { met: current >= target, current, target }
     }
     case 'level_reached': {
       const levelOrder = ['nido', 'brote', 'hogar', 'raices', 'diamante', 'leyenda', 'eterno']
@@ -148,10 +160,23 @@ export async function getAchievementsMap(coupleId: string) {
   })
   const caMap = new Map(coupleAchievements.map((ca) => [ca.achievementDefinitionId, ca]))
 
-  return definitions.map((def, index) => {
+  // Group by category so the skill-tree "previous unlocked" check stays within a
+  // category instead of bleeding across unrelated ones (gaps in orderIndex would
+  // otherwise make category N require the last achievement of category N-1).
+  const byCategory = new Map<string, typeof definitions>()
+  for (const d of definitions) {
+    const arr = byCategory.get(d.category) ?? []
+    arr.push(d)
+    byCategory.set(d.category, arr)
+  }
+
+  return definitions.map((def) => {
     const ca = caMap.get(def.id)
     const isUnlocked = !!ca?.unlockedAt
-    const previousUnlocked = index === 0 || !!caMap.get(definitions[index - 1].id)?.unlockedAt
+    const categoryDefs = byCategory.get(def.category) ?? []
+    const idxInCategory = categoryDefs.findIndex(d => d.id === def.id)
+    const previousUnlocked =
+      idxInCategory <= 0 || !!caMap.get(categoryDefs[idxInCategory - 1].id)?.unlockedAt
 
     let status: 'unlocked' | 'in_progress' | 'locked'
     if (isUnlocked) {
