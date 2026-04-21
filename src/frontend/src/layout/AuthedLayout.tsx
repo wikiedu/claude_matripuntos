@@ -1,16 +1,29 @@
 import { useState, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { AppHeader } from '../components/v2/layout/AppHeader'
 import { BottomNav } from '../components/v2/layout/BottomNav'
 import { HeaderMenu } from '../components/v2/layout/HeaderMenu'
 import { FabActionSheet } from '../components/v2/layout/FabActionSheet'
 import { useAppStore } from '../store/useAppStore'
+import { apiClient } from '../services/apiClient'
 
 export function AuthedLayout({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [fabOpen, setFabOpen] = useState(false)
   const { user, couple, logout } = useAppStore()
   const nav = useNavigate()
+
+  // Unread notifications count (polled so the bell dot stays fresh).
+  // The hook is always called (before the null-return) so rules-of-hooks are preserved.
+  const { data: unreadRes } = useQuery({
+    queryKey: ['notifications', 'unread-count'],
+    queryFn: () => apiClient.notifications.getUnreadCount() as Promise<{ count?: number }>,
+    enabled: !!user,
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+  })
+  const unreadCount = unreadRes?.count ?? 0
 
   if (!user) return null
 
@@ -34,7 +47,7 @@ export function AuthedLayout({ children }: { children: ReactNode }) {
         userMood={user.currentMood ?? null}
         partnerMood={partnerMood}
         partnerName={partner?.name ?? null}
-        hasUnreadNotif={false}
+        hasUnreadNotif={unreadCount > 0}
         onBell={() => nav('/notifications')}
         onMenu={() => setMenuOpen(true)}
         onAvatar={() => nav('/settings/profile')}

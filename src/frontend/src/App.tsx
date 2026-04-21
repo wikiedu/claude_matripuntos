@@ -17,6 +17,7 @@ import { AnalyticsPage } from './pages/AnalyticsPage'
 import Achievements from './pages/Achievements'
 import ShoppingListPage from './pages/ShoppingListPage'
 import TodoListPage from './pages/TodoListPage'
+import Notifications from './pages/Notifications'
 import NotFound from './pages/NotFound'
 import { OnboardingLanding } from './pages/onboarding/OnboardingLanding'
 import { AuthedLayout } from './layout/AuthedLayout'
@@ -171,6 +172,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AuthedLayout><Achievements /></AuthedLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/notifications"
+        element={
+          <ProtectedRoute>
+            <AuthedLayout><Notifications /></AuthedLayout>
           </ProtectedRoute>
         }
       />

@@ -169,6 +169,11 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
       apiClient.request(`/tasks/${taskId}/logs/${taskLogId}/verify`, { method: 'PUT' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['taskLogs', 'pending'] })
+      queryClient.invalidateQueries({ queryKey: ['balance'] })
+      queryClient.invalidateQueries({ queryKey: ['recentActivity'] })
+      queryClient.invalidateQueries({ queryKey: ['gamification', 'status'] })
+      queryClient.invalidateQueries({ queryKey: ['achievements', 'map'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
       setSuccess('Tarea verificada. Puntos actualizados.')
       setTimeout(() => setSuccess(null), 5000)
     },
@@ -185,6 +190,7 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['taskLogs', 'pending'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
       setSuccess('Tarea rechazada / disputada.')
       setTimeout(() => setSuccess(null), 5000)
     },
@@ -259,6 +265,17 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
     }
   }
 
+  // Keys that downstream screens (Dashboard, Analytics, Achievements, Bell) depend on.
+  // Invalidating after accept/reject/force keeps points and activity feeds fresh.
+  const invalidateAfterAction = () => {
+    queryClient.invalidateQueries({ queryKey: ['balance'] })
+    queryClient.invalidateQueries({ queryKey: ['recentActivity'] })
+    queryClient.invalidateQueries({ queryKey: ['gamification', 'status'] })
+    queryClient.invalidateQueries({ queryKey: ['achievements', 'map'] })
+    queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    queryClient.invalidateQueries({ queryKey: ['taskLogs', 'pending'] })
+  }
+
   const handleRespond = async (action: 'accepted' | 'rejected' | 'counter_proposed') => {
     if (!selectedEvent) return
     const negs = selectedEvent.negotiations || []
@@ -282,6 +299,7 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
       )
       setSelectedEvent(null)
       setTimeout(() => setSuccess(null), 5000)
+      invalidateAfterAction()
       await loadAll()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al responder')
@@ -303,6 +321,7 @@ export default function RequestInbox({ onBack }: { onBack?: () => void }) {
       setSuccess('Actividad forzada. Puntos descontados de tu saldo.')
       setSelectedEvent(null)
       setTimeout(() => setSuccess(null), 5000)
+      invalidateAfterAction()
       await loadAll()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al forzar la actividad')

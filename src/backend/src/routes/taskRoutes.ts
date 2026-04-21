@@ -4,7 +4,7 @@ import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
 import { Decimal } from '@prisma/client/runtime/library'
 import { AchievementEngine } from '../services/achievementEngine.js'
-import { notifyTaskCompleted, notifyTaskDisputed } from '../services/notificationService.js'
+import { notifyTaskCompleted, notifyTaskDisputed, createNotification } from '../services/notificationService.js'
 import { updateDailyStreak, calculateAndSaveXP, getDailyMultiplier, getWeeklyBonus, getFactorMascotas } from '../services/gamificationService.js'
 import { checkAllAchievements } from '../services/achievementCheckService.js'
 import { generateOnCreate } from '../services/recurringTaskService.js'
@@ -418,6 +418,19 @@ router.put('/:taskId/logs/:logId/verify', authMiddleware, async (req: Request, r
       },
     })
 
+    // Notify the original completer that their task was verified and points were awarded
+    if (taskLog.completedBy && taskLog.completedBy !== req.userId) {
+      const verifier = await prisma.user.findUnique({ where: { id: req.userId } })
+      await createNotification({
+        coupleId: req.coupleId,
+        userId: taskLog.completedBy,
+        type: 'TASK_VERIFIED',
+        title: 'Tarea verificada',
+        message: `${verifier?.name ?? 'Tu pareja'} verificó "${task?.name ?? 'tu tarea'}". +${taskLog.pointsFinal.toString()} pts`,
+        relatedTaskLogId: req.params.logId,
+      })
+    }
+
     // Trigger achievement check
     let newAchievements: any[] = []
     if (taskLog.completedBy) {
@@ -552,6 +565,35 @@ router.post('/:id/schedule', authMiddleware, async (req: Request, res: Response)
     if (err instanceof z.ZodError) { res.status(400).json({ error: err.errors[0].message }); return }
     console.error('POST /tasks/:id/schedule error:', err)
     res.status(500).json({ error: 'Error al programar tarea' })
+  }
+})
+
+// DELETE /api/tasks/:id — remove a task and its logs (couple-scoped)
+router.delete('/:id', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.coupleId) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
+    }
+
+    const task = await prisma.task.findFirst({
+      where: { id: req.params.id, coupleId: req.coupleId },
+    })
+    if (!task) {
+      res.status(404).json({ error: 'Tarea no encontrada' })
+      return
+    }
+
+    // Delete task logs first (FK constraint), then the task itself.
+    // Related PointsTransactions (via relatedTaskLogId) are left intact as history —
+    // they already credited/debited the user's balance and shouldn't disappear.
+    await prisma.taskLog.deleteMany({ where: { taskId: task.id } })
+    await prisma.task.delete({ where: { id: task.id } })
+
+    res.json({ success: true })
+  } catch (err) {
+    console.error('DELETE /tasks/:id error:', err)
+    res.status(500).json({ error: 'Error al borrar tarea' })
   }
 })
 

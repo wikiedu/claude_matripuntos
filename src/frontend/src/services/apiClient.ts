@@ -213,6 +213,8 @@ class ApiClient {
 
     getWeeklyLogs: (from: string, to: string): Promise<any[]> =>
       this.request(`/tasks/logs?view=week&from=${from}&to=${to}`),
+
+    delete: (id: string) => this.request(`/tasks/${id}`, { method: 'DELETE' }),
   }
 
   // Negotiation endpoints

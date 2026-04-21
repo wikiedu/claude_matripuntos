@@ -425,13 +425,29 @@ export default function Tasks() {
       await apiClient.tasks.verifyLog(log.taskId, log.id)
       setSuccess(`✅ Verificado. +${log.pointsFinal} pts para ${log.completedBy?.name}`)
       setTimeout(() => setSuccess(null), 5000)
+      queryClient.invalidateQueries({ queryKey: ['balance'] })
+      queryClient.invalidateQueries({ queryKey: ['recentActivity'] })
       queryClient.invalidateQueries({ queryKey: ['gamification', 'status'] })
       queryClient.invalidateQueries({ queryKey: ['achievements', 'map'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['taskLogs', 'pending'] })
       await loadData()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al verificar')
     } finally {
       setVerifyingId(null)
+    }
+  }
+
+  const handleDeleteTask = async (taskId: string, taskName: string) => {
+    if (!confirm(`¿Borrar "${taskName}" definitivamente? Sus registros también se eliminarán.`)) return
+    try {
+      await apiClient.tasks.delete(taskId)
+      setSuccess(`🗑️ "${taskName}" eliminada`)
+      setTimeout(() => setSuccess(null), 3000)
+      await loadData()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al borrar tarea')
     }
   }
 
@@ -637,20 +653,29 @@ export default function Tasks() {
                       const myLog = myTodayLogsByTask.get(task.id)
                       const doneToday = !!myLog
                       return (
-                        <TaskItemLarge
-                          key={task.id}
-                          task={{
-                            id: task.id,
-                            name: task.name,
-                            category: task.category,
-                            pointsBase: task.pointsBase,
-                            isRecurring: (task as any).isRecurring,
-                            scheduledFor: (task as any).scheduledFor,
-                          }}
-                          doneToday={doneToday}
-                          status={myLog?.status}
-                          onMark={() => !doneToday && setLoggingTask(task)}
-                        />
+                        <div key={task.id} className="relative group">
+                          <TaskItemLarge
+                            task={{
+                              id: task.id,
+                              name: task.name,
+                              category: task.category,
+                              pointsBase: task.pointsBase,
+                              isRecurring: (task as any).isRecurring,
+                              scheduledFor: (task as any).scheduledFor,
+                            }}
+                            doneToday={doneToday}
+                            status={myLog?.status}
+                            onMark={() => !doneToday && setLoggingTask(task)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTask(task.id, task.name)}
+                            aria-label={`Borrar ${task.name}`}
+                            className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-surface-card border border-brd-subtle text-text-tertiary hover:text-danger hover:border-danger/40 text-xs flex items-center justify-center shadow-sm"
+                          >
+                            ×
+                          </button>
+                        </div>
                       )
                     })}
                   </div>
@@ -663,19 +688,28 @@ export default function Tasks() {
                   <h2 className="text-sm font-bold text-text-primary mb-2">📅 Esta semana</h2>
                   <div className="space-y-1.5">
                     {weekNotTodayTasks.map((task) => (
-                      <TaskItemMedium
-                        key={task.id}
-                        task={{
-                          id: task.id,
-                          name: task.name,
-                          category: task.category,
-                          pointsBase: task.pointsBase,
-                          isRecurring: (task as any).isRecurring,
-                          scheduledFor: (task as any).scheduledFor,
-                        }}
-                        doneToday={false}
-                        onMark={() => setLoggingTask(task)}
-                      />
+                      <div key={task.id} className="relative group">
+                        <TaskItemMedium
+                          task={{
+                            id: task.id,
+                            name: task.name,
+                            category: task.category,
+                            pointsBase: task.pointsBase,
+                            isRecurring: (task as any).isRecurring,
+                            scheduledFor: (task as any).scheduledFor,
+                          }}
+                          doneToday={false}
+                          onMark={() => setLoggingTask(task)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTask(task.id, task.name)}
+                          aria-label={`Borrar ${task.name}`}
+                          className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-surface-card border border-brd-subtle text-text-tertiary hover:text-danger hover:border-danger/40 text-xs flex items-center justify-center shadow-sm"
+                        >
+                          ×
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </section>
