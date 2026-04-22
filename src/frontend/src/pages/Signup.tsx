@@ -1,12 +1,38 @@
-import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { apiClient } from '../services/apiClient'
 import { useAppStore } from '../store/useAppStore'
 import { Button } from '../components/v2/primitives/Button'
 import { Input } from '../components/v2/primitives/Input'
 
+// Alfabeto espejo del backend (src/backend/src/utils/joinCode.ts). Si cambia
+// uno, cambia el otro — no hay shared package todavía.
+const JOIN_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+const JOIN_CODE_LENGTH = 6
+
+function normalizeJoinCode(raw: string): string | null {
+  const trimmed = raw.trim().toUpperCase().replace(/[\s-]/g, '')
+  if (trimmed.length !== JOIN_CODE_LENGTH) return null
+  for (const c of trimmed) {
+    if (!JOIN_CODE_ALPHABET.includes(c)) return null
+  }
+  return trimmed
+}
+
+// Estado del preview del joinCode. "idle" = sin código en URL (flujo solo).
+type PreviewState =
+  | { kind: 'idle' }
+  | { kind: 'loading'; code: string }
+  | { kind: 'ready'; code: string; partnerName: string; coupleId: string }
+  | { kind: 'full'; code: string }
+  | { kind: 'notFound'; code: string }
+  | { kind: 'error'; code: string; message: string }
+
 export default function Signup() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+
+  const [preview, setPreview]   = useState<PreviewState>({ kind: 'idle' })
   const [step, setStep] = useState<1 | 2>(1)
   const [email, setEmail]       = useState('')
   const [pwd, setPwd]           = useState('')
@@ -17,6 +43,42 @@ export default function Signup() {
   const [loading, setLoading]   = useState(false)
   const [err, setErr]           = useState<string | null>(null)
 
+  // Al cargar: si hay ?code= en la URL, intentamos preview. Si falla con 404
+  // el usuario puede crear una cuenta normal. Si falla con 409 (full) o red,
+  // damos mensaje claro y no dejamos avanzar con ese código.
+  useEffect(() => {
+    const raw = params.get('code')
+    if (!raw) {
+      setPreview({ kind: 'idle' })
+      return
+    }
+    const code = normalizeJoinCode(raw)
+    if (!code) {
+      setPreview({ kind: 'error', code: raw, message: 'El código del enlace no es válido' })
+      return
+    }
+    setPreview({ kind: 'loading', code })
+    apiClient.auth
+      .previewCouple(code)
+      .then((res: any) => {
+        if (res?.isFull) {
+          setPreview({ kind: 'full', code })
+          return
+        }
+        const partnerName = res?.members?.[0]?.name ?? 'tu pareja'
+        setPreview({ kind: 'ready', code, partnerName, coupleId: res.coupleId })
+      })
+      .catch((e: any) => {
+        const msg = typeof e?.message === 'string' ? e.message : ''
+        if (msg.includes('no encontrado') || msg.includes('not found')) {
+          setPreview({ kind: 'notFound', code })
+        } else {
+          setPreview({ kind: 'error', code, message: msg || 'No pudimos validar el código' })
+        }
+      })
+  }, [params])
+
+  const hasValidCode = preview.kind === 'ready'
   const step1Valid =
     email.includes('@') &&
     pwd.length >= 6 &&
@@ -45,15 +107,33 @@ export default function Signup() {
     }
     setLoading(true); setErr(null)
     try {
-      const data = await apiClient.request('/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email, password: pwd, name: name.trim(), language: 'es' }),
-      })
+      // Dos caminos: con código (registerWithCode, queda vinculado a la
+      // pareja existente) o sin código (signup normal — crea pareja solo).
+      const data = hasValidCode
+        ? await apiClient.auth.registerWithCode({
+            email,
+            password: pwd,
+            name: name.trim(),
+            joinCode: preview.code,
+            language: 'es',
+          })
+        : await apiClient.request('/auth/signup', {
+            method: 'POST',
+            body: JSON.stringify({ email, password: pwd, name: name.trim(), language: 'es' }),
+          })
+
       apiClient.setToken(data.token)
       useAppStore.getState().setUser(data.user)
-      useAppStore.getState().setCouple(null)
+      // Cuando entras con joinCode quedas ya vinculado: el siguiente paso es
+      // el dashboard, no onboarding. Sin código vas a onboarding como siempre.
       useAppStore.setState({ isAuthenticated: true })
-      navigate('/onboarding')
+      if (hasValidCode) {
+        useAppStore.getState().setCouple(null)
+        navigate('/home')
+      } else {
+        useAppStore.getState().setCouple(null)
+        navigate('/onboarding')
+      }
     } catch (e: any) {
       setErr(e?.message ?? 'Error al crear la cuenta')
     } finally {
@@ -69,6 +149,43 @@ export default function Signup() {
           <h1 className="text-2xl font-extrabold text-text-primary tracking-tight m-0">Crea tu cuenta</h1>
           <div className="text-[13px] text-text-secondary mt-1">Paso {step} de 2</div>
         </div>
+
+        {preview.kind === 'loading' && (
+          <div className="mb-5 rounded-[16px] border border-brd-subtle bg-surface-raised px-4 py-3 text-xs text-text-secondary">
+            Validando código <span className="font-mono">{preview.code}</span>…
+          </div>
+        )}
+
+        {preview.kind === 'ready' && (
+          <div className="mb-5 rounded-[16px] border border-brand-purple/40 bg-brand-purple/10 px-4 py-3">
+            <div className="text-[13px] font-semibold text-text-primary">
+              Te unes al hogar de {preview.partnerName}
+            </div>
+            <div className="text-xs text-text-secondary mt-1">
+              Código: <span className="font-mono">{preview.code}</span>
+            </div>
+          </div>
+        )}
+
+        {preview.kind === 'full' && (
+          <div className="mb-5 rounded-[16px] border border-danger/40 bg-danger/10 px-4 py-3 text-xs text-danger">
+            Este hogar ya está completo (<span className="font-mono">{preview.code}</span>).
+            Pídele a tu pareja que revise su código o crea una cuenta nueva sin código.
+          </div>
+        )}
+
+        {preview.kind === 'notFound' && (
+          <div className="mb-5 rounded-[16px] border border-warning/40 bg-warning/10 px-4 py-3 text-xs text-warning">
+            No encontramos el código <span className="font-mono">{preview.code}</span>.
+            Puedes crear tu propia cuenta abajo y pedirle a tu pareja el código correcto después.
+          </div>
+        )}
+
+        {preview.kind === 'error' && (
+          <div className="mb-5 rounded-[16px] border border-danger/40 bg-danger/10 px-4 py-3 text-xs text-danger">
+            {preview.message}. Puedes crear tu cuenta abajo sin código.
+          </div>
+        )}
 
         <div className="flex gap-1 mb-6">
           <div className={`h-1 flex-1 rounded-full ${step >= 1 ? 'bg-brand-purple' : 'bg-brd-subtle'}`} />
@@ -88,7 +205,7 @@ export default function Signup() {
               Acepto los términos y la política de privacidad
             </label>
             {err && <div className="text-xs text-danger">{err}</div>}
-            <Button variant="primary" fullWidth size="lg" type="submit" disabled={!step1Valid} className="mt-2">
+            <Button variant="primary" fullWidth size="lg" type="submit" disabled={!step1Valid || preview.kind === 'full'} className="mt-2">
               Siguiente →
             </Button>
           </form>
@@ -98,8 +215,8 @@ export default function Signup() {
           <form onSubmit={submit} className="flex flex-col gap-3">
             <Input label="¿Cómo te llamas?" type="text" value={name} onChange={e => setName(e.target.value)} autoComplete="given-name" required autoFocus />
             {err && <div className="text-xs text-danger">{err}</div>}
-            <Button variant="primary" fullWidth size="lg" type="submit" disabled={!step2Valid || loading} className="mt-2">
-              {loading ? 'Creando…' : 'Crear cuenta'}
+            <Button variant="primary" fullWidth size="lg" type="submit" disabled={!step2Valid || loading || preview.kind === 'full'} className="mt-2">
+              {loading ? 'Creando…' : hasValidCode ? 'Unirme al hogar' : 'Crear cuenta'}
             </Button>
             <button type="button" onClick={() => { setStep(1); setErr(null) }} className="text-xs text-text-secondary mt-1 self-center">← volver</button>
           </form>

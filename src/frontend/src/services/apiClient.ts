@@ -124,6 +124,22 @@ class ApiClient {
 
     getPendingProposals: () =>
       this.request('/auth/proposals', { method: 'GET' }),
+
+    // Preview pública de una pareja por joinCode. No requiere auth.
+    previewCouple: (code: string) =>
+      this.request(`/auth/couple-preview/${encodeURIComponent(code)}`),
+
+    registerWithCode: (data: {
+      email: string
+      password: string
+      name: string
+      joinCode: string
+      language?: string
+    }) =>
+      this.request('/auth/register-with-code', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
   }
 
   // Event endpoints
