@@ -13,14 +13,13 @@ const router = express.Router()
 router.get('/', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const coupleId = req.coupleId
-    const viewerUserId = req.userId
 
-    if (!coupleId || !viewerUserId) {
+    if (!coupleId) {
       res.status(401).json({ error: 'Auth info not found in token' })
       return
     }
 
-    const activities = await getRecentActivity(prisma, coupleId, viewerUserId)
+    const activities = await getRecentActivity(prisma, coupleId)
     res.json(activities)
   } catch (error) {
     console.error('Error fetching recent activity:', error)

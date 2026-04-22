@@ -49,7 +49,6 @@ export interface RecentActivity {
 export async function getRecentActivity(
   prisma: PrismaClient,
   coupleId: string,
-  viewerUserId: string,
 ): Promise<RecentActivity[]> {
   // Fetch most recent accepted/rejected/forced events
   const events = await prisma.event.findMany({
@@ -121,31 +120,26 @@ export async function getRecentActivity(
   // Map to RecentActivity type
   const activitiesArray: RecentActivity[] = [];
 
-  // Bug 2026-04-22: el feed mostraba el delta siempre positivo, así que
-  // cuando a Edu le aceptaban una actividad veía "+14 MP" en verde cuando
-  // en realidad él acababa de pagar esos 14 puntos. Ahora firmamos el delta
-  // desde el punto de vista del usuario que consulta (viewerUserId):
-  //   - Evento aceptado/forzado: el creador paga → -pts para él, +pts para
-  //     la pareja (zero-sum relativo). Rechazados → 0.
-  //   - Tarea verificada: el ejecutor gana → +pts para él, -pts para la
-  //     pareja (su ventaja relativa baja). Coincide con la UI de balance.
+  // Cada fila del feed refleja el delta real de la transacción para el
+  // usuario nombrado (userId), no un cálculo relativo al que consulta:
+  //   - Evento aceptado/forzado: el creador paga → delta = -pts (único
+  //     movimiento; la pareja no tiene transacción asociada).
+  //   - Evento rechazado: no hay puntos.
+  //   - Tarea verificada: el ejecutor gana → delta = +pts.
+  // Así "actividad aceptada" siempre se muestra en rojo/negativo bajo el
+  // nombre del creador, independientemente de quién mire el dashboard.
   events.forEach(event => {
     const isRejected = event.status === 'rejected';
     const pts = isRejected
       ? 0
       : Number(event.pointsAgreed ?? event.pointsCalculated ?? 0);
-    const signed = isRejected
-      ? 0
-      : event.createdBy === viewerUserId
-        ? -pts
-        : pts;
     activitiesArray.push({
       id: event.id,
       type: 'event',
       name: event.title || humanizeActivityType(event.type),
       date: event.updatedAt,
       relatedId: event.id,
-      delta: signed,
+      delta: isRejected ? 0 : -pts,
       userId: event.createdBy ?? null,
       status: event.status ?? null,
     });
@@ -153,14 +147,13 @@ export async function getRecentActivity(
 
   taskLogs.forEach(log => {
     const pts = Number(log.pointsFinal ?? 0);
-    const signed = log.completedBy === viewerUserId ? pts : -pts;
     activitiesArray.push({
       id: log.id,
       type: 'task',
       name: log.task.name,
       date: log.verifiedAt as Date,
       relatedId: log.taskId,
-      delta: signed,
+      delta: pts,
       userId: log.completedBy ?? null,
       status: 'verified',
     });
