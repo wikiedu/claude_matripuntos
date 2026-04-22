@@ -202,6 +202,7 @@ router.get('/couple', authMiddleware, async (req: Request, res: Response): Promi
           email: u.email,
           name: u.name,
           role: u.roleInHome,
+          lastSeenAt: (u as any).lastSeenAt ?? null,
         })),
         configuration: couple.configurations ? {
           tasksConfig: JSON.parse(couple.configurations.tasksConfig),

@@ -23,6 +23,23 @@ declare global {
 const AUTH_CACHE_TTL_MS = 60 * 1000
 const authCache = new Map<string, { coupleId: string; expiresAt: number }>()
 
+// Presence: throttle per-user lastSeenAt writes so a burst of authed requests
+// doesn't turn into N UPDATE statements. 60s is fine-grained enough for the
+// "X está en línea ahora" indicator and keeps DB write amplification low.
+const PRESENCE_THROTTLE_MS = 60 * 1000
+const lastSeenWriteAt = new Map<string, number>()
+
+function touchLastSeen(userId: string): void {
+  const now = Date.now()
+  const last = lastSeenWriteAt.get(userId) ?? 0
+  if (now - last < PRESENCE_THROTTLE_MS) return
+  lastSeenWriteAt.set(userId, now)
+  // Fire-and-forget. A transient DB error here must never break the request.
+  prisma.user
+    .update({ where: { id: userId }, data: { lastSeenAt: new Date(now) } })
+    .catch(() => {})
+}
+
 export function invalidateAuthCache(userId?: string): void {
   if (userId) {
     authCache.delete(userId)
@@ -88,6 +105,8 @@ export const authMiddleware = async (
     req.userId = decoded.userId
     req.coupleId = userCoupleId
     req.user = { id: decoded.userId, coupleId: userCoupleId }
+
+    touchLastSeen(decoded.userId)
 
     next()
   } catch (error) {

@@ -10,15 +10,35 @@ interface Props {
   userMood?: string | null
   partnerMood?: string | null
   partnerName?: string | null
+  partnerLastSeenAt?: string | null
   unreadCount?: number
   onBell: () => void
   onMenu: () => void
   onAvatar?: () => void
 }
 
+// Presencia: umbral de 2 min para "en línea" (latido suficiente para el
+// tamaño del uso). Más allá se muestra "hace X min/h".
+const ONLINE_WINDOW_MS = 2 * 60 * 1000
+
+function presenceLabel(iso: string | null | undefined): { label: string; online: boolean } | null {
+  if (!iso) return null
+  const diff = Date.now() - new Date(iso).getTime()
+  if (!Number.isFinite(diff) || diff < 0) return null
+  if (diff < ONLINE_WINDOW_MS) return { label: 'en línea ahora', online: true }
+  const min = Math.floor(diff / 60000)
+  if (min < 60) return { label: `hace ${min} min`, online: false }
+  const h = Math.floor(min / 60)
+  if (h < 24) return { label: `hace ${h} h`, online: false }
+  const d = Math.floor(h / 24)
+  if (d < 7) return { label: `hace ${d} d`, online: false }
+  return null
+}
+
 export function AppHeader({
   userName, userAvatarEmoji, userAvatarColor, userMood,
-  partnerMood, partnerName, unreadCount = 0, onBell, onMenu, onAvatar,
+  partnerMood, partnerName, partnerLastSeenAt,
+  unreadCount = 0, onBell, onMenu, onAvatar,
 }: Props) {
   const queryClient = useQueryClient()
   const [refreshing, setRefreshing] = useState(false)
@@ -42,9 +62,22 @@ export function AppHeader({
       <div className="min-w-0">
         <p className="text-xs font-medium text-text-secondary m-0">{greeting} {emoji}</p>
         <h1 className="text-[22px] font-extrabold text-text-primary tracking-tight m-0 mt-0.5">{userName.split(' ')[0]}</h1>
-        {partnerMood && partnerName && (
+        {partnerMood && partnerName ? (
           <p className="text-[11px] text-text-secondary mt-0.5 m-0">{partnerName} está {partnerMood} hoy</p>
-        )}
+        ) : (() => {
+          if (!partnerName) return null
+          const p = presenceLabel(partnerLastSeenAt)
+          if (!p) return null
+          return (
+            <p className="text-[11px] text-text-secondary mt-0.5 m-0 flex items-center gap-1">
+              <span
+                aria-hidden
+                className={`inline-block w-1.5 h-1.5 rounded-full ${p.online ? 'bg-success' : 'bg-text-tertiary'}`}
+              />
+              <span>{partnerName} · {p.label}</span>
+            </p>
+          )
+        })()}
       </div>
       <div className="flex items-center gap-2">
         <button

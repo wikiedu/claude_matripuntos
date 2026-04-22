@@ -15,6 +15,7 @@ export interface User {
   avatarColor?: string
   theme?: 'dark' | 'light'
   currentMood?: string | null
+  lastSeenAt?: string | null
 }
 
 export interface Couple {

@@ -61,6 +61,7 @@ export function AuthedLayout({ children }: { children: ReactNode }) {
         userMood={user.currentMood ?? null}
         partnerMood={partnerMood}
         partnerName={partner?.name ?? null}
+        partnerLastSeenAt={partner?.lastSeenAt ?? null}
         unreadCount={unreadCount}
         onBell={() => nav('/notifications')}
         onMenu={() => setMenuOpen(true)}
