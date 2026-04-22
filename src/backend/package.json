@@ -7,7 +7,8 @@
   },
   "scripts": {
     "dev": "node --loader ts-node/esm src/server.ts",
-    "build": "tsc || true",
+    "build": "prisma generate && tsc || true",
+    "postinstall": "if [ \"$RENDER\" = \"true\" ]; then prisma migrate deploy; fi",
     "start": "node dist/server.js",
     "migrate": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
