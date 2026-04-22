@@ -15,8 +15,7 @@
 | v1.3 | La Casa | ✅ En producción | `main` | `v1.3` |
 | v1.4 | La Evolución (diseño v2) | ✅ En producción | `feature/v1.4-la-evolucion` → `main` | `v1.4` |
 | v1.4.1 | Hardening post-v1.4 (Actividades + join-code + audit sweep + onboarding/tasks fixes) | ✅ En producción (2026-04-22) | `main` | `v1.4.1` |
-| — | **Módulo Tareas 2.0** (hotfix recurrentes + panel gestión) | 🔨 En curso | `feature/tareas-recurrentes-mgmt` | — |
-| v1.5 | Red de Seguridad (tests + CI) | Planificado | `feature/v1.5-red-de-seguridad` | — |
+| v1.5 | Red de Seguridad (tests + CI + 16 quick-wins) | 🧪 Pendiente de QA real + tag | `main` (code shipped 2026-04-22) | — |
 | v2.0 | Hogar 360 | Planificado | `feature/v2.0-hogar-360` | — |
 | v2.1 | Conectados | Planificado | `feature/v2.1-conectados` | — |
 | v3.0 | Premium | Futuro | `feature/v3.0-premium` | — |
@@ -155,6 +154,40 @@ Un test de integración (RTL) por flujo, no más. Preferimos ancho antes que pro
 - No se reescriben features existentes para facilitar testing; si una zona resiste test, se documenta y se deja TODO.
 
 **Branch:** `feature/v1.5-red-de-seguridad` · **Tag al merge:** `v1.5`
+
+### Entregado en v1.5 (2026-04-22)
+
+Code shipped a `main` directo (sin feature branch). Se etiqueta `v1.5` tras QA real con dos cuentas.
+
+**Paso 1 — Hotfix recurrentes:** regeneración de instancias futuras al editar tarea recurrente; backend no crea placeholders "fantasma" con puntos 0.
+
+**Paso 2 — Panel Recurrentes:** pausar / reactivar / anular tareas recurrentes desde Settings > Tareas, con ConfirmDialog y filtro mías/pareja.
+
+**Paso 3 — Red de Seguridad:**
+- Contract tests Zod V2 auth (join-code register) + taskRoutes (create/log) — 12 casos.
+- Shape contract test de `/api/health` con prisma mockeado (hermético, 2 casos).
+- CI GitHub Actions: typecheck + build + subset hermético de jest (`pointsCalculator|taskLogPoints|joinCode|insightHeuristic|taskRoutesContract|healthShape`) en cada push/PR.
+
+**16 quick-wins UX/infra:**
+1. `#3` — `defaultAssigneeId` persistido por tarea (schema + migration + AddTaskSheet con IDs reales).
+2. `#5` — Presencia: `User.lastSeenAt` con throttle 60s en authMiddleware; pill "en línea ahora / hace X" bajo el nombre del usuario en el header.
+3. `#6` — Notificaciones por rama: chips Eventos/Tareas/Pareja/Otras con contador, icono por categoría, routing inteligente al hacer click.
+4. `#7` — Empty states de Tareas (Verificar / Historial / Hoy) con icono + CTA contextual.
+5. `#8` — Refresh global en AppHeader: invalida todas las queries de React Query con spinner ≥400 ms.
+6. `#11` — Sentry wiring (backend `@sentry/node` + frontend `@sentry/react`), no-op sin DSN.
+7. `#12` — `/api/health` enriquecido: `version`, `commit`, `uptimeSeconds`, `lastMigration`, `db`, `env`.
+8. `#13` — Contract tests V2 (ver Paso 3).
+9. `#14` — Demo mode: `/auth/demo-available` + `/auth/demo-login` env-gated por `DEMO_MODE_ENABLED=true`; botón "Probar con datos de ejemplo" en /login visible solo si la probe responde disponible.
+10. `#15` — Tour interactivo de 5 pasos en el Dashboard en la primera visita tras onboarding (localStorage `matripuntos_tour_v1_seen`).
+11. `#16` — `CoupleHealthCard` en Settings > Pareja: balance neto, movimientos últimos 7 días, última actividad por persona, copia de join-code.
+12. Empty states mejorados en Recurrentes / Analytics / Inbox (incluidos en Paso 2 y #7).
+13. Iconografía y tone consistentes en notificaciones (parte de #6).
+14. Quick-wins menores embebidos en los commits anteriores: aislamiento de placeholders de recurrencia, ConfirmDialog reutilizable, filtro mías/pareja en tareas, avatar con mood en header.
+
+**Pendiente para cerrar el tag `v1.5`:**
+- QA real end-to-end con dos cuentas (Paso 4) — checklist en `docs/QA-CHECKLIST-v1.5.md`.
+- Review final de seguridad (superficie de `/auth/demo-*`, presencia, rate-limiting).
+- Aplicar tag `v1.5` en `main` y actualizar esta tabla.
 
 ---
 
