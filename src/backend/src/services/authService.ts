@@ -6,6 +6,7 @@ import { config } from 'dotenv'
 config()
 
 import prisma from '../lib/prisma.js'
+import { generateUniqueJoinCode } from '../utils/joinCode.js'
 const JWT_SECRET = process.env.JWT_SECRET
 if (!JWT_SECRET || JWT_SECRET.length < 32) {
   throw new Error('JWT_SECRET env var must be set and at least 32 characters long')
@@ -123,9 +124,11 @@ export async function signupUser(
     }
 
     // Create a solo couple so all couple-scoped features work immediately
+    const joinCode = await generateUniqueJoinCode(prisma)
     const couple = await prisma.couple.create({
       data: {
         secretKey: crypto.randomBytes(16).toString('hex'),
+        joinCode,
         language,
         configurations: {
           create: {
@@ -218,9 +221,11 @@ export const signupCouple = async (
     }
 
     // Create couple
+    const joinCode = await generateUniqueJoinCode(prisma)
     const couple = await prisma.couple.create({
       data: {
         secretKey: crypto.randomBytes(16).toString('hex'),
+        joinCode,
         language,
         users: {
           create: [
