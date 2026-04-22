@@ -8,6 +8,7 @@
 // It must only be available when DEMO_MODE_ENABLED=true, and the demo
 // couple must never be confused with a real couple (mark with isDemo).
 
+import { randomBytes } from 'crypto'
 import { hashPassword, generateToken } from './authService.js'
 import prisma from '../lib/prisma.js'
 import { generateUniqueJoinCode } from '../utils/joinCode.js'
@@ -25,52 +26,72 @@ async function ensureDemoCouple(): Promise<{ userId: string; coupleId: string }>
     return { userId: existing.id, coupleId: existing.coupleId }
   }
 
+  // Two demo-login requests may race on first provisioning (no record yet in
+  // the DB). Both would then try to create the couple+users and the second
+  // would fail on the unique email. We try to create, and if the unique
+  // constraint fires, we re-read and return the now-existing row. Any other
+  // error propagates as a real failure.
+  const recoverExistingOrRethrow = async (err: unknown) => {
+    const again = await prisma.user.findUnique({ where: { email: DEMO_EMAIL } })
+    if (again && again.coupleId) {
+      return { userId: again.id, coupleId: again.coupleId }
+    }
+    throw err
+  }
+
   // First-time setup. Create couple + two users + baseline configuration
   // + a couple of seed transactions so the dashboard doesn't feel empty.
-  const pwd = await hashPassword('demo-password-never-used-via-login-form')
+  // The password is a random 32-byte secret that we never persist anywhere
+  // but the bcrypt hash — this guarantees the demo user can't be taken over
+  // via /auth/login even if someone learns DEMO_EMAIL.
+  const pwd = await hashPassword(randomBytes(32).toString('hex'))
   const joinCode = await generateUniqueJoinCode(prisma)
 
-  const couple = await prisma.couple.create({
-    data: {
-      secretKey: `demo-${Date.now()}`,
-      joinCode,
-      numChildren: 1,
-      language: 'es',
-    },
-  })
-
-  const [u1, u2] = await Promise.all([
-    prisma.user.create({
+  try {
+    const couple = await prisma.couple.create({
       data: {
-        email: DEMO_EMAIL,
-        passwordHash: pwd,
-        name: 'Ana (demo)',
-        coupleId: couple.id,
-        hasCompletedOnboarding: true,
+        secretKey: `demo-${Date.now()}`,
+        joinCode,
+        numChildren: 1,
+        language: 'es',
       },
-    }),
-    prisma.user.create({
-      data: {
-        email: DEMO_PARTNER_EMAIL,
-        passwordHash: pwd,
-        name: 'Leo (demo)',
-        coupleId: couple.id,
-        hasCompletedOnboarding: true,
-      },
-    }),
-  ])
+    })
 
-  // Seed a handful of points transactions so Balance hero isn't empty.
-  // Numbers chosen so Ana is slightly ahead — a realistic-feeling state.
-  await prisma.pointsTransaction.createMany({
-    data: [
-      { coupleId: couple.id, userId: u1.id, type: 'task_completed', amount: 8 },
-      { coupleId: couple.id, userId: u1.id, type: 'task_completed', amount: 5 },
-      { coupleId: couple.id, userId: u2.id, type: 'task_completed', amount: 6 },
-    ],
-  })
+    const [u1, u2] = await Promise.all([
+      prisma.user.create({
+        data: {
+          email: DEMO_EMAIL,
+          passwordHash: pwd,
+          name: 'Ana (demo)',
+          coupleId: couple.id,
+          hasCompletedOnboarding: true,
+        },
+      }),
+      prisma.user.create({
+        data: {
+          email: DEMO_PARTNER_EMAIL,
+          passwordHash: pwd,
+          name: 'Leo (demo)',
+          coupleId: couple.id,
+          hasCompletedOnboarding: true,
+        },
+      }),
+    ])
 
-  return { userId: u1.id, coupleId: couple.id }
+    // Seed a handful of points transactions so Balance hero isn't empty.
+    // Numbers chosen so Ana is slightly ahead — a realistic-feeling state.
+    await prisma.pointsTransaction.createMany({
+      data: [
+        { coupleId: couple.id, userId: u1.id, type: 'task_completed', amount: 8 },
+        { coupleId: couple.id, userId: u1.id, type: 'task_completed', amount: 5 },
+        { coupleId: couple.id, userId: u2.id, type: 'task_completed', amount: 6 },
+      ],
+    })
+
+    return { userId: u1.id, coupleId: couple.id }
+  } catch (err) {
+    return recoverExistingOrRethrow(err)
+  }
 }
 
 export async function demoLogin(): Promise<{ token: string; user: { id: string; email: string; name: string; coupleId: string } }> {
