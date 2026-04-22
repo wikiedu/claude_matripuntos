@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend — typecheck + unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: src/backend/package-lock.json
+      - name: Install deps
+        run: npm ci || npm install
+      - name: Prisma generate
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Run hermetic tests
+        # Only the tests that don't require a real database. Pure units +
+        # contract tests with mocked prisma. DB-bound suites (achievement,
+        # analytics) run in the nightly full pipeline (future).
+        run: >
+          npx jest
+          --testPathPatterns='(pointsCalculator|taskLogPoints|joinCode|insightHeuristic|taskRoutesContract|healthShape)'
+        env:
+          JWT_SECRET: ci-secret-not-for-production
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
+  frontend:
+    name: Frontend — typecheck + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+      - name: Install deps
+        run: npm ci || npm install
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Build
+        run: npm run build
