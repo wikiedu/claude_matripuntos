@@ -4,6 +4,9 @@ export default {
   extensionsToTreatAsEsm: ['.ts'],
   roots: ['<rootDir>/tests'],
   testMatch: ['**/?(*.)+(spec|test).ts'],
+  // setup.ts carga DATABASE_URL antes de que cualquier import de Prisma se
+  // evalúe (globalSetup corre en un worker distinto, por eso usamos setupFiles).
+  setupFiles: ['<rootDir>/tests/setup.ts'],
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
       useESM: true,

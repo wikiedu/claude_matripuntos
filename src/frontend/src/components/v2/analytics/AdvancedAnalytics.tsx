@@ -74,7 +74,7 @@ export function AdvancedAnalytics({ isPremium, onOpenInterest }: Props) {
           userSelect: showOverlay ? 'none' : 'auto',
         }}
       >
-        <HeatmapChart grid={heat?.grid ?? []} buckets={heat?.buckets ?? [6,9,12,15,18,21]} hint="Más activos los jueves a las 18-21h" />
+        <HeatmapChart grid={heat?.grid ?? []} buckets={heat?.buckets ?? [6,9,12,15,18,21]} hint={heat?.hint ?? undefined} />
         <CompletionRateChart rows={[
           { who: rate?.you?.name ?? 'Tú',      pct: rate?.you?.pct ?? 0,      color: BRAND_PURPLE },
           { who: rate?.partner?.name ?? 'Pareja', pct: rate?.partner?.pct ?? 0, color: BRAND_AMBER },

@@ -6,10 +6,14 @@ import { generateInsight } from './insightHeuristic.js'
 const insightCache = new Map<string, { at: number; data: any }>()
 const INSIGHT_TTL = 6 * 60 * 60 * 1000  // 6h
 
-// Horas estimadas por categoría (heurística)
+// Horas estimadas por categoría (heurística).
+// OJO: los slugs deben coincidir exactos con Task.category (ver taskRoutes).
+// Antes usábamos `banos` sin tilde y todas las tareas de baño caían al
+// fallback de 1.0h en lugar de 0.5h.
 export const CATEGORY_HOURS: Record<string, number> = {
   cocina:       1.0,
-  banos:        0.5,
+  baños:        0.5,
+  banos:        0.5, // alias tolerante por si alguna tarea legacy se guardó sin tilde
   limpieza:     1.5,
   compra:       1.0,
   logistica:    1.0,
@@ -71,10 +75,14 @@ export async function getCoupleAnalytics(
   startDate: Date,
   endDate: Date
 ): Promise<AnalyticsMetrics & { equilibrium: number; equityDelta: number; hasEquityData: boolean }> {
+  // Solo contamos eventos que realmente generaron puntos — antes se mezclaban
+  // draft/pending/rejected y los KPIs inflaban el total con eventos que nadie
+  // aceptó.
   const events = await prisma.event.findMany({
     where: {
       coupleId,
       dateStart: { gte: startDate, lte: endDate },
+      status: { in: ['accepted', 'forced'] },
     },
   })
 
@@ -440,10 +448,17 @@ export async function getWeeklyTrends(
       where: {
         coupleId,
         dateStart: { gte: weekStart, lte: weekEnd },
+        status: { in: ['accepted', 'forced'] },
       },
     })
 
-    const points = events.reduce((sum, e) => sum + Number(e.pointsCalculated), 0)
+    // Usa pointsAgreed si el evento se cerró por negociación, si no cae al
+    // pointsCalculated. Antes contaba pointsCalculated a secas y perdía el
+    // ajuste de rondas de negociación.
+    const points = events.reduce(
+      (sum, e) => sum + Number(e.pointsAgreed ?? e.pointsCalculated ?? 0),
+      0,
+    )
     const label = weekStart.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
 
     trends.push({
@@ -617,7 +632,13 @@ export async function getDailyBreakdown(
 
 /**
  * Get time invested (in hours) per user for the given range.
- * Uses CATEGORY_HOURS heuristic for tasks and actual duration for events.
+ *
+ * Tareas: usa CATEGORY_HOURS por categoría (heurística) sobre TaskLogs
+ *         *verified* del usuario.
+ * Eventos: las horas del evento se asignan al **partner que cubrió el hogar**
+ *          (= el que no creó el evento), porque el creador es justamente el
+ *          que estaba fuera. Antes se atribuían al creador, lo que premiaba
+ *          al que se iba y mentía sobre el esfuerzo real invertido en casa.
  */
 export async function getTimeInvested(coupleId: string, range: 'week' | 'month') {
   const days = range === 'week' ? 7 : 30
@@ -643,11 +664,12 @@ export async function getTimeInvested(coupleId: string, range: 'week' | 'month')
     const taskHours = logs
       .filter(l => l.completedBy === userId)
       .reduce((sum, l) => sum + (CATEGORY_HOURS[l.task.category] ?? 1.0), 0)
+    // Evento creado por el otro → este user cubrió el hogar durante esas horas.
     const eventHours = events
-      .filter(e => e.createdBy === userId)
+      .filter(e => e.createdBy && e.createdBy !== userId)
       .reduce((sum, e) => {
         const ms = new Date(e.dateEnd).getTime() - new Date(e.dateStart).getTime()
-        return sum + ms / (1000 * 60 * 60)
+        return sum + Math.max(0, ms) / (1000 * 60 * 60)
       }, 0)
     return Math.round((taskHours + eventHours) * 10) / 10
   }
@@ -703,7 +725,19 @@ export async function getHeatmap(coupleId: string, weeks: number = 4) {
       grid.push({ dow, bucket, count, norm: Math.round((count / max) * 4) })
     }
   }
-  return { grid, buckets: HOUR_BUCKETS }
+
+  // Hint dinámico: la celda con más actividad. Antes el frontend mostraba
+  // un literal "Más activos los jueves a las 18-21h" independientemente del
+  // grid real — mentía si la franja punta era otra.
+  const top = grid.reduce((best, cell) => (cell.count > best.count ? cell : best), grid[0])
+  let hint: string | null = null
+  if (top && top.count > 0) {
+    const DOW_LABEL = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados', 'domingos']
+    const bucketEnd = top.bucket + 3
+    hint = `Más activos los ${DOW_LABEL[top.dow]} a las ${top.bucket}-${bucketEnd === 24 ? 24 : bucketEnd}h`
+  }
+
+  return { grid, buckets: HOUR_BUCKETS, hint }
 }
 
 /**

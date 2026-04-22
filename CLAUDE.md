@@ -208,13 +208,15 @@ Puntos = PuntosBase × FactorTipo × FactorFranja × FactorDuración × FactorHi
 ```
 
 ```
-FactorTipo:     Necesaria ×0.7 · Salud ×0.85 · Ocio ×1.0 · Alto impacto ×1.2
-FactorFranja:   07-09:30 ×1.4 · 09:30-17:30 ×1.0 · 17:30-21:30 ×1.5 · 21:30-01 ×1.2 · 01-07 ×1.6
+FactorTipo:     Necesaria ×0.7 · Salud ×0.85 · Ocio ×1.0 · Alto impacto ×1.4
+FactorFranja:   07-09:30 ×1.3 · 09:30-17:30 ×1.0 · 17:30-21:30 ×1.2 · 21:30-01 ×1.2 · 01-07 ×1.5
 FactorDuración: 0-3h ×1.0 · 3-8h ×1.1 · 8-24h ×1.25 · 24h+ ×1.35
 FactorHijos:    0 ×1.0 · 1 ×1.4 · 2 ×1.8 · 3+ ×2.2
 ```
 
-Redondeo al 0.5 más próximo. Ejemplo: cena 4h noche 1 hijo = 8 × 1.0 × 1.2 × 1.0 × 1.4 = **13.5 pts**
+Redondeo al 0.5 más próximo. Ejemplo: cena 4h noche 1 hijo = 10 × 1.0 × 1.2 × 1.1 × 1.4 = **18.5 pts** (base Gastronomía 10).
+
+No hay factor "día de semana" ni "trabajó ese día". La fuente de verdad es `docs/PUNTOS.md` + `src/backend/src/services/pointsCalculator.ts` (con tests unitarios en `src/backend/tests/pointsCalculator.test.ts`).
 
 Tareas recurrentes (base fija): Cocina 2.0 · Baños+niños 1.5 · Limpieza 1.5 · Compra 1.0 · Logística 1.0 · Cuidado 1.5
 

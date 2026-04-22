@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
+import { pointsCalculator } from '../services/pointsCalculator.js'
 
 const router = express.Router()
 import prisma from '../lib/prisma.js'
@@ -39,6 +40,20 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
 
     const data = createEventSchema.parse(req.body)
 
+    // Aplica los multiplicadores canónicos (docs/PUNTOS.md) ya en la creación.
+    // Antes guardábamos pointsCalculated = pointsBase, que dejaba la fórmula
+    // (tipo × franja × duración × hijos) sin efecto en la ruta V1.
+    const draftEvent = {
+      coupleId: req.coupleId,
+      type: data.type,
+      dateStart: new Date(data.dateStart),
+      dateEnd: new Date(data.dateEnd),
+      hasChildren: data.hasChildren,
+      numChildren: data.numChildren,
+      pointsBase: new Decimal(data.pointsBase),
+    } as any
+    const pointsCalculated = await pointsCalculator.calculateEventPoints(draftEvent, null)
+
     const event = await prisma.event.create({
       data: {
         coupleId: req.coupleId,
@@ -51,7 +66,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
         hasChildren: data.hasChildren,
         numChildren: data.numChildren,
         pointsBase: new Decimal(data.pointsBase),
-        pointsCalculated: new Decimal(data.pointsBase),
+        pointsCalculated,
         compensation: data.compensation,
         compensationDiscount: new Decimal(data.compensationDiscount),
         status: 'draft',
@@ -249,6 +264,20 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response): Promise<
       return
     }
 
+    // Si cambia cualquier dato que afecta a la fórmula (tipo, fechas, hijos,
+    // base) recalculamos pointsCalculated con los multiplicadores. Antes se
+    // escribía pointsCalculated = pointsBase plano, perdiendo la fórmula.
+    const merged = {
+      coupleId: event.coupleId,
+      type: data.type ?? event.type,
+      dateStart: data.dateStart ? new Date(data.dateStart) : event.dateStart,
+      dateEnd: data.dateEnd ? new Date(data.dateEnd) : event.dateEnd,
+      hasChildren: data.hasChildren ?? event.hasChildren,
+      numChildren: data.numChildren ?? event.numChildren,
+      pointsBase: data.pointsBase ? new Decimal(data.pointsBase) : event.pointsBase,
+    } as any
+    const recalculated = await pointsCalculator.calculateEventPoints(merged, null)
+
     const updated = await prisma.event.update({
       where: { id: req.params.id },
       data: {
@@ -259,7 +288,8 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response): Promise<
         ...(data.dateEnd && { dateEnd: new Date(data.dateEnd) }),
         ...(data.hasChildren !== undefined && { hasChildren: data.hasChildren }),
         ...(data.numChildren !== undefined && { numChildren: data.numChildren }),
-        ...(data.pointsBase && { pointsCalculated: new Decimal(data.pointsBase) }),
+        ...(data.pointsBase && { pointsBase: new Decimal(data.pointsBase) }),
+        pointsCalculated: recalculated,
         ...(data.compensation && { compensation: data.compensation }),
         ...(data.compensationDiscount && { compensationDiscount: new Decimal(data.compensationDiscount) }),
       },

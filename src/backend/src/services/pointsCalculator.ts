@@ -1,211 +1,166 @@
-import { PrismaClient, Event, User } from '@prisma/client'
+import { Event, User } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
 
 import prisma from '../lib/prisma.js'
 
 /**
  * Points Calculator Service
- * Implements the complex V2 points formula with 15+ multipliers
  *
- * Formula: basePoints × timeMultiplier × dayMultiplier × workMultiplier ×
- *          childrenMultiplier × impactMultiplier
+ * Fórmula canónica (fuente: docs/PUNTOS.md):
+ *   Puntos = PuntosBase × FactorTipo × FactorFranja × FactorDuración × FactorHijos
+ *
+ * Redondeo al 0.5 más próximo. No hay factor de "día de semana" ni
+ * "trabajó ese día" — si necesitamos reintroducirlos en el futuro, deben
+ * documentarse primero en PUNTOS.md.
  */
-
-interface PointsContext {
-  event: Event
-  user: User
-  couple: any // Couple with children
-  creatorUser: User | null
-}
 
 export class PointsCalculator {
   /**
-   * Get time-of-day multiplier (Lote 4 rebalance)
+   * Factor Franja Horaria (PUNTOS.md)
    * 07:00-09:30 → ×1.3 (mañana rutina)
-   * 09:30-17:30 → ×1.0 (horario normal)
+   * 09:30-17:30 → ×1.0 (día normal)
    * 17:30-21:30 → ×1.2 (tarde/cenas)
    * 21:30-01:00 → ×1.2 (noche)
    * 01:00-07:00 → ×1.5 (madrugada)
    */
-  private getTimeMultiplier(dateStart: Date): number {
+  getTimeMultiplier(dateStart: Date): number {
     const d = new Date(dateStart)
-    const hours = d.getHours()
-    const minutes = d.getMinutes()
-    const totalMinutes = hours * 60 + minutes
+    const totalMinutes = d.getHours() * 60 + d.getMinutes()
 
-    if (totalMinutes >= 7*60 && totalMinutes < 9*60+30) return 1.3   // 07:00-09:30 mañana rutina
-    if (totalMinutes >= 9*60+30 && totalMinutes < 17*60+30) return 1.0 // 09:30-17:30 horario normal
-    if (totalMinutes >= 17*60+30 && totalMinutes < 21*60+30) return 1.2 // 17:30-21:30 tarde/cenas
-    if (totalMinutes >= 21*60+30 || totalMinutes < 1*60) return 1.2   // 21:30-01:00 noche
-    return 1.5 // 01:00-07:00 madrugada
+    if (totalMinutes >= 7 * 60 && totalMinutes < 9 * 60 + 30) return 1.3
+    if (totalMinutes >= 9 * 60 + 30 && totalMinutes < 17 * 60 + 30) return 1.0
+    if (totalMinutes >= 17 * 60 + 30 && totalMinutes < 21 * 60 + 30) return 1.2
+    if (totalMinutes >= 21 * 60 + 30 || totalMinutes < 1 * 60) return 1.2
+    return 1.5
   }
 
   /**
-   * Get day-of-week multiplier
-   * Weekday: ×1.0
-   * Saturday: ×1.15
-   * Sunday: ×1.2
+   * Factor Duración (PUNTOS.md)
+   * 0-3h → ×1.0 · 3-8h → ×1.1 · 8-24h → ×1.25 · 24h+ → ×1.35
+   * Previously absent — events created via the V1 route never paid the
+   * duration premium documented in the spec.
    */
-  private getDayMultiplier(dateStart: Date): number {
-    const day = new Date(dateStart).getDay()
-
-    if (day === 0) return 1.2  // Sunday
-    if (day === 6) return 1.15 // Saturday
-    return 1.0                 // Weekday
+  getDurationMultiplier(dateStart: Date, dateEnd: Date): number {
+    const ms = new Date(dateEnd).getTime() - new Date(dateStart).getTime()
+    const hours = Math.max(0, ms / (1000 * 60 * 60))
+    if (hours < 3) return 1.0
+    if (hours < 8) return 1.1
+    if (hours < 24) return 1.25
+    return 1.35
   }
 
   /**
-   * Check if user worked that day
-   * If yes: ×1.2
-   * If no: ×1.0
+   * Factor Hijos (PUNTOS.md)
+   * 0 → ×1.0 · 1 → ×1.4 · 2 → ×1.8 · 3+ → ×2.2
+   * Bonus +0.3 si alguno tiene necesidades especiales (V2 only).
+   *
+   * Usa `event.numChildren` como fuente principal (así un evento con 2 de 3
+   * hijos puntúa como "2 hijos"). Si no hay registros V2 Child, cae a
+   * Couple.numChildren para que parejas MVP no pierdan el multiplicador.
    */
-  private async getWorkMultiplier(userId: string, eventDate: Date): Promise<number> {
-    // Check if user has any work-related events that day
-    const dayStart = new Date(eventDate)
-    dayStart.setHours(0, 0, 0, 0)
-
-    const dayEnd = new Date(eventDate)
-    dayEnd.setHours(23, 59, 59, 999)
-
-    const workEvents = await prisma.event.count({
-      where: {
-        createdBy: userId,
-        dateStart: {
-          gte: dayStart,
-          lte: dayEnd,
-        },
-      },
-    })
-
-    return workEvents > 0 ? 1.2 : 1.0
-  }
-
-  /**
-   * Get children multiplier based on number of children and if caring for them
-   * No children: ×1.0
-   * 1 child: ×1.4
-   * 2 children: ×1.8
-   * 3+ children: ×2.2
-   * With special needs: +0.3
-   */
-  private async getChildrenMultiplier(
-    coupleId: string,
-    event: Event,
-  ): Promise<number> {
+  async getChildrenMultiplier(coupleId: string, event: Event): Promise<number> {
     if (!event.hasChildren) return 1.0
 
-    const childCount = event.numChildren || 0
     const couple = await prisma.couple.findUnique({
       where: { id: coupleId },
       include: { children: true },
     })
+    if (!couple) return 1.0
 
-    if (!couple || couple.children.length === 0) return 1.0
+    const eventChildren = event.numChildren ?? 0
+    const registeredCount = couple.children.length
+    // Preferimos el count del evento (cuántos hijos se ven afectados en esta
+    // ausencia concreta). Si el evento dice 0 pero hasChildren=true y la pareja
+    // tiene numChildren, usamos numChildren como último recurso para MVP.
+    const effective = eventChildren > 0 ? eventChildren : registeredCount > 0 ? registeredCount : couple.numChildren ?? 0
 
-    let baseMultiplier = 1.0
-    if (childCount === 1) baseMultiplier = 1.4
-    else if (childCount === 2) baseMultiplier = 1.8
-    else if (childCount >= 3) baseMultiplier = 2.2
+    let multiplier = 1.0
+    if (effective === 1) multiplier = 1.4
+    else if (effective === 2) multiplier = 1.8
+    else if (effective >= 3) multiplier = 2.2
 
-    // Add for special needs
+    // Special-needs bonus solo aplica si hay registros V2 marcándolo.
     const hasSpecialNeeds = couple.children.some((c: any) => c.hasSpecialNeeds)
-    if (hasSpecialNeeds) baseMultiplier += 0.3
+    if (hasSpecialNeeds && multiplier > 1.0) multiplier += 0.3
 
-    return baseMultiplier
+    return multiplier
   }
 
   /**
-   * Get impact category multiplier (Lote 4 rebalance · opción C)
-   * Necesaria (medical, taxes): ×0.7
-   * Health/wellness (sport, yoga): ×0.85
-   * Normal social: ×1.0
-   * High impact (long trip, farewell, wedding): ×1.4
+   * Factor Tipo / Impacto (PUNTOS.md)
+   * Necesaria → ×0.7 · Salud → ×0.85 · Ocio social → ×1.0 · Alto impacto → ×1.4
+   *
+   * event.type suele ser slug corto (`trabajo`, `deporte`, `boda`). Antes se
+   * buscaba por keywords largos tipo "viaje de trabajo" que casi nunca
+   * matchean — los slugs y sinónimos cortos cubren los casos reales.
    */
-  private getImpactMultiplier(eventType: string): number {
-    const necessaryTypes = ['gestión médica', 'burocrática', 'viaje de trabajo']
-    const healthTypes = ['yoga', 'deporte', 'bienestar', 'spa', 'masaje']
-    const highImpactTypes = ['viaje largo', 'despedida', 'boda', 'comunión']
+  getImpactMultiplier(eventType: string): number {
+    const t = (eventType ?? '').toLowerCase().trim()
+    if (!t) return 1.0
 
-    if (necessaryTypes.some((t) => eventType.toLowerCase().includes(t))) return 0.7
-    if (healthTypes.some((t) => eventType.toLowerCase().includes(t))) return 0.85
-    if (highImpactTypes.some((t) => eventType.toLowerCase().includes(t))) return 1.4
+    const necessary = ['medico', 'médico', 'tramite', 'trámite', 'burocrática', 'burocratica', 'trabajo', 'viaje de trabajo', 'gestion medica', 'gestión médica']
+    const health = ['deporte', 'yoga', 'gym', 'gimnasio', 'bienestar', 'spa', 'masaje', 'salud']
+    const highImpact = ['boda', 'despedida', 'despedida soltero', 'despedida soltera', 'comunion', 'comunión', 'viaje largo', 'escapada', 'maraton', 'maratón']
 
+    if (necessary.some((k) => t.includes(k))) return 0.7
+    if (health.some((k) => t.includes(k))) return 0.85
+    if (highImpact.some((k) => t.includes(k))) return 1.4
     return 1.0
   }
 
+  /** Redondeo al 0.5 más próximo (ver PUNTOS.md). */
+  roundToHalf(value: number): number {
+    return Math.round(value * 2) / 2
+  }
+
   /**
-   * Calculate total points for an event using formula
+   * Calcula los puntos finales de un evento aplicando todos los multiplicadores.
+   * Cap superior: 500. Nunca devuelve negativo.
    */
-  async calculateEventPoints(event: Event, creatorUser: User): Promise<Decimal> {
+  async calculateEventPoints(event: Event, _creatorUser?: User | null): Promise<Decimal> {
     try {
-      const couple = await prisma.couple.findUnique({
-        where: { id: event.coupleId },
-        include: { children: true },
-      })
-
-      if (!couple) {
-        console.error('Couple not found')
-        return event.pointsBase
-      }
-
-      // Get all multipliers
       const timeMultiplier = this.getTimeMultiplier(event.dateStart)
-      const dayMultiplier = this.getDayMultiplier(event.dateStart)
-      const workMultiplier = await this.getWorkMultiplier(creatorUser.id, event.dateStart)
+      const durationMultiplier = this.getDurationMultiplier(event.dateStart, event.dateEnd)
       const childrenMultiplier = await this.getChildrenMultiplier(event.coupleId, event)
       const impactMultiplier = this.getImpactMultiplier(event.type)
 
-      // Apply all multipliers
-      const totalMultiplier = timeMultiplier * dayMultiplier * workMultiplier *
-                             childrenMultiplier * impactMultiplier
+      const totalMultiplier = impactMultiplier * timeMultiplier * durationMultiplier * childrenMultiplier
+      const raw = new Decimal(event.pointsBase).mul(new Decimal(totalMultiplier))
+      const rounded = new Decimal(this.roundToHalf(raw.toNumber()))
 
-      const calculatedPoints = new Decimal(event.pointsBase).mul(new Decimal(totalMultiplier))
-
-      // Cap at 500 points max
-      const finalPoints = calculatedPoints.greaterThan(500)
-        ? new Decimal(500)
-        : calculatedPoints.lessThan(0)
-        ? new Decimal(0)
-        : calculatedPoints
-
-      return finalPoints
+      if (rounded.greaterThan(500)) return new Decimal(500)
+      if (rounded.lessThan(0)) return new Decimal(0)
+      return rounded
     } catch (error) {
       console.error('Error calculating points:', error)
       return event.pointsBase
     }
   }
 
-  /**
-   * Get calculation breakdown for an event (for debugging/UI)
-   */
-  async getCalculationBreakdown(event: Event, creatorUser: User): Promise<any> {
+  /** Desglose legible para UI / debug (incluye cada factor por separado). */
+  async getCalculationBreakdown(event: Event, _creatorUser?: User | null): Promise<any> {
     try {
       const timeMultiplier = this.getTimeMultiplier(event.dateStart)
-      const dayMultiplier = this.getDayMultiplier(event.dateStart)
-      const workMultiplier = await this.getWorkMultiplier(creatorUser.id, event.dateStart)
+      const durationMultiplier = this.getDurationMultiplier(event.dateStart, event.dateEnd)
       const childrenMultiplier = await this.getChildrenMultiplier(event.coupleId, event)
       const impactMultiplier = this.getImpactMultiplier(event.type)
 
-      const totalMultiplier = timeMultiplier * dayMultiplier * workMultiplier *
-                             childrenMultiplier * impactMultiplier
-
-      const calculatedPoints = new Decimal(event.pointsBase).mul(new Decimal(totalMultiplier))
-      const finalPoints = calculatedPoints.greaterThan(500)
-        ? new Decimal(500)
-        : calculatedPoints
+      const totalMultiplier = impactMultiplier * timeMultiplier * durationMultiplier * childrenMultiplier
+      const raw = new Decimal(event.pointsBase).mul(new Decimal(totalMultiplier))
+      const rounded = this.roundToHalf(raw.toNumber())
+      const finalPoints = Math.min(500, Math.max(0, rounded))
 
       return {
-        basePoints: event.pointsBase,
+        basePoints: Number(event.pointsBase),
         multipliers: {
-          time: { value: timeMultiplier, label: 'Hora del día' },
-          day: { value: dayMultiplier, label: 'Día de la semana' },
-          work: { value: workMultiplier, label: 'Trabajó ese día' },
+          impact:   { value: impactMultiplier,   label: 'Tipo / Impacto' },
+          time:     { value: timeMultiplier,     label: 'Hora del día' },
+          duration: { value: durationMultiplier, label: 'Duración' },
           children: { value: childrenMultiplier, label: 'Hijos a cargo' },
-          impact: { value: impactMultiplier, label: 'Impacto/Categoría' },
         },
         totalMultiplier,
-        calculatedPoints: calculatedPoints.toNumber(),
-        finalPoints: finalPoints.toNumber(),
+        calculatedPoints: raw.toNumber(),
+        finalPoints,
       }
     } catch (error) {
       console.error('Error getting breakdown:', error)
@@ -214,22 +169,12 @@ export class PointsCalculator {
   }
 
   /**
-   * Calculate points for a task completion
-   * Tasks use simpler formula: basePoints × dayMultiplier × workMultiplier
+   * Puntos para una tarea completada. En tareas solo aplicamos redondeo —
+   * el base ya refleja el esfuerzo, no se recalcula por hora/duración.
    */
-  async calculateTaskPoints(taskLog: any, userId: string): Promise<Decimal> {
-    try {
-      const dayMultiplier = this.getDayMultiplier(taskLog.date)
-      const workMultiplier = await this.getWorkMultiplier(userId, taskLog.date)
-
-      const totalMultiplier = dayMultiplier * workMultiplier
-      const calculatedPoints = new Decimal(taskLog.pointsBase).mul(new Decimal(totalMultiplier))
-
-      return calculatedPoints
-    } catch (error) {
-      console.error('Error calculating task points:', error)
-      return new Decimal(taskLog.pointsBase)
-    }
+  async calculateTaskPoints(taskLog: any, _userId?: string): Promise<Decimal> {
+    const base = new Decimal(taskLog.pointsBase ?? 0)
+    return new Decimal(this.roundToHalf(base.toNumber()))
   }
 }
 
