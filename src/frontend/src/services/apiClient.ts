@@ -244,6 +244,11 @@ class ApiClient {
       this.request(`/tasks/logs?view=week&from=${from}&to=${to}`),
 
     delete: (id: string) => this.request(`/tasks/${id}`, { method: 'DELETE' }),
+
+    // Módulo Recurrentes (Paso 2 Módulo Tareas 2.0)
+    getRecurring: () => this.request('/tasks/recurring'),
+    pause: (id: string) => this.request(`/tasks/${id}/pause`, { method: 'POST' }),
+    resume: (id: string) => this.request(`/tasks/${id}/resume`, { method: 'POST' }),
   }
 
   // Negotiation endpoints

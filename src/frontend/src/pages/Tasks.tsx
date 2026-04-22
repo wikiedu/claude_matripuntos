@@ -23,6 +23,8 @@ import { TaskItemLarge } from '../components/v2/tasks/TaskItemLarge'
 import { TaskItemMedium } from '../components/v2/tasks/TaskItemMedium'
 import { TaskCatalogRow } from '../components/v2/tasks/TaskCatalogRow'
 import { AddTaskSheet } from '../components/v2/tasks/AddTaskSheet'
+import { RecurringTaskManager } from '../components/v2/tasks/RecurringTaskManager'
+import { ConfirmDialog } from '../components/v2/primitives/ConfirmDialog'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Task {
@@ -314,7 +316,7 @@ export default function Tasks() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [tab, setTab] = useState<'mis_tareas' | 'verificar' | 'historial'>('mis_tareas')
+  const [tab, setTab] = useState<'mis_tareas' | 'recurrentes' | 'verificar' | 'historial'>('mis_tareas')
 
   // Modals
   const [loggingTask, setLoggingTask] = useState<Task | null>(null)
@@ -323,10 +325,13 @@ export default function Tasks() {
   const [showAddSheet, setShowAddSheet] = useState(false)
   const [addingFromCatalog, setAddingFromCatalog] = useState<string | null>(null)
   const [showCatalog, setShowCatalog] = useState(false)
+  const [deletingTask, setDeletingTask] = useState<Task | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // View state
   const [view, setView] = useState<'list' | 'week'>('list')
   const [cat, setCat] = useState<string>('all')
+  const [personFilter, setPersonFilter] = useState<'all' | 'mine' | 'partner'>('all')
   const [weekStart, setWeekStart] = useState<Date>(() => {
     const d = new Date()
     const day = d.getDay()
@@ -372,7 +377,17 @@ export default function Tasks() {
   const partnerPendingLogs = allLogs.filter(
     (l) => l.completedBy?.id !== user?.id && l.status === 'pending',
   )
-  const historyLogs = allLogs.filter((l) => l.status !== 'pending')
+  // Quick-win #4 2026-04-22: filtro mías/pareja aplicado al historial para
+  // facilitar repasar rápidamente qué hizo cada uno.
+  const matchesPerson = (l: TaskLog) =>
+    personFilter === 'all'
+      ? true
+      : personFilter === 'mine'
+        ? l.completedBy?.id === user?.id
+        : l.completedBy?.id && l.completedBy.id !== user?.id
+  const historyLogs = allLogs
+    .filter((l) => l.status !== 'pending')
+    .filter(matchesPerson)
 
   const filteredTasks = cat === 'all' ? tasks : tasks.filter((t) => t.category?.toLowerCase() === cat)
 
@@ -458,15 +473,19 @@ export default function Tasks() {
     }
   }
 
-  const handleDeleteTask = async (taskId: string, taskName: string) => {
-    if (!confirm(`¿Borrar "${taskName}" definitivamente? Sus registros también se eliminarán.`)) return
+  const handleConfirmDelete = async () => {
+    if (!deletingTask) return
+    setDeleting(true)
     try {
-      await apiClient.tasks.delete(taskId)
-      setSuccess(`🗑️ "${taskName}" eliminada`)
+      await apiClient.tasks.delete(deletingTask.id)
+      setSuccess(`🗑️ "${deletingTask.name}" eliminada`)
       setTimeout(() => setSuccess(null), 3000)
+      setDeletingTask(null)
       await loadData()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al borrar tarea')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -512,6 +531,20 @@ export default function Tasks() {
         onClose={() => setShowAddSheet(false)}
         onSaved={handleAddSheetSaved}
       />
+      <ConfirmDialog
+        open={deletingTask !== null}
+        title="¿Borrar tarea?"
+        message={
+          deletingTask
+            ? `"${deletingTask.name}" se eliminará junto con todos sus registros. Esta acción no se puede deshacer.`
+            : ''
+        }
+        confirmLabel="Borrar"
+        variant="danger"
+        busy={deleting}
+        onConfirm={handleConfirmDelete}
+        onClose={() => !deleting && setDeletingTask(null)}
+      />
 
       {/* Page title + right pill */}
       <div className="flex items-center justify-between mb-3">
@@ -551,11 +584,12 @@ export default function Tasks() {
       {/* Tab navigation — only in Lista view */}
       {view === 'list' && (
         <div className="mb-4">
-          <Segment<'mis_tareas' | 'verificar' | 'historial'>
+          <Segment<'mis_tareas' | 'recurrentes' | 'verificar' | 'historial'>
             value={tab}
             onChange={setTab}
             options={[
               { value: 'mis_tareas', label: '✅ Mis Tareas' },
+              { value: 'recurrentes', label: '🔄 Recurrentes' },
               { value: 'verificar', label: '👀 Verificar', badge: partnerPendingLogs.length },
               { value: 'historial', label: '📋 Historial' },
             ]}
@@ -692,7 +726,7 @@ export default function Tasks() {
                           />
                           <button
                             type="button"
-                            onClick={() => handleDeleteTask(task.id, task.name)}
+                            onClick={() => setDeletingTask(task)}
                             aria-label={`Borrar ${task.name}`}
                             className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-surface-card border border-brd-subtle text-text-tertiary hover:text-danger hover:border-danger/40 text-xs flex items-center justify-center shadow-sm"
                           >
@@ -726,7 +760,7 @@ export default function Tasks() {
                         />
                         <button
                           type="button"
-                          onClick={() => handleDeleteTask(task.id, task.name)}
+                          onClick={() => setDeletingTask(task)}
                           aria-label={`Borrar ${task.name}`}
                           className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-surface-card border border-brd-subtle text-text-tertiary hover:text-danger hover:border-danger/40 text-xs flex items-center justify-center shadow-sm"
                         >
@@ -778,6 +812,11 @@ export default function Tasks() {
                 </section>
               )}
             </div>
+          )}
+
+          {/* ── RECURRENTES TAB ── */}
+          {tab === 'recurrentes' && (
+            <RecurringTaskManager onChanged={loadData} />
           )}
 
           {/* ── VERIFICAR TAB ── */}
@@ -893,6 +932,17 @@ export default function Tasks() {
           {/* ── HISTORIAL TAB ── */}
           {tab === 'historial' && (
             <div className="space-y-2">
+              <div className="mb-1">
+                <Segment<'all' | 'mine' | 'partner'>
+                  value={personFilter}
+                  onChange={setPersonFilter}
+                  options={[
+                    { value: 'all', label: 'Todas' },
+                    { value: 'mine', label: 'Mías' },
+                    { value: 'partner', label: 'Pareja' },
+                  ]}
+                />
+              </div>
               {historyLogs.length === 0 ? (
                 <div className="rounded-md bg-surface-card border border-brd-subtle p-10 text-center">
                   <div className="text-4xl mb-2">📜</div>
