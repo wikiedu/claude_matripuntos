@@ -15,6 +15,7 @@ datasource db {
 model Couple {
   id                    String                   @id @default(cuid())
   secretKey             String                   @unique
+  joinCode              String?                  @unique
   numChildren           Int                      @default(0)
   language              String                   @default("es")
   notificationsEnabled  Boolean                  @default(true)
@@ -60,6 +61,7 @@ model Couple {
   updatedAt             DateTime                 @updatedAt
 
   @@index([secretKey])
+  @@index([joinCode])
 }
 
 // Users - Individual members of a couple
