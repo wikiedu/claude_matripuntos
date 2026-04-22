@@ -1,17 +1,32 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAppStore } from '../store/useAppStore'
+import { apiClient } from '../services/apiClient'
 import { Button } from '../components/v2/primitives/Button'
 import { Input } from '../components/v2/primitives/Input'
 
 export default function Login() {
   const nav = useNavigate()
-  const { login } = useAppStore()
+  const { login, demoLogin } = useAppStore()
   const [email, setEmail]     = useState('')
   const [pwd, setPwd]         = useState('')
   const [showPwd, setShowPwd] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [demoLoading, setDemoLoading] = useState(false)
+  const [demoAvailable, setDemoAvailable] = useState(false)
   const [err, setErr]         = useState<string | null>(null)
+
+  // Probe backend for demo availability. Silently hides the CTA when the
+  // endpoint is 404 or DEMO_MODE_ENABLED=false — so local dev and prod can
+  // diverge without UI churn.
+  useEffect(() => {
+    let cancelled = false
+    apiClient.auth
+      .demoAvailable()
+      .then((r: any) => { if (!cancelled) setDemoAvailable(!!r?.available) })
+      .catch(() => { /* demo disabled or endpoint not deployed yet */ })
+    return () => { cancelled = true }
+  }, [])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -24,6 +39,18 @@ export default function Login() {
       setErr(e?.message ?? 'Error al iniciar sesión')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function startDemo() {
+    setDemoLoading(true); setErr(null)
+    try {
+      await demoLogin()
+      nav('/dashboard')
+    } catch (e: any) {
+      setErr(e?.message ?? 'No se pudo abrir el demo')
+    } finally {
+      setDemoLoading(false)
     }
   }
 
@@ -53,6 +80,19 @@ export default function Login() {
         <Button variant="outline" fullWidth disabled title="Disponible pronto">Continuar con Google</Button>
         <div className="h-2" />
         <Button variant="outline" fullWidth disabled title="Disponible pronto">Continuar con Apple</Button>
+        {demoAvailable && (
+          <>
+            <div className="h-2" />
+            <Button
+              variant="ghost"
+              fullWidth
+              onClick={startDemo}
+              disabled={demoLoading || loading}
+            >
+              {demoLoading ? 'Abriendo demo…' : '✨ Probar con datos de ejemplo'}
+            </Button>
+          </>
+        )}
         <div className="text-center mt-6 text-xs text-text-secondary">
           ¿Primera vez aquí? <Link to="/signup" className="text-brand-purple font-bold">Crea tu cuenta →</Link>
         </div>

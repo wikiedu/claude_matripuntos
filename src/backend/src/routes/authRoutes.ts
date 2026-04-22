@@ -22,6 +22,7 @@ import { ZodError } from 'zod'
 
 import prisma from '../lib/prisma.js'
 import { normalizeJoinCode } from '../utils/joinCode.js'
+import { demoLogin, isDemoEnabled } from '../services/demoService.js'
 
 const router = express.Router()
 
@@ -115,6 +116,26 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
 
     const message = error instanceof Error ? error.message : 'Login failed'
     res.status(401).json({ error: message })
+  }
+})
+
+// Demo mode (quick-win #14). Env-gated: DEMO_MODE_ENABLED must be "true".
+// demo-available is a lightweight probe for the login page UI.
+router.get('/demo-available', (_req: Request, res: Response) => {
+  res.json({ available: isDemoEnabled() })
+})
+
+router.post('/demo-login', async (_req: Request, res: Response): Promise<void> => {
+  if (!isDemoEnabled()) {
+    res.status(404).json({ error: 'Demo mode is not enabled in this environment' })
+    return
+  }
+  try {
+    const result = await demoLogin()
+    res.json({ message: 'Demo login successful', token: result.token, user: result.user })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Demo login failed'
+    res.status(500).json({ error: message })
   }
 })
 

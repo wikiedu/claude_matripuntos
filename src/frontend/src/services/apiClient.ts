@@ -100,6 +100,9 @@ class ApiClient {
         body: JSON.stringify({ email, password }),
       }),
 
+    demoAvailable: () => this.request('/auth/demo-available'),
+    demoLogin: () => this.request('/auth/demo-login', { method: 'POST' }),
+
     getMe: () => this.request('/auth/me'),
 
     getCouple: () => this.request('/auth/couple'),

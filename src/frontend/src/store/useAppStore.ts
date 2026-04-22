@@ -17,6 +17,7 @@ interface AppState {
 
   // Auth actions
   login: (email: string, password: string) => Promise<void>
+  demoLogin: () => Promise<void>
   signup: (data: {
     email1: string
     password1: string
@@ -64,6 +65,31 @@ export const useAppStore = create<AppState>((set) => ({
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Login failed'
+      set({ error: message, isLoading: false })
+      throw error
+    }
+  },
+
+  demoLogin: async () => {
+    set({ isLoading: true, error: null })
+    try {
+      const response = await apiClient.auth.demoLogin()
+      apiClient.setToken(response.token)
+      let couple = null
+      try {
+        const coupleResponse = await apiClient.auth.getCouple()
+        couple = coupleResponse.couple ?? null
+      } catch {
+        /* demo user should always have a couple, but tolerate a transient error */
+      }
+      set({
+        user: response.user,
+        couple,
+        isAuthenticated: true,
+        isLoading: false,
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Demo login failed'
       set({ error: message, isLoading: false })
       throw error
     }

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient, fetchRecentActivity } from '../services/apiClient'
 import { useAppStore } from '../store/useAppStore'
@@ -14,6 +14,7 @@ import { TodayTasksSection } from '../components/v2/dashboard/TodayTasksSection'
 import { RecentMovementsTabs } from '../components/v2/dashboard/RecentMovementsTabs'
 import { QuickPreviews } from '../components/v2/dashboard/QuickPreviews'
 import { CATEGORY_EMOJI } from '../components/v2/tasks/CategoryFilterStrip'
+import { DashboardTour, hasSeenTour } from '../components/v2/tour/DashboardTour'
 import { toLocalDateString } from '../utils/dateUtils'
 import type { RecentActivity } from '../types/activity'
 import type { Task, TaskLog } from '../types/index'
@@ -29,6 +30,15 @@ function deriveKind(a: RecentActivity): 'activity' | 'task' | 'negotiation' {
 export default function Dashboard() {
   const { user, couple } = useAppStore()
   const queryClient = useQueryClient()
+
+  // Tour interactivo (quick-win #15): solo se muestra tras completar el
+  // onboarding real, para no saturar al usuario nuevo con dos overlays.
+  const [showTour, setShowTour] = useState(false)
+  useEffect(() => {
+    if (user?.hasCompletedOnboarding && !hasSeenTour()) {
+      setShowTour(true)
+    }
+  }, [user?.hasCompletedOnboarding])
 
   const { data: balance } = useQuery({
     queryKey: ['balance'],
@@ -151,6 +161,7 @@ export default function Dashboard() {
 
   return (
     <main className="pb-4 pt-2">
+      {showTour && <DashboardTour onClose={() => setShowTour(false)} />}
       <DailyPhrase />
       <BalanceLevelHero
         youName={you.name}
