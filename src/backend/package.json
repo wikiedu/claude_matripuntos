@@ -16,8 +16,8 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint src",
     "test": "jest",
-    "test:unit": "jest tests/pointsCalculator.test.ts tests/insightHeuristic.test.ts",
-    "test:integration": "jest --testPathIgnorePatterns='pointsCalculator|insightHeuristic'"
+    "test:unit": "jest tests/pointsCalculator.test.ts tests/insightHeuristic.test.ts tests/joinCode.test.ts",
+    "test:integration": "jest --testPathIgnorePatterns='pointsCalculator|insightHeuristic|joinCode'"
   },
   "dependencies": {
     "@prisma/client": "^5.7.0",
