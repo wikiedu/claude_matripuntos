@@ -21,6 +21,7 @@ const createTaskSchema = z.object({
   category: z.enum(['cocina', 'baños', 'limpieza', 'compra', 'logistica', 'cuidado', 'mantenimiento', 'jardineria', 'mascotas']),
   pointsBase: z.number().positive('Points must be positive').max(100).optional().default(1.0),
   isDefault: z.boolean().optional().default(false),
+  defaultAssigneeId: z.string().nullable().optional(),
 })
 
 // Audit v1.4 P1-B/P1-F: the client used to send `pointsFinal` precomputed,
@@ -62,6 +63,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
         category: data.category,
         pointsBase: new Decimal(data.pointsBase),
         isDefault: data.isDefault,
+        defaultAssigneeId: data.defaultAssigneeId ?? null,
       },
     })
 
@@ -72,6 +74,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
         name: task.name,
         category: task.category,
         pointsBase: task.pointsBase.toString(),
+        defaultAssigneeId: task.defaultAssigneeId,
       },
     })
   } catch (error) {
@@ -120,6 +123,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
         scheduledFor: t.scheduledFor ? t.scheduledFor.toISOString() : null,
         isRecurring: t.isRecurring,
         frequency: t.frequency,
+        defaultAssigneeId: t.defaultAssigneeId,
       })),
     })
   } catch (error) {
@@ -732,6 +736,7 @@ router.get('/recurring', authMiddleware, async (req: Request, res: Response): Pr
           recurrenceStart: t.recurrenceStart?.toISOString() ?? null,
           recurrenceEnd: t.recurrenceEnd?.toISOString() ?? null,
           nextOccurrence: nextPlaceholder?.scheduledFor?.toISOString() ?? null,
+          defaultAssigneeId: t.defaultAssigneeId,
           completedCount,
         }
       })

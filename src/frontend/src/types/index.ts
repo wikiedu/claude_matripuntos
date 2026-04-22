@@ -87,6 +87,7 @@ export interface Task {
   scheduledFor?: string | null
   isRecurring?: boolean
   frequency?: string | null
+  defaultAssigneeId?: string | null
 }
 
 export interface TaskLog {

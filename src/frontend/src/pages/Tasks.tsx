@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   Plus, CheckCircle, Loader, X, RefreshCw, AlertTriangle, CheckCheck, HelpCircle, Clock,
+  Sparkles, History, ListChecks,
 } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
@@ -685,16 +686,22 @@ export default function Tasks() {
                 </h2>
                 {todayTasks.length === 0 ? (
                   <div className="rounded-md bg-surface-card border border-brd-subtle p-6 text-center">
-                    <div className="text-3xl mb-2">{filteredTasks.length === 0 ? '🏠' : '🎉'}</div>
+                    {filteredTasks.length === 0 ? (
+                      <ListChecks className="w-9 h-9 mx-auto text-text-tertiary mb-2" />
+                    ) : (
+                      <Sparkles className="w-9 h-9 mx-auto text-brand-purple mb-2" />
+                    )}
                     <p className="text-sm font-semibold text-text-primary mb-1">
                       {filteredTasks.length === 0
                         ? (cat === 'all' ? 'Sin tareas en tu lista' : 'Sin tareas en esta categoría')
                         : 'Todo al día'}
                     </p>
-                    <p className="text-xs text-text-secondary mb-3">
+                    <p className="text-xs text-text-secondary mb-3 max-w-xs mx-auto">
                       {filteredTasks.length === 0
-                        ? (cat === 'all' ? 'Añade tareas del catálogo o crea las tuyas' : 'Revisa el catálogo abajo')
-                        : 'Todas las tareas de hoy están hechas o pendientes de verificación.'}
+                        ? (cat === 'all'
+                          ? 'Empieza añadiendo una tarea del catálogo o crea la tuya — se repartirán los puntos según quien la haga.'
+                          : 'Revisa el catálogo más abajo o crea una tarea en esta categoría.')
+                        : 'Las tareas de hoy están completadas o esperando a que tu pareja las verifique.'}
                     </p>
                     {filteredTasks.length === 0 && cat === 'all' && (
                       <Button size="sm" onClick={() => setShowAddSheet(true)}>
@@ -890,11 +897,19 @@ export default function Tasks() {
                 </>
               ) : (
                 <div className="rounded-md bg-surface-card border border-brd-subtle p-10 text-center">
-                  <div className="text-4xl mb-2">✨</div>
-                  <p className="font-semibold text-text-primary">Todo verificado</p>
-                  <p className="text-sm text-text-secondary mt-1">
-                    No hay tareas de tu pareja pendientes de verificar
+                  <Sparkles className="w-10 h-10 mx-auto text-brand-purple mb-2" />
+                  <p className="font-semibold text-text-primary">Todo al día</p>
+                  <p className="text-sm text-text-secondary mt-1 max-w-xs mx-auto">
+                    No hay tareas de tu pareja pendientes de verificar. Cuando complete una nueva tarea, aparecerá aquí para confirmarla.
                   </p>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setTab('mis_tareas')}
+                    className="mt-3"
+                  >
+                    Ir a mis tareas
+                  </Button>
                 </div>
               )}
 
@@ -945,11 +960,27 @@ export default function Tasks() {
               </div>
               {historyLogs.length === 0 ? (
                 <div className="rounded-md bg-surface-card border border-brd-subtle p-10 text-center">
-                  <div className="text-4xl mb-2">📜</div>
-                  <p className="font-semibold text-text-primary">Sin historial todavía</p>
-                  <p className="text-sm text-text-secondary">
-                    Las tareas verificadas y disputadas aparecerán aquí
+                  <History className="w-10 h-10 mx-auto text-text-tertiary mb-2" />
+                  <p className="font-semibold text-text-primary">
+                    {personFilter === 'mine'
+                      ? 'Sin tareas tuyas todavía'
+                      : personFilter === 'partner'
+                        ? 'Sin tareas de tu pareja todavía'
+                        : 'Sin historial todavía'}
                   </p>
+                  <p className="text-sm text-text-secondary mt-1 max-w-xs mx-auto">
+                    Las tareas verificadas y disputadas se archivan aquí para revisar puntos, disputas y quién hace qué con el tiempo.
+                  </p>
+                  {personFilter !== 'all' && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setPersonFilter('all')}
+                      className="mt-3"
+                    >
+                      Ver todas
+                    </Button>
+                  )}
                 </div>
               ) : (
                 historyLogs.map((log) => (

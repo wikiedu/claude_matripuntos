@@ -175,6 +175,9 @@ model Task {
   maxOccurrences        Int?
   occurrenceCount       Int                      @default(0)
 
+  // v1.5 quick-win #3 — default assignee for the task (nullable = either)
+  defaultAssigneeId     String?
+
   // Relations
   couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
   logs                  TaskLog[]

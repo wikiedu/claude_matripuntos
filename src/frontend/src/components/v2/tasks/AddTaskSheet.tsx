@@ -1,7 +1,7 @@
 // 3-step wizard to create a task, rendered inside a BottomSheet.
 // Step 1: name + category + pointsBase
 // Step 2: puntual vs recurrente (+ TaskScheduleForm when recurrente)
-// Step 3: assignee (informational — backend does not persist this yet)
+// Step 3: assignee — persisted as Task.defaultAssigneeId (null = cualquiera)
 
 import { useState } from 'react'
 import { Loader } from 'lucide-react'
@@ -11,6 +11,7 @@ import { Input } from '../primitives/Input'
 import { apiClient } from '../../../services/apiClient'
 import { TaskScheduleForm } from '../../TaskScheduleForm'
 import type { TaskSchedule } from '../../../types'
+import { useAppStore } from '../../../store/useAppStore'
 import { CATEGORY_EMOJI, CATEGORY_LABEL } from './CategoryFilterStrip'
 
 interface Props {
@@ -20,20 +21,23 @@ interface Props {
 }
 
 type Mode = 'once' | 'recurring'
-type Assignee = 'me' | 'partner' | 'either'
 
 const INITIAL_CATEGORY = 'cocina'
 const INITIAL_POINTS = 10
 
 export function AddTaskSheet({ open, onClose, onSaved }: Props) {
+  const user = useAppStore((s) => s.user)
+  const couple = useAppStore((s) => s.couple)
+  const partner = couple?.users?.find((u) => u.id !== user?.id) ?? null
+
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [name, setName] = useState('')
   const [category, setCategory] = useState<string>(INITIAL_CATEGORY)
   const [pointsBase, setPointsBase] = useState<number>(INITIAL_POINTS)
   const [mode, setMode] = useState<Mode>('once')
   const [schedule, setSchedule] = useState<TaskSchedule | null>(null)
-  // TODO: persist assignee when backend supports it
-  const [assignee, setAssignee] = useState<Assignee>('either')
+  // null = "cualquiera"; concreto = userId (self | partner)
+  const [assigneeId, setAssigneeId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -46,7 +50,7 @@ export function AddTaskSheet({ open, onClose, onSaved }: Props) {
     setPointsBase(INITIAL_POINTS)
     setMode('once')
     setSchedule(null)
-    setAssignee('either')
+    setAssigneeId(null)
     setSaving(false)
     setErr(null)
   }
@@ -67,12 +71,12 @@ export function AddTaskSheet({ open, onClose, onSaved }: Props) {
         category,
         pointsBase,
         description: '',
+        defaultAssigneeId: assigneeId,
       })
       const taskId = (created as any)?.task?.id
       if (mode === 'recurring' && schedule && taskId) {
         await apiClient.tasks.schedule(taskId, schedule)
       }
-      // assignee is stored in local state only — backend does not persist it yet.
       onSaved()
       handleClose()
     } catch (e) {
@@ -207,16 +211,18 @@ export function AddTaskSheet({ open, onClose, onSaved }: Props) {
           <p className="text-xs font-semibold text-text-secondary">¿Quién la hace?</p>
           <div className="flex gap-2 flex-wrap">
             {([
-              { value: 'me' as const, label: 'Yo' },
-              { value: 'partner' as const, label: 'Mi pareja' },
-              { value: 'either' as const, label: 'Cualquiera' },
-            ]).map((opt) => {
-              const active = assignee === opt.value
+              { id: user?.id ?? null, label: `Yo${user?.name ? ` (${user.name})` : ''}` },
+              partner
+                ? { id: partner.id, label: partner.name || 'Mi pareja' }
+                : null,
+              { id: null, label: 'Cualquiera' },
+            ].filter(Boolean) as Array<{ id: string | null; label: string }>).map((opt) => {
+              const active = assigneeId === opt.id
               return (
                 <button
-                  key={opt.value}
+                  key={opt.label}
                   type="button"
-                  onClick={() => setAssignee(opt.value)}
+                  onClick={() => setAssigneeId(opt.id)}
                   className={`px-3 py-1.5 rounded-full text-xs transition border ${
                     active
                       ? 'bg-brand-purple/20 border-brand-purple/40 text-brand-purple font-bold'
@@ -230,7 +236,7 @@ export function AddTaskSheet({ open, onClose, onSaved }: Props) {
           </div>
 
           <div className="rounded-md bg-surface-muted border border-brd-subtle p-3 text-[11px] text-text-tertiary">
-            ℹ️ El asignado se guardará en local. El backend aún no persiste este campo en v1.4.
+            💡 La persona asignada será el valor por defecto al loggear la tarea — podrás cambiarla en el momento si hace falta.
           </div>
 
           <div className="flex gap-2 pt-1">

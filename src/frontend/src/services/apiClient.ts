@@ -186,6 +186,7 @@ class ApiClient {
       category: string
       pointsBase?: number
       isDefault?: boolean
+      defaultAssigneeId?: string | null
     }) =>
       this.request('/tasks', {
         method: 'POST',
