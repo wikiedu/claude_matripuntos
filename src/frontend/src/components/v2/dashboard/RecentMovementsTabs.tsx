@@ -28,6 +28,26 @@ function iconFor(m: MovementVM): string {
   return '🎯'
 }
 
+// Los puntos van al 0.5 más cercano. Renderizamos "14 MP" cuando es entero y
+// "14.5 MP" cuando hay medio — mostrar "14.0 MP" era ruido visual sin aportar
+// información.
+function formatPoints(n: number): string {
+  const abs = Math.abs(n)
+  return Number.isInteger(abs) ? abs.toString() : abs.toFixed(1)
+}
+
+function signOf(n: number): string {
+  if (n > 0) return '+'
+  if (n < 0) return '-'
+  return ''
+}
+
+function colorOf(n: number): string {
+  if (n > 0) return 'text-success'
+  if (n < 0) return 'text-danger'
+  return 'text-text-tertiary'
+}
+
 interface Props { movements: MovementVM[] }
 type Tab = 'all' | 'activity' | 'task'
 
@@ -78,8 +98,8 @@ export function RecentMovementsTabs({ movements }: Props) {
                 <span className="text-text-primary font-semibold">{m.userName}</span>
                 <span className="text-text-secondary"> · {m.action}</span>
               </div>
-              <span className={`text-xs font-bold tabular-nums ${m.delta >= 0 ? 'text-success' : 'text-danger'}`}>
-                {m.delta >= 0 ? '+' : ''}{m.delta.toFixed(1)} MP
+              <span className={`text-xs font-bold tabular-nums ${colorOf(m.delta)}`}>
+                {signOf(m.delta)}{formatPoints(m.delta)} MP
               </span>
               <span className="text-[10px] text-text-tertiary">{m.when}</span>
             </button>

@@ -32,11 +32,13 @@ const DEFAULT_CATEGORIES = [
   'mascotas',
 ]
 
+type StepKey = 'welcome' | 'profile' | 'pair' | 'rules' | 'categories' | 'done'
+
 export default function Onboarding() {
   const nav = useNavigate()
   const location = useLocation()
   const { token } = useParams<{ token?: string }>()
-  const { user } = useAppStore()
+  const { user, couple } = useAppStore()
 
   const [step, setStep] = useState(0)
   const [data, setData] = useState<OnboardingData>({
@@ -62,13 +64,27 @@ export default function Onboarding() {
   // every protected POST would 401).
   const showJoinAccountFlow = urlToken && !user
 
+  // Bug 2026-04-22: si el invitee ya entró por link y está vinculado a la
+  // pareja, el wizard le seguía pidiendo "Conecta con tu pareja" en el paso
+  // 3/6 — redundante y confuso. Cuando ya hay pareja (2 users), construimos
+  // el wizard sin StepPair (5 pasos en vez de 6). Mismo flujo para cuentas
+  // nuevas en solitario que luego se emparejan fuera del onboarding.
+  const hasPartner = (couple?.users?.length ?? 0) >= 2
+  const steps: StepKey[] = hasPartner
+    ? ['welcome', 'profile', 'rules', 'categories', 'done']
+    : ['welcome', 'profile', 'pair', 'rules', 'categories', 'done']
+  const total = steps.length
+  const currentKey = steps[Math.min(step, total - 1)]
+
   // If a logged-in user opens the invite link, just pre-fill the pair code
   // and skip straight to Rules — they already have an account.
   useEffect(() => {
     if (urlToken && user) {
       setData((prev) => ({ ...prev, pairMethod: 'code', pairCode: urlToken }))
-      setStep(3)
+      const rulesIdx = steps.indexOf('rules')
+      if (rulesIdx >= 0) setStep(rulesIdx)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlToken, user])
 
   // If user already completed onboarding, skip to dashboard
@@ -131,11 +147,12 @@ export default function Onboarding() {
     }
   }
 
-  const next = () => setStep((s) => Math.min(5, s + 1))
+  const next = () => setStep((s) => Math.min(total - 1, s + 1))
   const prev = () => setStep((s) => Math.max(0, s - 1))
 
-  const total = 6
   const pct = Math.round(((step + 1) / total) * 100)
+  const isWelcomeStep = currentKey === 'welcome'
+  const isDoneStep = currentKey === 'done'
 
   // Invitee landing — pre-account. Render the single-step join screen and
   // bypass the wizard entirely.
@@ -152,7 +169,7 @@ export default function Onboarding() {
   return (
     <main className="bg-surface-base min-h-screen px-6 flex flex-col">
       <div className="flex-1 flex flex-col py-8 max-w-md mx-auto w-full">
-        {step > 0 && step < 5 && (
+        {!isWelcomeStep && !isDoneStep && (
           <div className="flex items-center gap-3 mb-4">
             <button
               onClick={prev}
@@ -173,8 +190,8 @@ export default function Onboarding() {
           </div>
         )}
 
-        {step === 0 && <StepWelcome onNext={next} />}
-        {step === 1 && (
+        {currentKey === 'welcome' && <StepWelcome onNext={next} />}
+        {currentKey === 'profile' && (
           <StepProfile
             userName={user?.name ?? 'Tú'}
             data={data}
@@ -182,16 +199,16 @@ export default function Onboarding() {
             onNext={next}
           />
         )}
-        {step === 2 && <StepPair data={data} onChange={update} onNext={next} />}
-        {step === 3 && <StepRules data={data} onChange={update} onNext={next} />}
-        {step === 4 && (
+        {currentKey === 'pair' && <StepPair data={data} onChange={update} onNext={next} />}
+        {currentKey === 'rules' && <StepRules data={data} onChange={update} onNext={next} />}
+        {currentKey === 'categories' && (
           <StepCategories data={data} onChange={update} onNext={next} />
         )}
-        {step === 5 && (
+        {currentKey === 'done' && (
           <StepDone
             data={data}
             userName={user?.name ?? 'Tú'}
-            pairMethod={data.pairMethod}
+            pairMethod={hasPartner ? 'code' : data.pairMethod}
             inviteeEmail={data.pairEmail}
             onFinish={finish}
             busy={busy}

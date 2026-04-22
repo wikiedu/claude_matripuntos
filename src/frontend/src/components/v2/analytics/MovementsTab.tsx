@@ -59,6 +59,19 @@ function iconFor(kind: MovementKind, status?: string): string {
   return '🎯'
 }
 
+// Mismo formato que RecentMovementsTabs: sin ".0" cuando es entero, color
+// neutro cuando delta=0 para no teñir de verde los negociados/rechazados.
+function formatPoints(n: number): string {
+  const abs = Math.abs(n)
+  return Number.isInteger(abs) ? abs.toString() : abs.toFixed(1)
+}
+function signOf(n: number): string {
+  return n > 0 ? '+' : n < 0 ? '-' : ''
+}
+function colorOf(n: number): string {
+  return n > 0 ? 'text-success' : n < 0 ? 'text-danger' : 'text-text-tertiary'
+}
+
 // Group entries by the day they occurred. "Hoy / Ayer / <fecha larga>" is friendlier
 // than raw timestamps and lets MovementsTab render per-day sections.
 function dayLabel(iso: string): string {
@@ -176,8 +189,8 @@ export function MovementsTab() {
                   <span className="text-text-primary font-semibold">{m.userName}</span>
                   <span className="text-text-secondary"> · {m.action}</span>
                 </div>
-                <span className={`text-xs font-bold tabular-nums ${m.delta >= 0 ? 'text-success' : 'text-danger'}`}>
-                  {m.delta >= 0 ? '+' : ''}{m.delta.toFixed(1)} MP
+                <span className={`text-xs font-bold tabular-nums ${colorOf(m.delta)}`}>
+                  {signOf(m.delta)}{formatPoints(m.delta)} MP
                 </span>
               </div>
             ))}
