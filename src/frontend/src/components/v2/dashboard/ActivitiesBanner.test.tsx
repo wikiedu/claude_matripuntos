@@ -70,4 +70,28 @@ describe('ActivitiesBanner', () => {
     fireEvent.click(acceptBtns[0])
     await waitFor(() => expect(respond).toHaveBeenCalledWith('n-p1', { responseType: 'accepted' }))
   })
+
+  it('picks the awaiting negotiation, not the first by order, when responding', async () => {
+    // Event with 2 negotiations: round 1 already responded, round 2 awaiting.
+    // Even if [0] ends up being the resolved one (stale/reordered cache),
+    // the banner must submit round 2's id — otherwise the backend returns
+    // "Negotiation already responded to".
+    mockState.events = [{
+      id: 'p1', title: 'Spa', type: 'bienestar', status: 'pending',
+      createdBy: 'partner', lastProposedBy: 'partner',
+      pointsBase: '10', pointsCalculated: '12',
+      dateStart: '2026-05-01T21:00:00Z', dateEnd: '2026-05-01T23:00:00Z',
+      negotiationRound: 2,
+      creator: { id: 'partner', name: 'Blanca' },
+      negotiations: [
+        { id: 'neg-round-1', roundNumber: 1, pointsProposed: '10', proposedBy: 'partner', responseType: 'counter_proposed' },
+        { id: 'neg-round-2', roundNumber: 2, pointsProposed: '12', proposedBy: 'partner', responseType: 'awaiting' },
+      ],
+    }]
+    const { ActivitiesBanner } = await import('./ActivitiesBanner')
+    renderWithProviders(<ActivitiesBanner />)
+    await waitFor(() => expect(screen.getByText('Spa')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /Aceptar/i }))
+    await waitFor(() => expect(respond).toHaveBeenCalledWith('neg-round-2', { responseType: 'accepted' }))
+  })
 })

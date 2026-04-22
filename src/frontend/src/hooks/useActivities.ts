@@ -19,7 +19,13 @@ export interface ActivityEvent {
   maxFreeRounds?: number
   creator?: { id: string; name: string }
   compensation?: string
-  negotiations?: Array<{ id: string; roundNumber: number; pointsProposed: string; proposedBy?: string }>
+  negotiations?: Array<{
+    id: string
+    roundNumber: number
+    pointsProposed: string
+    proposedBy?: string
+    responseType?: string
+  }>
 }
 
 export function useActivities() {

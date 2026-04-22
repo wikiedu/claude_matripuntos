@@ -39,9 +39,14 @@ export function ActivitiesBanner() {
   const visible = pending.slice(0, MAX_CARDS)
   const overflow = Math.max(0, pendingCount - MAX_CARDS)
 
+  // Prefer the negotiation still in 'awaiting'. Falls back to the first by
+  // createdAt-desc only if none is awaiting (stuck state). Matches the logic
+  // in ActivityDetail — prevents "Negotiation already responded to" 400s when
+  // the cached list is out of sync with the DB.
   function lastNegOf(eventId: string) {
     const e = pending.find((x) => x.id === eventId)
-    return e?.negotiations?.[0]
+    const negs = e?.negotiations ?? []
+    return negs.find((n) => n.responseType === 'awaiting') ?? negs[0]
   }
 
   function handleAccept(eventId: string) {
@@ -55,7 +60,7 @@ export function ActivitiesBanner() {
   function handleOpen(eventId: string) { nav(`/home/activities/${eventId}`) }
 
   const currentCounter = counterFor ? pending.find((e) => e.id === counterFor) : null
-  const currentNeg = currentCounter?.negotiations?.[0]
+  const currentNeg = counterFor ? lastNegOf(counterFor) : undefined
   const currentPoints = Number(currentCounter?.pointsAgreed ?? currentCounter?.pointsCalculated ?? 0)
 
   return (
