@@ -517,8 +517,8 @@ export default function Tasks() {
 
       {/* Page title + right pill */}
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-extrabold text-text-primary">Tareas</h1>
+        <div className="flex items-center gap-2 min-w-0">
+          <h1 className="text-lg font-extrabold text-text-primary truncate">Tareas</h1>
           <Pill tone="purple">Esta semana</Pill>
         </div>
         <div className="flex items-center gap-2">

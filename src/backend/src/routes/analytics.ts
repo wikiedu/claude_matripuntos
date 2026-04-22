@@ -6,6 +6,21 @@ const router = Router()
 
 router.use(authenticateToken)
 
+// A bare `YYYY-MM-DD` from the frontend is `Date(...)`'d into UTC midnight,
+// which excludes any event that happened later on that day. For an endDate
+// that means today's events get truncated out of every chart. Normalize:
+// if the caller sends date-only, extend it to end-of-day UTC (23:59:59.999);
+// if they send a full ISO timestamp, trust it.
+function parseRangeBoundary(raw: unknown, kind: 'start' | 'end'): Date | undefined {
+  if (typeof raw !== 'string' || !raw) return undefined
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+  const d = new Date(raw)
+  if (isNaN(d.getTime())) return undefined
+  if (dateOnly && kind === 'end') d.setUTCHours(23, 59, 59, 999)
+  if (dateOnly && kind === 'start') d.setUTCHours(0, 0, 0, 0)
+  return d
+}
+
 /**
  * GET /api/analytics/couple
  * Get overall couple analytics
@@ -65,8 +80,8 @@ router.get('/daily-activity', async (req: Request, res: Response) => {
     const { startDate, endDate } = req.query
     const grouped = req.query.groupByUser === 'true'
 
-    const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30))
-    const end = endDate ? new Date(endDate as string) : new Date()
+    const start = parseRangeBoundary(startDate, 'start') ?? new Date(new Date().setDate(new Date().getDate() - 30))
+    const end   = parseRangeBoundary(endDate,   'end')   ?? new Date()
 
     const activity = grouped
       ? await analyticsService.getDailyActivityGrouped(coupleId, userId, start, end)

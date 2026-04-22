@@ -660,6 +660,19 @@ export async function getTimeInvested(coupleId: string, range: 'week' | 'month')
     where: { coupleId, dateStart: { gte: since }, status: { in: ['accepted', 'forced'] } },
   })
 
+  // Cap per-event coverage to ~10h so a 3-day trip doesn't report 72h of
+  // "invested time" — the partner was sleeping/working for most of that. We
+  // still want longer events to weigh more than a dinner, so split the cap
+  // per calendar day spanned (max 10h per day).
+  const MAX_HOURS_PER_DAY = 10
+  function eventCoverageHours(e: { dateStart: Date; dateEnd: Date }) {
+    const ms = new Date(e.dateEnd).getTime() - new Date(e.dateStart).getTime()
+    const raw = Math.max(0, ms) / (1000 * 60 * 60)
+    if (raw === 0) return 0
+    const daysSpanned = Math.max(1, Math.ceil(raw / 24))
+    return Math.min(raw, MAX_HOURS_PER_DAY * daysSpanned)
+  }
+
   function hoursFor(userId: string) {
     const taskHours = logs
       .filter(l => l.completedBy === userId)
@@ -667,10 +680,7 @@ export async function getTimeInvested(coupleId: string, range: 'week' | 'month')
     // Evento creado por el otro → este user cubrió el hogar durante esas horas.
     const eventHours = events
       .filter(e => e.createdBy && e.createdBy !== userId)
-      .reduce((sum, e) => {
-        const ms = new Date(e.dateEnd).getTime() - new Date(e.dateStart).getTime()
-        return sum + Math.max(0, ms) / (1000 * 60 * 60)
-      }, 0)
+      .reduce((sum, e) => sum + eventCoverageHours(e), 0)
     return Math.round((taskHours + eventHours) * 10) / 10
   }
 
