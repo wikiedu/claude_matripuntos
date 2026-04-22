@@ -191,7 +191,12 @@ export async function getUserAnalytics(
 }
 
 /**
- * Get daily activity analytics
+ * Get daily activity analytics.
+ *
+ * Counts *earned* points only — accepted/forced events (using pointsAgreed if
+ * set, else pointsCalculated) plus verified task logs. Previously this mixed
+ * in pending/draft/rejected events, which made "Puntos por día" show ghost
+ * points that nobody actually earned.
  */
 export async function getDailyActivityAnalytics(
   coupleId: string,
@@ -202,29 +207,104 @@ export async function getDailyActivityAnalytics(
     where: {
       coupleId,
       dateStart: { gte: startDate, lte: endDate },
+      status: { in: ['accepted', 'forced'] },
     },
   })
 
+  const logs = await prisma.taskLog.findMany({
+    where: {
+      coupleId,
+      status: 'verified',
+      date: { gte: startDate, lte: endDate },
+    },
+    include: { task: true },
+  })
+
   const grouped: Record<string, EventAnalytics> = {}
+  const ensure = (dateStr: string) => {
+    if (!grouped[dateStr]) {
+      grouped[dateStr] = { date: dateStr, count: 0, totalPoints: 0, types: {} }
+    }
+    return grouped[dateStr]
+  }
 
   events.forEach(event => {
-    const dateStr = event.dateStart.toISOString().split('T')[0]
+    const bucket = ensure(event.dateStart.toISOString().split('T')[0])
+    const pts = Number(event.pointsAgreed ?? event.pointsCalculated ?? 0)
+    bucket.count++
+    bucket.totalPoints += pts
+    bucket.types[event.type] = (bucket.types[event.type] || 0) + 1
+  })
 
-    if (!grouped[dateStr]) {
-      grouped[dateStr] = {
-        date: dateStr,
-        count: 0,
-        totalPoints: 0,
-        types: {},
-      }
-    }
-
-    grouped[dateStr].count++
-    grouped[dateStr].totalPoints += Number(event.pointsCalculated)
-    grouped[dateStr].types[event.type] = (grouped[dateStr].types[event.type] || 0) + 1
+  logs.forEach(log => {
+    const bucket = ensure(log.date.toISOString().split('T')[0])
+    bucket.count++
+    bucket.totalPoints += Number(log.pointsFinal ?? 0)
+    const cat = log.task.category
+    bucket.types[cat] = (bucket.types[cat] || 0) + 1
   })
 
   return Object.values(grouped).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+}
+
+/**
+ * Same as getDailyActivityAnalytics, but splits totals per user. `you` is the
+ * currently-authenticated caller; `partner` is the other member of the couple.
+ * This is what the dashboard "Puntos por día" chart actually needs — the
+ * ungrouped version was attributing all points to the caller, which made the
+ * chart lie.
+ */
+export async function getDailyActivityGrouped(
+  coupleId: string,
+  userId: string,
+  startDate: Date,
+  endDate: Date
+): Promise<Array<{ date: string; you: number; partner: number }>> {
+  const events = await prisma.event.findMany({
+    where: {
+      coupleId,
+      dateStart: { gte: startDate, lte: endDate },
+      status: { in: ['accepted', 'forced'] },
+    },
+  })
+
+  const logs = await prisma.taskLog.findMany({
+    where: {
+      coupleId,
+      status: 'verified',
+      date: { gte: startDate, lte: endDate },
+    },
+  })
+
+  const buckets: Record<string, { you: number; partner: number }> = {}
+  const ensure = (dateStr: string) => {
+    if (!buckets[dateStr]) buckets[dateStr] = { you: 0, partner: 0 }
+    return buckets[dateStr]
+  }
+
+  events.forEach(event => {
+    const pts = Number(event.pointsAgreed ?? event.pointsCalculated ?? 0)
+    if (!pts) return
+    const bucket = ensure(event.dateStart.toISOString().split('T')[0])
+    // Rejected events already filtered; the "earner" of an accepted event is
+    // the partner (receiver), not the creator. For forced events, points are
+    // subtracted from the creator — we still attribute to whomever received
+    // value (partner) so the chart reflects the same balance the user sees.
+    if (event.createdBy === userId) bucket.partner += pts
+    else bucket.you += pts
+  })
+
+  logs.forEach(log => {
+    const pts = Number(log.pointsFinal ?? 0)
+    if (!pts || !log.completedBy) return
+    const bucket = ensure(log.date.toISOString().split('T')[0])
+    if (log.completedBy === userId) bucket.you += pts
+    else bucket.partner += pts
+  })
+
+  return Object.entries(buckets)
+    .map(([date, v]) => ({ date, you: v.you, partner: v.partner }))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 }
 
 /**
@@ -301,14 +381,13 @@ export async function getPointsByCategory(
  * Get points distribution by category, split by user (you/partner).
  * Uses TaskLogs (not events) and returns { [category]: { you, partner } }.
  */
-export async function getPointsByCategoryGrouped(coupleId: string, start?: Date, end?: Date) {
-  const couple = await prisma.couple.findUnique({
-    where: { id: coupleId },
-    include: { users: true },
-  })
-  if (!couple) return {}
-  const [u1, u2] = couple.users
-  const where: any = { coupleId }
+export async function getPointsByCategoryGrouped(
+  coupleId: string,
+  start?: Date,
+  end?: Date,
+  userId?: string,
+) {
+  const where: any = { coupleId, status: 'verified' }
   if (start) where.date = { ...(where.date ?? {}), gte: start }
   if (end)   where.date = { ...(where.date ?? {}), lte: end }
 
@@ -316,13 +395,27 @@ export async function getPointsByCategoryGrouped(coupleId: string, start?: Date,
     where,
     include: { task: true },
   })
+  // `you` is the authenticated caller's points, not a fixed first-user slot.
+  // The previous implementation keyed off `couple.users[0]`, which meant the
+  // second member of a couple saw their own bars rendered under the partner
+  // legend. Fall back to the first user when no userId is passed so the old
+  // behavior is preserved for callers that haven't migrated yet.
   const byCat: Record<string, { you: number; partner: number }> = {}
+  let resolvedUserId = userId
+  if (!resolvedUserId) {
+    const couple = await prisma.couple.findUnique({
+      where: { id: coupleId },
+      include: { users: true },
+    })
+    resolvedUserId = couple?.users?.[0]?.id
+  }
   for (const l of logs) {
     const cat = l.task.category
     if (!byCat[cat]) byCat[cat] = { you: 0, partner: 0 }
     const pts = Number(l.pointsFinal ?? 0)
-    if (l.completedBy === u1.id) byCat[cat].you += pts
-    else if (u2 && l.completedBy === u2.id) byCat[cat].partner += pts
+    if (!l.completedBy) continue
+    if (l.completedBy === resolvedUserId) byCat[cat].you += pts
+    else byCat[cat].partner += pts
   }
   return byCat
 }

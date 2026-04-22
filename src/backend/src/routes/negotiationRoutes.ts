@@ -11,6 +11,16 @@ const router = express.Router()
 import prisma from '../lib/prisma.js'
 const achievementEngine = new AchievementEngine(prisma)
 
+// Sentinel error used inside $transaction blocks to roll back with a specific
+// HTTP status. Throwing aborts the transaction; the outer catch maps it back
+// to an HTTP response.
+class RespondError extends Error {
+  constructor(public status: number, message: string) {
+    super(message)
+    this.name = 'RespondError'
+  }
+}
+
 // Validation schemas
 const createNegotiationSchema = z.object({
   eventId: z.string().cuid('Invalid event ID'),
@@ -134,68 +144,123 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
       return
     }
 
-    // Atomic state transition: only the first request to flip responseType off
-    // 'awaiting' proceeds. Prevents concurrent responses from double-awarding points.
-    const transition = await prisma.negotiation.updateMany({
-      where: { id: req.params.negotiationId, responseType: 'awaiting' },
-      data: {
-        responseType: data.responseType,
-        respondedBy: req.userId,
-        respondedAt: new Date(),
-      },
-    })
-    if (transition.count === 0) {
-      res.status(409).json({ error: 'Negotiation already responded to' })
+    // Validate counter-proposal inputs BEFORE any writes. Previously the
+    // state transition was flipped first and only then validated, which left
+    // events stuck in a broken intermediate state on validation failure
+    // (responseType !== 'awaiting' but no new round created).
+    if (data.responseType === 'counter_proposed' && !data.pointsProposed) {
+      res.status(400).json({ error: 'Points must be provided for counter-proposal' })
       return
     }
 
-    // Handle response
+    // Atomic state transition: only the first request to flip responseType off
+    // 'awaiting' proceeds. Prevents concurrent responses from double-awarding points.
+    // Downstream writes are wrapped in $transaction so any failure rolls back
+    // the transition and leaves the negotiation in its original 'awaiting' state.
+    try {
+      await prisma.$transaction(async (tx) => {
+        const transition = await tx.negotiation.updateMany({
+          where: { id: req.params.negotiationId, responseType: 'awaiting' },
+          data: {
+            responseType: data.responseType,
+            respondedBy: req.userId!,
+            respondedAt: new Date(),
+          },
+        })
+        if (transition.count === 0) {
+          throw new RespondError(409, 'Negotiation already responded to')
+        }
+
+        if (data.responseType === 'accepted') {
+          // Accept the proposal — guarded on event.status so a concurrent force
+          // on the same event cannot be overwritten (and vice versa).
+          const acceptTransition = await tx.event.updateMany({
+            where: {
+              id: negotiation.eventId,
+              status: { in: ['draft', 'pending'] },
+            },
+            data: {
+              status: 'accepted',
+              pointsAgreed: negotiation.pointsProposed,
+            },
+          })
+          if (acceptTransition.count === 0) {
+            throw new RespondError(409, 'Event already resolved')
+          }
+
+          const creatorId = negotiation.event.createdBy
+          if (!creatorId) {
+            throw new RespondError(400, 'Event creator not found')
+          }
+
+          await tx.pointsTransaction.create({
+            data: {
+              coupleId: req.coupleId!,
+              userId: creatorId,
+              type: 'event_accepted',
+              relatedEventId: negotiation.eventId,
+              amount: new Decimal(-negotiation.pointsProposed),
+              description: `Actividad aceptada: ${negotiation.event.title || negotiation.event.type}`,
+            },
+          })
+        } else if (data.responseType === 'counter_proposed') {
+          const nextRound = negotiation.event.negotiationRound + 1
+
+          // MVP: no premium plan implementation yet, so we do not enforce the
+          // maxFreeRounds cap. The schema column + lifecycle are preserved for
+          // when premium ships. The default was bumped to a large value so that
+          // existing rows never trip the check either.
+
+          await tx.negotiation.create({
+            data: {
+              eventId: negotiation.eventId,
+              roundNumber: nextRound,
+              proposedBy: req.userId!,
+              pointsProposed: new Decimal(data.pointsProposed!),
+              message: data.message,
+              responseType: 'awaiting',
+            },
+          })
+
+          await tx.event.update({
+            where: { id: negotiation.eventId },
+            data: {
+              negotiationRound: nextRound,
+              pointsCalculated: new Decimal(data.pointsProposed!),
+              lastProposedBy: req.userId!,
+              lastProposedPoints: new Decimal(data.pointsProposed!),
+            },
+          })
+        } else {
+          await tx.event.update({
+            where: { id: negotiation.eventId },
+            data: { status: 'rejected' },
+          })
+        }
+      })
+    } catch (txErr) {
+      if (txErr instanceof RespondError) {
+        res.status(txErr.status).json({ error: txErr.message })
+        return
+      }
+      throw txErr
+    }
+
+    // Side effects that must run AFTER the transaction has committed.
+    // These are non-fatal for the response itself: on failure we log and
+    // continue so the user still sees success.
     if (data.responseType === 'accepted') {
-      // Accept the proposal — guarded on event.status so a concurrent force
-      // on the same event cannot be overwritten (and vice versa).
-      const acceptTransition = await prisma.event.updateMany({
-        where: {
-          id: negotiation.eventId,
-          status: { in: ['draft', 'pending'] },
-        },
-        data: {
-          status: 'accepted',
-          pointsAgreed: negotiation.pointsProposed,
-        },
-      })
-      if (acceptTransition.count === 0) {
-        res.status(409).json({ error: 'Event already resolved' })
-        return
-      }
-
-      const creatorId = negotiation.event.createdBy
-      if (!creatorId) {
-        res.status(400).json({ error: 'Event creator not found' })
-        return
-      }
-
-      // Deduct points from the person who requested the activity
-      await prisma.pointsTransaction.create({
-        data: {
-          coupleId: req.coupleId,
-          userId: creatorId,
-          type: 'event_accepted',
-          relatedEventId: negotiation.eventId,
-          amount: new Decimal(-negotiation.pointsProposed),
-          description: `Actividad aceptada: ${negotiation.event.title || negotiation.event.type}`,
-        },
-      })
-
-      // Trigger achievement check (legacy per-user engine)
       if (negotiation.proposedBy) {
-        await achievementEngine.checkAchievements(
-          negotiation.proposedBy,
-          req.coupleId,
-          { type: 'event_accepted', eventId: negotiation.eventId }
-        )
+        try {
+          await achievementEngine.checkAchievements(
+            negotiation.proposedBy,
+            req.coupleId,
+            { type: 'event_accepted', eventId: negotiation.eventId }
+          )
+        } catch (achErr) {
+          console.error('Achievement check error (non-fatal):', achErr)
+        }
       }
-
-      // Non-fatal gamification updates (new system: streak, XP, couple achievements map)
       try {
         await updateDailyStreak(req.coupleId)
         await calculateAndSaveXP(req.coupleId)
@@ -203,60 +268,6 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
       } catch (gamErr) {
         console.error('Gamification update error (non-fatal):', gamErr)
       }
-    } else if (data.responseType === 'counter_proposed') {
-      // Counter-propose
-      if (!data.pointsProposed) {
-        res.status(400).json({ error: 'Points must be provided for counter-proposal' })
-        return
-      }
-
-      const nextRound = negotiation.event.negotiationRound + 1
-      const canCreateFreeRound = nextRound <= negotiation.event.maxFreeRounds
-
-      if (!canCreateFreeRound) {
-        // Check if couple has premium
-        const subscription = await prisma.subscription.findUnique({
-          where: { coupleId: req.coupleId },
-        })
-
-        if (subscription?.plan === 'free') {
-          res.status(400).json({
-            error: 'Free negotiation rounds exhausted. Upgrade to premium for more rounds.',
-          })
-          return
-        }
-      }
-
-      // Create new negotiation round
-      await prisma.negotiation.create({
-        data: {
-          eventId: negotiation.eventId,
-          roundNumber: nextRound,
-          proposedBy: req.userId,
-          pointsProposed: new Decimal(data.pointsProposed),
-          message: data.message,
-          responseType: 'awaiting',
-        },
-      })
-
-      // Update event
-      await prisma.event.update({
-        where: { id: negotiation.eventId },
-        data: {
-          negotiationRound: nextRound,
-          pointsCalculated: new Decimal(data.pointsProposed),
-          lastProposedBy: req.userId,
-          lastProposedPoints: new Decimal(data.pointsProposed),
-        },
-      })
-    } else {
-      // Rejected
-      await prisma.event.update({
-        where: { id: negotiation.eventId },
-        data: {
-          status: 'rejected',
-        },
-      })
     }
 
     // Notify the event creator about the partner's response

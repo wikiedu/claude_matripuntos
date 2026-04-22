@@ -22,17 +22,33 @@ export function BalanceEvolutionChart({ points, youName = 'Tú', partnerName = '
       </div>
     )
   }
-  const w = 280, h = 120, pad = 20
+  const w = 280, h = 120, padTop = 10, padBottom = 20, padLeft = 28, padRight = 10
   const allVals = points.flatMap(p => [p.you, p.partner])
-  const min = Math.min(...allVals, 0)
-  const max = Math.max(...allVals, 10)
+  const rawMin = Math.min(...allVals, 0)
+  const rawMax = Math.max(...allVals, 10)
+  // Round the bounds outward to a "nice" step so the Y-axis ticks land on
+  // whole numbers a human would pick (5, 10, 25…) instead of 7.3333.
+  const niceStep = (span: number): number => {
+    const rough = span / 4
+    const mag = Math.pow(10, Math.floor(Math.log10(rough)))
+    const norm = rough / mag
+    const pick = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10
+    return pick * mag
+  }
+  const step = niceStep(rawMax - rawMin || 10)
+  const min = Math.floor(rawMin / step) * step
+  const max = Math.ceil(rawMax / step) * step
   const range = (max - min) || 1
-  const xs = points.map((_, i) => pad + (i * (w - 2 * pad)) / (points.length - 1))
-  const yYou = points.map(v => h - pad - ((v.you - min) / range) * (h - 2 * pad))
-  const yPartner = points.map(v => h - pad - ((v.partner - min) / range) * (h - 2 * pad))
+  const innerW = w - padLeft - padRight
+  const innerH = h - padTop - padBottom
+  const toY = (v: number) => padTop + innerH - ((v - min) / range) * innerH
+  const xs = points.map((_, i) => padLeft + (i * innerW) / (points.length - 1))
+  const yYou = points.map(v => toY(v.you))
+  const yPartner = points.map(v => toY(v.partner))
   const pathYou = xs.map((x, i) => `${i === 0 ? 'M' : 'L'} ${x} ${yYou[i]}`).join(' ')
   const pathPartner = xs.map((x, i) => `${i === 0 ? 'M' : 'L'} ${x} ${yPartner[i]}`).join(' ')
-  const zeroY = h - pad - ((0 - min) / range) * (h - 2 * pad)
+  const ticks: number[] = []
+  for (let v = min; v <= max + 1e-9; v += step) ticks.push(Math.round(v * 100) / 100)
   const youDelta = points[points.length - 1].you - points[0].you
   const partnerDelta = points[points.length - 1].partner - points[0].partner
   // With many daily points we can't render a text label under every dot — pick a
@@ -61,9 +77,27 @@ export function BalanceEvolutionChart({ points, youName = 'Tú', partnerName = '
         </div>
 
         <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} preserveAspectRatio="none">
-          {/* Zero baseline */}
-          <line x1={pad} y1={zeroY} x2={w - pad} y2={zeroY} stroke="rgba(156,163,175,0.3)" strokeDasharray="3 3" />
-          <text x={w - pad + 2} y={zeroY + 3} fontSize="9" fill="#6b7280">0</text>
+          {/* Y-axis grid lines + labels. The zero line gets a stronger color so
+              the "who's net positive" split is still scannable. */}
+          {ticks.map((tick, i) => {
+            const y = toY(tick)
+            const isZero = tick === 0
+            return (
+              <g key={`tick-${i}`}>
+                <line
+                  x1={padLeft}
+                  y1={y}
+                  x2={w - padRight}
+                  y2={y}
+                  stroke={isZero ? 'rgba(156,163,175,0.45)' : 'rgba(156,163,175,0.15)'}
+                  strokeDasharray={isZero ? '3 3' : '2 4'}
+                />
+                <text x={padLeft - 4} y={y + 3} fontSize="9" fill="#9ca3af" textAnchor="end">
+                  {tick > 0 ? `+${tick}` : tick}
+                </text>
+              </g>
+            )
+          })}
 
           {/* Partner line (drawn first so "you" sits on top) */}
           <path d={pathPartner} stroke={PARTNER_COLOR} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />

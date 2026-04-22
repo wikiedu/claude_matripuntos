@@ -388,7 +388,16 @@ export default function Tasks() {
     if (l.date?.toString().startsWith(today)) taskIdsHiddenFromToday.add(l.taskId)
     if (l.status === 'pending') taskIdsHiddenFromToday.add(l.taskId)
   }
-  const todayTasks = filteredTasks.filter((t) => !taskIdsHiddenFromToday.has(t.id))
+  // Hoy only includes tasks the user actively scheduled (today or overdue).
+  // Unscheduled catalog/recurring tasks stay in the Catálogo/Esta semana sections
+  // so "Hoy" doesn't auto-populate with stuff the user didn't put there.
+  const todayTasks = filteredTasks
+    .filter((t) => !taskIdsHiddenFromToday.has(t.id))
+    .filter((t) => {
+      if (!t.scheduledFor) return false
+      const sf = toLocalDateString(t.scheduledFor)
+      return sf <= today
+    })
 
   // Week bounds (in local time) — used for the "Esta semana" section
   const weekBounds = (() => {

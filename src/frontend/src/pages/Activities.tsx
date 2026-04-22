@@ -28,8 +28,11 @@ export default function Activities() {
     mutationFn: ({ negotiationId, responseType }: { negotiationId: string; eventId: string; responseType: 'accepted' | 'rejected' }) =>
       apiClient.negotiations.respond(negotiationId, { responseType }),
     onSuccess: (_, vars) => invalidate(vars.eventId),
-    onError: () => {
-      window.alert('No se pudo completar la acción. Inténtalo de nuevo.')
+    onError: (err) => {
+      const msg = err instanceof Error && err.message
+        ? err.message
+        : 'No se pudo completar la acción. Inténtalo de nuevo.'
+      window.alert(msg)
       invalidate()
     },
   })

@@ -23,8 +23,13 @@ export function ActivitiesBanner() {
       payload: Parameters<typeof apiClient.negotiations.respond>[1]
     }) => apiClient.negotiations.respond(v.negotiationId, v.payload),
     onSuccess: (_, v) => invalidate(v.eventId),
-    onError: () => {
-      window.alert('No se pudo completar la acción. Inténtalo de nuevo.')
+    onError: (err) => {
+      // Surface the real backend error. The API client throws Error(error.error)
+      // for non-OK responses, so err.message is the human-readable reason.
+      const msg = err instanceof Error && err.message
+        ? err.message
+        : 'No se pudo completar la acción. Inténtalo de nuevo.'
+      window.alert(msg)
       invalidate()
     },
   })

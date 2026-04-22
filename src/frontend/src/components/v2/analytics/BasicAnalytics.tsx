@@ -9,18 +9,33 @@ import { useAppStore } from '../../../store/useAppStore'
 
 const DOW = ['D', 'L', 'M', 'X', 'J', 'V', 'S']
 
-// Backend /analytics/daily-activity returns an array of {date, count, totalPoints, types}.
-// No per-user split exists upstream, so we surface combined activity under "Tú" and leave
-// the partner bar empty until an endpoint provides split data.
-function normalizeDaily(raw: unknown) {
-  if (!Array.isArray(raw)) return []
-  return raw.map((d: any) => {
-    const dt = new Date(d.date)
-    const label = isNaN(dt.getTime()) ? String(d.date ?? '') : DOW[dt.getDay()]
+// Build the 7-day window the chart shows — aligned to the local day so a row
+// exists even when neither partner logged anything (otherwise Mon..Sun renders
+// with gaps and the chart lies about the week).
+function lastSevenDaysWindow() {
+  const days: { iso: string; label: string }[] = []
+  const base = new Date()
+  base.setHours(12, 0, 0, 0) // avoid DST / timezone edge drifting a day
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(base)
+    d.setDate(base.getDate() - i)
+    days.push({ iso: d.toISOString().split('T')[0], label: DOW[d.getDay()] })
+  }
+  return days
+}
+
+// Backend /analytics/daily-activity?groupByUser=true returns `{date, you, partner}[]`
+// covering only days that have activity. Merge against the fixed 7-day window so
+// empty days render as zero-height bars instead of disappearing.
+function normalizeDailySplit(raw: unknown, window: { iso: string; label: string }[]) {
+  const rows: { date: string; you: number; partner: number }[] = Array.isArray(raw) ? raw : []
+  const byDate = new Map(rows.map(r => [String(r.date), r]))
+  return window.map(w => {
+    const row = byDate.get(w.iso)
     return {
-      label,
-      you: Number(d.totalPoints ?? 0),
-      partner: 0,
+      label: w.label,
+      you: Number(row?.you ?? 0),
+      partner: Number(row?.partner ?? 0),
     }
   })
 }
@@ -47,7 +62,13 @@ export function BasicAnalytics() {
   const youName     = user?.name ?? 'Tú'
   const partnerName = users.find((u: any) => u.id !== user?.id)?.name ?? 'Pareja'
 
-  const { data: daily }  = useQuery({ queryKey: ['a-daily'],  queryFn: () => fetchAnalytics('/analytics/daily-activity') })
+  const weekWindow = lastSevenDaysWindow()
+  const weekStart = weekWindow[0].iso
+  const weekEnd = weekWindow[weekWindow.length - 1].iso
+  const { data: daily }  = useQuery({
+    queryKey: ['a-daily', weekStart, weekEnd],
+    queryFn: () => fetchAnalytics(`/analytics/daily-activity?groupByUser=true&startDate=${weekStart}&endDate=${weekEnd}`),
+  })
   // Pull the grouped (you/partner split) version so the new area chart can
   // render the reparto bar. The old single-total pie chart has been retired
   // in favor of CategoryBalanceChart.
@@ -63,7 +84,7 @@ export function BasicAnalytics() {
   })
   const { data: time }   = useQuery({ queryKey: ['a-time'],   queryFn: () => fetchAnalytics('/analytics/time-invested?range=week') })
 
-  const dayList  = normalizeDaily(daily)
+  const dayList  = normalizeDailySplit(daily, weekWindow)
   const balancePoints = normalizeDailyBalance(balance30)
 
   return (

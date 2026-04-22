@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Avatar } from '../primitives/Avatar'
 
 export interface MovementVM {
   id: string
@@ -10,8 +9,23 @@ export interface MovementVM {
   action: string
   delta: number
   when: string
-  kind: 'activity' | 'task'
+  // 'task' for verified task logs, 'activity' for accepted/forced events,
+  // 'negotiation' for rejected events / resolved negotiations. Each kind
+  // gets its own icon so the feed is scannable at a glance.
+  kind: 'activity' | 'task' | 'negotiation'
   refId: string
+  status?: string | null
+}
+
+// Pick an icon that reflects what happened, not just who did it. Avatars made
+// every row look the same; a small typed badge (✅ task verified, 🎯 activity
+// accepted, 🔄 negotiation, ❌ rejected) is much easier to scan.
+function iconFor(m: MovementVM): string {
+  if (m.status === 'rejected') return '❌'
+  if (m.status === 'forced') return '⚡'
+  if (m.kind === 'task') return '✅'
+  if (m.kind === 'negotiation') return '🔄'
+  return '🎯'
 }
 
 interface Props { movements: MovementVM[] }
@@ -27,8 +41,8 @@ export function RecentMovementsTabs({ movements }: Props) {
   )
 
   function onRowTap(m: MovementVM) {
-    if (m.kind === 'activity') nav(`/home/activities/${m.refId}`)
-    else nav(`/home/tasks?logId=${m.refId}`)
+    if (m.kind === 'task') nav(`/home/tasks?logId=${m.refId}`)
+    else nav(`/home/activities/${m.refId}`)
   }
 
   return (
@@ -54,7 +68,12 @@ export function RecentMovementsTabs({ movements }: Props) {
               className={['flex items-center gap-2 px-3 py-2.5 w-full text-left bg-transparent border-0',
                 i > 0 ? 'border-t border-brd-subtle' : ''].join(' ')}
             >
-              <Avatar emoji={m.userAvatarEmoji} color={m.userAvatarColor} size="sm" />
+              <span
+                aria-hidden
+                className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-surface-elevated border border-brd-subtle text-sm"
+              >
+                {iconFor(m)}
+              </span>
               <div className="flex-1 min-w-0 text-xs">
                 <span className="text-text-primary font-semibold">{m.userName}</span>
                 <span className="text-text-secondary"> · {m.action}</span>

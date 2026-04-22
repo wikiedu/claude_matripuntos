@@ -61,12 +61,16 @@ router.get('/users', async (req: Request, res: Response) => {
 router.get('/daily-activity', async (req: Request, res: Response) => {
   try {
     const coupleId = (req as any).user.coupleId
+    const userId = (req as any).user.id ?? (req as any).user.userId
     const { startDate, endDate } = req.query
+    const grouped = req.query.groupByUser === 'true'
 
     const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30))
     const end = endDate ? new Date(endDate as string) : new Date()
 
-    const activity = await analyticsService.getDailyActivityAnalytics(coupleId, start, end)
+    const activity = grouped
+      ? await analyticsService.getDailyActivityGrouped(coupleId, userId, start, end)
+      : await analyticsService.getDailyActivityAnalytics(coupleId, start, end)
 
     res.json({
       message: 'Daily activity analytics retrieved',
@@ -110,6 +114,7 @@ router.get('/negotiations', async (req: Request, res: Response) => {
 router.get('/points-by-category', async (req: Request, res: Response) => {
   try {
     const coupleId = (req as any).user.coupleId
+    const userId = (req as any).user.id ?? (req as any).user.userId
     const { startDate, endDate } = req.query
     const grouped = req.query.groupByUser === 'true'
 
@@ -117,7 +122,7 @@ router.get('/points-by-category', async (req: Request, res: Response) => {
     const end = endDate ? new Date(endDate as string) : new Date()
 
     const distribution = grouped
-      ? await analyticsService.getPointsByCategoryGrouped(coupleId, start, end)
+      ? await analyticsService.getPointsByCategoryGrouped(coupleId, start, end, userId)
       : await analyticsService.getPointsByCategory(coupleId, start, end)
 
     res.json({

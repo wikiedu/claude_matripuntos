@@ -42,7 +42,7 @@ export function CounterOfferSheet({ open, currentPoints, onClose, onSubmit }: Pr
             aria-label="Puntos propuestos"
             type="number"
             min={1}
-            step="0.5"
+            step="1"
             value={points}
             onChange={(e) => setPoints(e.target.value)}
             className="bg-surface-elevated border border-brd-subtle rounded-lg px-3 py-2 text-sm text-text-primary"

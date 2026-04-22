@@ -2,6 +2,37 @@ import { PrismaClient } from '@prisma/client';
 
 const RECENT_ACTIVITY_LIMIT = 5;
 
+// Turn snake_case activity type codes into human-readable Spanish labels.
+// Known codes get a curated translation; unknown codes fall back to a
+// reasonable title-cased form so we never leak "deporte_hobby" into the UI.
+const ACTIVITY_TYPE_LABELS: Record<string, string> = {
+  trabajo: 'Trabajo',
+  deporte: 'Deporte',
+  deporte_hobby: 'Deporte/Hobby',
+  ocio: 'Ocio',
+  familia: 'Familia',
+  salud: 'Salud',
+  social: 'Social',
+  viaje: 'Viaje',
+  estudio: 'Estudio',
+  descanso: 'Descanso',
+  cuidado_personal: 'Cuidado personal',
+  compromiso: 'Compromiso',
+  otros: 'Otros',
+};
+
+function humanizeActivityType(code?: string | null): string {
+  if (!code) return 'Actividad';
+  const key = code.toLowerCase();
+  if (ACTIVITY_TYPE_LABELS[key]) return ACTIVITY_TYPE_LABELS[key];
+  // Fallback: snake_case → Title Case With Spaces
+  return key
+    .split(/[_\-]/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 export type RecentActivityType = 'event' | 'task' | 'negotiation';
 
 export interface RecentActivity {
@@ -96,7 +127,7 @@ export async function getRecentActivity(
     activitiesArray.push({
       id: event.id,
       type: 'event',
-      name: event.title || event.type || 'Event',
+      name: event.title || humanizeActivityType(event.type),
       date: event.updatedAt,
       relatedId: event.id,
       delta: creditedPoints,
@@ -122,7 +153,7 @@ export async function getRecentActivity(
     activitiesArray.push({
       id: neg.id,
       type: 'negotiation',
-      name: `Negotiation - ${neg.event.type || 'Event'}`,
+      name: `Negociación · ${humanizeActivityType(neg.event.type)}`,
       date: neg.respondedAt as Date,
       relatedId: neg.eventId,
       delta: 0,

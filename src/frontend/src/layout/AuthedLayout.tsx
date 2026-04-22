@@ -53,7 +53,7 @@ export function AuthedLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen pb-20 max-w-[500px] mx-auto">
+    <div className="min-h-screen pb-20 max-w-[500px] mx-auto overflow-x-hidden">
       <AppHeader
         userName={user.name}
         userAvatarEmoji={user.avatarEmoji}

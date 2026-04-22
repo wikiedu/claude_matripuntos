@@ -128,7 +128,7 @@ model Event {
 
   status                String                   @default("draft")
   negotiationRound      Int                      @default(0)
-  maxFreeRounds         Int                      @default(2)
+  maxFreeRounds         Int                      @default(99)  // MVP: no premium plan yet, effectively unlimited
   currentNegotiationRound Int                    @default(0)
   lastProposedBy        String?
   lastProposedPoints    Decimal?

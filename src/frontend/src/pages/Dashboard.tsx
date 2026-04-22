@@ -9,6 +9,7 @@ import { DailyPhrase } from '../components/v2/dashboard/DailyPhrase'
 import { BalanceLevelHero } from '../components/v2/dashboard/BalanceLevelHero'
 import { StreakStrip } from '../components/v2/dashboard/StreakStrip'
 import { ActivitiesBanner } from '../components/v2/dashboard/ActivitiesBanner'
+import { VerifyTasksBanner } from '../components/v2/dashboard/VerifyTasksBanner'
 import { TodayTasksSection } from '../components/v2/dashboard/TodayTasksSection'
 import { RecentMovementsTabs } from '../components/v2/dashboard/RecentMovementsTabs'
 import { QuickPreviews } from '../components/v2/dashboard/QuickPreviews'
@@ -19,8 +20,10 @@ import type { Task, TaskLog } from '../types/index'
 
 const LEVEL_ORDER = ['nido', 'brote', 'hogar', 'raices', 'diamante', 'leyenda', 'eterno']
 
-function deriveKind(a: RecentActivity): 'activity' | 'task' {
-  return a.type === 'event' || a.type === 'negotiation' ? 'activity' : 'task'
+function deriveKind(a: RecentActivity): 'activity' | 'task' | 'negotiation' {
+  if (a.type === 'task') return 'task'
+  if (a.type === 'negotiation') return 'negotiation'
+  return 'activity'
 }
 
 export default function Dashboard() {
@@ -72,12 +75,13 @@ export default function Dashboard() {
       if (l.date && toLocalDateString(l.date) === today) taskIdsHidden.add(l.taskId)
       if (l.status === 'pending') taskIdsHidden.add(l.taskId)
     }
-    // Mirror the Tasks page "Hoy" logic: a task belongs to today's list if it is
-    // either (a) unscheduled (catalog/recurring), (b) scheduled exactly today, or
-    // (c) overdue (scheduled for a past date and still not done).
+    // Mirror the Tasks page "Hoy" logic: only show tasks the user actively
+    // scheduled — today or overdue. Unscheduled catalog/recurring tasks are
+    // intentionally excluded so the dashboard doesn't populate with stuff the
+    // user didn't put there.
     return tasksRes.tasks
       .filter((t) => {
-        if (!t.scheduledFor) return true
+        if (!t.scheduledFor) return false
         const sf = toLocalDateString(t.scheduledFor)
         return sf <= today
       })
@@ -118,6 +122,7 @@ export default function Dashboard() {
     when: new Date(a.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
     kind: deriveKind(a),
     refId: a.relatedId,
+    status: a.status ?? null,
   }))
 
   async function handleComplete(taskId: string) {
@@ -164,6 +169,7 @@ export default function Dashboard() {
         freezes={gamificationStatus?.freezerAvailable ? 1 : 0}
       />
       <ActivitiesBanner />
+      <VerifyTasksBanner logs={logsRes?.logs ?? []} />
       <TodayTasksSection
         tasks={todayTasks}
         onComplete={handleComplete}

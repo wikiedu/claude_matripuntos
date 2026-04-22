@@ -12,9 +12,13 @@ interface Props { data: Record<string, CatPoints> | undefined; youName?: string;
 
 // Slug → macro-area mapping. Keep it small and forgiving: unknown slugs fall
 // into "Otros" so new category names we add later don't disappear silently.
+// Cuidado and Mascotas are separate buckets so couples without kids don't see
+// the 👶 label just because they walked the dog; empty buckets are dropped
+// downstream.
 const AREAS: { key: string; label: string; emoji: string; slugs: string[] }[] = [
   { key: 'hogar',   label: 'Hogar',        emoji: '🏠', slugs: ['cocina', 'limpieza', 'baños', 'banos', 'compra'] },
-  { key: 'cuidado', label: 'Cuidado',      emoji: '👶', slugs: ['cuidado', 'mascotas'] },
+  { key: 'cuidado', label: 'Cuidado niños', emoji: '👶', slugs: ['cuidado'] },
+  { key: 'mascotas', label: 'Mascotas',    emoji: '🐾', slugs: ['mascotas'] },
   { key: 'logistica', label: 'Logística',  emoji: '📋', slugs: ['logistica', 'logística'] },
   { key: 'mantenimiento', label: 'Mantenimiento', emoji: '🛠️', slugs: ['mantenimiento', 'jardineria', 'jardinería'] },
 ]
