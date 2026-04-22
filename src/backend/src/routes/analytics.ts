@@ -27,7 +27,7 @@ function parseRangeBoundary(raw: unknown, kind: 'start' | 'end'): Date | undefin
  */
 router.get('/couple', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
     const { startDate, endDate } = req.query
 
     const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30))
@@ -51,7 +51,7 @@ router.get('/couple', async (req: Request, res: Response) => {
  */
 router.get('/users', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
     const { startDate, endDate } = req.query
 
     const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30))
@@ -75,8 +75,8 @@ router.get('/users', async (req: Request, res: Response) => {
  */
 router.get('/daily-activity', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
-    const userId = (req as any).user.id ?? (req as any).user.userId
+    const coupleId = req.coupleId!
+    const userId = req.userId!
     const { startDate, endDate } = req.query
     const grouped = req.query.groupByUser === 'true'
 
@@ -104,7 +104,7 @@ router.get('/daily-activity', async (req: Request, res: Response) => {
  */
 router.get('/negotiations', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
     const { startDate, endDate } = req.query
 
     const start = startDate ? new Date(startDate as string) : new Date(new Date().setDate(new Date().getDate() - 30))
@@ -128,8 +128,8 @@ router.get('/negotiations', async (req: Request, res: Response) => {
  */
 router.get('/points-by-category', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
-    const userId = (req as any).user.id ?? (req as any).user.userId
+    const coupleId = req.coupleId!
+    const userId = req.userId!
     const { startDate, endDate } = req.query
     const grouped = req.query.groupByUser === 'true'
 
@@ -156,7 +156,7 @@ router.get('/points-by-category', async (req: Request, res: Response) => {
  */
 router.get('/weekly-trends', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
     const { weeks } = req.query
 
     const numberOfWeeks = weeks ? parseInt(weeks as string) : 8
@@ -179,7 +179,7 @@ router.get('/weekly-trends', async (req: Request, res: Response) => {
  */
 router.get('/monthly/:year/:month', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
     const year = parseInt(req.params.year)
     const month = parseInt(req.params.month)
 
@@ -205,7 +205,7 @@ router.get('/monthly/:year/:month', async (req: Request, res: Response) => {
  */
 router.get('/yearly/:year', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
     const year = parseInt(req.params.year)
 
     if (!year) {
@@ -231,7 +231,7 @@ router.get('/yearly/:year', async (req: Request, res: Response) => {
  */
 router.get('/daily-breakdown', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
     const { startDate, endDate } = req.query
 
     if (!startDate || !endDate) {
@@ -265,7 +265,7 @@ router.get('/daily-breakdown', async (req: Request, res: Response) => {
  */
 router.get('/time-invested', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
     const range = (req.query.range as 'week' | 'month') ?? 'week'
     const data = await analyticsService.getTimeInvested(coupleId, range)
     res.json({ success: true, data })
@@ -281,7 +281,7 @@ router.get('/time-invested', async (req: Request, res: Response) => {
  */
 router.get('/heatmap', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
     const weeks = Math.max(1, Math.min(52, Number(req.query.weeks ?? 4)))
     const data = await analyticsService.getHeatmap(coupleId, weeks)
     res.json({ success: true, data })
@@ -297,7 +297,7 @@ router.get('/heatmap', async (req: Request, res: Response) => {
  */
 router.get('/completion-rate', async (req, res) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
     const range = (req.query.range as 'week' | 'month') ?? 'month'
     const data = await analyticsService.getCompletionRate(coupleId, range)
     res.json({ success: true, data })
@@ -313,7 +313,7 @@ router.get('/completion-rate', async (req, res) => {
  */
 router.get('/insight', async (req, res) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
     const month = Number(req.query.month ?? new Date().getMonth() + 1)
     const year  = Number(req.query.year  ?? new Date().getFullYear())
     const data = await analyticsService.getMonthlyInsight(coupleId, month, year)

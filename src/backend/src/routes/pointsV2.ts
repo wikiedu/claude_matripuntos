@@ -1,4 +1,6 @@
 import { Router, Request, Response } from 'express'
+import { z } from 'zod'
+import { Decimal } from '@prisma/client/runtime/library'
 import { authenticateToken } from '../middleware/auth.js'
 import { pointsCalculator } from '../services/pointsCalculator.js'
 
@@ -7,6 +9,47 @@ import prisma from '../lib/prisma.js'
 
 // Middleware to ensure user is authenticated
 router.use(authenticateToken)
+
+// Audit v1.4 P0-B: stateless preview — lets the UI show a live breakdown
+// without pre-persisting a draft event and without shipping a duplicate
+// formula to the frontend. This is the single source of truth for what
+// the user will see on the created event.
+const previewSchema = z.object({
+  type: z.string().min(1).max(100),
+  dateStart: z.string().datetime(),
+  dateEnd: z.string().datetime(),
+  pointsBase: z.number().positive().max(500),
+  hasChildren: z.boolean().optional().default(false),
+  numChildren: z.number().int().min(0).max(10).optional().default(0),
+})
+
+router.post('/preview', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id
+    const data = previewSchema.parse(req.body)
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user?.coupleId) {
+      return res.status(401).json({ error: 'Authentication required' })
+    }
+    const virtualEvent = {
+      coupleId: user.coupleId,
+      type: data.type,
+      dateStart: new Date(data.dateStart),
+      dateEnd: new Date(data.dateEnd),
+      hasChildren: data.hasChildren,
+      numChildren: data.numChildren,
+      pointsBase: new Decimal(data.pointsBase),
+    } as any
+    const breakdown = await pointsCalculator.getCalculationBreakdown(virtualEvent, user)
+    res.json({ breakdown })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Validation error', details: error.errors })
+    }
+    console.error('Error previewing points:', error)
+    res.status(500).json({ error: 'Failed to preview points' })
+  }
+})
 
 /**
  * Get points calculation breakdown for an event

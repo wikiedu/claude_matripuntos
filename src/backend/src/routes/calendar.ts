@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 import * as calendarService from '../services/calendarService.js'
 
@@ -13,7 +14,7 @@ router.use(authenticateToken)
  */
 router.get('/month/:year/:month', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
     const year = parseInt(req.params.year)
     const month = parseInt(req.params.month)
 
@@ -39,7 +40,7 @@ router.get('/month/:year/:month', async (req: Request, res: Response) => {
  */
 router.get('/week/:year/:week', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
     const year = parseInt(req.params.year)
     const week = parseInt(req.params.week)
 
@@ -65,7 +66,7 @@ router.get('/week/:year/:week', async (req: Request, res: Response) => {
  */
 router.get('/day/:date', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
     const { date } = req.params
 
     const calendar = await calendarService.getDayCalendar(coupleId, date)
@@ -86,7 +87,7 @@ router.get('/day/:date', async (req: Request, res: Response) => {
  */
 router.get('/upcoming', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
 
     const entries = await calendarService.getUpcomingEvents(coupleId)
 
@@ -107,7 +108,7 @@ router.get('/upcoming', async (req: Request, res: Response) => {
  */
 router.get('/special-dates', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
 
     const specialDates = await calendarService.getSpecialDates(coupleId)
 
@@ -124,25 +125,31 @@ router.get('/special-dates', async (req: Request, res: Response) => {
 /**
  * POST /api/calendar/entry
  * Create a calendar entry
+ *
+ * Audit v1.4 P2-C: previously accepted any shape — Zod validates now.
  */
+const createEntrySchema = z.object({
+  type: z.enum(['event', 'task', 'service', 'birthday', 'holiday']),
+  title: z.string().min(1).max(200).trim(),
+  date: z.string().min(1),
+  description: z.string().max(1000).trim().optional(),
+  color: z.string().max(20).optional(),
+  relatedEventId: z.string().max(50).optional(),
+  relatedTaskId: z.string().max(50).optional(),
+})
+
 router.post('/entry', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
-    const { type, title, date, description, color, relatedEventId, relatedTaskId } = req.body
-
-    if (!type || !title || !date) {
-      return res.status(400).json({ error: 'Missing required fields: type, title, date' })
+    const coupleId = req.coupleId!
+    const parsed = createEntrySchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Validation error', details: parsed.error.errors })
     }
 
-    const entry = await calendarService.createCalendarEntry(coupleId, {
-      type,
-      title,
-      date,
-      description,
-      color,
-      relatedEventId,
-      relatedTaskId,
-    })
+    const entry = await calendarService.createCalendarEntry(
+      coupleId,
+      parsed.data as calendarService.CalendarEntryInput,
+    )
 
     res.status(201).json({
       message: 'Calendar entry created',
@@ -160,7 +167,7 @@ router.post('/entry', async (req: Request, res: Response) => {
  */
 router.put('/entry/:entryId', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
     const { entryId } = req.params
     const updateData = req.body
 
@@ -182,7 +189,7 @@ router.put('/entry/:entryId', async (req: Request, res: Response) => {
  */
 router.delete('/entry/:entryId', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
     const { entryId } = req.params
 
     const result = await calendarService.deleteCalendarEntry(entryId, coupleId)
@@ -203,7 +210,7 @@ router.delete('/entry/:entryId', async (req: Request, res: Response) => {
  */
 router.get('/by-type/:type', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user.coupleId
+    const coupleId = req.coupleId!
     const { type } = req.params
     const { startDate, endDate } = req.query
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ChevronRight, Copy, CheckCircle, Loader, Mail, Download, Trash2, ExternalLink } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Copy, CheckCircle, Loader, Download, Trash2, ExternalLink } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
@@ -325,10 +325,6 @@ function CoupleSection({ onBack }: { onBack: () => void }) {
   const { user, couple } = useAppStore()
   const partner = couple?.users?.find((u) => u.id !== user?.id)
 
-  const [email, setEmail] = useState('')
-  const [inviteLink, setInviteLink] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [unlinkOpen, setUnlinkOpen] = useState(false)
 
@@ -356,19 +352,6 @@ function CoupleSection({ onBack }: { onBack: () => void }) {
       setTimeout(() => setJustCopied(null), 2000)
     } catch {
       setError('No se pudo copiar automáticamente. Selecciona el texto y cópialo.')
-    }
-  }
-
-  async function sendInvite() {
-    if (!email.trim()) return
-    setLoading(true); setError(null)
-    try {
-      const result = await apiClient.invitations.invitePartner({ inviteeEmail: email.trim() })
-      setInviteLink(result.invitation?.invitationLink || null)
-    } catch (err: any) {
-      setError(err?.message ?? 'Error al crear invitación')
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -429,11 +412,10 @@ function CoupleSection({ onBack }: { onBack: () => void }) {
             <p className="text-xs text-text-secondary">Invita a alguien para empezar a usar Matripuntos juntos.</p>
           </div>
 
-          {/* v1.4 · Join code — la forma más rápida de invitar. Aparece solo
-              si la pareja ya tiene joinCode (parejas legacy pueden no tenerlo
-              hasta que corra el backfill). */}
-          {joinCode && joinLink && (
-            <div className="space-y-2 pb-4 border-b border-brd-subtle">
+          {/* v1.4 · Join code — única vía de invitación. Comparte el código o
+              el enlace y quien lo use al registrarse entra directo a tu hogar. */}
+          {joinCode && joinLink ? (
+            <div className="space-y-2">
               <p className="text-xs font-bold text-text-primary">🔑 Código de pareja</p>
               <p className="text-[11px] text-text-secondary">
                 Comparte este código por voz o mensaje. Quien lo use al registrarse entra directo a tu hogar.
@@ -457,103 +439,9 @@ function CoupleSection({ onBack }: { onBack: () => void }) {
                 </span>
               </Button>
             </div>
-          )}
-
-          {!inviteLink && (
-            <div className="space-y-4">
-              {/* Option A — Generate link (works today). Email is used to
-                  auto-link the couple if/when your partner signs up with it. */}
-              <div className="space-y-2">
-                <p className="text-xs font-bold text-text-primary">🔗 Generar enlace por email</p>
-                <p className="text-[11px] text-text-secondary">
-                  Crea un enlace y compártelo con tu pareja por WhatsApp, SMS o donde prefieras.
-                </p>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="pareja@ejemplo.com"
-                  label="Email de tu pareja"
-                  hint="Al registrarse con este email se vinculará automáticamente a tu cuenta."
-                />
-                <Button
-                  variant="primary"
-                  fullWidth
-                  onClick={sendInvite}
-                  disabled={loading || !email.trim()}
-                >
-                  {loading ? 'Generando…' : (
-                    <span className="flex items-center justify-center gap-2">
-                      <Copy className="w-4 h-4" />
-                      Generar enlace de invitación
-                    </span>
-                  )}
-                </Button>
-              </div>
-
-              {/* Option B — Email (disabled until SMTP is wired up). We keep the
-                  UI here so the flow is ready for v1.5. */}
-              <div className="pt-3 border-t border-brd-subtle space-y-2">
-                <p className="text-xs font-bold text-text-primary">✉️ Enviar por email</p>
-                <div className="rounded-md bg-brand-amber/10 border border-brand-amber/30 p-2.5 text-[11px] text-text-secondary">
-                  ⚠️ De momento no enviamos emails automáticos. Usa “Generar enlace” y compártelo tú mismo. Activaremos el envío por email en la próxima versión.
-                </div>
-                <Button variant="ghost" fullWidth disabled>
-                  <span className="flex items-center justify-center gap-2">
-                    <Mail className="w-4 h-4" />
-                    Enviar invitación por email (próximamente)
-                  </span>
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {inviteLink && (
-            <div className="space-y-3">
-              <div className="rounded-md bg-success/10 border border-success/30 p-3">
-                <p className="text-xs font-bold text-success mb-1.5">Enlace generado</p>
-                <p className="text-[11px] text-text-secondary mb-2">Comparte este enlace con tu pareja. Caduca en 7 días.</p>
-                <div className="flex items-center gap-2 bg-surface-elevated border border-brd-subtle rounded-md px-2 py-1.5">
-                  <input
-                    type="text"
-                    readOnly
-                    value={inviteLink}
-                    onFocus={(e) => e.currentTarget.select()}
-                    onClick={(e) => e.currentTarget.select()}
-                    className="text-[11px] text-text-primary flex-1 font-mono bg-transparent border-0 outline-none min-w-0 truncate"
-                    aria-label="Enlace de invitación"
-                  />
-                  <button
-                    onClick={async () => {
-                      try {
-                        if (navigator.clipboard?.writeText) {
-                          await navigator.clipboard.writeText(inviteLink)
-                        } else {
-                          // Fallback for non-secure contexts / old browsers
-                          const ta = document.createElement('textarea')
-                          ta.value = inviteLink
-                          ta.style.position = 'fixed'; ta.style.opacity = '0'
-                          document.body.appendChild(ta); ta.select()
-                          document.execCommand('copy')
-                          document.body.removeChild(ta)
-                        }
-                        setCopied(true)
-                        setTimeout(() => setCopied(false), 2000)
-                      } catch {
-                        // If all else fails, at least the user can long-press/select the visible input
-                        setError('No se pudo copiar automáticamente. Selecciona el enlace y cópialo manualmente.')
-                      }
-                    }}
-                    className="flex-shrink-0 text-text-primary hover:text-brand-purple"
-                    aria-label="Copiar enlace"
-                  >
-                    {copied ? <CheckCircle className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-              <Button variant="ghost" fullWidth onClick={() => { setInviteLink(null); setEmail('') }}>
-                Volver
-              </Button>
+          ) : (
+            <div className="rounded-md bg-brand-amber/10 border border-brand-amber/30 p-3 text-[11px] text-text-secondary">
+              ⚠️ Aún no hay código de pareja. Vuelve a iniciar sesión para generarlo.
             </div>
           )}
         </Card>

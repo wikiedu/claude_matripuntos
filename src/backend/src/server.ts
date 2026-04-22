@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
 import dotenv from 'dotenv'
 import rateLimit from 'express-rate-limit'
 import authRoutes from './routes/authRoutes.js'
@@ -41,6 +42,16 @@ const allowedOrigins = process.env.FRONTEND_URL
   ? [process.env.FRONTEND_URL]
   : ['http://localhost:5173', 'http://localhost:4173']
 
+// Audit v1.4 security hardening: helmet adds HSTS, X-Content-Type-Options,
+// Referrer-Policy, XSS filter, etc. We disable `contentSecurityPolicy`
+// because the API doesn't serve HTML — the frontend is on a different
+// origin and sets its own CSP. CrossOriginResourcePolicy is relaxed to
+// 'cross-origin' so the frontend can fetch across domains.
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}))
+
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin || allowedOrigins.includes(origin)) return cb(null, true)
@@ -58,6 +69,17 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 })
 
+// Audit v1.4 security hardening: reset endpoints are destructive — throttle
+// harder than auth (5 per hour per IP). Covers both reset-request and the
+// reset-confirm handlers that live under /api/points.
+const resetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: 'Demasiadas solicitudes de reseteo. Inténtalo en 1 hora.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
@@ -68,6 +90,8 @@ app.use('/api/auth', authLimiter, authRoutes)
 app.use('/api/events', eventRoutes)
 app.use('/api/tasks', taskRoutes)
 app.use('/api/negotiations', negotiationRoutes)
+app.use('/api/points/reset-request', resetLimiter)
+app.use('/api/points/reset-confirm', resetLimiter)
 app.use('/api/points', pointsRoutes)
 app.use('/api/configuration', configurationRoutes)
 app.use('/api/notifications', notificationRoutes)

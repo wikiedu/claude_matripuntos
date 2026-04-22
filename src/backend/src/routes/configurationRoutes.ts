@@ -5,11 +5,27 @@ import { z } from 'zod'
 const router = express.Router()
 import prisma from '../lib/prisma.js'
 
-// Validation schemas
+// Audit v1.4 P2-D: `z.record(z.any())` let the client send any JSON shape,
+// which got serialized into SQLite verbatim. We now constrain the multiplier
+// table to a fixed set of numeric keys and activityTypes to a list of
+// strings. Unknown keys are rejected so the frontend can't accidentally
+// bloat the row.
+const MULTIPLIER_KEYS = [
+  'nightMult', 'weekendBonus', 'morningMult', 'dayMult', 'eveningMult',
+  'durationShort', 'durationMedium', 'durationLong', 'durationVeryLong',
+  'childrenMult1', 'childrenMult2', 'childrenMult3',
+  'typeNecessary', 'typeHealth', 'typeLeisure', 'typeHighImpact',
+] as const
+
 const configSchema = z.object({
-  tasksConfig: z.record(z.number()).optional(),
-  multipliersConfig: z.record(z.any()).optional(),
-  activityTypes: z.record(z.any()).optional(),
+  tasksConfig: z.record(z.number().min(0).max(10)).optional(),
+  multipliersConfig: z
+    .object(Object.fromEntries(
+      MULTIPLIER_KEYS.map(k => [k, z.number().min(0).max(10).optional()])
+    ) as Record<typeof MULTIPLIER_KEYS[number], z.ZodOptional<z.ZodNumber>>)
+    .strict()
+    .optional(),
+  activityTypes: z.array(z.string().max(50)).max(50).optional(),
 })
 
 // GET /api/configuration - Get couple's configuration

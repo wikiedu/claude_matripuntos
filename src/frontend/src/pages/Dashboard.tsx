@@ -133,7 +133,6 @@ export default function Dashboard() {
       await apiClient.tasks.logCompletion(taskId, {
         date: toLocalDateString(new Date()),
         pointsBase,
-        pointsFinal: pointsBase,
       })
       // Keep the rest of the app in sync — partner will see the pending
       // verification in their inbox, and my own balance/activity won't update

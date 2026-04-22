@@ -197,9 +197,7 @@ class ApiClient {
     logCompletion: (taskId: string, data: {
       date: string
       pointsBase: number
-      modifier?: string
-      modifierValue?: number
-      pointsFinal: number
+      modifier?: 'none' | 'extra' | 'partial' | 'profunda' | 'complicada' | 'visita'
       notes?: string
     }) =>
       this.request(`/tasks/${taskId}/log`, {

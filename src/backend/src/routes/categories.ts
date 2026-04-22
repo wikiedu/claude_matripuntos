@@ -363,7 +363,10 @@ router.post('/:categoryId/subcategories', async (req: Request, res: Response) =>
 /**
  * POST /api/categories/propose
  */
-router.post('/propose', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+// Audit v1.4 P2-E: authenticateToken is already applied at the router level
+// via `router.use(authenticateToken)` on line 9. Re-applying it per-route
+// was dead but harmless work.
+router.post('/propose', async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.coupleId || !req.userId) { res.status(401).json({ error: 'Authentication required' }); return }
     const { name, emoji, type, basePoints, comment } = req.body
@@ -408,7 +411,7 @@ router.post('/propose', authenticateToken, async (req: Request, res: Response): 
 /**
  * PUT /api/categories/:id/propose-change
  */
-router.put('/:id/propose-change', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+router.put('/:id/propose-change', async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.coupleId || !req.userId) { res.status(401).json({ error: 'Authentication required' }); return }
     const { comment, ...fields } = req.body

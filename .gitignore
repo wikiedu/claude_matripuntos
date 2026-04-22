@@ -68,6 +68,7 @@ src/backend/.claude-flow/
 .claude/helpers/
 .claude/skills/
 .claude/settings.json
+.claude/scheduled_tasks.lock
 .mcp.json
 .swarm/
 ruvector.db

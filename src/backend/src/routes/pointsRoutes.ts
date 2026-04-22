@@ -439,6 +439,14 @@ router.post('/reset-request', authMiddleware, async (req: Request, res: Response
 })
 
 // POST /api/points/reset-confirm - Confirm a points balance reset (called by the partner)
+// Previously this endpoint deleted the couple's entire PointsTransaction history
+// on any authed caller's say-so, with no check that a reset was actually
+// requested or that the caller is the partner. Audit v1.4 P0-A. Until v1.5
+// ships a proper approval flow (with a ResetRequest row + signed consent), the
+// endpoint is gated behind POINTS_RESET_ENABLED and requires that:
+//   1. A pending reset_requested notification exists for the caller's couple.
+//   2. The notification's userId === caller's userId (i.e. caller is the partner
+//      who received the request, not the proposer wiping their own debt).
 router.post('/reset-confirm', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.coupleId || !req.userId) {
@@ -446,14 +454,35 @@ router.post('/reset-confirm', authMiddleware, async (req: Request, res: Response
       return
     }
 
-    // Delete all PointsTransactions for the couple (real reset)
-    await prisma.pointsTransaction.deleteMany({ where: { coupleId: req.coupleId } })
+    if (process.env.POINTS_RESET_ENABLED !== 'true') {
+      res.status(503).json({
+        error: 'Points reset is disabled pending v1.5 approval flow',
+      })
+      return
+    }
 
-    // Mark any pending reset_requested notifications as read
-    await prisma.notification.updateMany({
-      where: { coupleId: req.coupleId, type: 'reset_requested', isRead: false },
-      data: { isRead: true },
+    const pending = await prisma.notification.findFirst({
+      where: {
+        coupleId: req.coupleId,
+        userId: req.userId,
+        type: 'reset_requested',
+        isRead: false,
+      },
     })
+    if (!pending) {
+      res.status(403).json({
+        error: 'No pending reset request found for this user',
+      })
+      return
+    }
+
+    await prisma.$transaction([
+      prisma.pointsTransaction.deleteMany({ where: { coupleId: req.coupleId } }),
+      prisma.notification.updateMany({
+        where: { coupleId: req.coupleId, type: 'reset_requested', isRead: false },
+        data: { isRead: true },
+      }),
+    ])
 
     res.status(200).json({
       message: 'Points balance reset confirmed. All transactions deleted.',

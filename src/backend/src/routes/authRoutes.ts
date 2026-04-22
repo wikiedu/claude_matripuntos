@@ -258,16 +258,27 @@ router.post('/reject-invite', async (req: Request, res: Response): Promise<void>
 })
 
 // Propose partner (both users already have accounts)
+// Audit v1.4 P1-C: never reveal whether an email is registered. Always return
+// a generic success response. We still send the proposal when the partner
+// exists and isn't the same user, but callers can't distinguish the cases.
 router.post('/propose-partner', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.userId) { res.status(401).json({ error: 'User ID not found' }); return }
     const validated = proposePartnerSchema.parse(req.body)
     const partner = await prisma.user.findUnique({ where: { email: validated.partnerEmail } })
-    if (!partner) { res.status(404).json({ error: 'User not found' }); return }
-    if (partner.id === req.userId) { res.status(400).json({ error: 'Cannot propose yourself' }); return }
-    const prop = await proposePartner(req.userId, partner.id)
-    res.json({ message: 'Proposal sent', expiresAt: prop.expiresAt })
+    if (partner && partner.id !== req.userId) {
+      try {
+        await proposePartner(req.userId, partner.id)
+      } catch (inner) {
+        console.error('[propose-partner] silent failure:', inner)
+      }
+    }
+    res.json({ message: 'Si la cuenta existe, la propuesta fue enviada' })
   } catch (error) {
+    if (error instanceof ZodError) {
+      res.status(400).json({ error: 'Validation error', details: error.errors })
+      return
+    }
     res.status(400).json({ error: error instanceof Error ? error.message : 'Failed' })
   }
 })
@@ -359,57 +370,72 @@ router.post('/register-with-code', async (req: Request, res: Response): Promise<
       return
     }
 
-    const couple = await prisma.couple.findUnique({
-      where: { joinCode: normalized },
-      include: { users: true },
-    })
-    if (!couple) {
-      res.status(404).json({ error: 'Código no encontrado' })
-      return
-    }
-    if (couple.users.length >= 2) {
-      res.status(409).json({ error: 'Esta pareja ya está completa' })
-      return
-    }
-
-    const existingUser = await prisma.user.findUnique({ where: { email: validated.email } })
-    if (existingUser) {
-      res.status(409).json({ error: 'Ya existe una cuenta con este email' })
-      return
-    }
-
     const { hashPassword } = await import('../services/authService.js')
     const passwordHash = await hashPassword(validated.password)
 
-    const user = await prisma.user.create({
-      data: {
-        email: validated.email,
-        passwordHash,
-        name: validated.name,
-        coupleId: couple.id,
-        roleInHome: 'equal',
-        language: validated.language,
-        hasCompletedOnboarding: false,
-      },
-    })
-
-    // Notificamos al miembro existente que el compañero entró al hogar.
-    const inviter = couple.users[0]
-    if (inviter) {
-      await prisma.notification.create({
-        data: {
+    // Audit v1.4 P1-D: the whole join must be atomic. A check-then-create
+    // under concurrent load could allow a 3rd user to slip past the
+    // `users.length < 2` gate. We wrap the couple lookup, capacity check,
+    // email uniqueness check, user creation and notify in one transaction
+    // and re-count inside it so Prisma aborts if the couple filled up.
+    let txResult: { user: { id: string; email: string; name: string; coupleId: string | null }, coupleId: string }
+    try {
+      txResult = await prisma.$transaction(async (tx) => {
+        const couple = await tx.couple.findUnique({
+          where: { joinCode: normalized },
+          include: { users: true },
+        })
+        if (!couple) {
+          throw Object.assign(new Error('Código no encontrado'), { httpStatus: 404 })
+        }
+        if (couple.users.length >= 2) {
+          throw Object.assign(new Error('Esta pareja ya está completa'), { httpStatus: 409 })
+        }
+        const existingUser = await tx.user.findUnique({ where: { email: validated.email } })
+        if (existingUser) {
+          throw Object.assign(new Error('Ya existe una cuenta con este email'), { httpStatus: 409 })
+        }
+        const newUser = await tx.user.create({
+          data: {
+            email: validated.email,
+            passwordHash,
+            name: validated.name,
+            coupleId: couple.id,
+            roleInHome: 'equal',
+            language: validated.language,
+            hasCompletedOnboarding: false,
+          },
+        })
+        const postCount = await tx.user.count({ where: { coupleId: couple.id } })
+        if (postCount > 2) {
+          throw Object.assign(new Error('Esta pareja ya está completa'), { httpStatus: 409 })
+        }
+        const inviter = couple.users[0]
+        if (inviter) {
+          await tx.notification.create({
+            data: {
+              coupleId: couple.id,
+              userId: inviter.id,
+              type: 'partner_joined',
+              title: '🎉 Tu pareja se ha unido',
+              message: `${validated.name} ha creado su cuenta y ya estáis vinculados.`,
+              isRead: false,
+            },
+          })
+        }
+        return {
+          user: { id: newUser.id, email: newUser.email, name: newUser.name, coupleId: newUser.coupleId },
           coupleId: couple.id,
-          userId: inviter.id,
-          type: 'partner_joined',
-          title: '🎉 Tu pareja se ha unido',
-          message: `${validated.name} ha creado su cuenta y ya estáis vinculados.`,
-          isRead: false,
-        },
+        }
       })
+    } catch (txErr) {
+      const status = (txErr as any)?.httpStatus ?? 400
+      res.status(status).json({ error: txErr instanceof Error ? txErr.message : 'Error' })
+      return
     }
 
     const token = jwt.sign(
-      { userId: user.id, coupleId: couple.id },
+      { userId: txResult.user.id, coupleId: txResult.coupleId },
       process.env.JWT_SECRET!,
       { expiresIn: '7d' }
     )
@@ -417,13 +443,8 @@ router.post('/register-with-code', async (req: Request, res: Response): Promise<
     res.status(201).json({
       message: 'Account created and linked',
       token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        coupleId: user.coupleId,
-      },
-      coupleId: couple.id,
+      user: txResult.user,
+      coupleId: txResult.coupleId,
     })
   } catch (error) {
     if (error instanceof ZodError) {

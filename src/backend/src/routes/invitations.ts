@@ -1,17 +1,41 @@
 import { Router, Request, Response } from 'express'
 import { authenticateToken } from '../middleware/auth.js'
+import { invalidateAuthCache } from '../middleware/authMiddleware.js'
 import crypto from 'crypto'
 import bcryptjs from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import prisma from '../lib/prisma.js'
 
+// Single source of truth for the signing secret. authService.ts already
+// validates length >= 32 on boot, so the env var is guaranteed set here.
+// Using a fallback silently would accept invites signed with "your-secret-key"
+// in any environment that forgot to set JWT_SECRET — refuse instead.
+const JWT_SECRET = process.env.JWT_SECRET
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+  throw new Error('JWT_SECRET env var must be set and at least 32 characters long')
+}
+
 const router = Router()
+
+// Audit v1.4 P1-E: the email-invitation flow below (/invite-partner,
+// /invitation/:token, /accept-invitation, /register-with-invitation) is
+// superseded by the join-code flow in authRoutes.ts (couple-preview +
+// register-with-code). We can't 410 it yet — Onboarding.tsx and
+// StepJoinAccount.tsx still depend on it. All responses set a
+// `Deprecation` header so callers that migrate can verify. Target v1.5
+// to replace the frontend calls and then return 410 here.
+const deprecationMiddleware = (_req: Request, res: Response, next: Function) => {
+  res.set('Deprecation', 'true')
+  res.set('Sunset', 'Mon, 01 Jun 2026 00:00:00 GMT')
+  next()
+}
 
 /**
  * Generate invitation token for partner
  * POST /api/auth/invite-partner
+ * @deprecated — use /auth/register-with-code with joinCode. Planned removal v1.5.
  */
-router.post('/invite-partner', authenticateToken, async (req: Request, res: Response) => {
+router.post('/invite-partner', deprecationMiddleware, authenticateToken, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id
     const { inviteeEmail } = req.body
@@ -87,8 +111,9 @@ router.post('/invite-partner', authenticateToken, async (req: Request, res: Resp
 /**
  * Validate invitation token
  * GET /api/auth/invitation/:token
+ * @deprecated — use /auth/couple-preview/:code. Planned removal v1.5.
  */
-router.get('/invitation/:token', async (req: Request, res: Response) => {
+router.get('/invitation/:token', deprecationMiddleware, async (req: Request, res: Response) => {
   try {
     const { token } = req.params
 
@@ -140,8 +165,9 @@ router.get('/invitation/:token', async (req: Request, res: Response) => {
 /**
  * Accept invitation and join couple
  * POST /api/auth/accept-invitation
+ * @deprecated — use /auth/register-with-code. Planned removal v1.5.
  */
-router.post('/accept-invitation', authenticateToken, async (req: Request, res: Response) => {
+router.post('/accept-invitation', deprecationMiddleware, authenticateToken, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id
     const { token } = req.body
@@ -190,6 +216,8 @@ router.post('/accept-invitation', authenticateToken, async (req: Request, res: R
         coupleId: invitation.coupleId,
       },
     })
+    // Audit v1.4 P1-G: drop cached coupleId for this user.
+    invalidateAuthCache(userId)
 
     // Update invitation status
     await prisma.invitation.update({
@@ -228,8 +256,9 @@ router.post('/accept-invitation', authenticateToken, async (req: Request, res: R
 /**
  * Register with invitation token (new user joins via link)
  * POST /api/auth/register-with-invitation
+ * @deprecated — use /auth/register-with-code. Planned removal v1.5.
  */
-router.post('/register-with-invitation', async (req: Request, res: Response) => {
+router.post('/register-with-invitation', deprecationMiddleware, async (req: Request, res: Response) => {
   try {
     const { token, email, password, name } = req.body
 
@@ -296,7 +325,7 @@ router.post('/register-with-invitation', async (req: Request, res: Response) => 
 
     const authToken = jwt.sign(
       { userId: newUser.id, coupleId: newUser.coupleId },
-      process.env.JWT_SECRET || 'your-secret-key',
+      JWT_SECRET,
       { expiresIn: '7d' }
     )
 
@@ -442,6 +471,9 @@ router.post('/accept-link-partner', authenticateToken, async (req: Request, res:
 
     // Move me to the requester's couple
     await prisma.user.update({ where: { id: userId }, data: { coupleId: invitation.coupleId! } })
+    // Audit v1.4 P1-G: the authMiddleware cache holds this user's old coupleId.
+    // Invalidate so the next request re-reads the new link from the DB.
+    invalidateAuthCache(userId)
 
     // Mark invitation accepted
     await prisma.invitation.update({ where: { id: invitation.id }, data: { status: 'accepted' } })
@@ -456,7 +488,7 @@ router.post('/accept-link-partner', authenticateToken, async (req: Request, res:
     const jwt = await import('jsonwebtoken')
     const newToken = jwt.default.sign(
       { userId, coupleId: invitation.coupleId },
-      process.env.JWT_SECRET || 'your-secret-key',
+      JWT_SECRET,
       { expiresIn: '7d' }
     )
 

@@ -8,7 +8,18 @@ import prisma from '../lib/prisma.js'
 /**
  * Negotiation Routes - FASE 3
  * Manages 2-round event negotiation flow between partners
+ *
+ * Audit v1.4 P0-D: canonical negotiation engine is /api/negotiations in
+ * negotiationRoutes.ts (round counter, max-rounds, force). These V2 routes
+ * are kept live for EventNegotiationCard.tsx (used on Calendar page) but
+ * will be retired in v1.5 after the frontend migrates. All responses emit
+ * a `Deprecation` header so callers can detect the migration window.
  */
+router.use((_req, res, next) => {
+  res.set('Deprecation', 'true')
+  res.set('Sunset', 'Mon, 01 Jun 2026 00:00:00 GMT')
+  next()
+})
 
 /**
  * POST /api/events/:eventId/propose

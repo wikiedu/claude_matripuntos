@@ -115,8 +115,6 @@ function LogTaskModal({ task, onClose, onSuccess }: {
         date: new Date().toISOString(),
         pointsBase: base,
         modifier: modifier !== 'none' ? modifier : undefined,
-        modifierValue: modMap[modifier],
-        pointsFinal: finalPts,
       })
       onSuccess()
     } catch (e) {

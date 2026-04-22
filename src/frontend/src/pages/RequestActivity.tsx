@@ -31,37 +31,29 @@ interface Category {
   subcategories?: Subcategory[]
 }
 
-// ─── Points calculation helpers (unchanged from v1) ───────────────────────────
+// Audit v1.4 P0-B: these helpers mirror src/backend/src/services/pointsCalculator.ts
+// ONLY for live UI preview. The canonical numbers live on the backend; the
+// created event's pointsCalculated always comes from there. If backend changes,
+// update here so the preview matches, or (better) drive this via a debounced
+// call to /api/points/preview. The weekend ×1.2 factor was removed — CLAUDE.md
+// states "No hay factor día de semana". Duration is now measured in hours,
+// not days, to match the backend brackets.
 function getTimeMultiplier(hour: number, minute = 0): number {
   const totalMinutes = hour * 60 + minute
-  if (totalMinutes >= 7 * 60 && totalMinutes < 9 * 60 + 30) return 1.4   // 07:00-09:30
+  if (totalMinutes >= 7 * 60 && totalMinutes < 9 * 60 + 30) return 1.3   // 07:00-09:30
   if (totalMinutes >= 9 * 60 + 30 && totalMinutes < 17 * 60 + 30) return 1.0 // 09:30-17:30
-  if (totalMinutes >= 17 * 60 + 30 && totalMinutes < 21 * 60 + 30) return 1.5 // 17:30-21:30
+  if (totalMinutes >= 17 * 60 + 30 && totalMinutes < 21 * 60 + 30) return 1.2 // 17:30-21:30
   if (totalMinutes >= 21 * 60 + 30 || totalMinutes < 1 * 60) return 1.2   // 21:30-01:00
-  return 1.6 // 01:00-07:00
+  return 1.5 // 01:00-07:00
 }
 
 function getTimeSlotLabel(hour: number, minute = 0): string {
   const totalMinutes = hour * 60 + minute
-  if (totalMinutes >= 7 * 60 && totalMinutes < 9 * 60 + 30) return 'Mañana temprano ×1.4'
+  if (totalMinutes >= 7 * 60 && totalMinutes < 9 * 60 + 30) return 'Mañana temprano ×1.3'
   if (totalMinutes >= 9 * 60 + 30 && totalMinutes < 17 * 60 + 30) return 'Horario normal ×1.0'
-  if (totalMinutes >= 17 * 60 + 30 && totalMinutes < 21 * 60 + 30) return 'Tarde-noche ×1.5'
+  if (totalMinutes >= 17 * 60 + 30 && totalMinutes < 21 * 60 + 30) return 'Tarde/cena ×1.2'
   if (totalMinutes >= 21 * 60 + 30 || totalMinutes < 1 * 60) return 'Noche ×1.2'
-  return 'Madrugada ×1.6'
-}
-
-function getDayMultiplier(dateStr: string): number {
-  if (!dateStr) return 1.0
-  const d = new Date(dateStr + 'T12:00:00')
-  const day = d.getDay()
-  return (day === 0 || day === 6) ? 1.2 : 1.0
-}
-
-function getDayLabel(dateStr: string): string {
-  if (!dateStr) return ''
-  const d = new Date(dateStr + 'T12:00:00')
-  const day = d.getDay()
-  return (day === 0 || day === 6) ? 'Fin de semana ×1.2' : 'Entre semana ×1.0'
+  return 'Madrugada ×1.5'
 }
 
 function getChildrenMultiplier(n: number): number {
@@ -71,30 +63,27 @@ function getChildrenMultiplier(n: number): number {
   return 2.2
 }
 
-function getDurationMultiplier(days: number): number {
-  if (days <= 1) return 1.0
-  if (days === 2) return 1.7
-  if (days === 3) return 2.3
-  if (days <= 5) return 2.8 + (days - 3) * 0.3
-  return Math.min(3.5 + (days - 5) * 0.2, 6.0)
+function getDurationMultiplier(hours: number): number {
+  if (hours < 3) return 1.0
+  if (hours < 8) return 1.1
+  if (hours < 24) return 1.25
+  return 1.35
 }
 
-function getDurationLabel(days: number): string {
-  if (days <= 1) return ''
-  if (days === 2) return '2 días ×1.7'
-  if (days === 3) return '3 días ×2.3'
-  return `${days} días ×${getDurationMultiplier(days).toFixed(1)}`
+function getDurationLabel(hours: number): string {
+  if (hours < 3) return ''
+  const mult = getDurationMultiplier(hours)
+  const h = Math.round(hours)
+  return `${h}h ×${mult.toFixed(2)}`
 }
 
 function calcPoints(
-  base: number, subMod: number, timeMult: number, dayMult: number,
+  base: number, subMod: number, timeMult: number,
   childMult: number, compDiscount: number, durationMult = 1.0,
 ): number {
   const effectiveBase = Math.max(1, base + subMod)
-  return Math.min(
-    Math.round(effectiveBase * timeMult * dayMult * childMult * durationMult * (1 - compDiscount)),
-    999,
-  )
+  const raw = effectiveBase * timeMult * childMult * durationMult * (1 - compDiscount)
+  return Math.min(500, Math.max(0, Math.round(raw * 2) / 2))
 }
 
 // ─── Static data ──────────────────────────────────────────────────────────────
@@ -263,6 +252,17 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
     return Math.max(1, Math.round(diff) + 1)
   }, [multiDay, startDate, endDate])
 
+  // Duration in hours — matches backend pointsCalculator.getDurationMultiplier().
+  const durationHours = useMemo(() => {
+    if (!startDate || !startTime) return 0
+    const startISO = `${startDate}T${startTime}:00`
+    const endDateActual = multiDay && endDate ? endDate : startDate
+    const endISO = `${endDateActual}T${endTime || startTime}:00`
+    let ms = new Date(endISO).getTime() - new Date(startISO).getTime()
+    if (!multiDay && ms <= 0) ms += 24 * 60 * 60 * 1000
+    return Math.max(0, ms / (1000 * 60 * 60))
+  }, [multiDay, startDate, endDate, startTime, endTime])
+
   const pointsCalc = useMemo(() => {
     if (!selectedCat || !startDate || !startTime) return null
 
@@ -270,23 +270,21 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
     const hour = parseInt(hourStr)
     const minute = parseInt(minuteStr) || 0
     const timeMult = getTimeMultiplier(hour, minute)
-    const dayMult = getDayMultiplier(startDate)
     const childMult = withChildren ? getChildrenMultiplier(numChildren || 1) : 1.0
     const compDiscount = COMPENSATIONS.find((c) => c.id === compensation)?.discount ?? 0
     const subMod = Number(selectedSub?.basePointsModifier ?? 0)
-    const durationMult = getDurationMultiplier(numDays)
-    const total = calcPoints(Number(selectedCat.basePoints), subMod, timeMult, dayMult, childMult, compDiscount, durationMult)
+    const durationMult = getDurationMultiplier(durationHours)
+    const total = calcPoints(Number(selectedCat.basePoints), subMod, timeMult, childMult, compDiscount, durationMult)
 
     return {
       basePoints: Number(selectedCat.basePoints),
       subMod,
       effectiveBase: Math.max(1, Number(selectedCat.basePoints) + subMod),
-      timeMult, dayMult, childMult, compDiscount, durationMult, numDays, total,
+      timeMult, childMult, compDiscount, durationMult, durationHours, numDays, total,
       timeLabel: getTimeSlotLabel(hour, minute),
-      dayLabel: getDayLabel(startDate),
-      durationLabel: getDurationLabel(numDays),
+      durationLabel: getDurationLabel(durationHours),
     }
-  }, [selectedCat, selectedSub, startDate, startTime, withChildren, numChildren, compensation, numDays])
+  }, [selectedCat, selectedSub, startDate, startTime, withChildren, numChildren, compensation, numDays, durationHours])
 
   const previewSubPts = (subMod: number) => {
     if (!selectedCat || !startDate || !startTime) return null
@@ -294,11 +292,10 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
     const hour = parseInt(hourStr2)
     const minute = parseInt(minuteStr2) || 0
     const timeMult = getTimeMultiplier(hour, minute)
-    const dayMult = getDayMultiplier(startDate)
     const childMult = withChildren ? getChildrenMultiplier(numChildren || 1) : 1.0
     const compDiscount = COMPENSATIONS.find((c) => c.id === compensation)?.discount ?? 0
-    const durationMult = getDurationMultiplier(numDays)
-    return calcPoints(Number(selectedCat.basePoints), Number(subMod), timeMult, dayMult, childMult, compDiscount, durationMult)
+    const durationMult = getDurationMultiplier(durationHours)
+    return calcPoints(Number(selectedCat.basePoints), Number(subMod), timeMult, childMult, compDiscount, durationMult)
   }
 
   const handleCategoryChange = (id: string) => {
@@ -348,6 +345,10 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
         dateEnd.setDate(dateEnd.getDate() + 1)
       }
 
+      // Audit v1.4 P0-B: send the RAW effective base points (category base +
+      // subcategory modifier). The backend re-applies time/duration/children
+      // multipliers via pointsCalculator.calculateEventPoints(). Sending the
+      // precomputed total used to double-multiply.
       const eventResponse = await apiClient.events.create({
         type: selectedCat!.name.toLowerCase().replace(/\s+/g, '_').replace(/&/g, 'y').replace(/[^a-z0-9_]/g, ''),
         title: title || `${selectedCat!.emoji} ${selectedSub?.name || selectedCat!.name}`,
@@ -356,12 +357,15 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
         dateEnd: dateEnd.toISOString(),
         hasChildren: withChildren,
         numChildren: withChildren ? (numChildren || 1) : 0,
-        pointsBase: pointsCalc.total,
+        pointsBase: pointsCalc.effectiveBase,
         compensation: compensation !== 'none' ? compensation : undefined,
         compensationDiscount: 1 - pointsCalc.compDiscount,
       })
 
       const eventId = eventResponse.event?.id || eventResponse.id
+      // Propose the computed total — the partner sees the full multiplied
+      // value as the opening bid. Backend stores this in `lastProposedPoints`
+      // and doesn't re-multiply.
       await apiClient.negotiations.create({
         eventId,
         pointsProposed: pointsCalc.total,
@@ -671,7 +675,7 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
 
               {startDate && (
                 <p className="text-xs text-text-tertiary mt-3">
-                  {getDayLabel(startDate)} · {getTimeSlotLabel(
+                  {getTimeSlotLabel(
                     parseInt(startTime.split(':')[0]),
                     parseInt(startTime.split(':')[1]) || 0,
                   )}
@@ -804,15 +808,9 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
                           {pointsCalc.timeMult.toFixed(1)}×
                         </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span>× Día ({pointsCalc.dayMult > 1 ? 'fin semana' : 'entre semana'})</span>
-                        <span className={pointsCalc.dayMult > 1 ? 'text-brand-indigo font-bold' : 'text-text-primary'}>
-                          {pointsCalc.dayMult.toFixed(1)}×
-                        </span>
-                      </div>
-                      {pointsCalc.numDays > 1 && (
+                      {pointsCalc.durationMult > 1 && (
                         <div className="flex justify-between">
-                          <span>× Duración ({pointsCalc.numDays} días)</span>
+                          <span>× Duración ({Math.round(pointsCalc.durationHours)}h)</span>
                           <span className="text-brand-purple font-bold">{pointsCalc.durationMult.toFixed(1)}×</span>
                         </div>
                       )}

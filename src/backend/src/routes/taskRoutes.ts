@@ -5,9 +5,10 @@ import { z } from 'zod'
 import { Decimal } from '@prisma/client/runtime/library'
 import { AchievementEngine } from '../services/achievementEngine.js'
 import { notifyTaskCompleted, notifyTaskDisputed, createNotification } from '../services/notificationService.js'
-import { updateDailyStreak, calculateAndSaveXP, getDailyMultiplier, getWeeklyBonus, getFactorMascotas } from '../services/gamificationService.js'
+import { updateDailyStreak, calculateAndSaveXP, getFactorMascotas } from '../services/gamificationService.js'
 import { checkAllAchievements } from '../services/achievementCheckService.js'
 import { generateOnCreate } from '../services/recurringTaskService.js'
+import { calculateTaskLogPoints, TASK_MODIFIER_VALUES } from '../services/taskLogPoints.js'
 
 const router = express.Router()
 import prisma from '../lib/prisma.js'
@@ -22,12 +23,17 @@ const createTaskSchema = z.object({
   isDefault: z.boolean().optional().default(false),
 })
 
+// Audit v1.4 P1-B/P1-F: the client used to send `pointsFinal` precomputed,
+// which bypassed Zod's cap after the backend multiplied by streak × weekly ×
+// pet factors (combined max ~2.88×). We now only accept `pointsBase` and a
+// named modifier; the server computes modifierValue and pointsFinal via
+// calculateTaskLogPoints. The frontend should send
+// `modifier: 'extra' | 'partial'` (or omit), nothing else.
+
 const createTaskLogSchema = z.object({
   date: z.string().min(1, 'Date is required'),
   pointsBase: z.number().positive('Points must be positive').max(100),
-  modifier: z.string().max(100).trim().optional(),
-  modifierValue: z.number().min(0).max(10).optional().default(1.0),
-  pointsFinal: z.number().positive('Final points must be positive').max(500),
+  modifier: z.enum(['none', 'extra', 'partial', 'profunda', 'complicada', 'visita']).optional(),
   notes: z.string().max(500).trim().optional(),
 })
 
@@ -256,13 +262,15 @@ router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response):
     })
     const streakDays = (couple as any)?.dailyStreakDays || 0
     const streakWeeks = (couple as any)?.weeklyStreakWeeks || 0
-    const dailyMult = getDailyMultiplier(streakDays)
-    const weeklyBonus = getWeeklyBonus(streakWeeks)
     const factorMascotas = await getFactorMascotas(req.coupleId)
-    const combinedMultiplier = dailyMult * (1 + weeklyBonus) * factorMascotas
 
-    const originalPointsFinal = data.pointsFinal
-    const multipliedPointsFinal = Math.round(originalPointsFinal * combinedMultiplier * 2) / 2
+    const { modifierName, modifierValue, pointsFinal } = calculateTaskLogPoints({
+      pointsBase: data.pointsBase,
+      modifier: data.modifier,
+      streakDays,
+      streakWeeks,
+      factorMascotas,
+    })
 
     const taskLog = await prisma.taskLog.create({
       data: {
@@ -271,9 +279,9 @@ router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response):
         completedBy: req.userId,
         date: new Date(data.date),
         pointsBase: new Decimal(data.pointsBase),
-        modifier: data.modifier,
-        modifierValue: new Decimal(data.modifierValue),
-        pointsFinal: new Decimal(multipliedPointsFinal),
+        modifier: modifierName,
+        modifierValue: new Decimal(modifierValue),
+        pointsFinal: new Decimal(pointsFinal),
         status: 'pending',
       },
     })
@@ -393,30 +401,43 @@ router.put('/:taskId/logs/:logId/verify', authMiddleware, async (req: Request, r
       return
     }
 
+    // Audit v1.4 P0-C: prevent self-verification. A user cannot verify a log
+    // they themselves completed — otherwise they self-award points without
+    // the partner ever seeing the task. (The hourly cron auto-verifies
+    // pending logs after 24h if the partner doesn't respond; that path is
+    // system-level and scoped by time, not by the completer.)
+    if (taskLog.completedBy && taskLog.completedBy === req.userId) {
+      res.status(403).json({ error: 'No puedes verificar tus propias tareas' })
+      return
+    }
+
     const task = await prisma.task.findUnique({
       where: { id: req.params.taskId },
     })
 
-    const updated = await prisma.taskLog.update({
-      where: { id: req.params.logId },
-      data: {
-        status: 'verified',
-        verifiedBy: req.userId,
-        verifiedAt: new Date(),
-      },
-    })
-
-    // Award points to the person who completed the task (now that partner verified)
-    await prisma.pointsTransaction.create({
-      data: {
-        coupleId: req.coupleId,
-        userId: taskLog.completedBy!,
-        type: 'task_completed',
-        relatedTaskLogId: req.params.logId,
-        amount: taskLog.pointsFinal,
-        description: `Tarea verificada: ${task?.name ?? 'tarea'}`,
-      },
-    })
+    // Audit v1.4 P0-C: wrap the verify + points transaction in one $transaction
+    // so a partial failure doesn't leave a verified log without its points
+    // transaction (or vice versa). Prior code ran two writes back-to-back.
+    const [updated] = await prisma.$transaction([
+      prisma.taskLog.update({
+        where: { id: req.params.logId },
+        data: {
+          status: 'verified',
+          verifiedBy: req.userId,
+          verifiedAt: new Date(),
+        },
+      }),
+      prisma.pointsTransaction.create({
+        data: {
+          coupleId: req.coupleId,
+          userId: taskLog.completedBy!,
+          type: 'task_completed',
+          relatedTaskLogId: req.params.logId,
+          amount: taskLog.pointsFinal,
+          description: `Tarea verificada: ${task?.name ?? 'tarea'}`,
+        },
+      }),
+    ])
 
     // Notify the original completer that their task was verified and points were awarded
     if (taskLog.completedBy && taskLog.completedBy !== req.userId) {

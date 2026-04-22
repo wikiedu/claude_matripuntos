@@ -37,8 +37,15 @@ export const queryClient = new QueryClient({
 })
 
 // Protected Route Component
+//
+// Audit v1.4 P2-F/I: previously authenticated-but-coupleless users landed on
+// a blank page because every protected page short-circuits with
+// `if (!user || !couple) return null`. Now we steer them explicitly:
+//   - not authenticated           → /login
+//   - no couple + onboarding open → /onboarding
+//   - no couple + onboarding done → /login (zombie state; logout first)
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAppStore()
+  const { isAuthenticated, isLoading, user, couple, logout } = useAppStore()
 
   // While we're checking a stored token, render nothing to avoid a flash redirect
   if (isLoading) {
@@ -50,6 +57,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!couple) {
+    if (user && !user.hasCompletedOnboarding) {
+      return <Navigate to="/onboarding" replace />
+    }
+    // User has completed onboarding but has no couple — invalid state.
+    // Clear the token so the login screen doesn't loop back here.
+    logout()
     return <Navigate to="/login" replace />
   }
 

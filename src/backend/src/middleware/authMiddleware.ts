@@ -13,6 +13,24 @@ declare global {
   }
 }
 
+// Audit v1.4 P1-G: cache the per-user lookup so every authed request doesn't
+// hit Prisma just to re-confirm the user still exists. Keyed by userId with
+// a 60s TTL — short enough that partner-linking or account deletion takes
+// effect within a minute, long enough to absorb bursts (dashboard loads 10+
+// queries in parallel). Invalidate explicitly via invalidateAuthCache() from
+// the few call sites that mutate coupleId (accept-link-partner,
+// register-with-code). JWT revocation still happens on token expiry.
+const AUTH_CACHE_TTL_MS = 60 * 1000
+const authCache = new Map<string, { coupleId: string; expiresAt: number }>()
+
+export function invalidateAuthCache(userId?: string): void {
+  if (userId) {
+    authCache.delete(userId)
+  } else {
+    authCache.clear()
+  }
+}
+
 export const authMiddleware = async (
   req: Request,
   res: Response,
@@ -34,21 +52,42 @@ export const authMiddleware = async (
       return
     }
 
-    // Verify the user still exists and hasn't been moved to another couple —
-    // a zombie token (user deleted or re-linked) must not authenticate.
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { id: true, coupleId: true },
-    })
+    const now = Date.now()
+    const cached = authCache.get(decoded.userId)
+    let userCoupleId: string | null = null
 
-    if (!user || user.coupleId !== decoded.coupleId) {
+    if (cached && cached.expiresAt > now) {
+      userCoupleId = cached.coupleId
+    } else {
+      // Verify the user still exists and hasn't been moved to another couple —
+      // a zombie token (user deleted or re-linked) must not authenticate.
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: { id: true, coupleId: true },
+      })
+
+      if (!user || !user.coupleId) {
+        authCache.delete(decoded.userId)
+        res.status(401).json({ error: 'User no longer valid' })
+        return
+      }
+
+      userCoupleId = user.coupleId
+      authCache.set(decoded.userId, {
+        coupleId: user.coupleId,
+        expiresAt: now + AUTH_CACHE_TTL_MS,
+      })
+    }
+
+    if (userCoupleId !== decoded.coupleId) {
+      authCache.delete(decoded.userId)
       res.status(401).json({ error: 'User no longer valid' })
       return
     }
 
-    req.userId = user.id
-    req.coupleId = user.coupleId
-    req.user = { id: user.id, coupleId: user.coupleId }
+    req.userId = decoded.userId
+    req.coupleId = userCoupleId
+    req.user = { id: decoded.userId, coupleId: userCoupleId }
 
     next()
   } catch (error) {
