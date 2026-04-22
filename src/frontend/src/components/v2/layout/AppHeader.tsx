@@ -1,4 +1,6 @@
-import { Bell } from 'lucide-react'
+import { Bell, RefreshCw } from 'lucide-react'
+import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Avatar } from '../primitives/Avatar'
 
 interface Props {
@@ -18,6 +20,19 @@ export function AppHeader({
   userName, userAvatarEmoji, userAvatarColor, userMood,
   partnerMood, partnerName, unreadCount = 0, onBell, onMenu, onAvatar,
 }: Props) {
+  const queryClient = useQueryClient()
+  const [refreshing, setRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      await queryClient.invalidateQueries()
+      // Mínimo 400ms de spinner para que se note el feedback visual
+      await new Promise((r) => setTimeout(r, 400))
+    } finally {
+      setRefreshing(false)
+    }
+  }
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Buenos días' : hour < 20 ? 'Buenas tardes' : 'Buenas noches'
   const emoji    = hour < 12 ? '☀️'          : hour < 20 ? '🌤️'           : '🌙'
@@ -32,6 +47,15 @@ export function AppHeader({
         )}
       </div>
       <div className="flex items-center gap-2">
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          aria-label="Refrescar datos"
+          title="Refrescar datos"
+          className="w-9 h-9 rounded-md bg-surface-muted border border-brd-purple flex items-center justify-center text-text-primary disabled:opacity-50"
+        >
+          <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+        </button>
         <button
           onClick={onBell}
           aria-label="Notificaciones"

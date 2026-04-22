@@ -10,6 +10,7 @@ import { Pill } from '../components/v2/primitives/Pill'
 import { Card } from '../components/v2/primitives/Card'
 import { PremiumInterestModal } from '../components/v2/premium/PremiumInterestModal'
 import { RuleProposalCard } from '../components/RuleProposalCard'
+import { CoupleHealthCard } from '../components/v2/couple/CoupleHealthCard'
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -359,6 +360,16 @@ function CoupleSection({ onBack }: { onBack: () => void }) {
     <div>
       <SectionHeader title="Pareja" onBack={onBack} />
       {error && <Banner type="error" message={error} />}
+
+      {partner && (
+        <div className="mb-4">
+          <CoupleHealthCard
+            userId={user?.id}
+            partnerId={partner.id}
+            joinCode={joinCode}
+          />
+        </div>
+      )}
 
       {partner ? (
         <Card className="space-y-4">
