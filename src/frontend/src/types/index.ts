@@ -20,6 +20,7 @@ export interface User {
 export interface Couple {
   id: string
   name?: string
+  joinCode?: string | null
   numChildren: number
   language: string
   notificationsEnabled?: boolean

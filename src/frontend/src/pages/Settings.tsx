@@ -332,6 +332,33 @@ function CoupleSection({ onBack }: { onBack: () => void }) {
   const [error, setError] = useState<string | null>(null)
   const [unlinkOpen, setUnlinkOpen] = useState(false)
 
+  // join-code share (v1.4): tracks lo que acabamos de copiar al clipboard
+  // para dar feedback visual. "code" o "link" según el botón usado.
+  const [justCopied, setJustCopied] = useState<'code' | 'link' | null>(null)
+  const joinCode = couple?.joinCode ?? null
+  const joinLink = joinCode
+    ? `${window.location.origin}/signup?code=${encodeURIComponent(joinCode)}`
+    : null
+
+  async function copyText(text: string, which: 'code' | 'link') {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.style.position = 'fixed'; ta.style.opacity = '0'
+        document.body.appendChild(ta); ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      }
+      setJustCopied(which)
+      setTimeout(() => setJustCopied(null), 2000)
+    } catch {
+      setError('No se pudo copiar automáticamente. Selecciona el texto y cópialo.')
+    }
+  }
+
   async function sendInvite() {
     if (!email.trim()) return
     setLoading(true); setError(null)
@@ -402,12 +429,42 @@ function CoupleSection({ onBack }: { onBack: () => void }) {
             <p className="text-xs text-text-secondary">Invita a alguien para empezar a usar Matripuntos juntos.</p>
           </div>
 
+          {/* v1.4 · Join code — la forma más rápida de invitar. Aparece solo
+              si la pareja ya tiene joinCode (parejas legacy pueden no tenerlo
+              hasta que corra el backfill). */}
+          {joinCode && joinLink && (
+            <div className="space-y-2 pb-4 border-b border-brd-subtle">
+              <p className="text-xs font-bold text-text-primary">🔑 Código de pareja</p>
+              <p className="text-[11px] text-text-secondary">
+                Comparte este código por voz o mensaje. Quien lo use al registrarse entra directo a tu hogar.
+              </p>
+              <div className="flex items-center gap-2 rounded-md bg-surface-elevated border border-brd-subtle px-3 py-2">
+                <span className="font-mono tracking-[0.3em] text-base font-bold text-text-primary flex-1">
+                  {joinCode}
+                </span>
+                <button
+                  onClick={() => copyText(joinCode, 'code')}
+                  className="text-text-primary hover:text-brand-purple"
+                  aria-label="Copiar código"
+                >
+                  {justCopied === 'code' ? <CheckCircle className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+              <Button variant="ghost" fullWidth onClick={() => copyText(joinLink, 'link')}>
+                <span className="flex items-center justify-center gap-2">
+                  {justCopied === 'link' ? <CheckCircle className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+                  {justCopied === 'link' ? 'Enlace copiado' : 'Copiar enlace completo'}
+                </span>
+              </Button>
+            </div>
+          )}
+
           {!inviteLink && (
             <div className="space-y-4">
               {/* Option A — Generate link (works today). Email is used to
                   auto-link the couple if/when your partner signs up with it. */}
               <div className="space-y-2">
-                <p className="text-xs font-bold text-text-primary">🔗 Generar enlace</p>
+                <p className="text-xs font-bold text-text-primary">🔗 Generar enlace por email</p>
                 <p className="text-[11px] text-text-secondary">
                   Crea un enlace y compártelo con tu pareja por WhatsApp, SMS o donde prefieras.
                 </p>
