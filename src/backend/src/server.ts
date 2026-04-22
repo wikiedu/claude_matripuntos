@@ -158,8 +158,18 @@ cron.schedule('0 0 * * 1', () => {
 cron.schedule('0 * * * *', async () => {
   try {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    // Bug 2026-04-22: el cron auto-verificaba CUALQUIER taskLog pending >24h,
+    // incluyendo los placeholders auto-generados por la recurrencia. Esos
+    // tienen completedBy=null → la PointsTransaction resultante se creaba con
+    // userId=undefined, otorgando puntos fantasma por tareas que nadie ha
+    // hecho. Sólo auto-aceptamos logs donde un usuario haya marcado la
+    // completitud explícitamente.
     const pending = await prisma.taskLog.findMany({
-      where: { status: 'pending', createdAt: { lt: cutoff } },
+      where: {
+        status: 'pending',
+        createdAt: { lt: cutoff },
+        completedBy: { not: null },
+      },
     })
     const affectedCouples = new Set<string>()
     for (const log of pending) {
