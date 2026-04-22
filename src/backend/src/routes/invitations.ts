@@ -303,23 +303,37 @@ router.post('/register-with-invitation', deprecationMiddleware, async (req: Requ
     // Hash password
     const passwordHash = await bcryptjs.hash(password, 10)
 
-    // Create new user
+    // Bug 2026-04-22: the invitee landed back on StepPair instead of the
+    // dashboard because the frontend fired two extra round-trips after
+    // registering (PUT /profile/me to flip the flag, GET /auth/me + /auth/couple
+    // to refill the store). If any of those flaked, the ProtectedRoute logic
+    // sent them to /onboarding with couple=null. We now short-circuit the whole
+    // thing: the user is fully onboarded on creation and we return both the
+    // JWT and the couple payload in one response.
     const newUser = await prisma.user.create({
       data: {
         coupleId: invitation.coupleId,
         email,
         passwordHash,
         name,
+        hasCompletedOnboarding: true,
       },
     })
 
-    // Update invitation
     await prisma.invitation.update({
       where: { id: invitation.id },
       data: {
         status: 'accepted',
         toUserId: newUser.id,
         updatedAt: new Date(),
+      },
+    })
+
+    const couple = await prisma.couple.findUnique({
+      where: { id: invitation.coupleId },
+      include: {
+        users: { select: { id: true, email: true, name: true, coupleId: true } },
+        configurations: true,
       },
     })
 
@@ -337,7 +351,25 @@ router.post('/register-with-invitation', deprecationMiddleware, async (req: Requ
         email: newUser.email,
         name: newUser.name,
         coupleId: newUser.coupleId,
+        hasCompletedOnboarding: true,
       },
+      couple: couple
+        ? {
+            id: couple.id,
+            joinCode: couple.joinCode,
+            numChildren: couple.numChildren,
+            language: couple.language,
+            notificationsEnabled: couple.notificationsEnabled,
+            users: couple.users,
+            configuration: couple.configurations
+              ? {
+                  tasksConfig: JSON.parse(couple.configurations.tasksConfig),
+                  multipliersConfig: JSON.parse(couple.configurations.multipliersConfig),
+                  activityTypes: JSON.parse(couple.configurations.activityTypes),
+                }
+              : null,
+          }
+        : null,
     })
   } catch (error) {
     console.error('Error registering with invitation:', error)

@@ -79,15 +79,26 @@ export function StepJoinAccount({ token }: Props) {
       })
       // Save the JWT so subsequent calls are authed
       apiClient.setToken(res.token)
-      // Skip the rest of the wizard — the inviter already configured the
-      // couple. We just mark this user as onboarded and drop them on the
-      // dashboard, which is the whole point of the simpler join flow.
-      try {
-        await apiClient.profile.updateMe({ hasCompletedOnboarding: true })
-      } catch {
-        // Non-blocking — user can still navigate the app
+      // Populate the store directly from the register response. This replaces
+      // the old sequence (updateMe + loadUserData) that had three failure
+      // modes: /profile/me could 500 leaving hasCompletedOnboarding=false,
+      // /auth/couple could hiccup leaving couple=null, and even with both ok,
+      // ProtectedRoute could redirect to /onboarding between loadUserData
+      // resolving and the nav flushing. Setting user+couple synchronously
+      // eliminates the race.
+      if (res.user && res.couple) {
+        useAppStore.setState({
+          user: res.user,
+          couple: res.couple,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+        })
+      } else {
+        // Defensive: if the backend ever stops sending the couple payload,
+        // fall back to the round-trip so at least the user is logged in.
+        await useAppStore.getState().loadUserData().catch(() => {})
       }
-      await useAppStore.getState().loadUserData().catch(() => {})
       nav('/dashboard')
     } catch (err: any) {
       const msg = String(err?.message ?? '')

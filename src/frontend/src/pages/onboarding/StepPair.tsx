@@ -8,21 +8,25 @@ interface Props {
   onNext: () => void
 }
 
+// Bug 2026-04-22: we no longer expose the email-invite option in onboarding —
+// the plain-text email flow wasn't wired to a real sender and confused users
+// who expected a magic link. The join-code flow covers the same "invite my
+// partner" need and is already live. The backend email route stays mounted
+// (see invitations.ts) so we can reactivate this method later without a
+// schema change; we just hide the UI for now.
 const METHODS: Array<{
   key: OnboardingData['pairMethod']
   icon: string
   title: string
   desc: string
 }> = [
-  { key: 'email', icon: '✉️', title: 'Invitar por email', desc: 'Le enviamos un enlace mágico a tu pareja.' },
   { key: 'code',  icon: '🔑', title: 'Usar código recibido', desc: 'Pega el código que te compartió tu pareja.' },
   { key: 'solo',  icon: '🌱', title: 'Empezar en solitario', desc: 'Puedes invitar a tu pareja más tarde.' },
 ]
 
 export function StepPair({ data, onChange, onNext }: Props) {
-  const emailValid = data.pairMethod !== 'email' || data.pairEmail.includes('@')
   const codeValid  = data.pairMethod !== 'code'  || data.pairCode.trim().length >= 8
-  const canAdvance = emailValid && codeValid
+  const canAdvance = codeValid
 
   return (
     <div className="flex-1 flex flex-col gap-5 py-4">
@@ -59,21 +63,6 @@ export function StepPair({ data, onChange, onNext }: Props) {
           )
         })}
       </div>
-
-      {data.pairMethod === 'email' && (
-        <>
-          <Input
-            label="Email de tu pareja"
-            type="email"
-            value={data.pairEmail}
-            onChange={(e) => onChange({ pairEmail: e.target.value })}
-            placeholder="pareja@ejemplo.com"
-          />
-          <div className="rounded-md bg-brand-amber/10 border border-brand-amber/30 p-2.5 text-[11px] text-text-secondary">
-            ⚠️ De momento no enviamos emails reales. Puedes poner un mail ficticio para probar — no recibirá nada.
-          </div>
-        </>
-      )}
 
       {data.pairMethod === 'code' && (
         <Input
