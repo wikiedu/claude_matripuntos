@@ -30,8 +30,28 @@ import { sendWeeklyDigests } from './services/digestService.js'
 import { resetFreezersOnMonday, updateDailyStreak, calculateAndSaveXP } from './services/gamificationService.js'
 import { checkAllAchievements } from './services/achievementCheckService.js'
 import prisma from './lib/prisma.js'
+import { execSync } from 'child_process'
 
 dotenv.config()
+
+// v1.4 — Apply pending Prisma migrations on startup. Robust to whatever
+// start command Render's dashboard is configured with (npm start vs
+// node dist/server.js directly). Idempotent: no-op if schema is current.
+// Fails the process if migration errors, so the server never boots with
+// a code/schema mismatch.
+if (process.env.NODE_ENV !== 'test') {
+  try {
+    console.log('[startup] applying prisma migrations…')
+    execSync('npx --yes prisma migrate deploy --schema=./prisma/schema.prisma', {
+      stdio: 'inherit',
+      cwd: process.cwd(),
+    })
+    console.log('[startup] prisma migrations up to date')
+  } catch (err) {
+    console.error('[startup] prisma migrate deploy failed:', err)
+    process.exit(1)
+  }
+}
 
 const app = express()
 const PORT = process.env.PORT || 3000
