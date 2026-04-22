@@ -3,6 +3,11 @@ import cors from 'cors'
 import helmet from 'helmet'
 import dotenv from 'dotenv'
 import rateLimit from 'express-rate-limit'
+import {
+  initSentry,
+  mountSentryRequestHandler,
+  mountSentryErrorHandler,
+} from './lib/sentry.js'
 import authRoutes from './routes/authRoutes.js'
 import eventRoutes from './routes/eventRoutes.js'
 import taskRoutes from './routes/taskRoutes.js'
@@ -34,8 +39,14 @@ import prisma from './lib/prisma.js'
 
 dotenv.config()
 
+initSentry()
+
 const app = express()
 const PORT = process.env.PORT || 3000
+
+// Sentry request handler must run before any other middleware/routes so
+// every request is traced. No-op when SENTRY_DSN is missing.
+mountSentryRequestHandler(app)
 
 // Middleware
 const allowedOrigins = process.env.FRONTEND_URL
@@ -80,9 +91,44 @@ const resetLimiter = rateLimit({
   legacyHeaders: false,
 })
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() })
+// Health check — v1.5 enriched with version/commit/uptime so we can verify
+// which build is actually running in production (previously opaque).
+const BOOT_TIME = Date.now()
+const APP_VERSION =
+  process.env.APP_VERSION ??
+  process.env.npm_package_version ??
+  'unknown'
+const COMMIT_SHA =
+  process.env.COMMIT_SHA ??
+  process.env.GIT_COMMIT ??
+  process.env.RENDER_GIT_COMMIT ??
+  null
+
+app.get('/api/health', async (req, res) => {
+  let lastMigration: string | null = null
+  let db: 'ok' | 'error' = 'ok'
+  try {
+    const row = await prisma.$queryRawUnsafe<Array<{ migration_name: string }>>(
+      `SELECT migration_name FROM "_prisma_migrations"
+       WHERE finished_at IS NOT NULL
+       ORDER BY finished_at DESC
+       LIMIT 1`,
+    )
+    lastMigration = row?.[0]?.migration_name ?? null
+  } catch {
+    db = 'error'
+  }
+
+  res.json({
+    status: db === 'ok' ? 'ok' : 'degraded',
+    timestamp: new Date().toISOString(),
+    version: APP_VERSION,
+    commit: COMMIT_SHA ? COMMIT_SHA.slice(0, 7) : null,
+    uptimeSeconds: Math.floor((Date.now() - BOOT_TIME) / 1000),
+    db,
+    lastMigration,
+    env: process.env.NODE_ENV ?? 'development',
+  })
 })
 
 // Routes
@@ -133,6 +179,11 @@ app.use('/api/premium', premiumRoutes)
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' })
 })
+
+// Sentry error handler must run BEFORE our final error middleware so it
+// captures exceptions with the original stack trace. No-op when SENTRY_DSN
+// is missing.
+mountSentryErrorHandler(app)
 
 // Error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
