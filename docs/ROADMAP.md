@@ -13,8 +13,9 @@
 | v1.1 | La Chispa | ✅ En producción | `main` | `v1.1` |
 | v1.2 | El Juego | ✅ En producción | `main` | `v1.2` |
 | v1.3 | La Casa | ✅ En producción | `main` | `v1.3` |
-| v1.4 | La Evolución (diseño v2) | ⏳ Listo para merge | `feature/v1.4-la-evolucion` | — |
-| — | Módulo Actividades (`/home/*`) | ✅ En producción (2026-04-22) | `feature/actividades-module` → `main` | — |
+| v1.4 | La Evolución (diseño v2) | ✅ En producción | `feature/v1.4-la-evolucion` → `main` | `v1.4` |
+| v1.4.1 | Hardening post-v1.4 (Actividades + join-code + audit sweep + onboarding/tasks fixes) | ✅ En producción (2026-04-22) | `main` | `v1.4.1` |
+| — | **Módulo Tareas 2.0** (hotfix recurrentes + panel gestión) | 🔨 En curso | `feature/tareas-recurrentes-mgmt` | — |
 | v1.5 | Red de Seguridad (tests + CI) | Planificado | `feature/v1.5-red-de-seguridad` | — |
 | v2.0 | Hogar 360 | Planificado | `feature/v2.0-hogar-360` | — |
 | v2.1 | Conectados | Planificado | `feature/v2.1-conectados` | — |
