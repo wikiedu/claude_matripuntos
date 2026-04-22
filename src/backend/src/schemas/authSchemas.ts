@@ -53,3 +53,14 @@ export const proposePartnerSchema = z.object({
 export const proposalActionSchema = z.object({
   invitationId: z.string().cuid(),
 })
+
+// Register-with-code: crea una cuenta y enlaza a la pareja dueña de joinCode.
+// joinCode se valida también a nivel semántico (alfabeto/longitud) en el
+// handler; aquí solo exigimos longitud 6 para dar errores tempranos.
+export const registerWithCodeSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  name: z.string().min(2),
+  joinCode: z.string().length(6),
+  language: z.string().default('es'),
+})

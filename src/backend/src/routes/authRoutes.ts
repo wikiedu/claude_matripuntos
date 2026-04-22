@@ -16,10 +16,12 @@ import {
   signupSchema, loginSchema,
   signupUserSchema, inviteSchema, acceptInviteSchema, rejectInviteSchema,
   proposePartnerSchema, proposalActionSchema,
+  registerWithCodeSchema,
 } from '../schemas/authSchemas.js'
 import { ZodError } from 'zod'
 
 import prisma from '../lib/prisma.js'
+import { normalizeJoinCode } from '../utils/joinCode.js'
 
 const router = express.Router()
 
@@ -191,6 +193,7 @@ router.get('/couple', authMiddleware, async (req: Request, res: Response): Promi
     res.json({
       couple: {
         id: couple.id,
+        joinCode: couple.joinCode,
         numChildren: couple.numChildren,
         language: couple.language,
         notificationsEnabled: couple.notificationsEnabled,
@@ -305,6 +308,130 @@ router.get('/proposals', authMiddleware, async (req: Request, res: Response): Pr
     res.json({ proposals })
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : 'Failed' })
+  }
+})
+
+// Public preview of a couple by joinCode — used by the signup flow to show
+// "te vas a unir al hogar de X" antes de pedir datos. No revela email ni
+// secretKey. Rate-limited por `authLimiter` del server.ts (20 req / 15m).
+router.get('/couple-preview/:code', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const normalized = normalizeJoinCode(req.params.code ?? '')
+    if (!normalized) {
+      res.status(400).json({ error: 'Código inválido' })
+      return
+    }
+
+    const couple = await prisma.couple.findUnique({
+      where: { joinCode: normalized },
+      include: { users: { select: { id: true, name: true } } },
+    })
+    if (!couple) {
+      res.status(404).json({ error: 'Código no encontrado' })
+      return
+    }
+
+    // Si la pareja ya tiene 2 miembros no se puede unir nadie más — devolvemos
+    // estado explícito para que el frontend muestre el mensaje correcto.
+    const isFull = couple.users.length >= 2
+
+    res.json({
+      joinCode: normalized,
+      coupleId: couple.id,
+      isFull,
+      members: couple.users.map((u) => ({ name: u.name })),
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to preview couple'
+    res.status(500).json({ error: message })
+  }
+})
+
+// Register a new user and link them to an existing couple via joinCode.
+// Si la pareja ya está llena (2 miembros), devolvemos 409. Si el joinCode no
+// existe, 404. El usuario queda vinculado y recibe JWT inmediato.
+router.post('/register-with-code', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const validated = registerWithCodeSchema.parse(req.body)
+    const normalized = normalizeJoinCode(validated.joinCode)
+    if (!normalized) {
+      res.status(400).json({ error: 'Código inválido' })
+      return
+    }
+
+    const couple = await prisma.couple.findUnique({
+      where: { joinCode: normalized },
+      include: { users: true },
+    })
+    if (!couple) {
+      res.status(404).json({ error: 'Código no encontrado' })
+      return
+    }
+    if (couple.users.length >= 2) {
+      res.status(409).json({ error: 'Esta pareja ya está completa' })
+      return
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { email: validated.email } })
+    if (existingUser) {
+      res.status(409).json({ error: 'Ya existe una cuenta con este email' })
+      return
+    }
+
+    const { hashPassword } = await import('../services/authService.js')
+    const passwordHash = await hashPassword(validated.password)
+
+    const user = await prisma.user.create({
+      data: {
+        email: validated.email,
+        passwordHash,
+        name: validated.name,
+        coupleId: couple.id,
+        roleInHome: 'equal',
+        language: validated.language,
+        hasCompletedOnboarding: false,
+      },
+    })
+
+    // Notificamos al miembro existente que el compañero entró al hogar.
+    const inviter = couple.users[0]
+    if (inviter) {
+      await prisma.notification.create({
+        data: {
+          coupleId: couple.id,
+          userId: inviter.id,
+          type: 'partner_joined',
+          title: '🎉 Tu pareja se ha unido',
+          message: `${validated.name} ha creado su cuenta y ya estáis vinculados.`,
+          isRead: false,
+        },
+      })
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, coupleId: couple.id },
+      process.env.JWT_SECRET!,
+      { expiresIn: '7d' }
+    )
+
+    res.status(201).json({
+      message: 'Account created and linked',
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        coupleId: user.coupleId,
+      },
+      coupleId: couple.id,
+    })
+  } catch (error) {
+    if (error instanceof ZodError) {
+      res.status(400).json({ error: 'Validation error', details: error.errors })
+      return
+    }
+    const message = error instanceof Error ? error.message : 'Failed to register with code'
+    res.status(400).json({ error: message })
   }
 })
 
