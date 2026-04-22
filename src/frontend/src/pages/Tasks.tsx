@@ -386,13 +386,15 @@ export default function Tasks() {
     if (l.date?.toString().startsWith(today)) taskIdsHiddenFromToday.add(l.taskId)
     if (l.status === 'pending') taskIdsHiddenFromToday.add(l.taskId)
   }
-  // Hoy only includes tasks the user actively scheduled (today or overdue).
-  // Unscheduled catalog/recurring tasks stay in the Catálogo/Esta semana sections
-  // so "Hoy" doesn't auto-populate with stuff the user didn't put there.
+  // Bug 2026-04-22: "Hoy" used to require scheduledFor<=today, which meant
+  // catalog-added tasks and puntual custom tasks (both have scheduledFor=null)
+  // were invisible everywhere. Now "Hoy" shows (a) scheduled tasks due
+  // today-or-earlier AND (b) unscheduled tasks the user has in their list —
+  // those are "available whenever" and belong here until the user acts on them.
   const todayTasks = filteredTasks
     .filter((t) => !taskIdsHiddenFromToday.has(t.id))
     .filter((t) => {
-      if (!t.scheduledFor) return false
+      if (!t.scheduledFor) return true
       const sf = toLocalDateString(t.scheduledFor)
       return sf <= today
     })
@@ -418,14 +420,12 @@ export default function Tasks() {
     return false
   })
 
-  const existingTaskNames = new Set(tasks.map((t) => t.name.toLowerCase()))
+  // Bug 2026-04-22: el catálogo es un listado fijo de ideas — no se filtra por
+  // lo que ya añadiste. Duplicar es intencional (ej: "Limpiar baño" con dos
+  // baños). Antes escondíamos ítems ya añadidos, lo que hacía que el catálogo
+  // pareciera que "desaparecía" al usarlo.
   const visibleCatalog = TASK_CATALOG
     .filter((g) => cat === 'all' || g.category === cat)
-    .map((g) => ({
-      ...g,
-      tasks: g.tasks.filter((t) => !existingTaskNames.has(t.name.toLowerCase())),
-    }))
-    .filter((g) => g.tasks.length > 0)
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
   const handleLogSuccess = async () => {

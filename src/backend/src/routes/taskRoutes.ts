@@ -103,6 +103,12 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     })
 
+    // Bug 2026-04-22: we used to omit scheduledFor/isRecurring from this
+    // payload, which made the Tasks page unable to distinguish scheduled from
+    // unscheduled tasks — every filter that checked t.scheduledFor saw
+    // undefined and nothing ever landed in "Hoy" or "Esta semana", even the
+    // recurring tasks created through AddTaskSheet. Expose the scheduling
+    // fields so the UI can render catalog-added and custom tasks correctly.
     res.json({
       tasks: tasks.map(t => ({
         id: t.id,
@@ -111,6 +117,9 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
         category: t.category,
         pointsBase: t.pointsBase.toString(),
         isDefault: t.isDefault,
+        scheduledFor: t.scheduledFor ? t.scheduledFor.toISOString() : null,
+        isRecurring: t.isRecurring,
+        frequency: t.frequency,
       })),
     })
   } catch (error) {
