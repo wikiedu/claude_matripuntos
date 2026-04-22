@@ -140,8 +140,46 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
     }
 
     if (negotiation.responseType !== 'awaiting') {
-      res.status(400).json({ error: 'Negotiation already responded to' })
-      return
+      // Stale/stuck states happen for two reasons:
+      //   a) Another tab already responded — a newer round may now be awaiting.
+      //   b) An old partial failure left event.status='pending' with no
+      //      awaiting negotiation at all (pre-migration data).
+      // For (a) we tell the client which round to retry against. For (b) we
+      // auto-heal by flipping the latest round back to 'awaiting', same logic
+      // as migration 20260422000000_actividades_negotiation_fixes, so the user
+      // can respond without needing a manual DB repair.
+      if (negotiation.event.status !== 'pending') {
+        res.status(400).json({ error: 'Negotiation already responded to' })
+        return
+      }
+
+      const existingAwaiting = await prisma.negotiation.findFirst({
+        where: { eventId: negotiation.eventId, responseType: 'awaiting' },
+      })
+      if (existingAwaiting) {
+        res.status(409).json({
+          error: 'Esta ronda ya fue respondida. Hay una ronda más reciente pendiente.',
+          awaitingNegotiationId: existingAwaiting.id,
+        })
+        return
+      }
+
+      const latest = await prisma.negotiation.findFirst({
+        where: { eventId: negotiation.eventId },
+        orderBy: { roundNumber: 'desc' },
+      })
+      if (!latest || latest.id !== req.params.negotiationId) {
+        res.status(400).json({ error: 'Negotiation already responded to' })
+        return
+      }
+
+      await prisma.negotiation.update({
+        where: { id: latest.id },
+        data: { responseType: 'awaiting', respondedBy: null, respondedAt: null },
+      })
+      // Sync the in-memory copy so downstream reads and the transaction guard
+      // see the repaired state.
+      negotiation.responseType = 'awaiting'
     }
 
     // Validate counter-proposal inputs BEFORE any writes. Previously the

@@ -21,17 +21,21 @@ export function WeeklyBarsChart({ days, youName, partnerName }: Props) {
         </div>
       </div>
       <Card>
-        <div className="flex items-end gap-1.5 h-[110px] mb-2">
+        <div className="flex gap-1.5 h-[140px] mb-2">
           {days.map(d => (
-            <div key={d.label} className="flex-1 flex flex-col items-center gap-1">
-              <div className="flex-1 flex items-end gap-0.5 w-full">
+            <div
+              key={d.label}
+              className="flex-1 flex flex-col items-center gap-1 cursor-default"
+              title={`${d.label} · ${youName}: ${d.you} MP · ${partnerName}: ${d.partner} MP`}
+            >
+              <div className="flex-1 flex items-end gap-0.5 w-full min-h-0">
                 <div
-                  className="flex-1 rounded-t-sm bg-gradient-to-b from-brand-purple to-brand-purple-dark"
-                  style={{ height: `${(d.you / max) * 100}%`, minHeight: d.you > 0 ? 2 : 0 }}
+                  className="flex-1 rounded-t-sm bg-gradient-to-b from-brand-purple to-brand-purple-dark transition-opacity hover:opacity-80"
+                  style={{ height: `${(d.you / max) * 100}%`, minHeight: d.you > 0 ? 4 : 0 }}
                 />
                 <div
-                  className="flex-1 rounded-t-sm bg-gradient-to-b from-[#fbbf24] to-brand-amber-dark"
-                  style={{ height: `${(d.partner / max) * 100}%`, minHeight: d.partner > 0 ? 2 : 0 }}
+                  className="flex-1 rounded-t-sm bg-gradient-to-b from-[#fbbf24] to-brand-amber-dark transition-opacity hover:opacity-80"
+                  style={{ height: `${(d.partner / max) * 100}%`, minHeight: d.partner > 0 ? 4 : 0 }}
                 />
               </div>
               <div className="text-[10px] font-semibold text-text-secondary">{d.label}</div>

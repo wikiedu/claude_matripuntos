@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Avatar } from '../primitives/Avatar'
 import { apiClient } from '../../../services/apiClient'
 import { useAppStore } from '../../../store/useAppStore'
 
 type WhoFilter   = 'all' | 'me' | 'partner'
 type RangeFilter = 'week' | 'month' | 'all'
 
-// Map a couple's two users → id→display metadata so we can render avatars/names
+// Map a couple's two users → id→display metadata so we can render names/avatars
 // without asking the backend to JOIN on the user record for every transaction.
 interface UserMeta { name: string; avatarEmoji?: string; avatarColor?: string }
 
@@ -33,6 +32,31 @@ function actionFor(tx: any): string {
   }
   if (tx.description) return tx.description
   return TYPE_LABEL[tx.type] ?? tx.type ?? 'Movimiento'
+}
+
+// Kind / status derived from the transaction type — needed so every row gets
+// the right icon. Mirrors the logic in Dashboard's RecentMovementsTabs so the
+// two feeds look consistent.
+type MovementKind = 'activity' | 'task' | 'negotiation'
+
+function kindFor(tx: any): MovementKind {
+  if (tx.taskLog) return 'task'
+  if (tx.type === 'event_rejected') return 'negotiation'
+  return 'activity'
+}
+
+function statusFor(tx: any): string | undefined {
+  if (tx.type === 'event_rejected') return 'rejected'
+  if (tx.type === 'forced_payment') return 'forced'
+  return undefined
+}
+
+function iconFor(kind: MovementKind, status?: string): string {
+  if (status === 'rejected') return '❌'
+  if (status === 'forced') return '⚡'
+  if (kind === 'task') return '✅'
+  if (kind === 'negotiation') return '🔄'
+  return '🎯'
 }
 
 // Group entries by the day they occurred. "Hoy / Ayer / <fecha larga>" is friendlier
@@ -92,15 +116,16 @@ export function MovementsTab() {
 
   const movements = (data?.transactions ?? []).map(tx => {
     const meta = tx.userId ? userMeta.get(tx.userId) : undefined
+    const kind = kindFor(tx)
+    const status = statusFor(tx)
     return {
       id: tx.id,
       userId: tx.userId,
       userName: meta?.name ?? tx.user?.name ?? 'Pareja',
-      userAvatarEmoji: meta?.avatarEmoji,
-      userAvatarColor: meta?.avatarColor,
       action: actionFor(tx),
       delta: Number(tx.amount ?? 0),
       dateLabel: dayLabel(tx.createdAt),
+      icon: iconFor(kind, status),
     }
   })
 
@@ -141,7 +166,12 @@ export function MovementsTab() {
           <div className="rounded-md bg-[rgba(26,16,53,0.3)] overflow-hidden">
             {items.map((m, i) => (
               <div key={m.id} className={`flex items-center gap-2 px-3 py-2.5 ${i > 0 ? 'border-t border-brd-subtle' : ''}`}>
-                <Avatar emoji={m.userAvatarEmoji} color={m.userAvatarColor} size="sm" />
+                <span
+                  aria-hidden
+                  className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-surface-elevated border border-brd-subtle text-sm flex-shrink-0"
+                >
+                  {m.icon}
+                </span>
                 <div className="flex-1 text-xs min-w-0">
                   <span className="text-text-primary font-semibold">{m.userName}</span>
                   <span className="text-text-secondary"> · {m.action}</span>
