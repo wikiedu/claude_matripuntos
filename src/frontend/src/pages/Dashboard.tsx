@@ -13,6 +13,7 @@ import { VerifyTasksBanner } from '../components/v2/dashboard/VerifyTasksBanner'
 import { TodayTasksSection } from '../components/v2/dashboard/TodayTasksSection'
 import { RecentMovementsTabs } from '../components/v2/dashboard/RecentMovementsTabs'
 import { QuickPreviews } from '../components/v2/dashboard/QuickPreviews'
+import { NoPartnerBanner } from '../components/v2/dashboard/NoPartnerBanner'
 import { CATEGORY_EMOJI } from '../components/v2/tasks/CategoryFilterStrip'
 import { DashboardTour, hasSeenTour } from '../components/v2/tour/DashboardTour'
 import { toLocalDateString } from '../utils/dateUtils'
@@ -165,9 +166,12 @@ export default function Dashboard() {
     }
   }
 
+  const isSolo = (couple.users?.length ?? 0) < 2
+
   return (
     <main className="pb-4 pt-2">
       {showTour && <DashboardTour onClose={() => setShowTour(false)} />}
+      {isSolo && <NoPartnerBanner />}
       <DailyPhrase />
       <BalanceLevelHero
         youName={you.name}

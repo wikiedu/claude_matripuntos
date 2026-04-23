@@ -124,12 +124,19 @@ export default function Signup() {
 
       apiClient.setToken(data.token)
       useAppStore.getState().setUser(data.user)
-      // Cuando entras con joinCode quedas ya vinculado: el siguiente paso es
-      // el dashboard, no onboarding. Sin código vas a onboarding como siempre.
       useAppStore.setState({ isAuthenticated: true })
+
       if (hasValidCode) {
-        useAppStore.getState().setCouple(null)
-        navigate('/home')
+        // Bug 2026-04-23: al entrar con joinCode dejábamos couple=null y
+        // navegábamos a /home; ProtectedRoute detectaba
+        // !couple && !hasCompletedOnboarding y redirigía a /onboarding, donde
+        // hasPartner (calculado con couple?.users.length >= 2) era false y
+        // aparecía StepPair pidiendo "conectar con pareja" aunque ya estuviese
+        // conectado. Cargamos la pareja real antes de navegar → Onboarding
+        // detecta hasPartner=true y salta StepPair, o directamente vamos al
+        // dashboard si el usuario decide que ya está configurado.
+        await useAppStore.getState().loadUserData().catch(() => {})
+        navigate('/onboarding')
       } else {
         useAppStore.getState().setCouple(null)
         navigate('/onboarding')
