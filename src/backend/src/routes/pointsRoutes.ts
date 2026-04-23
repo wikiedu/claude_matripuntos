@@ -68,6 +68,7 @@ router.get('/history', authMiddleware, async (req: Request, res: Response): Prom
             task: {
               select: {
                 name: true,
+                category: true,
               },
             },
             date: true,
@@ -101,6 +102,7 @@ router.get('/history', authMiddleware, async (req: Request, res: Response): Prom
         taskLog: t.taskLog ? {
           id: t.taskLog.id,
           taskName: t.taskLog.task?.name,
+          category: t.taskLog.task?.category,
           date: t.taskLog.date,
         } : null,
         createdAt: t.createdAt,

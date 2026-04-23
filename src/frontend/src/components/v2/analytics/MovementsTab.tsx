@@ -10,9 +10,21 @@ type RangeFilter = 'week' | 'month' | 'all'
 // without asking the backend to JOIN on the user record for every transaction.
 interface UserMeta { name: string; avatarEmoji?: string; avatarColor?: string }
 
-const CAT_EMOJI: Record<string, string> = {
-  cocina: '🍳', limpieza: '🧹', baños: '🛁', compra: '🛒', logistica: '📋',
-  cuidado: '👶', mantenimiento: '🔧', jardineria: '🌿', mascotas: '🐾',
+// Emoji de categoría para TAREAS del hogar. Las claves coinciden con
+// Task.category en la BD (cocina, baños, limpieza, etc.).
+const TASK_CAT_EMOJI: Record<string, string> = {
+  cocina: '🍳', limpieza: '🧹', baños: '🛁', banos: '🛁', compra: '🛒',
+  logistica: '📋', cuidado: '👶', mantenimiento: '🔧', jardineria: '🌿',
+  mascotas: '🐾',
+}
+
+// Emoji de tipología para ACTIVIDADES (Event.type). Mantiene paridad con los
+// tipos válidos de activityService en el backend. El fallback 🎯 cubre tipos
+// nuevos o libres que el usuario defina.
+const ACTIVITY_TYPE_EMOJI: Record<string, string> = {
+  trabajo: '💼', deporte: '🏃', deporte_hobby: '🎾', ocio: '🎬',
+  familia: '👨‍👩‍👧', salud: '🏥', social: '🎉', viaje: '✈️', estudio: '📚',
+  descanso: '😴', cuidado_personal: '💆', compromiso: '🤝', otros: '🎯',
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -24,23 +36,33 @@ const TYPE_LABEL: Record<string, string> = {
 }
 
 function actionFor(tx: any): string {
-  if (tx.event?.title) return tx.event.title
-  if (tx.event?.type) return `Actividad · ${tx.event.type}`
+  // Actividades: prepend emoji de tipología cuando conocemos el tipo.
+  if (tx.event?.title) {
+    const emoji = tx.event.type ? (ACTIVITY_TYPE_EMOJI[tx.event.type.toLowerCase()] ?? '') : ''
+    return `${emoji ? `${emoji} ` : ''}${tx.event.title}`.trim()
+  }
+  if (tx.event?.type) {
+    const emoji = ACTIVITY_TYPE_EMOJI[tx.event.type.toLowerCase()] ?? ''
+    const label = tx.event.type.charAt(0).toUpperCase() + tx.event.type.slice(1)
+    return `${emoji ? `${emoji} ` : ''}${label}`.trim()
+  }
+  // Tareas: prepend emoji de categoría (cocina/baños/...).
   if (tx.taskLog?.taskName) {
-    const emoji = CAT_EMOJI[(tx.taskLog.category ?? '').toLowerCase()] ?? ''
+    const emoji = TASK_CAT_EMOJI[(tx.taskLog.category ?? '').toLowerCase()] ?? ''
     return `${emoji ? `${emoji} ` : ''}${tx.taskLog.taskName}`.trim()
   }
   if (tx.description) return tx.description
   return TYPE_LABEL[tx.type] ?? tx.type ?? 'Movimiento'
 }
 
-// Kind / status derived from the transaction type — needed so every row gets
-// the right icon. Mirrors the logic in Dashboard's RecentMovementsTabs so the
-// two feeds look consistent.
+// Kind / status derived from the transaction type. Antes dependíamos de
+// tx.taskLog presence, pero transacciones históricas sin relatedTaskLogId
+// devolvían taskLog=null y caían en 'activity', pintando todo como 🎯.
+// Despachamos por tx.type para que el icono refleje la naturaleza real.
 type MovementKind = 'activity' | 'task' | 'negotiation'
 
 function kindFor(tx: any): MovementKind {
-  if (tx.taskLog) return 'task'
+  if (tx.type === 'task_completed' || tx.taskLog) return 'task'
   if (tx.type === 'event_rejected') return 'negotiation'
   return 'activity'
 }

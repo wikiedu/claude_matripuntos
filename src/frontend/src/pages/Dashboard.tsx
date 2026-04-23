@@ -89,7 +89,13 @@ export default function Dashboard() {
     // scheduled — today or overdue. Unscheduled catalog/recurring tasks are
     // intentionally excluded so the dashboard doesn't populate with stuff the
     // user didn't put there.
+    //
+    // Bug 2026-04-23: ocultar recurrentes pausadas (frequency!=null,
+    // isRecurring=false) — Task.scheduledFor puede quedar apuntando al último
+    // día generado y hacerlas aparecer hoy como "overdue". Mismo filtro que en
+    // Tasks.tsx.
     return tasksRes.tasks
+      .filter((t) => !(t.frequency && !t.isRecurring))
       .filter((t) => {
         if (!t.scheduledFor) return false
         const sf = toLocalDateString(t.scheduledFor)

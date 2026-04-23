@@ -35,6 +35,7 @@ interface Task {
   pointsBase: string
   description?: string
   isRecurring?: boolean
+  frequency?: string | null
   scheduledFor?: string
 }
 
@@ -407,8 +408,14 @@ export default function Tasks() {
   // were invisible everywhere. Now "Hoy" shows (a) scheduled tasks due
   // today-or-earlier AND (b) unscheduled tasks the user has in their list —
   // those are "available whenever" and belong here until the user acts on them.
+  //
+  // Bug 2026-04-23: una recurrente pausada (frequency!=null, isRecurring=false)
+  // seguía apareciendo hoy porque scheduledFor quedaba apuntando a la última
+  // instancia generada. Pause borra las ocurrencias futuras pero no reescribe
+  // scheduledFor del Task row, así que filtramos explícitamente aquí.
   const todayTasks = filteredTasks
     .filter((t) => !taskIdsHiddenFromToday.has(t.id))
+    .filter((t) => !(t.frequency && !t.isRecurring))
     .filter((t) => {
       if (!t.scheduledFor) return true
       const sf = toLocalDateString(t.scheduledFor)

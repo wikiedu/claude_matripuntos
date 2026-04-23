@@ -30,10 +30,20 @@ interface AppState {
   logout: () => void
 }
 
+// Bug 2026-04-23: un refresh de página (sin navegar a /login explícitamente)
+// nos devolvía al login aunque hubiese token guardado. Causa: el store arrancaba
+// con isLoading=false; ProtectedRoute evaluaba isAuthenticated=false /
+// isLoading=false en el primer render y hacía Navigate a /login antes de que
+// el useEffect de App llegase a llamar a loadUserData. Arrancamos con
+// isLoading=true si hay token en localStorage → ProtectedRoute muestra el
+// spinner "Cargando..." y el flag se baja cuando loadUserData responde.
+const hasStoredToken =
+  typeof window !== 'undefined' && !!window.localStorage.getItem('auth_token')
+
 export const useAppStore = create<AppState>((set) => ({
   user: null,
   couple: null,
-  isLoading: false,
+  isLoading: hasStoredToken,
   error: null,
   isAuthenticated: false,
 
