@@ -15,7 +15,7 @@
 | v1.3 | La Casa | ✅ En producción | `main` | `v1.3` |
 | v1.4 | La Evolución (diseño v2) | ✅ En producción | `feature/v1.4-la-evolucion` → `main` | `v1.4` |
 | v1.4.1 | Hardening post-v1.4 (Actividades + join-code + audit sweep + onboarding/tasks fixes) | ✅ En producción (2026-04-22) | `main` | `v1.4.1` |
-| v1.5 | Red de Seguridad (tests + CI + 16 quick-wins) | 🧪 Pendiente de QA real + tag | `main` (code shipped 2026-04-22) | — |
+| v1.5 | Red de Seguridad (tests + CI + 16 quick-wins) | ✅ En producción (2026-04-23) | `main` | `v1.5` |
 | v2.0 | Hogar 360 | Planificado | `feature/v2.0-hogar-360` | — |
 | v2.1 | Conectados | Planificado | `feature/v2.1-conectados` | — |
 | v3.0 | Premium | Futuro | `feature/v3.0-premium` | — |
@@ -184,10 +184,17 @@ Code shipped a `main` directo (sin feature branch). Se etiqueta `v1.5` tras QA r
 13. Iconografía y tone consistentes en notificaciones (parte de #6).
 14. Quick-wins menores embebidos en los commits anteriores: aislamiento de placeholders de recurrencia, ConfirmDialog reutilizable, filtro mías/pareja en tareas, avatar con mood en header.
 
-**Pendiente para cerrar el tag `v1.5`:**
-- QA real end-to-end con dos cuentas (Paso 4) — checklist en `docs/QA-CHECKLIST-v1.5.md`.
-- Review final de seguridad (superficie de `/auth/demo-*`, presencia, rate-limiting).
-- Aplicar tag `v1.5` en `main` y actualizar esta tabla.
+**QA y hotfixes post-tag (2026-04-23):**
+- Paso 4 — QA real dos cuentas completado; checklist en `docs/QA-CHECKLIST-v1.5.md`.
+- Hotfix delta: actividad aceptada siempre resta puntos al creador (antes se veía
+  positivo desde el dashboard del otro miembro de la pareja). Commit `3ff81b5`.
+- Hotfix CI: workspaces comparten un único `package-lock.json` en raíz; el
+  workflow y `.gitignore` ajustados. Commits `f38dee4` + `9cfdc31`.
+- Hotfix UX post-QA (commit `f761bd2`): (a) refresco no expulsa al login
+  (Zustand arranca `isLoading=true` si hay token), (b) iconos del historial se
+  despachan por `tx.type` y muestran emoji de categoría, (c) recurrentes
+  pausadas ya no reaparecen en "Hoy".
+- Tag `v1.5` aplicado en `main` tras validación del usuario.
 
 ---
 
