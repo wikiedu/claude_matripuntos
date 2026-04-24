@@ -206,7 +206,17 @@ export default function Signup() {
               <Input label="Contraseña (mín. 8)" type={showPwd ? 'text' : 'password'} value={pwd} onChange={e => setPwd(e.target.value)} autoComplete="new-password" required />
               <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-2 bottom-2 text-text-secondary text-lg" aria-label="Mostrar contraseña">👁</button>
             </div>
+            {pwd.length > 0 && pwd.length < 8 && (
+              <div className="text-[11px] text-danger -mt-2">
+                Faltan {8 - pwd.length} caracteres
+              </div>
+            )}
             <Input label="Confirmar contraseña" type={showPwd ? 'text' : 'password'} value={confirm} onChange={e => setConfirm(e.target.value)} autoComplete="new-password" required />
+            {confirm.length > 0 && confirm !== pwd && (
+              <div className="text-[11px] text-danger -mt-2">
+                Las contraseñas no coinciden
+              </div>
+            )}
             <label className="flex items-center gap-2 text-xs text-text-secondary mt-1">
               <input type="checkbox" checked={accept} onChange={e => setAccept(e.target.checked)} className="accent-brand-purple" />
               Acepto los términos y la política de privacidad
