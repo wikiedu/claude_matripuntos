@@ -73,7 +73,15 @@ class ApiClient {
         }
       }
       const error = await response.json().catch(() => ({ error: 'Request failed' }))
-      throw new Error(error.error || `API Error: ${response.statusText}`)
+      // Si el backend devuelve un error genérico de Zod ("Validation error"),
+      // intentamos enriquecerlo con el primer `message` de `details` para que
+      // el usuario vea "Password must be at least 8 characters" en vez de un
+      // escueto "Validation error" sin contexto.
+      const detail = Array.isArray(error.details) && error.details[0]?.message
+      const niceMessage = detail
+        ? `${error.error}: ${detail}`
+        : error.error || `API Error: ${response.statusText}`
+      throw new Error(niceMessage)
     }
 
     return response.json()

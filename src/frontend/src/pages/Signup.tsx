@@ -81,7 +81,7 @@ export default function Signup() {
   const hasValidCode = preview.kind === 'ready'
   const step1Valid =
     email.includes('@') &&
-    pwd.length >= 6 &&
+    pwd.length >= 8 &&
     confirm === pwd &&
     accept
 
@@ -92,7 +92,7 @@ export default function Signup() {
     setErr(null)
     if (!step1Valid) {
       if (!email.includes('@'))        return setErr('Introduce un email válido')
-      if (pwd.length < 6)              return setErr('La contraseña necesita al menos 6 caracteres')
+      if (pwd.length < 8)              return setErr('La contraseña necesita al menos 8 caracteres')
       if (confirm !== pwd)             return setErr('Las contraseñas no coinciden')
       if (!accept)                     return setErr('Debes aceptar los términos')
     }
@@ -203,7 +203,7 @@ export default function Signup() {
           <form onSubmit={goStep2} className="flex flex-col gap-3">
             <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required />
             <div className="relative">
-              <Input label="Contraseña (mín. 6)" type={showPwd ? 'text' : 'password'} value={pwd} onChange={e => setPwd(e.target.value)} autoComplete="new-password" required />
+              <Input label="Contraseña (mín. 8)" type={showPwd ? 'text' : 'password'} value={pwd} onChange={e => setPwd(e.target.value)} autoComplete="new-password" required />
               <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-2 bottom-2 text-text-secondary text-lg" aria-label="Mostrar contraseña">👁</button>
             </div>
             <Input label="Confirmar contraseña" type={showPwd ? 'text' : 'password'} value={confirm} onChange={e => setConfirm(e.target.value)} autoComplete="new-password" required />
