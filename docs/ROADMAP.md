@@ -1,7 +1,8 @@
 # Matripuntos — Roadmap de Versiones
 
-> Estado actualizado: 2026-04-22  
-> Spec completo: `docs/superpowers/specs/2026-04-11-roadmap-versiones-design.md`
+> Estado actualizado: 2026-05-01  
+> Spec original: `docs/superpowers/specs/2026-04-11-roadmap-versiones-design.md`  
+> Replanteo de cola post-v1.5: 2026-05-01 (esta revisión)
 
 ---
 
@@ -16,9 +17,17 @@
 | v1.4 | La Evolución (diseño v2) | ✅ En producción | `feature/v1.4-la-evolucion` → `main` | `v1.4` |
 | v1.4.1 | Hardening post-v1.4 (Actividades + join-code + audit sweep + onboarding/tasks fixes) | ✅ En producción (2026-04-22) | `main` | `v1.4.1` |
 | v1.5 | Red de Seguridad (tests + CI + 16 quick-wins) | ✅ En producción (2026-04-23) | `main` | `v1.5` |
-| v2.0 | Hogar 360 | Planificado | `feature/v2.0-hogar-360` | — |
-| v2.1 | Conectados | Planificado | `feature/v2.1-conectados` | — |
-| v3.0 | Premium | Futuro | `feature/v3.0-premium` | — |
+| **v1.5.1** | **Hotfix Supabase migrations** | 🔧 Pendiente — bloquea v1.6 | `feature/v1.5.1-supabase-reconcile` | — |
+| **v1.6** | **La Personalidad** (frase + mood + avatares) | 📝 Spec aprobado, plan pendiente | `feature/v1.6-la-personalidad` | — |
+| **v1.6.1** | **Confianza** (privacy + telemetría + onboarding invitee + E2E) | 🧠 Brainstorm pendiente | `feature/v1.6.1-confianza` | — |
+| **v1.7** | **El Juego (segundo round)** | 🧠 Brainstorm pendiente | `feature/v1.7-el-juego-2` | — |
+| **v2.0.1** | **Calendario 360** | 🧠 Brainstorm pendiente | `feature/v2.0.1-calendario-360` | — |
+| **v2.0.2** | **Journaling** | 🧠 Brainstorm pendiente | `feature/v2.0.2-journaling` | — |
+| **v2.0.3** | **Analytics Pro** | 🧠 Brainstorm pendiente | `feature/v2.0.3-analytics-pro` | — |
+| v2.1 | Conectados (push + Google Cal + export + referidos) | 🧠 Brainstorm pendiente | `feature/v2.1-conectados` | — |
+| v3.0 | Premium (Stripe + freemium B + IA + React Native) | 🧠 Futuro | `feature/v3.0-premium` | — |
+
+**Principios para todo lo post-v1.5:** versiones estables, test-first, contract testing back↔front, QA automatizado (Vitest + Jest unit + Playwright E2E desde v1.6.1), security-by-default, deploy reproducible.
 
 ---
 
@@ -198,42 +207,198 @@ Code shipped a `main` directo (sin feature branch). Se etiqueta `v1.5` tras QA r
 
 ---
 
-## v2.0 · Hogar 360
+## v1.5.1 · Hotfix Supabase migrations 🔧
 
-**Foco:** App completa de la vida en pareja.  
-**Política de tests:** test-first activada desde v1.5 (ver sección anterior). Cada feature nueva entra con sus tests Vitest/Jest; CI bloquea el merge si falla.
+**Foco:** desbloquear el camino de migraciones Prisma → Supabase antes de aplicar la migración nueva de v1.6 (`MoodLog`).
 
-**Features:**
-- **Módulo Calendario Mejorado:**
-  - Vista día completo por horas con planificación visual (tareas + eventos + to-dos)
-  - Click en día → abre vista día con timeline horario
-  - Crear/editar tareas directamente desde calendario (hoy sólo se puede crear actividad)
-  - Mostrar TaskLogs recurrentes en el mes, no sólo eventos
-  - Drag & drop para reprogramar tareas entre días
-- Calendario avanzado (eventos sin puntos: citas, cumpleaños, vacaciones; vistas día/semana/mes)
-- Journaling de pareja (privado por defecto, compartible, sin social)
-- Aniversarios e hitos especiales con logro desbloqueable
-- Analytics pro (tendencias 3/6/12 meses, predicción, heatmap)
+**Contexto:** Desde 2026-04-10 la tabla `_prisma_migrations` en Supabase está corrupta (memoria `project_prisma_supabase_gotcha`). Cada release nuevo se ha apañado saltando el `prisma migrate deploy` en el build de Render. Esto deja deuda técnica: `prisma migrate diff` no puede usarse, las migraciones siguientes no tienen un punto de partida confiable, y la primera migración con DDL nuevo (v1.6) puede dejar el schema en estado intermedio.
 
----
+**Scope cerrado:**
+- Reconciliar `_prisma_migrations` en Supabase manualmente: insertar registros para todas las migraciones aplicadas hasta hoy (`prisma migrate resolve --applied <name>` por cada una).
+- Restaurar `prisma migrate deploy` en el `build` script de Render una vez la tabla está sana.
+- Documentar el procedimiento en `docs/DEPLOY.md` (nueva entrada o sección).
+- Verificar con un `prisma migrate status` que el output es "Database schema is up to date".
+- **Sin features nuevas. Sin cambios de schema.** Solo saneamiento.
 
-## v2.1 · Conectados
+**Salida:** sin tag (es hotfix infra), commit en `main` y deploy backend. Se cierra cuando `prisma migrate status` retorna verde en producción.
 
-**Foco:** Integraciones externas y crecimiento.
-
-**Features:**
-- Push notifications (PWA o nativa)
-- Sync Google Calendar (bidireccional)
-- Export de datos (CSV, PDF mensual)
-- Sistema de referidos con recompensa
+**Branch:** `feature/v1.5.1-supabase-reconcile`
 
 ---
 
-## v3.0 · Premium
+## v1.6 · La Personalidad 📝
 
-**Foco:** Monetización con base de usuarios real.
+**Foco:** convertir Matripuntos de "herramienta de gestión" a "espacio compartido con personalidad" mediante 3 piezas pequeñas y diarias.
+
+**Spec aprobado:** `docs/superpowers/specs/2026-04-26-v1.6-la-personalidad-design.md`
+
+**Scope cerrado:**
+- **Frase del día:** biblioteca ampliada a ~280 frases en 8 categorías (`reconciliacion`, `animo`, `celebrar`, `agradecer`, `calma`, `animo-suave`, `hito`, `neutra-positivo`). Cascada por urgencia emocional (disputa abierta → reconciliación, racha rota → ánimo, weekend → celebrar, etc.). Determinismo `coupleId+día+categoría` via hash `cyrb53`. Componente `DailyPhrase` rediseñado con tipografía mejor.
+- **Mood:** catálogo fijo de 10 moods (4 positivos, 2 neutros, 2 bajos, 2 negativos no hostiles — sin moods hostiles). Caducidad 24h rolling. Header con badge mood propio + texto mood partner. `MoodPairCard` en dashboard. `MoodNudge` solo si user no tiene mood vigente. `MyMoodWeek` (7 días, solo propio) en perfil. Sin notificación al partner al cambiar mood.
+- **Avatares:** catálogo único `data/avatarCatalog.ts` (30 emojis + 12 colores). `AvatarPicker` reutilizable que reemplaza código duplicado en `Settings.tsx` y `StepProfile.tsx`.
+- **Backend:** tabla `MoodLog` + migración `20260427000000_v1_6_mood_log_and_mood_keys` + refactor `PUT /api/profile/me` con validación zod + transacción + anti-spam log <5min + endpoint nuevo `GET /api/profile/mood-history?days=7&tz=Europe/Madrid` (sin partner).
+
+**Deuda técnica heredada que se cierra en este branch:**
+Cobertura prometida en v1.5 y no completada — se aprovecha el touch en `profile.ts` para cerrar la deuda:
+- `negotiationEngine` — aceptar, rechazar, contraofertar, forzar, rondas agotadas.
+- `eventRoutes` — happy path + 401 + 404 + rondas agotadas.
+- `taskRoutes` + auto-accept 24h cron — crear log, disputar, cron marca verified.
+- `notificationService` — solo se crea al responder, no al crear.
+
+**No-objetivos (van a backlog):** frases co-creadas / con IA, vista pareja-mood-week, push partner mood, avatares B (SVG), avatares C (accesorios), mood compuesto, sugerencias accionables.
+
+**Branch:** `feature/v1.6-la-personalidad` · **Tag al merge:** `v1.6`
+
+---
+
+## v1.6.1 · Confianza 🛡️
+
+**Foco:** convertir Matripuntos en una app pública seria — privacidad legal, telemetría real, onboarding invitee completo, QA automatizado E2E. No introduce features de producto pero quita riesgos críticos antes de empujar a más usuarios.
+
+**Estado:** brainstorming pendiente (este es el scope tentativo a discutir).
+
+**Scope tentativo:**
+
+### 1. Privacy & legal stack
+- Política de privacidad (en `/privacy`) + Términos de uso (en `/terms`) + página de cookies con consentimiento real (banner GDPR-friendly).
+- **Borrar mi cuenta** desde Settings → flow con confirmación + email + delete cascade preservando datos de la pareja anonimizados.
+- **Salir de la pareja** sin borrar cuenta → conserva tu `User` + `UserProfile` + tus `PointsTransaction` históricas pero rompe la relación con `Couple`. Vista propia "Histórico de mi etapa con X".
+- Auditoría de datos sensibles: revisar qué se loguea en Sentry (PII off), qué se envía a frontend, qué se persiste.
+
+### 2. Telemetría producto
+- PostHog (free tier) o alternativa (Plausible + custom events).
+- Eventos custom para validar KPIs de v1.6: `mood_set`, `mood_changed`, `daily_phrase_seen`, `avatar_changed`, `tour_completed`, `activity_accepted`, `activity_rejected`, `activity_force_paid`.
+- Dashboard interno (Notion / página simple) con KPIs semanales.
+- Banner de consentimiento que respeta opt-out (sin telemetría si el user dice no).
+
+### 3. Onboarding del invitado completo
+- Hoy `StepJoinAccount` (v1.4.1) hace login rápido pero salta `taskPreferencesLoves/Dislikes`, `weeklyWorkHours`, `workMode`. El partner queda con perfil vacío.
+- Flujo "Completa tu perfil" tras primer login del invitado (no obligatorio, descartable, recordatorio amable durante 7 días).
+- Widget en Settings > Perfil que muestra "Tu perfil está al X% — completa Y" mientras falten campos clave.
+
+### 4. QA automatizado E2E (Playwright)
+- 5–8 happy paths críticos: login, signup-con-joinCode, crear actividad, aceptar actividad, completar tarea + verificación, cambiar mood, balance correcto, salir de pareja.
+- Workflow GitHub Actions corre Playwright en cada PR (paralelo con jest+vitest+typecheck) usando un backend dockerizado con SQLite efímero.
+- Screenshots/videos en fallo subidos como artifacts.
+
+### 5. Contract testing back↔front extendido
+- Hoy hay shape contract test de `/api/health`. Extender a las 5 rutas más usadas: `/api/auth/login`, `/api/events`, `/api/tasks/logs`, `/api/profile/me`, `/api/notifications`.
+- Generar tipos TS del backend (Zod → `z.infer`) y compartirlos con frontend (`packages/shared` o symlink) para que el frontend use **los mismos tipos** que el backend valida.
+
+### 6. Hardening de rate-limit y validación
+- Rate-limit global en API (no solo `/api/auth`) con buckets distintos por endpoint. Aplicar también a `/api/profile/me` (mood spam) y endpoints write-heavy.
+- Audit de zod schemas: cualquier ruta sin `.parse()` se documenta o se cubre.
+
+**Branch:** `feature/v1.6.1-confianza` · **Tag al merge:** `v1.6.1`
+
+---
+
+## v1.7 · El Juego (segundo round) 🎮
+
+**Foco:** profundización de gamificación. v1.2 dejó el motor (niveles, mapa de logros, rachas, FactorMascotas); v1.7 llena el juego de contenido y de identidad visual.
+
+**Estado:** brainstorming pendiente (este es el scope tentativo a discutir).
+
+**Scope tentativo:**
+- **Avatares B:** 12-16 ilustraciones SVG diseñadas estilo plano warm/dark, reemplazan al sistema emoji+color como primera opción visible (el sistema A queda como alternativa).
+- **Avatares C:** sistema de base + accesorios (gorras, gafas, fondos, marcos) desbloqueables al subir niveles y al ganar logros legendarios. Gancho de gamificación: el avatar evoluciona con la pareja.
+- **Catálogo completo de logros:** poblar las 6 categorías × 5 rarezas con ~60-80 logros concretos (hoy hay solo el motor + algunos seeds). Cada logro con criterio claro, copy redactado, recompensa (puntos o accesorio).
+- **Tour del sistema de puntos:** mini-tutorial interactivo que enseña al user nuevo cómo se calculan los puntos (`PuntosBase × FactorTipo × FactorFranja × FactorDuración × FactorHijos × FactorMascotas`) con un caso real. Aparece la primera vez que el user crea una actividad.
+- **Mejoras del mapa de logros:** animaciones al desbloquear, vista "próximos logros sugeridos" en dashboard, filtro por categoría.
+- **Logros secretos** (categoría 🌙): se revelan al desbloquearse, no antes. Probablemente 8-12 piezas de copy bien cuidadas.
+
+**Branch:** `feature/v1.7-el-juego-2` · **Tag al merge:** `v1.7`
+
+---
+
+## v2.0.1 · Calendario 360 📅
+
+**Foco:** convertir el calendario en hub de planificación real, no solo lista de eventos.
+
+**Scope tentativo:**
+- Vista día completo por horas (timeline 00-24h) con tareas + eventos + to-dos en su franja real.
+- Click en día → abre vista día con timeline horario.
+- Crear/editar tareas y to-dos directamente desde calendario (hoy solo se puede crear actividad).
+- Mostrar TaskLogs recurrentes en el mes, no sólo eventos.
+- Drag & drop para reprogramar tareas entre días (con validación de puntos al cambiar de franja horaria).
+- Eventos sin puntos: citas médicas, cumpleaños, vacaciones, reuniones colegio. Vistas día/semana/mes.
+- Schema: campo `googleCalendarId` añadido a `CalendarEntry` pero sync real diferido a v2.1.
+
+**Branch:** `feature/v2.0.1-calendario-360` · **Tag:** `v2.0.1`
+
+---
+
+## v2.0.2 · Journaling 📓
+
+**Foco:** espacio íntimo de reflexión de pareja sin features sociales.
+
+**Scope tentativo:**
+- Entrada diaria opcional por usuario.
+- Privada por defecto; puede marcarse como "compartida con pareja" post-escritura.
+- Sin comentarios ni reacciones del partner — espacio de reflexión, no chat.
+- Vista timeline tipo feed dentro del módulo + búsqueda por fecha.
+- **Aniversarios e hitos:** registro de fechas especiales (aniversario, primer piso juntos, nacimiento de hijos). Aparecen destacados en el calendario y desbloquean logro de categoría 💑 Pareja al cumplirse.
+- **Vista pareja-mood-week** (heredada del backlog v1.6): ver mood histórico del partner solo si AMBOS han optado in. Empaquetada aquí porque comparte la sensibilidad emocional del journaling.
+
+**Branch:** `feature/v2.0.2-journaling` · **Tag:** `v2.0.2`
+
+---
+
+## v2.0.3 · Analytics Pro 📊
+
+**Foco:** llevar la pestaña Avanzado de analytics (que en v1.4 quedó con blur+overlay como teaser Premium) a producto real.
+
+**Scope tentativo:**
+- Tendencias 3/6/12 meses con comparativas mes-a-mes.
+- Predicción de desequilibrio: "si el ritmo actual sigue, en 2 semanas tu balance será X".
+- Heatmap de actividad por día de semana × hora del día.
+- Insights heurísticos extendidos (hoy hay 1 endpoint, ampliar a 5-10 patrones detectados).
+- **Sugerencias accionables según mood** (heredada del backlog v1.6): "Has estado cansado 3 días seguidos → considera delegar X tarea". Requiere motor de recomendación simple.
+- Exportación de gráficas como PNG (preparación para PDF mensual de v2.1).
+
+**Branch:** `feature/v2.0.3-analytics-pro` · **Tag:** `v2.0.3`
+
+---
+
+## v2.1 · Conectados 🌐
+
+**Foco:** integraciones externas y crecimiento.
+
+**Features:**
+- Push notifications (PWA con Web Push API; nativa diferida a v3.0).
+- Sync Google Calendar bidireccional: eventos Matripuntos → GCal y GCal → Matripuntos en lectura.
+- Backend OAuth real para Google/Apple (los botones llevan visibles desde v1.4 con disabled state).
+- Email transaccional (Resend o SendGrid): invitaciones por email, recordatorios, digest semanal por email.
+- Export de datos: CSV de historial de puntos y tareas, PDF de resumen mensual.
+- Sistema de referidos: invitar otras parejas con código propio + recompensa en puntos o logro especial.
+- Notificación al partner al cambiar mood (heredada del backlog v1.6, opcional, opt-in).
+
+**Branch:** `feature/v2.1-conectados` · **Tag:** `v2.1`
+
+---
+
+## v3.0 · Premium 💎
+
+**Foco:** monetización con base de usuarios real.
 
 **Modelo freemium B:** Todo gratis hasta tener datos de uso. Luego:
-- Free: límites en actividades/mes, tareas recurrentes, analytics a 3 meses, 2 rondas negociación
-- Premium: sin límites + rondas ilimitadas + badge + acceso prioritario
-- Pagos: Stripe · App móvil: React Native
+- **Free:** límites en actividades/mes (por definir con datos), máx X tareas recurrentes, analytics histórico a 3 meses, 2 rondas negociación.
+- **Premium:** sin límites + rondas ilimitadas + analytics histórico completo + acceso prioritario + badge en perfil + frases generadas por IA (heredada del backlog v1.6).
+
+**Implementación:**
+- Stripe para pagos (suscripción mensual/anual + trial 14 días).
+- App móvil React Native (iOS + Android) con paridad funcional.
+- Frases co-creadas por la pareja como feature Premium (heredada del backlog v1.6).
+
+**Branch:** `feature/v3.0-premium` · **Tag:** `v3.0`
+
+---
+
+## Backlog sin versión asignada
+
+Items diferidos sin compromiso de release todavía:
+- Mood compuesto / multi-etiqueta ("cansado pero feliz") — revisar tras 2 meses de uso real de v1.6.
+- Soft delete y corrección retroactiva de puntos (si la pareja descubre que una actividad debería haber valido distinto).
+- Rate-limit avanzado por usuario (más allá del global de v1.6.1).
+- Internacionalización: catalán, gallego, euskera, latam (`Couple.language` ya existe en schema, sin uso).
+- Tests de carga / performance budgets en CI.

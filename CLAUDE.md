@@ -7,7 +7,8 @@
 ## 1. PROYECTO
 App web gamificada para parejas: gestión equitativa de responsabilidades del hogar mediante puntos negociables. Repo: https://github.com/wikiedu/claude_matripuntos
 
-**Versión actual en producción:** MVP 1 · Los Cimientos  
+**Versión actual en producción:** v1.5 · Red de Seguridad (tag `v1.5`, 2026-04-23)  
+**Próximo release:** v1.5.1 (hotfix Supabase migrations) → v1.6 (La Personalidad)  
 **Branch principal:** `main`
 
 ## 2. STACK TÉCNICO
@@ -247,29 +248,26 @@ Formato: `vX.Y · Nombre`. Branches: `feature/vX.Y-nombre-kebab`. Tags git: `mvp
 
 | Versión | Nombre | Estado | Branch |
 |---|---|---|---|
-| MVP 1 | Los Cimientos | ✓ Producción | `main` (tag: `mvp1`) |
-| v1.1 | La Chispa | Planificado | `feature/v1.1-la-chispa` |
-| v1.2 | El Juego | Planificado | `feature/v1.2-el-juego` |
-| v1.3 | La Casa | Planificado | `feature/v1.3-la-casa` |
-| v2.0 | Hogar 360 | Planificado | `feature/v2.0-hogar-360` |
-| v2.1 | Conectados | Planificado | `feature/v2.1-conectados` |
-| v3.0 | Premium | Futuro | `feature/v3.0-premium` |
+| MVP 1 | Los Cimientos | ✅ Producción | `main` (tag `mvp1`) |
+| v1.1 | La Chispa | ✅ Producción | `main` (tag `v1.1`) |
+| v1.2 | El Juego | ✅ Producción | `main` (tag `v1.2`) |
+| v1.3 | La Casa | ✅ Producción | `main` (tag `v1.3`) |
+| v1.4 | La Evolución | ✅ Producción | `main` (tag `v1.4`) |
+| v1.4.1 | Hardening + Actividades | ✅ Producción | `main` (tag `v1.4.1`) |
+| v1.5 | Red de Seguridad | ✅ Producción 2026-04-23 | `main` (tag `v1.5`) |
+| **v1.5.1** | **Hotfix Supabase migrations** | 🔧 Pendiente — bloquea v1.6 | `feature/v1.5.1-supabase-reconcile` |
+| **v1.6** | **La Personalidad** | 📝 Spec aprobado, plan pendiente | `feature/v1.6-la-personalidad` |
+| **v1.6.1** | **Confianza** (privacy + telemetría + E2E) | 🧠 Brainstorm pendiente | `feature/v1.6.1-confianza` |
+| **v1.7** | **El Juego (2º round)** | 🧠 Brainstorm pendiente | `feature/v1.7-el-juego-2` |
+| v2.0.1 | Calendario 360 | 🧠 Brainstorm pendiente | `feature/v2.0.1-calendario-360` |
+| v2.0.2 | Journaling | 🧠 Brainstorm pendiente | `feature/v2.0.2-journaling` |
+| v2.0.3 | Analytics Pro | 🧠 Brainstorm pendiente | `feature/v2.0.3-analytics-pro` |
+| v2.1 | Conectados | 🧠 Brainstorm pendiente | `feature/v2.1-conectados` |
+| v3.0 | Premium | 🧠 Futuro | `feature/v3.0-premium` |
 
-Roadmap: `docs/ROADMAP.md` · Decisiones: `docs/DECISIONS.md` · Spec detallado: `docs/superpowers/specs/2026-04-11-roadmap-versiones-design.md`
+Roadmap completo: `docs/ROADMAP.md` · Decisiones: `docs/DECISIONS.md` · Spec original (2026-04-11): `docs/superpowers/specs/2026-04-11-roadmap-versiones-design.md` · Spec v1.6: `docs/superpowers/specs/2026-04-26-v1.6-la-personalidad-design.md`
 
-### MVP 1 · Los Cimientos (en producción)
-- Auth + invitaciones + onboarding (4 steps)
-- Eventos: CRUD, negociación, forzar
-- Tareas: CRUD, logs, verificación, disputa
-- Puntos: balance, historial, transacciones
-- Configuración editable (tareas, multiplicadores, tipos)
-- Notificaciones in-app (fix: solo al responder, no al crear)
-- Calendario con tareas y eventos (fix: TaskLogs incluidos)
-- Fechas en timezone local (fix: Intl API)
-- Perfiles + familia (V2)
-- Categorías personalizadas (V2)
-- Logros/Achievements (V2)
-- Analytics: overview, trends, equity (V2)
+**Principios para todo lo post-v1.5:** versiones estables, test-first, contract testing back↔front, QA automatizado (Vitest + Jest unit + Playwright E2E desde v1.6.1), security-by-default, deploy reproducible.
 
 ## 10. CONVENCIONES
 
