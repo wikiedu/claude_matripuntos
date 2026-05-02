@@ -37,6 +37,9 @@ interface Task {
   isRecurring?: boolean
   frequency?: string | null
   scheduledFor?: string
+  // v1.6.3 fix QA Bug 4: marcador de "tarea sembrada del catálogo del seed".
+  // Si true y sin scheduledFor/recurrencia, no aparece en "Hoy".
+  isDefault?: boolean
 }
 
 interface TaskLog {
@@ -365,6 +368,29 @@ export default function Tasks() {
 
   useEffect(() => { loadData() }, [loadData])
 
+  // v1.6.3 fix QA Bug 3: refetch automático al volver al tab/window. Antes el
+  // user tenía que pulsar refresh manual cuando el partner verificaba/disputaba
+  // una tarea. Ahora cualquier acción del partner se ve al volver a Matripuntos.
+  useEffect(() => {
+    function onFocus() { loadData() }
+    function onVisible() { if (document.visibilityState === 'visible') loadData() }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [loadData])
+
+  // v1.6.3 fix QA Bug 3: polling cada 30s mientras la tab está visible —
+  // captura cambios del partner sin necesidad de blur/focus.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') loadData()
+    }, 30_000)
+    return () => clearInterval(id)
+  }, [loadData])
+
   // ─── Derived state ─────────────────────────────────────────────────────────
   const today = toLocalDateString(new Date())
 
@@ -416,6 +442,12 @@ export default function Tasks() {
   const todayTasks = filteredTasks
     .filter((t) => !taskIdsHiddenFromToday.has(t.id))
     .filter((t) => !(t.frequency && !t.isRecurring))
+    // v1.6.3 fix QA Bug 4: las tasks con isDefault=true son sugerencias del
+    // seed del couple, no tareas activas. Solo deben aparecer en "Hoy" si
+    // tienen scheduledFor o son recurrentes (es decir, el user las activó
+    // explícitamente). Antes contaminaban el listado de cada día con todo
+    // el catálogo.
+    .filter((t) => !t.isDefault || !!t.scheduledFor || t.isRecurring)
     .filter((t) => {
       if (!t.scheduledFor) return true
       const sf = toLocalDateString(t.scheduledFor)
@@ -435,6 +467,9 @@ export default function Tasks() {
 
   const weekNotTodayTasks = filteredTasks.filter((t) => {
     if (!t.scheduledFor) return false
+    // v1.6.3 fix QA Bug 4: misma lógica que en todayTasks — descartar
+    // sugerencias inactivas del catálogo.
+    if (t.isDefault && !t.scheduledFor && !t.isRecurring) return false
     const d = new Date(t.scheduledFor)
     if (isNaN(d.getTime())) return false
     if (d >= weekBounds.start && d < weekBounds.end) {

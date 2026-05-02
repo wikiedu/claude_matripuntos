@@ -68,6 +68,23 @@ jobs:
       fail-fast: false
       matrix:
         project: [chromium, webkit]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      JWT_SECRET: ci-secret-not-for-production
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -88,13 +105,9 @@ jobs:
       - name: Prisma generate (backend)
         working-directory: src/backend
         run: npx prisma generate
-        env:
-          DATABASE_URL: file:./e2e-test.db
-      - name: Apply migrations (sqlite efímero)
+      - name: Apply migrations (postgres efímera)
         working-directory: src/backend
         run: npx prisma migrate deploy
-        env:
-          DATABASE_URL: file:./e2e-test.db
       - name: Build frontend
         working-directory: src/frontend
         run: npm run build
@@ -104,10 +117,8 @@ jobs:
         working-directory: src/backend
         run: nohup npm run dev > backend.log 2>&1 &
         env:
-          DATABASE_URL: file:./e2e-test.db
           PORT: '3001'
           NODE_ENV: test
-          JWT_SECRET: ci-secret-not-for-production
       - name: Start frontend preview (background)
         working-directory: src/frontend
         run: nohup npx vite preview --port 5174 > frontend.log 2>&1 &
@@ -120,6 +131,9 @@ jobs:
         env:
           E2E_BASE_URL: http://localhost:5174
           CI: 'true'
+      - name: Backend log on failure
+        if: failure()
+        run: tail -200 src/backend/backend.log || true
       - name: Upload report on failure
         if: failure()
         uses: actions/upload-artifact@v4

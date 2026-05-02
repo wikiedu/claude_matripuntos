@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "npm run dev --workspace=frontend",
-    "build": "npm run build --workspace=frontend && npm run build --workspace=backend",
+    "build": "npm run build --workspace=@matripuntos/shared && npm run build --workspace=frontend && npm run build --workspace=backend",
+    "build:shared": "npm run build --workspace=@matripuntos/shared",
     "start": "npm run start --workspace=backend",
     "lint": "npm run lint --workspace=frontend && npm run lint --workspace=backend",
     "type-check": "npm run type-check --workspace=frontend && npm run type-check --workspace=backend",

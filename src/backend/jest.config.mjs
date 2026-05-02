@@ -17,6 +17,10 @@ export default {
   },
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    // v1.6.3 fix: el package shared apunta a dist/index.js (compilado) en
+    // runtime para que Render pueda cargarlo. En tests ts-jest necesita
+    // resolver al .ts fuente para evitar tener que recompilar.
+    '^@matripuntos/shared$': '<rootDir>/../../packages/shared/src/index.ts',
   },
   collectCoverageFrom: [
     'src/**/*.ts',

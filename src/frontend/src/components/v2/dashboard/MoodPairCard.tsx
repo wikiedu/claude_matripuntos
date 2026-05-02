@@ -1,7 +1,7 @@
-// v1.6 — Card horizontal en dashboard que muestra mood vigente de ambos.
-// Tap en lado propio abre MoodSelectorSheet; tap en lado partner no hace nada
-// (no se le puede fijar mood al otro). Si nadie tiene mood vigente, sigue
-// visible con CTA suave invitando a compartir el propio.
+// v1.6.3 — Indicador compacto en una fila: yo · pareja, con icono pequeño.
+// Tap en lado propio abre MoodSelectorSheet; lado partner es solo lectura.
+// Antes era card de dos columnas con avatar 14×14 que ocupaba demasiado
+// espacio en el Dashboard inicial.
 
 import { useMoodVigent } from '../../../hooks/useMoodVigent'
 
@@ -24,41 +24,34 @@ export function MoodPairCard({ me, partner, onPickMine }: Props) {
   const partnerMood = useMoodVigent(partner?.currentMood, partner?.moodUpdatedAt)
 
   return (
-    <div className="rounded-2xl bg-purple-900/30 border border-purple-500/20 p-4 grid grid-cols-2 gap-4">
+    <div className="rounded-xl bg-purple-900/20 border border-purple-500/15 px-3 py-2 flex items-center gap-3 text-xs">
       <button
         type="button"
         data-testid="my-side"
         onClick={onPickMine}
-        className="flex flex-col items-center gap-2 p-2 rounded-xl hover:bg-white/5 transition"
+        aria-label="Cambiar mi estado de ánimo"
+        className="flex items-center gap-1.5 hover:bg-white/5 rounded-md px-1 py-0.5 transition focus:outline-none focus:ring-2 focus:ring-brand-purple/40"
       >
-        <div
-          className="h-14 w-14 rounded-full flex items-center justify-center text-2xl shadow"
-          style={{ background: `linear-gradient(135deg, ${me.avatarColor ?? '#7c3aed'}, ${me.avatarColor ?? '#7c3aed'}cc)` }}
-        >
-          {me.avatarEmoji ?? '🙂'}
-        </div>
-        <div className="text-sm text-white font-medium">{me.name}</div>
-        <div data-testid="my-mood" className="text-xs text-white/80">
-          {myMood ? `${myMood.emoji} ${myMood.label}` : 'Comparte cómo estás →'}
-        </div>
+        <span data-testid="my-mood-emoji" className="text-base leading-none">
+          {myMood ? myMood.emoji : '🫥'}
+        </span>
+        <span data-testid="my-mood" className="text-white/85">
+          {myMood ? myMood.label : 'Tu estado →'}
+        </span>
       </button>
-
-      <div data-testid="partner-side" className="flex flex-col items-center gap-2 p-2">
+      <span aria-hidden="true" className="text-white/30">·</span>
+      <div data-testid="partner-side" className="flex items-center gap-1.5">
         {partner ? (
           <>
-            <div
-              className="h-14 w-14 rounded-full flex items-center justify-center text-2xl shadow"
-              style={{ background: `linear-gradient(135deg, ${partner.avatarColor ?? '#ec4899'}, ${partner.avatarColor ?? '#ec4899'}cc)` }}
-            >
-              {partner.avatarEmoji ?? '🙂'}
-            </div>
-            <div className="text-sm text-white font-medium">{partner.name}</div>
-            <div data-testid="partner-mood" className="text-xs text-white/80">
-              {partnerMood ? `${partnerMood.emoji} ${partnerMood.label}` : '—'}
-            </div>
+            <span data-testid="partner-mood-emoji" className="text-base leading-none">
+              {partnerMood ? partnerMood.emoji : '🫥'}
+            </span>
+            <span data-testid="partner-mood" className="text-white/70">
+              {partnerMood ? partnerMood.label : `${partner.name}: —`}
+            </span>
           </>
         ) : (
-          <div className="text-xs text-white/60">Sin pareja conectada</div>
+          <span className="text-white/50">Sin pareja</span>
         )}
       </div>
     </div>

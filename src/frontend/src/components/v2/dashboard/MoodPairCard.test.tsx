@@ -24,7 +24,8 @@ describe('MoodPairCard', () => {
   it('shows CTA on my side when I have no mood', () => {
     const meNoMood = { ...me, currentMood: null, moodUpdatedAt: null }
     render(<MoodPairCard me={meNoMood} partner={partner} onPickMine={() => {}} />)
-    expect(screen.getByTestId('my-mood')).toHaveTextContent('Comparte')
+    // v1.6.3: copy compactado, ahora "Tu estado →" en lugar de "Comparte cómo estás →"
+    expect(screen.getByTestId('my-mood')).toHaveTextContent('Tu estado')
   })
 
   it('tap on my side calls onPickMine', () => {
@@ -41,8 +42,9 @@ describe('MoodPairCard', () => {
     expect(onPickMine).not.toHaveBeenCalled()
   })
 
-  it('shows "Sin pareja conectada" when partner is null', () => {
+  it('shows "Sin pareja" when partner is null', () => {
     render(<MoodPairCard me={me} partner={null} onPickMine={() => {}} />)
-    expect(screen.getByTestId('partner-side')).toHaveTextContent('Sin pareja conectada')
+    // v1.6.3: indicador compacto, copy reducido a "Sin pareja"
+    expect(screen.getByTestId('partner-side')).toHaveTextContent('Sin pareja')
   })
 })

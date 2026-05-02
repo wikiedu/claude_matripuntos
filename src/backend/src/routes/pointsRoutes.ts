@@ -217,6 +217,10 @@ router.get('/balance', authMiddleware, async (req: Request, res: Response): Prom
       return
     }
 
+    // v1.6.3 fix QA Bug 1: incluir profile (mood/avatar viven en UserProfile,
+    // no en User) para que el frontend pueda renderizar MoodPairCard del
+    // partner sin endpoint extra. Antes solo devolvíamos {id,name,email} →
+    // partner.currentMood quedaba undefined y mood no se compartía.
     const couple = await prisma.couple.findUnique({
       where: { id: req.coupleId },
       include: {
@@ -225,6 +229,14 @@ router.get('/balance', authMiddleware, async (req: Request, res: Response): Prom
             id: true,
             name: true,
             email: true,
+            profile: {
+              select: {
+                currentMood: true,
+                moodUpdatedAt: true,
+                avatarEmoji: true,
+                avatarColor: true,
+              },
+            },
           },
         },
       },
@@ -266,6 +278,11 @@ router.get('/balance', authMiddleware, async (req: Request, res: Response): Prom
         name: otherUser?.name,
         balance: otherUserBalance,
         balanceFormatted: otherUserBalance > 0 ? `+${otherUserBalance}` : otherUserBalance.toString(),
+        // v1.6.3: campos para MoodPairCard del partner (vienen de UserProfile)
+        currentMood: otherUser?.profile?.currentMood ?? null,
+        moodUpdatedAt: otherUser?.profile?.moodUpdatedAt ?? null,
+        avatarEmoji: otherUser?.profile?.avatarEmoji ?? null,
+        avatarColor: otherUser?.profile?.avatarColor ?? null,
       },
       difference: Math.abs(currentUserBalance - otherUserBalance),
       isBalanced: Math.abs(currentUserBalance - otherUserBalance) <= 1,
