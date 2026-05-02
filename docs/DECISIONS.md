@@ -208,3 +208,59 @@ Plan: `docs/superpowers/plans/2026-04-21-actividades-module.md`
 ### 11. Migración de currentMood antiguos
 **Decisión:** Mapping en SQL de migración: 😊→feliz, 😎→tranquilo, 😴→cansado, 😰→estresado, 😐→tranquilo. Cualquier valor fuera del catálogo → NULL (resilient).
 **Razón:** Legacy users no pierden funcionalidad: o se les preserva el mood razonablemente equivalente o se limpia para que vuelvan a fijarlo.
+
+---
+
+## v1.6.1 · Confianza (2026-05-02)
+
+Versión transversal: privacy GDPR intermedia, telemetría opt-out, lifecycle (delete/leave), onboarding invitee paritario, contract + Playwright E2E.
+
+### 12. Alcance v1.6.1 unificado
+**Decisión:** todo en uno (privacy + telemetría + lifecycle + E2E + rate-limit + onboarding) en una sola release.
+**Alternativas:** romperla en v1.6.1, .6.2, .6.3 separadas.
+**Razón:** confianza como concepto se rompe si se entrega a trozos. Coste de coordinación amortizable.
+
+### 13. Compliance GDPR intermedio
+**Decisión:** RAT documentado + DPAs proveedores + ARCO-POL via /api/account + retención diferenciada por tipo (MoodLog 90d, Notification 60d, Invitation 14d, User soft-delete 30d → hard).
+**Alternativas:** mínimo legal (just privacy policy) vs full compliance con DPO.
+**Razón:** B2C español pre-monetización: nivel "intermedio" cumple sin sobre-ingeniar para escala que aún no existe.
+
+### 14. Telemetría opt-out anónimo
+**Decisión:** PostHog Cloud EU. Eventos anónimos por defecto (distinct_id = hash de session). Si user opt-in → identified. Cookie `mp_consent_v1` con `{essential:true, analytics:bool}`.
+**Alternativas:** opt-in puro (más fricción), telemetría siempre on (no compliant).
+**Razón:** muestra suficiente para producto sin atravesar consentimiento explícito → respeta privacidad sin perder señal.
+
+### 15. Soft-delete + ghost user (anonimización)
+**Decisión:** al eliminar cuenta, FKs históricos se reasignan a un "ghost user" único por couple (`deleted-${coupleId}`). Email user real → `deleted-${userId}@matripuntos.local`. `deletedAt` set. 30d después, hard delete.
+**Alternativas:** hard delete inmediato (rompe historial pareja), soft delete sin anonimizar (no GDPR).
+**Razón:** preserva integridad histórica de la pareja sin violar derecho al olvido. 30d para errores humanos.
+
+### 16. Disolución de couple genera couples individuales
+**Decisión:** `dissolveCouple` crea 2 couples individuales nuevos (uno por user) con `crypto.randomBytes` secretKey. Original couple `dissolvedAt` set. Historial preservado vía past-couples API.
+**Alternativas:** un user se queda con el couple original (asimétrico, problema legal), borrar todo (pérdida de historial).
+**Razón:** simetría + reversibilidad — cada user conserva su contexto sin asumir "ganador".
+
+### 17. Rate-limit granular (5 buckets)
+**Decisión:** `authBucket` 10/min IP, `profileMutationBucket` 30/min user, `writeBucket` 60/min user, `readBucket` 200/min user, `criticalBucket` 3/hour user (delete account).
+**Alternativas:** un solo bucket global, ningún rate-limit.
+**Razón:** abuso de auth (creds stuffing), abuso de delete (DoS por error), abuso de write (spam) tienen perfiles distintos. Mezclarlos invalida el límite.
+
+### 18. Onboarding invitee paritario
+**Decisión:** tras StepJoinAccount, encadenar StepInviteeAvatar + StepInviteeWork antes del dashboard. Mismos datos que el creador (avatar+color+weeklyWorkHours+workMode).
+**Alternativas:** dejar al invitee con perfil vacío y pedirle completar desde Settings.
+**Razón:** equity de UX. El invitee no debe sentir que es ciudadano de segunda en la pareja.
+
+### 19. Contract testing back↔front
+**Decisión:** schemas zod compartidos en workspace `@matripuntos/shared` + 10 contract test files hermetic (no DB, no app) que validan los schemas usados por las rutas.
+**Alternativas:** OpenAPI spec generada (overhead), end-to-end DB tests (lentos, frágiles).
+**Razón:** schemas zod son fuente de verdad ejecutable. Tests hermetic corren en CI en <30s y rompen si el contrato se desincroniza.
+
+### 20. E2E con Playwright (chromium + webkit)
+**Decisión:** suite e2e en workspace propio (`@matripuntos/e2e`) con 23 specs / 58 tests. Helper `createCouple` vía API. CI strategy matrix por browser, fail-fast: false.
+**Alternativas:** solo chromium (cobertura insuficiente), Cypress (single-browser).
+**Razón:** matripuntos.app es webapp móvil — Safari iOS es target real. Webkit en CI captura bugs de WebKit que chromium no ve.
+
+### 21. Páginas legales en markdown estático
+**Decisión:** `/privacy /terms /cookies` cargan markdown via `import('?raw')` + `react-markdown` + `remark-gfm`. Footer global con links.
+**Alternativas:** CMS externo (Contentful), HTML inline.
+**Razón:** versionado en git, sin deps externas, edición plain-text, gratis.
