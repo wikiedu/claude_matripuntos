@@ -16,11 +16,11 @@ export default {
     }],
   },
   moduleNameMapper: {
+    // v1.6.4: el primer mapping desreferencia .js → sin extensión para
+    // imports relativos clásicos. El segundo redirige los imports al dist
+    // del shared a la fuente .ts para que tests no necesiten dist compilado.
+    '^.*packages/shared/dist/index(\\.js)?$': '<rootDir>/../../packages/shared/src/index.ts',
     '^(\\.{1,2}/.*)\\.js$': '$1',
-    // v1.6.3 fix: el package shared apunta a dist/index.js (compilado) en
-    // runtime para que Render pueda cargarlo. En tests ts-jest necesita
-    // resolver al .ts fuente para evitar tener que recompilar.
-    '^@matripuntos/shared$': '<rootDir>/../../packages/shared/src/index.ts',
   },
   collectCoverageFrom: [
     'src/**/*.ts',

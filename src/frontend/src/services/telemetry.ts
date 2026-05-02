@@ -7,7 +7,7 @@ import {
   validateTelemetryEvent,
   type TelemetryEventName,
   type TelemetryEventProps,
-} from '@matripuntos/shared'
+} from '../../../../packages/shared/dist/index.js'
 
 const PII_BLACKLIST = [
   'email', 'password', 'passwordHash', 'name', 'surname',

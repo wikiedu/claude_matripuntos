@@ -2,7 +2,7 @@
 // Sanitize PII via whitelist. Si POSTHOG_KEY no está en env, no-op.
 // Schemas validados contra catálogo cerrado en @matripuntos/shared.
 
-import { validateTelemetryEvent, type TelemetryEventName, type TelemetryEventProps } from '@matripuntos/shared'
+import { validateTelemetryEvent, type TelemetryEventName, type TelemetryEventProps } from '../../../../packages/shared/dist/index.js'
 
 const PII_BLACKLIST = ['email', 'password', 'passwordHash', 'name', 'surname', 'secretKey', 'joinCode', 'text', 'message', 'notes']
 

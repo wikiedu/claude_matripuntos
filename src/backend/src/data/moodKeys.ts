@@ -1,7 +1,6 @@
-// v1.6.1 — Re-export desde @matripuntos/shared (source of truth post-v1.6.1).
-// Este archivo se mantiene como compatibilidad para imports existentes que
-// referencian './data/moodKeys.js'. En sesiones futuras, los consumidores
-// pueden migrar a importar directamente de @matripuntos/shared y este shim
-// se borra.
+// v1.6.1 — Re-export desde packages/shared (source of truth post-v1.6.1).
+// v1.6.4: rutas relativas directas al dist del shared para evitar dependencia
+// del symlink npm workspace, que Render no crea cuando Build se ejecuta con
+// Root Directory configurado a src/backend.
 
-export { MOOD_KEYS, type MoodKey } from '@matripuntos/shared'
+export { MOOD_KEYS, type MoodKey } from '../../../../packages/shared/dist/index.js'
