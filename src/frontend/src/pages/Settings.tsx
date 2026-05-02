@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ChevronRight, Copy, CheckCircle, Loader, Download, Trash2, ExternalLink } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Copy, CheckCircle, Loader, Trash2, ExternalLink } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
@@ -13,6 +13,8 @@ import { RuleProposalCard } from '../components/RuleProposalCard'
 import { CoupleHealthCard } from '../components/v2/couple/CoupleHealthCard'
 import { AvatarPicker } from '../components/v2/primitives/AvatarPicker'
 import { MyMoodWeek } from '../components/v2/profile/MyMoodWeek'
+import { DeleteAccountWizard } from '../components/v2/wizards/DeleteAccountWizard'
+import { useConsent } from '../hooks/useConsent'
 import { MOODS } from '../data/moods'
 import { getMoodHistory } from '../services/apiClient'
 
@@ -667,82 +669,83 @@ function LanguageThemeSection({ onBack }: { onBack: () => void }) {
 
 function PrivacySection({ onBack }: { onBack: () => void }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // Export/delete endpoints do not exist in backend yet — buttons are disabled.
-  const exportAvailable = false
-  const deleteAvailable = false
+  const { logout } = useAppStore()
+  const navigate = useNavigate()
+  const { consent, setConsent } = useConsent()
 
   return (
     <div>
       <SectionHeader title="Privacidad y datos" onBack={onBack} />
-      {error && <Banner type="error" message={error} />}
 
-      <Card className="space-y-3">
-        {/* Export */}
-        <div>
-          <Button
-            variant="ghost"
-            fullWidth
-            disabled={!exportAvailable}
-            onClick={() => { /* No-op — not available */ }}
-          >
-            <span className="flex items-center justify-center gap-2">
-              <Download className="w-4 h-4" />
-              Exportar mis datos (JSON)
-            </span>
-          </Button>
-          {!exportAvailable && (
-            <p className="text-[11px] text-text-tertiary mt-1 text-center">Próximamente</p>
-          )}
-        </div>
-
-        {/* Delete account */}
-        <div>
-          <Button
-            variant="danger"
-            fullWidth
-            disabled={!deleteAvailable}
-            onClick={() => setDeleteOpen(true)}
-          >
-            <span className="flex items-center justify-center gap-2">
-              <Trash2 className="w-4 h-4" />
-              Eliminar mi cuenta
-            </span>
-          </Button>
-          {!deleteAvailable && (
-            <p className="text-[11px] text-text-tertiary mt-1 text-center">Próximamente</p>
-          )}
+      <Card className="space-y-4">
+        {/* v1.6.1 — Toggle analítica */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-text-primary">Análisis de uso anónimo</p>
+            <p className="text-[11px] text-text-tertiary">
+              Nos ayuda a mejorar la app. Puedes cambiarlo cuando quieras.
+            </p>
+          </div>
+          <input
+            type="checkbox"
+            checked={consent?.analytics ?? false}
+            onChange={(e) => setConsent({ analytics: e.target.checked })}
+            data-testid="toggle-analytics-settings"
+            className="w-5 h-5"
+          />
         </div>
 
         <div className="h-px bg-brd-subtle" />
 
-        <a
-          href="/tos"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 text-xs text-brand-purple hover:underline"
+        {/* v1.6.1 — Eliminar cuenta (wizard real) */}
+        <Button
+          variant="danger"
+          fullWidth
+          onClick={() => setDeleteOpen(true)}
         >
-          <ExternalLink className="w-3.5 h-3.5" />
-          Términos y condiciones
-        </a>
+          <span className="flex items-center justify-center gap-2">
+            <Trash2 className="w-4 h-4" />
+            Eliminar mi cuenta
+          </span>
+        </Button>
+
+        <div className="h-px bg-brd-subtle" />
+
+        <div className="flex flex-col gap-1.5 items-center">
+          <a
+            href="/privacy" target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-2 text-xs text-brand-purple hover:underline"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Política de privacidad
+          </a>
+          <a
+            href="/terms" target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-2 text-xs text-brand-purple hover:underline"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Términos de uso
+          </a>
+          <a
+            href="/cookies" target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-2 text-xs text-brand-purple hover:underline"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Política de cookies
+          </a>
+        </div>
       </Card>
 
-      <DoubleConfirmModal
-        open={deleteOpen}
-        title="Eliminar cuenta"
-        firstMessage="¿Seguro que quieres eliminar tu cuenta?"
-        secondMessage="Esta acción es irreversible. Tus datos serán eliminados permanentemente."
-        confirmLabel="Eliminar definitivamente"
-        onCancel={() => setDeleteOpen(false)}
-        onConfirm={() => {
+      <DeleteAccountWizard
+        isOpen={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onDeleted={() => {
           setDeleteOpen(false)
-          setError('Funcionalidad próximamente — contacta soporte si necesitas eliminar tu cuenta ahora.')
+          logout()
+          navigate('/login')
         }}
       />
     </div>
   )
 }
+
 
 // -----------------------------------------------------------------------------
 // Section: Children (Hijos)
