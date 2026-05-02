@@ -15,6 +15,7 @@ import Tasks from './pages/Tasks'
 import Settings from './pages/Settings'
 import Analytics from './pages/Analytics'
 import { Calendar } from './pages/Calendar'
+import Journal from './pages/Journal'
 import { AnalyticsPage } from './pages/AnalyticsPage'
 import Achievements from './pages/Achievements'
 import ShoppingListPage from './pages/ShoppingListPage'
@@ -234,6 +235,16 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AuthedLayout><Calendar /></AuthedLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* v2.0.2.x — Journaling */}
+      <Route
+        path="/journal"
+        element={
+          <ProtectedRoute>
+            <AuthedLayout><Journal /></AuthedLayout>
           </ProtectedRoute>
         }
       />

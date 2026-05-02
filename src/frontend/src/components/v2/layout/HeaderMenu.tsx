@@ -27,6 +27,7 @@ export function HeaderMenu({ open, onClose, unlockedCount = 0, totalAchievements
 
   const items = [
     { id: 'achievements', emoji: '🏆', title: 'Logros',  desc: `${unlockedCount}/${totalAchievements} desbloqueados`, to: '/achievements' },
+    { id: 'journal',      emoji: '📔', title: 'Diario',  desc: 'Vuestra bitácora',                                    to: '/journal' },
     { id: 'profile',      emoji: '👤', title: 'Perfil',  desc: 'Mi cuenta',                                           to: '/settings/profile' },
     { id: 'partner',      emoji: '💕', title: 'Pareja',  desc: partnerName ? `${partnerName} · vinculado` : 'Sin pareja', to: '/settings/couple' },
     { id: 'rules',        emoji: '📜', title: 'Reglas',  desc: 'Puntos y multiplicadores',                            to: '/settings/rules' },

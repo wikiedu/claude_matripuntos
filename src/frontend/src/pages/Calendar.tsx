@@ -15,6 +15,7 @@ import { EventCardV2 } from '../components/v2/calendar/EventCardV2'
 import { BottomSheet } from '../components/v2/primitives/BottomSheet'
 import { Button } from '../components/v2/primitives/Button'
 import { EventNegotiationCard } from '../components/EventNegotiationCard'
+import { CalendarV2Section } from '../components/v2/calendar/CalendarV2Section'
 import { toLocalDateString } from '../utils/dateUtils'
 
 // ─── Inline ISO week helpers (per spec) ───────────────────────────────────────
@@ -436,6 +437,9 @@ export const Calendar: React.FC = () => {
           />
         )}
       </BottomSheet>
+
+      {/* v2.0.1.x — Calendar 360 unificado: services + birthdays + holidays + Google */}
+      <CalendarV2Section />
     </main>
   )
 }
