@@ -11,29 +11,8 @@ import { Card } from '../components/v2/primitives/Card'
 import { PremiumInterestModal } from '../components/v2/premium/PremiumInterestModal'
 import { RuleProposalCard } from '../components/RuleProposalCard'
 import { CoupleHealthCard } from '../components/v2/couple/CoupleHealthCard'
-
-// -----------------------------------------------------------------------------
-// Constants
-// -----------------------------------------------------------------------------
-
-const AVATAR_EMOJIS = [
-  '🐼', '🦊', '🐧', '🐸', '🦄', '🐯', '🐻', '🦁', '🐨',
-  '🐙', '🦋', '🐺', '🦝', '🐮', '🐷', '🐰', '🐵', '🐹',
-]
-
-const AVATAR_COLORS = [
-  '#7c3aed', '#1d4ed8', '#0891b2', '#059669',
-  '#d97706', '#dc2626', '#be185d', '#9333ea',
-]
-
-const MOOD_OPTIONS = [
-  { value: '', label: 'Sin estado' },
-  { value: '😊', label: '😊 Feliz' },
-  { value: '😎', label: '😎 Chill' },
-  { value: '😴', label: '😴 Cansado' },
-  { value: '😰', label: '😰 Ansioso' },
-  { value: '😐', label: '😐 Normal' },
-]
+import { AvatarPicker } from '../components/v2/primitives/AvatarPicker'
+import { MOODS } from '../data/moods'
 
 type SectionSlug =
   | 'profile'
@@ -267,34 +246,11 @@ function ProfileSection({ onBack }: { onBack: () => void }) {
 
         <div>
           <label className="text-xs font-semibold text-text-secondary block mb-2">Avatar</label>
-          <div className="grid grid-cols-6 gap-2">
-            {AVATAR_EMOJIS.map((e) => (
-              <button
-                key={e}
-                onClick={() => setEmoji(e)}
-                className={`aspect-square rounded-md flex items-center justify-center text-2xl transition-all ${
-                  emoji === e ? 'bg-brand-purple/30 border-2 border-brand-purple' : 'bg-surface-muted border border-brd-subtle hover:bg-surface-elevated'
-                }`}
-              >
-                {e}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold text-text-secondary block mb-2">Color</label>
-          <div className="flex flex-wrap gap-2">
-            {AVATAR_COLORS.map((c) => (
-              <button
-                key={c}
-                onClick={() => setColor(c)}
-                className={`w-10 h-10 rounded-full transition-transform ${color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-surface-card scale-110' : ''}`}
-                style={{ background: c }}
-                aria-label={`Color ${c}`}
-              />
-            ))}
-          </div>
+          <AvatarPicker
+            emoji={emoji}
+            color={color}
+            onChange={({ emoji: e, color: c }) => { setEmoji(e); setColor(c) }}
+          />
         </div>
 
         <div>
@@ -304,8 +260,9 @@ function ProfileSection({ onBack }: { onBack: () => void }) {
             onChange={(e) => setMood(e.target.value)}
             className="w-full bg-surface-card border border-brd-purple rounded-md px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:border-brand-purple"
           >
-            {MOOD_OPTIONS.map((m) => (
-              <option key={m.value} value={m.value}>{m.label}</option>
+            <option value="">Sin estado</option>
+            {MOODS.map((m) => (
+              <option key={m.key} value={m.key}>{m.emoji} {m.label}</option>
             ))}
           </select>
         </div>
