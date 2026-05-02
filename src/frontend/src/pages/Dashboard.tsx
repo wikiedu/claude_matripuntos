@@ -8,6 +8,7 @@ import { useTodos } from '../hooks/useTodos'
 import { DailyPhrase } from '../components/v2/dashboard/DailyPhrase'
 import { MoodPairCard } from '../components/v2/dashboard/MoodPairCard'
 import { MoodNudge } from '../components/v2/dashboard/MoodNudge'
+import { ProfileCompletionBanner } from '../components/v2/dashboard/ProfileCompletionBanner'
 import { BalanceLevelHero } from '../components/v2/dashboard/BalanceLevelHero'
 import { StreakStrip } from '../components/v2/dashboard/StreakStrip'
 import { ActivitiesBanner } from '../components/v2/dashboard/ActivitiesBanner'
@@ -192,6 +193,7 @@ export default function Dashboard() {
     <main className="pb-4 pt-2">
       {showTour && <DashboardTour onClose={() => setShowTour(false)} />}
       {isSolo && <NoPartnerBanner />}
+      <ProfileCompletionBanner firstLoginAt={(user as any)?.firstLoginAt} />
       {!isSolo && (
         <div className="px-4 mb-3 space-y-2">
           <MoodNudge hasMood={myMoodIsVigent} dateKey={todayKey} onTap={triggerMoodSheet} />
