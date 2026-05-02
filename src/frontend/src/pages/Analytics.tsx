@@ -6,6 +6,7 @@ import { BasicAnalytics } from '../components/v2/analytics/BasicAnalytics'
 import { AdvancedAnalytics } from '../components/v2/analytics/AdvancedAnalytics'
 import { MovementsTab } from '../components/v2/analytics/MovementsTab'
 import { PremiumInterestModal } from '../components/v2/premium/PremiumInterestModal'
+import { AnalyticsProSection } from '../components/v2/analytics/AnalyticsProSection'
 
 type Tab = 'basic' | 'advanced' | 'movements'
 
@@ -26,6 +27,8 @@ export default function Analytics() {
         <h2 className="text-[22px] font-extrabold text-text-primary m-0">Analítica</h2>
         <Pill tone="purple">{month}</Pill>
       </div>
+      {/* v2.0.3 — Analytics Pro insights cards + heatmap */}
+      <AnalyticsProSection />
       <AnalyticsTabs tab={tab} onTab={setTab} isPremium={isPremium} />
       {tab === 'basic'     && <BasicAnalytics />}
       {tab === 'advanced'  && <AdvancedAnalytics isPremium={isPremium} onOpenInterest={() => setInterestOpen(true)} />}
