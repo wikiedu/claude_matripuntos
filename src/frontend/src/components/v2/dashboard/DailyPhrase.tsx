@@ -1,10 +1,28 @@
+// v1.6 — Frase del día con cascada por urgencia emocional. Tipografía
+// italic serif para que se sienta "frase" y no "label". Si no hay couple,
+// no renderiza (página de login/onboarding nunca lo monta de todas formas).
+
+import { useDailyPhraseState } from '../../../hooks/useDailyPhraseState'
 import { getDailyPhrase } from '../../../utils/dailyPhrase'
+import { useAppStore } from '../../../store/useAppStore'
 
 export function DailyPhrase() {
-  const phrase = getDailyPhrase()
+  const couple = useAppStore(s => s.couple)
+  if (!couple?.id) return null
+
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Madrid'
+  const state = useDailyPhraseState({ coupleId: couple.id, tz })
+  const phrase = getDailyPhrase(state)
+
   return (
-    <div className="mx-4 mb-3.5 px-3 py-2 rounded-md bg-brand-purple/10 border border-brand-purple/15 text-xs italic text-[#c4b5fd] text-center">
-      {phrase}
+    <div
+      data-testid="daily-phrase"
+      data-category={phrase.category}
+      className="mx-4 mb-3.5 px-4 py-3 rounded-xl bg-brand-purple/10 border border-brand-purple/15 transition-opacity duration-200"
+    >
+      <p className="font-serif italic text-sm text-[#c4b5fd] leading-snug text-center">
+        "{phrase.text}"
+      </p>
     </div>
   )
 }

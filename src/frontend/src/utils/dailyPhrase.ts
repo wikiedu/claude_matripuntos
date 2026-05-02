@@ -1,70 +1,53 @@
-const FRASES: string[] = [
-  "El equilibrio no es hacer lo mismo, es valorar lo que hace el otro.",
-  "Una pareja que negocia junta, crece junta.",
-  "Hoy es buen día para sorprender al otro con algo inesperado.",
-  "Los puntos no mienten. El historial tampoco.",
-  "Pequeñas tareas, grandes gestos.",
-  "La justicia doméstica empieza por reconocer el esfuerzo invisible.",
-  "El mejor acuerdo es el que ambos firmaron con ganas.",
-  "Cada tarea es una inversión en el equipo.",
-  "Negociar no es perder, es encontrar el punto justo.",
-  "Un hogar ordenado empieza por dos personas alineadas.",
-  "Hoy puede ser el día de romper la racha o de alargarla un día más.",
-  "El que negocia bien vive mejor.",
-  "No hay tarea pequeña cuando se hace con intención.",
-  "Dos cabezas piensan mejor, y dos pares de manos hacen más.",
-  "La equidad no se mide en horas, sino en reconocimiento.",
-  "Hoy es un buen día para proponer algo y que te digan que sí.",
-  "El hogar perfecto no existe, pero el hogar justo sí.",
-  "Registrar lo que haces no es presumir, es visibilizar.",
-  "Un punto ganado hoy es una conversación evitada mañana.",
-  "La constancia es el superpoder de las parejas que funcionan.",
-  "¿Cuándo fue la última vez que reconociste algo que hizo el otro?",
-  "Las tareas compartidas pesan menos.",
-  "La racha es frágil. Cuídala.",
-  "Hoy podrías ser tú quien tome la iniciativa.",
-  "Lo que se ve en el historial no se puede negar.",
-  "El desacuerdo de hoy puede ser el acuerdo de mañana.",
-  "Una contraoferta no es un rechazo, es una conversación.",
-  "Las parejas que se ponen de acuerdo en las cosas pequeñas, resisten las grandes.",
-  "Hacer juntos lo aburrido es, en realidad, hacer juntos la vida.",
-  "Hay días de ×1.0 y días de ×2.0. Hoy, ¿cuál es el tuyo?",
-  "El reconocimiento pesa más que los puntos.",
-  "Cada semana es una nueva oportunidad de equilibrar la balanza.",
-  "Lo urgente no siempre es lo importante. Pero hay que hacerlo igual.",
-  "Proponer es más valiente que esperar.",
-  "No hay app que reemplace la conversación, pero ayuda tenerla.",
-  "Un hogar en equilibrio es un hogar en paz.",
-  "Las tareas domésticas son el trabajo más subestimado del mundo.",
-  "Hoy es el día para decir 'lo hago yo'.",
-  "La pareja que comparte las tareas comparte también la tranquilidad.",
-  "Un buen acuerdo es el que los dos pueden explicar sin dudar.",
-  "Hay semanas de racha y semanas para recuperar. Las dos cuentan.",
-  "El primer paso de la equidad es hacer visible lo invisible.",
-  "Negociar es un acto de respeto mutuo.",
-  "Las parejas más felices no son las que pelean menos, sino las que resuelven más.",
-  "Hoy, ¿qué puedes hacer tú para que el otro descanse un poco?",
-  "El historial es la memoria objetiva de la pareja.",
-  "Un punto a tiempo ahorra una discusión.",
-  "El hogar es el proyecto más largo que jamás empezarás.",
-  "La constancia semanal vale más que el heroísmo puntual.",
-  "Registrar no es vigilar, es ser transparente.",
-  "El trabajo invisible merece puntos visibles.",
-  "¿Lleváis una semana sin negociar nada? Algo está muy bien… o muy mal.",
-  "Dos personas, un equipo, cero excusas.",
-  "Hoy puede ser un día de equilibrio perfecto. Solo hay que intentarlo.",
-  "La magia de Matripuntos: convierte lo cotidiano en algo que vale la pena.",
-  "Cuando ambos aportan, ambos ganan.",
-  "Una tarea completada es un gesto de amor sin romantizarlo demasiado.",
-  "El mejor multiplicador es el compromiso.",
-  "Lo que hoy parece rutina, mañana será racha.",
-  "Equipo que puntúa junto, hogar que funciona junto.",
-]
+// v1.6 — Selección determinista de frase del día con cascada por urgencia
+// emocional. La fuente de verdad de las frases está en data/dailyPhrases.ts.
+// Determinismo: hash(coupleId + dayKey + category) → ambos miembros de la
+// pareja ven la misma frase el mismo día.
+//
+// Orden de prioridad (cascada):
+//  1. disputa abierta o evento rejected reciente → reconciliacion
+//  2. racha rota en últimas 24h → animo
+//  3. logro reciente / nivel subido en últimas 24h → hito
+//  4. fin de semana → celebrar
+//  5. semana cargada (≥4 eventos largos o >25h en 7d) → calma
+//  6. partner aportó >60% últimos 7 días → agradecer
+//  7. lunes → animo-suave
+//  8. fallback → neutra-positivo
+//
+// Si dos condiciones aplican, gana la primera del orden (no es ranking dinámico).
 
-export function getDailyPhrase(): string {
-  const now = new Date()
-  const start = new Date(now.getFullYear(), 0, 0)
-  const diff = now.getTime() - start.getTime()
-  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24))
-  return FRASES[dayOfYear % FRASES.length]
+import { PHRASES, type Phrase, type PhraseCategory } from '../data/dailyPhrases'
+import { cyrb53 } from './cyrb53'
+
+export interface PhraseState {
+  coupleId: string
+  dayKey: string  // YYYY-MM-DD en TZ local
+  hasOpenDisputeRecent: boolean
+  streakBrokenLast24h: boolean
+  recentMilestone: boolean
+  weekendDay: boolean
+  heavyWeekDetected: boolean
+  partnerHighContribLastWeek: boolean
+  isMonday: boolean
+}
+
+export function pickPhraseCategory(state: PhraseState): PhraseCategory {
+  if (state.hasOpenDisputeRecent) return 'reconciliacion'
+  if (state.streakBrokenLast24h) return 'animo'
+  if (state.recentMilestone) return 'hito'
+  if (state.weekendDay) return 'celebrar'
+  if (state.heavyWeekDetected) return 'calma'
+  if (state.partnerHighContribLastWeek) return 'agradecer'
+  if (state.isMonday) return 'animo-suave'
+  return 'neutra-positivo'
+}
+
+export function getDailyPhrase(state: PhraseState): Phrase {
+  const category = pickPhraseCategory(state)
+  const pool = PHRASES.filter(p => p.category === category)
+  if (pool.length === 0) {
+    // Safety net: el catálogo siempre tiene neutra-positivo, pero por si acaso.
+    return PHRASES[0]
+  }
+  const seed = cyrb53(`${state.coupleId}-${state.dayKey}-${category}`)
+  return pool[seed % pool.length]
 }
