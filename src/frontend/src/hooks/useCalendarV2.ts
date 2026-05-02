@@ -3,7 +3,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '../services/apiClient'
 
-const FLAG_ENABLED = (import.meta.env?.VITE_CALENDAR_360_ENABLED ?? 'false') === 'true'
+// v2.0.x — default ON. Solo desactivado con VITE_CALENDAR_360_ENABLED=false explícito.
+const FLAG_ENABLED = (import.meta.env?.VITE_CALENDAR_360_ENABLED ?? 'true') !== 'false'
 
 export interface CalendarEntry {
   id: string

@@ -10,8 +10,9 @@ import prisma from '../lib/prisma.js'
 const router = Router()
 router.use(authenticateToken)
 
+// v2.0.x — default ON. Solo se desactiva con env var = 'false'.
 function isFlagEnabled(): boolean {
-  return process.env.CALENDAR_360_ENABLED === 'true'
+  return process.env.CALENDAR_360_ENABLED !== 'false'
 }
 router.use((_req, res, next) => {
   if (!isFlagEnabled()) return res.status(404).json({ error: 'Not found' })

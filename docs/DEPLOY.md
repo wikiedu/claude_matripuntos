@@ -168,3 +168,72 @@ Archivo local `.deploy-credentials` (en `.gitignore`, **NUNCA** commitear). Incl
 - Supabase dashboard (DATABASE_URL maestro).
 - PostHog dashboard (POSTHOG_KEY).
 - Sentry dashboard (DSN).
+
+---
+
+## 6. Feature flags — gobernanza producción (v2.0.x+)
+
+Desde v2.0.x los flags **están activos por defecto**. Para desactivar una feature concreta sin redeploy del código:
+
+### Backend (Render dashboard)
+
+Ir a Render → matripuntos-api → **Environment** → añadir variable:
+
+| Env var | Valor para desactivar | Efecto |
+|---|---|---|
+| `GAMIFICATION_V2_ENABLED` | `false` | `/api/gamification-v2/*` y `/api/notifications/push/*` devuelven 404. |
+| `CALENDAR_360_ENABLED` | `false` | `/api/calendar/v2/*` y `/api/calendar/google/*` devuelven 404. |
+
+Tras añadir/cambiar, Render hace redeploy automático (~3-5 min).
+
+### Frontend (build env)
+
+El frontend lee `import.meta.env.VITE_*` en build time, no runtime. Para desactivar:
+
+1. En el entorno de build (CI o local) declarar antes del `npm run build`:
+   ```bash
+   export VITE_GAMIFICATION_V2_ENABLED=false
+   export VITE_CALENDAR_360_ENABLED=false
+   ```
+2. `cd src/frontend && npm run build`
+3. Re-subir `dist/` por FTP.
+
+### Servicios externos opcionales (lazy-load — degradan a no-op)
+
+| Env var | Si NO está set |
+|---|---|
+| `RESEND_API_KEY` | `/api/account/delete-request` devuelve 503 en prod (en dev imprime el código en consola). Email no se envía. |
+| `RESEND_FROM` | Default `'Matripuntos <noreply@matripuntos.app>'`. |
+| `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` | `/api/notifications/push/vapid-key` devuelve 503. Push notifications deshabilitadas. |
+| `VAPID_SUBJECT` | Default `'mailto:soporte@matripuntos.app'`. |
+| `POSTHOG_KEY` | Telemetría no se envía (no-op). Backend log warning una vez. |
+| `GOOGLE_OAUTH_CLIENT_ID` + `_CLIENT_SECRET` + `_REDIRECT_URI` | `/api/calendar/google/auth` devuelve 503. Resto de Calendar 360 funciona (entries manuales, service providers, etc.). |
+| `GOOGLE_TOKEN_ENCRYPTION_KEY` (32 bytes hex) | OAuth callback falla al cifrar refresh token. Generar con `openssl rand -hex 32`. |
+
+### Generar VAPID keys (web push)
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Output: `Public Key:` y `Private Key:`. Pega ambos en Render env vars.
+
+### Generar `GOOGLE_TOKEN_ENCRYPTION_KEY`
+
+```bash
+openssl rand -hex 32
+```
+
+Output 64 hex chars. Pega en Render env var.
+
+### Setup OAuth Google (Calendar 360)
+
+1. Ir a [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
+2. Crear proyecto "Matripuntos" si no existe.
+3. APIs & Services → Library → habilitar "Google Calendar API".
+4. APIs & Services → Credentials → Create Credentials → OAuth Client ID.
+5. Application type: Web application.
+6. Authorized redirect URI: `https://matripuntos-api.onrender.com/api/calendar/google/callback`.
+7. Copiar Client ID + Client Secret a Render env vars.
+8. OAuth consent screen → external → añadir scope `https://www.googleapis.com/auth/calendar.readonly`.
+

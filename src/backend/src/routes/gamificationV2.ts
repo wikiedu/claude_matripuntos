@@ -13,8 +13,9 @@ import { computeAvailableReplays } from '../services/replayService.js'
 const router = Router()
 router.use(authenticateToken)
 
+// v2.0.x — default ON. Solo se desactiva con env var = 'false'.
 function isFlagEnabled(): boolean {
-  return process.env.GAMIFICATION_V2_ENABLED === 'true'
+  return process.env.GAMIFICATION_V2_ENABLED !== 'false'
 }
 
 router.use((_req, res, next) => {

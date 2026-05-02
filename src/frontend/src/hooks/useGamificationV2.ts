@@ -5,7 +5,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '../services/apiClient'
 
-const FLAG_ENABLED = (import.meta.env?.VITE_GAMIFICATION_V2_ENABLED ?? 'false') === 'true'
+// v2.0.x — default ON. Solo desactivado con VITE_GAMIFICATION_V2_ENABLED=false explícito.
+const FLAG_ENABLED = (import.meta.env?.VITE_GAMIFICATION_V2_ENABLED ?? 'true') !== 'false'
 
 export interface LevelInfo {
   xp: number
