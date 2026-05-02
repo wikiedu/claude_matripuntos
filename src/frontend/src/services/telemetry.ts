@@ -84,14 +84,14 @@ export const telemetry = {
 
   async optIn() {
     const ph = await getPosthog()
-    ph?.opt_in_capturing()
+    if (typeof ph?.opt_in_capturing === 'function') ph.opt_in_capturing()
   },
   async optOut() {
     const ph = await getPosthog()
-    ph?.opt_out_capturing()
+    if (typeof ph?.opt_out_capturing === 'function') ph.opt_out_capturing()
   },
   async reset() {
     const ph = await getPosthog()
-    ph?.reset()
+    if (typeof ph?.reset === 'function') ph.reset()
   },
 }

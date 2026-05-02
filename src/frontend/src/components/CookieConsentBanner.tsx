@@ -6,6 +6,7 @@
 
 import { useState } from 'react'
 import { useConsent } from '../hooks/useConsent'
+import { telemetry } from '../services/telemetry'
 
 export function CookieConsentBanner() {
   const { consent, setConsent } = useConsent()
@@ -16,6 +17,12 @@ export function CookieConsentBanner() {
 
   const accept = (analytics: boolean) => {
     setConsent({ analytics })
+    // v1.6.1 — telemetry: dispara consent.changed antes/después según opt-in/out.
+    if (analytics) {
+      void telemetry.optIn().then(() => telemetry.track('consent.changed', { analytics: true }))
+    } else {
+      void telemetry.track('consent.changed', { analytics: false }).then(() => telemetry.optOut())
+    }
   }
 
   return (

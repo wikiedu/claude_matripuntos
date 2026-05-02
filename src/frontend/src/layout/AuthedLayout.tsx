@@ -7,6 +7,7 @@ import { HeaderMenu } from '../components/v2/layout/HeaderMenu'
 import { FabActionSheet } from '../components/v2/layout/FabActionSheet'
 import { MoodSelectorSheet } from '../components/v2/sheets/MoodSelectorSheet'
 import { useMoodVigent } from '../hooks/useMoodVigent'
+import { telemetry } from '../services/telemetry'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
 import type { AchievementMapNode } from '../types/index'
@@ -105,7 +106,15 @@ export function AuthedLayout({ children }: { children: ReactNode }) {
       <MoodSelectorSheet
         open={moodSheetOpen}
         currentMoodKey={myVigentMood?.key ?? null}
-        onChange={(key) => moodMutation.mutate(key)}
+        onChange={(key) => {
+          moodMutation.mutate(key)
+          // v1.6.1 — telemetry: dispara mood.set o mood.cleared.
+          if (key) {
+            void telemetry.track('mood.set', { moodKey: key as any, source: 'header' })
+          } else {
+            void telemetry.track('mood.cleared', {})
+          }
+        }}
         onClose={() => setMoodSheetOpen(false)}
       />
       <HeaderMenu
