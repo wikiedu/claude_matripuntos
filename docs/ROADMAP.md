@@ -20,7 +20,8 @@
 | **v1.5.1** | **Hotfix Supabase migrations** | ✅ Cerrado 2026-05-02 (script entregado + verificado en prod: 14 migraciones registradas, `migrate status` "up to date") | `main` (commit `3d378ad`) | — |
 | **v1.6** | **La Personalidad** (frase + mood + avatares) | ✅ En producción (2026-05-02) | `main` | `v1.6` |
 | **v1.6.1** | **Confianza** (privacy + telemetría + onboarding invitee + E2E) | ✅ En producción (2026-05-02) — privacy stack, telemetría opt-out, lifecycle (delete/leave), 23 specs Playwright, 122 tests CI | `main` | `v1.6.1` |
-| **v1.6.2** | **Hotfix post-auditoría** (GDPR Art.20 export + Art.8 edad + PostHog instalado + WCAG fixes) | ✅ En producción (2026-05-02) — Sprint 1 cierre 4 S0 + 11 S1 críticos | `main` | `v1.6.2` |
+| **v1.6.2** | **Hotfix post-auditoría** (GDPR Art.20 export + Art.8 edad + PostHog instalado + WCAG fixes) | ⚠️ Tag aplicado pero deploy Render falló — bloqueado por bug shared package | `main` | `v1.6.2` |
+| **v1.6.3** | **QA fixes + desbloqueo Render** (mood sync + UI compacta + auto-refresh + filtro catálogo + shared dist build) | ✅ Desplegado 2026-05-02 — desbloquea v1.6.1+v1.6.2+v1.6.3 que estaban rotos en producción | `main` | `v1.6.3` |
 | **v1.7** | **El Juego (segundo round)** | 🧠 Brainstorm pendiente | `feature/v1.7-el-juego-2` | — |
 | **v2.0.1** | **Calendario 360** | 🧠 Brainstorm pendiente | `feature/v2.0.1-calendario-360` | — |
 | **v2.0.2** | **Journaling** | 🧠 Brainstorm pendiente | `feature/v2.0.2-journaling` | — |
