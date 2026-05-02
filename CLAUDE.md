@@ -259,7 +259,8 @@ Formato: `vX.Y · Nombre`. Branches: `feature/vX.Y-nombre-kebab`. Tags git: `mvp
 | v1.6 | La Personalidad (frase + mood + avatares) | ✅ Producción 2026-05-02 | `main` (tag `v1.6`) |
 | v1.6.1 | Confianza (privacy + telemetría + lifecycle + E2E) | ✅ Producción 2026-05-02 | `main` (tag `v1.6.1`) |
 | v1.6.2 | Hotfix post-auditoría (4 S0 + 11 S1) | ⚠️ Render fail — desbloqueado por v1.6.3 | `main` (tag `v1.6.2`) |
-| v1.6.3 | QA bugs + Render deploy unblock + CI E2E postgres | ✅ Producción 2026-05-02 | `main` (tag `v1.6.3`) |
+| v1.6.3 | QA bugs + intento desbloqueo Render | ⚠️ Tag aplicado pero deploy fallaba | `main` (tag `v1.6.3`) |
+| v1.6.4 | Render deploy fix definitivo (imports relativos shared) | ✅ Producción 2026-05-02 | `main` (tag `v1.6.4`) |
 | **v1.7** | **El Juego (2º round)** | 🧠 Brainstorm pendiente | `feature/v1.7-el-juego-2` |
 | v2.0.1 | Calendario 360 | 🧠 Brainstorm pendiente | `feature/v2.0.1-calendario-360` |
 | v2.0.2 | Journaling | 🧠 Brainstorm pendiente | `feature/v2.0.2-journaling` |
