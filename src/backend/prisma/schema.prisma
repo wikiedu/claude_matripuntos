@@ -73,6 +73,10 @@ model Couple {
   replaysSeen           CoupleReplaySeen[]
   serviceProviders      ServiceProvider[]
 
+  // v2.0.2 relations
+  journalEntries        JournalEntry[]
+  journalRetrospectives JournalRetrospective[]
+
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
@@ -199,6 +203,11 @@ model User {
 
   // v2.0.1 relations
   googleCalendarSync      GoogleCalendarSync?
+
+  // v2.0.2 relations
+  journalEntriesAuthored  JournalEntry[]      @relation("JournalAuthor")
+  journalEntriesReceived  JournalEntry[]      @relation("JournalRecipient")
+  journalReactions        JournalReaction[]
 
   // v1.6.1 — User lifecycle:
   //  - deletedAt: soft delete papelera 30d antes de hard purge.
@@ -789,6 +798,69 @@ model ServiceProvider {
   updatedAt   DateTime @updatedAt
 
   @@index([coupleId, active])
+}
+
+// v2.0.2 — Journaling. Bitácora pareja con entries individuales/compartidas.
+model JournalEntry {
+  id              String   @id @default(cuid())
+  coupleId        String
+  couple          Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  authorId        String
+  author          User     @relation("JournalAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  type            String   // reflection | photo | voice | milestone | letter
+  title           String?
+  body            String?
+  shared          Boolean  @default(false)
+  attachments     String   @default("[]")  // JSON array
+  tags            String   @default("[]")  // JSON array of strings
+  promptId        String?
+  prompt          JournalPrompt? @relation(fields: [promptId], references: [id])
+  recipientId     String?
+  recipient       User?    @relation("JournalRecipient", fields: [recipientId], references: [id])
+  readByPartnerAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  reactions       JournalReaction[]
+
+  @@index([coupleId, createdAt])
+  @@index([authorId, createdAt])
+}
+
+model JournalReaction {
+  id        String   @id @default(cuid())
+  entryId   String
+  entry     JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([entryId, userId, emoji])
+}
+
+model JournalPrompt {
+  id        String   @id  // 'q-001'
+  text      String
+  category  String   // reflection | gratitude | future | conflict | celebration
+  weight    Int      @default(1)
+
+  entries   JournalEntry[]
+}
+
+model JournalRetrospective {
+  id          String   @id @default(cuid())
+  coupleId    String
+  couple      Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  period      String   // week | month | year
+  startDate   DateTime
+  endDate     DateTime
+  data        String   // JSON con stats agregadas
+  generatedAt DateTime @default(now())
+  seenByUser1 Boolean  @default(false)
+  seenByUser2 Boolean  @default(false)
+
+  @@unique([coupleId, period, startDate])
 }
 
 // AchievementDefinition — global achievement catalog (v1.2)
