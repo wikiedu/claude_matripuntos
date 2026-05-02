@@ -65,11 +65,93 @@ model Couple {
   // /api/history/past-couples.
   dissolvedAt           DateTime?
 
+  // v1.7 gamification v2 relations
+  coupleLevel           CoupleLevel?
+  coupleStreak          CoupleStreak?
+  coupleChallenges      CoupleChallenge[]
+  pushSubscriptions     PushSubscription[]
+  replaysSeen           CoupleReplaySeen[]
+
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
   @@index([secretKey])
   @@index([joinCode])
+}
+
+// v1.7 — Nivel de la pareja. XP es la suma de PointsTransaction.amount > 0.
+// Level computado en backend (computeLevel) y cacheado aquí para reads.
+model CoupleLevel {
+  id        String   @id @default(cuid())
+  coupleId  String   @unique
+  couple    Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  xp        Int      @default(0)
+  level     Int      @default(1)
+  updatedAt DateTime @updatedAt
+}
+
+// v1.7 — Streaks de pareja. dailyStreak suma días con ≥1 acción de cualquier
+// user. weeklyStreak suma semanas con ≥3 acciones distribuidas en ≥3 días.
+// longestX preservados aunque se rompa la racha (motivación intrínseca).
+model CoupleStreak {
+  id              String    @id @default(cuid())
+  coupleId        String    @unique
+  couple          Couple    @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  dailyStreak     Int       @default(0)
+  weeklyStreak    Int       @default(0)
+  lastActivityAt  DateTime?
+  longestDaily    Int       @default(0)
+  longestWeekly   Int       @default(0)
+  updatedAt       DateTime  @updatedAt
+}
+
+// v1.7 — Reto semanal generado los lunes 00:00 (TZ user) según nivel pareja.
+// status = active | completed | expired. progress incrementa por evaluator.
+model CoupleChallenge {
+  id          String    @id @default(cuid())
+  coupleId    String
+  couple      Couple    @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  weekStart   DateTime
+  type        String    // balance | verify | diversity | no_dispute | high_impact
+  config      String    // JSON con goal específico
+  status      String    @default("active")
+  progress    Int       @default(0)
+  goal        Int
+  rewardXp    Int
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([coupleId, weekStart])
+  @@index([coupleId, status])
+}
+
+// v1.7 — Web push subscription endpoints. p256dh/auth son claves del browser.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coupleId  String
+  couple    Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// v1.7 — Tracking de replays vistos para no repetir 30d.
+model CoupleReplaySeen {
+  id         String   @id @default(cuid())
+  coupleId   String
+  couple     Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  replayKey  String   // 'anniversary-2026-05-02' | 'best-day-2026-04-15'
+  seenByUser1 Boolean @default(false)
+  seenByUser2 Boolean @default(false)
+  seenAt     DateTime @default(now())
+
+  @@unique([coupleId, replayKey])
 }
 
 // Users - Individual members of a couple
@@ -110,6 +192,9 @@ model User {
 
   // v1.6 relations
   moodLogs                MoodLog[]
+
+  // v1.7 relations
+  pushSubscriptions       PushSubscription[]
 
   // v1.6.1 — User lifecycle:
   //  - deletedAt: soft delete papelera 30d antes de hard purge.
