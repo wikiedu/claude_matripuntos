@@ -36,6 +36,7 @@ import coupleLifecycleRoutes from './routes/couple.js'
 import historyRoutes from './routes/history.js'
 import profileCompletionRoutes from './routes/profileCompletion.js'
 import { runRetention } from './jobs/dataRetentionJob.js'
+import { authBucket as v161AuthBucket, writeBucket, readBucket } from './middleware/rateLimiter.js'
 import cron from 'node-cron'
 import { runWeeklyGeneration } from './services/recurringTaskService.js'
 import { sendWeeklyDigests } from './services/digestService.js'
@@ -138,9 +139,12 @@ app.get('/api/health', async (req, res) => {
 })
 
 // Routes
-app.use('/api/auth', authLimiter, authRoutes)
-app.use('/api/events', eventRoutes)
-app.use('/api/tasks', taskRoutes)
+// v1.6.1 — Aplicamos authBucket nuevo además del authLimiter legacy.
+// Composición: ambos en cadena, el más restrictivo (authBucket: 10/min IP) gana.
+// Cuando confiemos en el nuevo, el legacy puede retirarse en sesión próxima.
+app.use('/api/auth', authLimiter, v161AuthBucket, authRoutes)
+app.use('/api/events', writeBucket, eventRoutes)
+app.use('/api/tasks', writeBucket, taskRoutes)
 app.use('/api/negotiations', negotiationRoutes)
 app.use('/api/points/reset-request', resetLimiter)
 app.use('/api/points/reset-confirm', resetLimiter)

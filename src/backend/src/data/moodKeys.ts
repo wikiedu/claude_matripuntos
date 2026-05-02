@@ -1,21 +1,7 @@
-// v1.6 — Canonical list of moodKeys.
-// Used by zod validation in PUT /api/profile/me and GET /api/profile/mood-history.
-// Mirrored in frontend src/data/moods.ts (con metadata adicional: emoji, label, hint, tone).
-//
-// **Decisión deliberada:** sin moods hostiles (enfadado, cabreado, etc.).
-// Los conflictos se canalizan por disputas/negociación, no por etiquetas pasivas.
+// v1.6.1 — Re-export desde @matripuntos/shared (source of truth post-v1.6.1).
+// Este archivo se mantiene como compatibilidad para imports existentes que
+// referencian './data/moodKeys.js'. En sesiones futuras, los consumidores
+// pueden migrar a importar directamente de @matripuntos/shared y este shim
+// se borra.
 
-export const MOOD_KEYS = [
-  'feliz',
-  'enamorado',
-  'energico',
-  'carinoso',
-  'tranquilo',
-  'pensativo',
-  'cansado',
-  'enfermo',
-  'estresado',
-  'bajon',
-] as const
-
-export type MoodKey = typeof MOOD_KEYS[number]
+export { MOOD_KEYS, type MoodKey } from '@matripuntos/shared'

@@ -14,6 +14,7 @@ import { CoupleHealthCard } from '../components/v2/couple/CoupleHealthCard'
 import { AvatarPicker } from '../components/v2/primitives/AvatarPicker'
 import { MyMoodWeek } from '../components/v2/profile/MyMoodWeek'
 import { DeleteAccountWizard } from '../components/v2/wizards/DeleteAccountWizard'
+import { LeaveCoupleWizard } from '../components/v2/wizards/LeaveCoupleWizard'
 import { useConsent } from '../hooks/useConsent'
 import { MOODS } from '../data/moods'
 import { getMoodHistory } from '../services/apiClient'
@@ -375,21 +376,23 @@ function CoupleSection({ onBack }: { onBack: () => void }) {
           <div className="pt-2">
             <p className="text-xs font-semibold text-text-secondary mb-2">Zona de peligro</p>
             <Button variant="danger" fullWidth onClick={() => setUnlinkOpen(true)}>
-              Desvincular pareja
+              Salir de la pareja
             </Button>
+            <p className="text-[11px] text-text-tertiary mt-1">
+              Ambos quedaréis sin pareja activa. Conservaréis el histórico read-only.
+            </p>
           </div>
 
-          <DoubleConfirmModal
-            open={unlinkOpen}
-            title="Desvincular pareja"
-            firstMessage={`¿Seguro que quieres desvincularte de ${partner.name}?`}
-            secondMessage="Esta acción no se puede deshacer. Perderás el acceso al historial compartido."
-            confirmLabel="Confirmar desvinculación"
-            onCancel={() => setUnlinkOpen(false)}
-            onConfirm={() => {
-              // No backend endpoint yet — show help text via error banner
+          {/* v1.6.1 — LeaveCoupleWizard real, conectado a /api/couple/leave */}
+          <LeaveCoupleWizard
+            isOpen={unlinkOpen}
+            partnerName={partner.name}
+            onClose={() => setUnlinkOpen(false)}
+            onLeft={() => {
               setUnlinkOpen(false)
-              setError('Disponible en v1.5 — contacta soporte para desvincular ahora')
+              // Forzar re-fetch de couple/user — backend asignó couple individual nuevo.
+              // El user store debería refrescar; al recargar la app verá el nuevo state.
+              window.location.href = '/dashboard'
             }}
           />
         </Card>
