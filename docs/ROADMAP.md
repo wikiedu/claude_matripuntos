@@ -17,7 +17,7 @@
 | v1.4 | La Evolución (diseño v2) | ✅ En producción | `feature/v1.4-la-evolucion` → `main` | `v1.4` |
 | v1.4.1 | Hardening post-v1.4 (Actividades + join-code + audit sweep + onboarding/tasks fixes) | ✅ En producción (2026-04-22) | `main` | `v1.4.1` |
 | v1.5 | Red de Seguridad (tests + CI + 16 quick-wins) | ✅ En producción (2026-04-23) | `main` | `v1.5` |
-| **v1.5.1** | **Hotfix Supabase migrations** | 🔧 Pendiente — bloquea v1.6 | `feature/v1.5.1-supabase-reconcile` | — |
+| **v1.5.1** | **Hotfix Supabase migrations** | 🛠️ Código listo (script + docs/DEPLOY.md) — pendiente ejecución manual contra prod Supabase | `main` (entregado en commit) | — |
 | **v1.6** | **La Personalidad** (frase + mood + avatares) | 📝 Spec aprobado, plan pendiente | `feature/v1.6-la-personalidad` | — |
 | **v1.6.1** | **Confianza** (privacy + telemetría + onboarding invitee + E2E) | 🧠 Brainstorm pendiente | `feature/v1.6.1-confianza` | — |
 | **v1.7** | **El Juego (segundo round)** | 🧠 Brainstorm pendiente | `feature/v1.7-el-juego-2` | — |
@@ -207,22 +207,26 @@ Code shipped a `main` directo (sin feature branch). Se etiqueta `v1.5` tras QA r
 
 ---
 
-## v1.5.1 · Hotfix Supabase migrations 🔧
+## v1.5.1 · Hotfix Supabase migrations 🛠️
 
 **Foco:** desbloquear el camino de migraciones Prisma → Supabase antes de aplicar la migración nueva de v1.6 (`MoodLog`).
 
-**Contexto:** Desde 2026-04-10 la tabla `_prisma_migrations` en Supabase está corrupta (memoria `project_prisma_supabase_gotcha`). Cada release nuevo se ha apañado saltando el `prisma migrate deploy` en el build de Render. Esto deja deuda técnica: `prisma migrate diff` no puede usarse, las migraciones siguientes no tienen un punto de partida confiable, y la primera migración con DDL nuevo (v1.6) puede dejar el schema en estado intermedio.
+**Contexto:** Desde 2026-04-10 la tabla `_prisma_migrations` en Supabase ha tenido episodios de corrupción (memoria `project_prisma_supabase_gotcha`). v1.4 hizo un reconcile manual puntual; v1.5.1 lo automatiza para que el procedimiento sea reusable en futuros incidentes.
 
-**Scope cerrado:**
-- Reconciliar `_prisma_migrations` en Supabase manualmente: insertar registros para todas las migraciones aplicadas hasta hoy (`prisma migrate resolve --applied <name>` por cada una).
-- Restaurar `prisma migrate deploy` en el `build` script de Render una vez la tabla está sana.
-- Documentar el procedimiento en `docs/DEPLOY.md` (nueva entrada o sección).
-- Verificar con un `prisma migrate status` que el output es "Database schema is up to date".
-- **Sin features nuevas. Sin cambios de schema.** Solo saneamiento.
+**Entregado** (2026-05-02, en `main`):
+- ✅ Script `scripts/reconcile-prisma-migrations.mjs` — recorre `src/backend/prisma/migrations/`, ejecuta `prisma migrate resolve --applied <name>` por cada una, idempotente (skipea las ya aplicadas), valida estado final con `prisma migrate status`.
+- ✅ Soporte `DRY_RUN=1` para preview sin tocar nada.
+- ✅ Scripts npm: `migrate:status` y `migrate:reconcile` en `src/backend/package.json`.
+- ✅ Documentación completa en `docs/DEPLOY.md` (topología, env vars, configuración Render, procedimiento de release, reconcile §5, verificación, rollback).
 
-**Salida:** sin tag (es hotfix infra), commit en `main` y deploy backend. Se cierra cuando `prisma migrate status` retorna verde en producción.
+**Pendiente de ejecución manual** (lo hace el usuario con `DATABASE_URL` de prod):
+1. Exportar `DATABASE_URL` de Supabase prod en una shell aislada.
+2. Ejecutar dry-run: `DRY_RUN=1 DATABASE_URL=... node scripts/reconcile-prisma-migrations.mjs`.
+3. Ejecutar reconcile real: `DATABASE_URL=... node scripts/reconcile-prisma-migrations.mjs`.
+4. Verificar `cd src/backend && npm run migrate:status` → "Database schema is up to date".
+5. Cerrar la shell.
 
-**Branch:** `feature/v1.5.1-supabase-reconcile`
+Se cierra v1.5.1 cuando ese paso 4 retorna verde en producción y el primer deploy posterior a Render aplica `prisma migrate deploy` limpiamente.
 
 ---
 

@@ -11,6 +11,8 @@
     "start": "prisma migrate deploy && node dist/server.js",
     "migrate": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
+    "migrate:status": "prisma migrate status",
+    "migrate:reconcile": "node ../../scripts/reconcile-prisma-migrations.mjs",
     "seed": "ts-node --esm prisma/seed.ts",
     "studio": "prisma studio",
     "type-check": "tsc --noEmit",
