@@ -11,6 +11,9 @@
     "lint": "npm run lint --workspace=frontend && npm run lint --workspace=backend",
     "type-check": "npm run type-check --workspace=frontend && npm run type-check --workspace=backend",
     "test": "npm run test --workspace=frontend && npm run test --workspace=backend",
+    "e2e": "npm run test --workspace=@matripuntos/e2e",
+    "e2e:chromium": "npm run test:chromium --workspace=@matripuntos/e2e",
+    "e2e:webkit": "npm run test:webkit --workspace=@matripuntos/e2e",
     "db:migrate": "npm run migrate --workspace=database",
     "db:studio": "npm run studio --workspace=database"
   },
@@ -18,7 +21,8 @@
     "src/frontend",
     "src/backend",
     "src/database",
-    "packages/*"
+    "packages/*",
+    "e2e"
   ],
   "devDependencies": {
     "typescript": "^5.3.3"
