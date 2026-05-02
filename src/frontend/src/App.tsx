@@ -25,6 +25,10 @@ import Home from './pages/Home'
 import { OnboardingLanding } from './pages/onboarding/OnboardingLanding'
 import { AuthedLayout } from './layout/AuthedLayout'
 import { HomeSelector, HomeView } from './components/v2/home/HomeSelector'
+import PrivacyPage from './pages/legal/Privacy'
+import TermsPage from './pages/legal/Terms'
+import CookiesPage from './pages/legal/Cookies'
+import { CookieConsentBanner } from './components/CookieConsentBanner'
 import './App.css'
 
 export const queryClient = new QueryClient({
@@ -126,6 +130,11 @@ function AppRoutes() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/onboarding/join/:token" element={<Onboarding />} />
+
+      {/* v1.6.1 — páginas legales públicas */}
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/cookies" element={<CookiesPage />} />
 
       {/* Authenticated app shell */}
       <Route
@@ -288,6 +297,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <Router>
         <AppRoutes />
+        <CookieConsentBanner />
       </Router>
     </QueryClientProvider>
   )
