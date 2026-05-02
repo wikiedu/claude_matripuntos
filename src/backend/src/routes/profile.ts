@@ -1,9 +1,26 @@
 import { Router, Request, Response } from 'express'
+import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 import { UserProfileInput, CoupleProfileInput, OnboardingData } from '../types/v2.js'
+import { MOOD_KEYS } from '../data/moodKeys.js'
 
 const router = Router()
 import prisma from '../lib/prisma.js'
+
+// v1.6 — Schema canónico para PUT /me. El test hermético en
+// tests/profileContract.test.ts replica este schema; si éste cambia, el
+// test debe actualizarse para mantener el wire contract.
+const profileUpdateSchema = z.object({
+  surname: z.string().max(80).optional(),
+  profilePhotoUrl: z.string().url().nullable().optional(),
+  weeklyWorkHours: z.number().int().min(0).max(80).optional(),
+  workMode: z.enum(['presencial', 'remoto', 'hibrido']).optional(),
+  avatarEmoji: z.string().max(8).optional(),
+  avatarColor: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
+  theme: z.enum(['light', 'dark']).optional(),
+  currentMood: z.enum(MOOD_KEYS as unknown as [string, ...string[]]).nullable().optional(),
+  hasCompletedOnboarding: z.boolean().optional(),
+})
 
 // Middleware to ensure user is authenticated
 router.use(authenticateToken)
@@ -229,44 +246,77 @@ router.get('/couple', async (req: Request, res: Response) => {
  * where the user exists but no profile row has been created yet.
  */
 router.put('/me', async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user.id
-    const { avatarEmoji, avatarColor, theme, currentMood, hasCompletedOnboarding } = req.body
+  const userId = (req as any).user.id
+  const coupleId = (req as any).user.coupleId
 
-    // Lazily create the UserProfile row if missing. Avoids the chicken-and-egg
-    // problem where the seed / invite-flow needs to flip onboarding before any
-    // profile exists.
-    const profile = await prisma.userProfile.upsert({
-      where: { userId },
-      update: {
-        ...(avatarEmoji !== undefined && { avatarEmoji }),
-        ...(avatarColor !== undefined && { avatarColor }),
-        ...(theme !== undefined && { theme }),
-        ...(currentMood !== undefined && {
-          currentMood,
-          moodUpdatedAt: new Date(),
-        }),
-      },
-      create: {
-        userId,
-        ...(avatarEmoji !== undefined && { avatarEmoji }),
-        ...(avatarColor !== undefined && { avatarColor }),
-        ...(theme !== undefined && { theme }),
-        ...(currentMood !== undefined && {
-          currentMood,
-          moodUpdatedAt: new Date(),
-        }),
-      },
+  const parsed = profileUpdateSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Datos inválidos', details: parsed.error.issues })
+  }
+  const body = parsed.data
+
+  try {
+    // v1.6 — Toda la mutación en una sola transacción para que profile + user +
+    // MoodLog queden consistentes. Si algo falla, nada se aplica.
+    const result = await prisma.$transaction(async (tx) => {
+      const existing = await tx.userProfile.findUnique({ where: { userId } })
+
+      // Construir el patch del UserProfile
+      const profileFields: any = {}
+      if (body.surname !== undefined) profileFields.surname = body.surname
+      if (body.profilePhotoUrl !== undefined) profileFields.profilePhotoUrl = body.profilePhotoUrl
+      if (body.weeklyWorkHours !== undefined) profileFields.weeklyWorkHours = body.weeklyWorkHours
+      if (body.workMode !== undefined) profileFields.workMode = body.workMode
+      if (body.avatarEmoji !== undefined) profileFields.avatarEmoji = body.avatarEmoji
+      if (body.avatarColor !== undefined) profileFields.avatarColor = body.avatarColor
+      if (body.theme !== undefined) profileFields.theme = body.theme
+
+      if (body.currentMood !== undefined) {
+        profileFields.currentMood = body.currentMood
+        // Setear moodUpdatedAt al timestamp actual cuando hay mood,
+        // o limpiar a null cuando se borra (currentMood: null).
+        profileFields.moodUpdatedAt = body.currentMood ? new Date() : null
+      }
+
+      const profile = await tx.userProfile.upsert({
+        where: { userId },
+        update: profileFields,
+        create: { userId, ...profileFields },
+      })
+
+      if (typeof body.hasCompletedOnboarding === 'boolean') {
+        await tx.user.update({
+          where: { id: userId },
+          data: { hasCompletedOnboarding: body.hasCompletedOnboarding },
+        })
+      }
+
+      // v1.6 — MoodLog con anti-spam <5 min.
+      // Solo se loguea si:
+      //  (a) el mood cambió respecto al actual del UserProfile, o
+      //  (b) el último log de este user es de hace >5 min (evita escribir
+      //      múltiples logs si el user toca el mismo mood varias veces seguidas).
+      if (body.currentMood) {
+        const lastLog = await tx.moodLog.findFirst({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+        })
+        const fiveMinAgoMs = Date.now() - 5 * 60 * 1000
+        const moodChanged = body.currentMood !== existing?.currentMood
+        const lastLogStale = !lastLog || lastLog.createdAt.getTime() < fiveMinAgoMs
+        const shouldLog = moodChanged ? (!lastLog || lastLog.moodKey !== body.currentMood || lastLogStale) : lastLogStale
+
+        if (shouldLog && coupleId) {
+          await tx.moodLog.create({
+            data: { userId, coupleId, moodKey: body.currentMood },
+          })
+        }
+      }
+
+      return profile
     })
 
-    if (typeof hasCompletedOnboarding === 'boolean') {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { hasCompletedOnboarding },
-      })
-    }
-
-    res.json({ message: 'Profile updated', profile })
+    res.json({ message: 'Profile updated', profile: result })
   } catch (error) {
     console.error('Error updating profile:', error)
     res.status(500).json({ error: 'Failed to update profile' })
