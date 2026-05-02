@@ -78,12 +78,15 @@ export const authMiddleware = async (
     } else {
       // Verify the user still exists and hasn't been moved to another couple —
       // a zombie token (user deleted or re-linked) must not authenticate.
+      // v1.7 fix S1-4: rechazar usuarios soft-deleted (deletedAt != null).
+      // El JWT vive 7d tras delete-account; un token viejo intentaría
+      // autenticarse contra el ghost. Filtrar aquí cierra el escenario.
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
-        select: { id: true, coupleId: true },
+        select: { id: true, coupleId: true, deletedAt: true },
       })
 
-      if (!user || !user.coupleId) {
+      if (!user || !user.coupleId || user.deletedAt) {
         authCache.delete(decoded.userId)
         res.status(401).json({ error: 'User no longer valid' })
         return
