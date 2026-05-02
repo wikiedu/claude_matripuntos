@@ -23,7 +23,8 @@
 | **v1.6.2** | **Hotfix post-auditoría** (GDPR Art.20 export + Art.8 edad + PostHog instalado + WCAG fixes) | ⚠️ Tag aplicado pero deploy Render falló — bloqueado por bug shared package | `main` | `v1.6.2` |
 | **v1.6.3** | **QA fixes + intento desbloqueo Render** | ⚠️ Tag aplicado pero deploy Render aún fallaba por symlink workspace | `main` | `v1.6.3` |
 | **v1.6.4** | **Render deploy fix definitivo** (imports relativos al shared dist, sin symlink workspace) | ✅ Producción 2026-05-02 — primer deploy exitoso desde v1.6 | `main` | `v1.6.4` |
-| **v1.6.5** | **Mood propio no aparecía** (auth/me + auth/couple no exponían moodUpdatedAt) | ✅ **En producción 2026-05-02** | `main` | `v1.6.5` |
+| **v1.6.5** | **Mood propio no aparecía** (auth/me + auth/couple no exponían moodUpdatedAt) | ✅ Producción 2026-05-02 | `main` | `v1.6.5` |
+| **v1.6.6** | **Sprint 2 partial** (authMiddleware deletedAt filter + 15 tests accountDel/coupleLife) | ✅ **En producción 2026-05-02** | `main` | `v1.6.6` |
 | **v1.7** | **El Juego (segundo round)** | 🧠 Brainstorm pendiente | `feature/v1.7-el-juego-2` | — |
 | **v2.0.1** | **Calendario 360** | 🧠 Brainstorm pendiente | `feature/v2.0.1-calendario-360` | — |
 | **v2.0.2** | **Journaling** | 🧠 Brainstorm pendiente | `feature/v2.0.2-journaling` | — |
