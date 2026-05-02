@@ -775,6 +775,25 @@ class ApiClient {
 
 export const apiClient = new ApiClient()
 
+// v1.6 — Mood history del user autenticado
+export interface MoodHistoryEntry {
+  date: string  // YYYY-MM-DD en TZ pedida
+  moodKey: string | null
+  emoji?: string
+  label?: string
+}
+export interface MoodHistoryResponse {
+  tz: string
+  days: number
+  history: MoodHistoryEntry[]
+}
+
+export const getMoodHistory = (
+  days = 7,
+  tz: string = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Madrid',
+): Promise<MoodHistoryResponse> =>
+  apiClient.request(`/profile/mood-history?days=${days}&tz=${encodeURIComponent(tz)}`)
+
 /**
  * Fetch the 5 most recent activities for the user's couple.
  * @returns {Promise<any>} The recent activity data
