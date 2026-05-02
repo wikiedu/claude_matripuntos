@@ -191,6 +191,11 @@ router.get('/me', authMiddleware, async (req: Request, res: Response): Promise<v
         avatarColor: myProfile?.avatarColor ?? '#7c3aed',
         theme: myProfile?.theme ?? 'dark',
         currentMood: myProfile?.currentMood ?? null,
+        // v1.6.5 fix: sin moodUpdatedAt, useMoodVigent en frontend retorna null
+        // y el indicador del mood propio nunca aparece aunque el user lo haya
+        // puesto. Antes solo se exponía currentMood. El partner sí se mostraba
+        // vigente porque /api/points/balance sí devuelve moodUpdatedAt.
+        moodUpdatedAt: myProfile?.moodUpdatedAt ?? null,
       },
       partnerMood,
       partnerName,
@@ -218,12 +223,19 @@ router.get('/couple', authMiddleware, async (req: Request, res: Response): Promi
         numChildren: couple.numChildren,
         language: couple.language,
         notificationsEnabled: couple.notificationsEnabled,
-        users: couple.users.map(u => ({
+        users: couple.users.map((u: any) => ({
           id: u.id,
           email: u.email,
           name: u.name,
           role: u.roleInHome,
-          lastSeenAt: (u as any).lastSeenAt ?? null,
+          lastSeenAt: u.lastSeenAt ?? null,
+          // v1.6.5: campos de UserProfile expuestos para que MoodPairCard,
+          // AppHeader y avatar pickers del partner funcionen sin endpoints
+          // adicionales.
+          currentMood: u.profile?.currentMood ?? null,
+          moodUpdatedAt: u.profile?.moodUpdatedAt ?? null,
+          avatarEmoji: u.profile?.avatarEmoji ?? null,
+          avatarColor: u.profile?.avatarColor ?? null,
         })),
         configuration: couple.configurations ? {
           tasksConfig: JSON.parse(couple.configurations.tasksConfig),

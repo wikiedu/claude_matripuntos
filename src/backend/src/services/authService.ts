@@ -368,7 +368,11 @@ export const getCoupleData = async (coupleId: string) => {
     const couple = await prisma.couple.findUnique({
       where: { id: coupleId },
       include: {
-        users: true,
+        // v1.6.5: incluir profile (UserProfile) en cada user para que el
+        // frontend tenga currentMood/moodUpdatedAt/avatar del partner sin
+        // necesidad de un endpoint extra. Antes faltaban → el AppHeader y
+        // MoodPairCard del partner aparecían vacíos en algunas vistas.
+        users: { include: { profile: true } },
         configurations: true,
       }
     })
