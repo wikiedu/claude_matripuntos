@@ -18,7 +18,7 @@
 | v1.4.1 | Hardening post-v1.4 (Actividades + join-code + audit sweep + onboarding/tasks fixes) | ✅ En producción (2026-04-22) | `main` | `v1.4.1` |
 | v1.5 | Red de Seguridad (tests + CI + 16 quick-wins) | ✅ En producción (2026-04-23) | `main` | `v1.5` |
 | **v1.5.1** | **Hotfix Supabase migrations** | ✅ Cerrado 2026-05-02 (script entregado + verificado en prod: 14 migraciones registradas, `migrate status` "up to date") | `main` (commit `3d378ad`) | — |
-| **v1.6** | **La Personalidad** (frase + mood + avatares) | 📝 Spec aprobado, plan pendiente | `feature/v1.6-la-personalidad` | — |
+| **v1.6** | **La Personalidad** (frase + mood + avatares) | ✅ En producción (2026-05-02) | `main` | `v1.6` |
 | **v1.6.1** | **Confianza** (privacy + telemetría + onboarding invitee + E2E) | 📝 Spec + plan aprobados (2026-05-01/02), implementación pendiente | `feature/v1.6.1-confianza` | — |
 | **v1.7** | **El Juego (segundo round)** | 🧠 Brainstorm pendiente | `feature/v1.7-el-juego-2` | — |
 | **v2.0.1** | **Calendario 360** | 🧠 Brainstorm pendiente | `feature/v2.0.1-calendario-360` | — |
