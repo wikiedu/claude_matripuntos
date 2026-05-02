@@ -323,4 +323,79 @@ router.put('/me', async (req: Request, res: Response) => {
   }
 })
 
+/**
+ * GET /api/profile/mood-history
+ * v1.6 — Devuelve el histórico personal de moods agrupado por día local
+ * en la TZ pedida. Solo del user autenticado, nunca del partner.
+ *
+ * Query params:
+ *  - days: int 1-30, default 7
+ *  - tz: IANA timezone, default 'Europe/Madrid'
+ *
+ * Response:
+ *  { tz, days, history: [{ date, moodKey: string|null, emoji?, label? }] }
+ */
+const moodHistoryQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(30).default(7),
+  tz: z.string().default('Europe/Madrid'),
+})
+
+router.get('/mood-history', async (req: Request, res: Response) => {
+  const userId = (req as any).user.id
+
+  const parsed = moodHistoryQuerySchema.safeParse(req.query)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Parámetros inválidos', details: parsed.error.issues })
+  }
+  const { days, tz } = parsed.data
+
+  // Validar TZ — Intl arroja RangeError si la zona no es válida.
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz })
+  } catch {
+    return res.status(400).json({ error: 'TZ inválida' })
+  }
+
+  // Cargar metadata moods (lazy, evita ciclo de imports al top-level con tests).
+  const { MOOD_BY_KEY } = await import('../data/moodKeysExtended.js')
+
+  try {
+    // Margen de 1 día extra para no perder logs cerca del límite por cambios de TZ.
+    const since = new Date(Date.now() - (days + 1) * 24 * 60 * 60 * 1000)
+    const logs = await prisma.moodLog.findMany({
+      where: { userId, createdAt: { gte: since } },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    // Agrupar por día local en la TZ pedida; el último log del día gana.
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+    })
+    const byDay = new Map<string, string>()
+    for (const log of logs) {
+      byDay.set(fmt.format(log.createdAt), log.moodKey)
+    }
+
+    // Reconstruir array de N días terminando en hoy (ascendente).
+    const history: Array<{ date: string; moodKey: string | null; emoji?: string; label?: string }> = []
+    const today = new Date()
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000)
+      const date = fmt.format(d)
+      const moodKey = byDay.get(date) ?? null
+      if (moodKey && (MOOD_BY_KEY as any)[moodKey]) {
+        const m = (MOOD_BY_KEY as any)[moodKey]
+        history.push({ date, moodKey, emoji: m.emoji, label: m.label })
+      } else {
+        history.push({ date, moodKey: null })
+      }
+    }
+
+    res.json({ tz, days, history })
+  } catch (e) {
+    console.error('Error fetching mood history:', e)
+    res.status(500).json({ error: 'Failed to fetch mood history' })
+  }
+})
+
 export default router
