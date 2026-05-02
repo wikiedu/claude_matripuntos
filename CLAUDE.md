@@ -7,8 +7,8 @@
 ## 1. PROYECTO
 App web gamificada para parejas: gestión equitativa de responsabilidades del hogar mediante puntos negociables. Repo: https://github.com/wikiedu/claude_matripuntos
 
-**Versión actual en producción:** v1.5 · Red de Seguridad (tag `v1.5`, 2026-04-23)  
-**Próximo release:** v1.5.1 (hotfix Supabase migrations) → v1.6 (La Personalidad)  
+**Versión actual en producción:** v2.0.3.1 · Hotfix técnico + UX (tag `v2.0.3.1`, 2026-05-02)  
+**En desarrollo:** v2.0.4 · Catálogo + Consenso (branch `feature/v2.0.4-catalog-consensus`, Sprint 2 implementado 2026-05-03)  
 **Branch principal:** `main`
 
 ## 2. STACK TÉCNICO
@@ -187,6 +187,21 @@ Todas requieren `Authorization: Bearer <JWT>` salvo `/auth/register` y `/auth/lo
 /api/configuration
   GET|PUT /               { tasksConfig?, multipliersConfig?, activityTypes? }
 
+/api/activity-templates  (v2.0.4 — flag CATALOG_ENABLED, default ON)
+  GET  /                  ?grouped=true → templates globales + propios de la pareja
+  POST /                  { category, name, pointsBaseSuggested, ... } — crea custom
+  PUT|DELETE /:id         (solo own templates)
+  POST /:id/use           Marca uso (instrumentación, no bloqueante)
+
+/api/config-proposals    (v2.0.4 — flag CONFIG_PROPOSALS_ENABLED, default ON)
+  GET  /                  Propuestas activas
+  GET  /history           Histórico (rejected/expired/cancelled/accepted)
+  GET  /changelog         Cambios aplicados
+  POST /                  { field, oldValue, newValue, rationale?, expiryDays? }
+  POST /:id/accept        Solo el partner; aplica cambio + log
+  POST /:id/reject        Solo el partner
+  POST /:id/cancel        Solo el proposer
+
 /api/profile
   GET|PUT /me
 
@@ -268,12 +283,12 @@ Formato: `vX.Y · Nombre`. Branches: `feature/vX.Y-nombre-kebab`. Tags git: `mvp
 | v2.0.1 | Calendario 360 — CalendarEntry extendido + recurrence + holidays + birthdays + Google OAuth esqueleto | ✅ Producción 2026-05-02 | `main` (tag `v2.0.1`) |
 | v2.0.2 | Journaling — entries CRUD + reactions + prompts diarios + retrospectivas | ✅ Producción 2026-05-02 | `main` (tag `v2.0.2`) |
 | **v2.0.3** | **Analytics Pro** — aggregator con invariantes mat. + insights + heatmap | ✅ Producción 2026-05-02 | `main` (tag `v2.0.3`) |
-| **v1.7** | **El Juego (2º round)** | 🧠 Brainstorm pendiente | `feature/v1.7-el-juego-2` |
-| v2.0.1 | Calendario 360 | 🧠 Brainstorm pendiente | `feature/v2.0.1-calendario-360` |
-| v2.0.2 | Journaling | 🧠 Brainstorm pendiente | `feature/v2.0.2-journaling` |
-| v2.0.3 | Analytics Pro | 🧠 Brainstorm pendiente | `feature/v2.0.3-analytics-pro` |
-| v2.1 | Conectados | 🧠 Brainstorm pendiente | `feature/v2.1-conectados` |
-| v3.0 | Premium | 🧠 Futuro | `feature/v3.0-premium` |
+| **v2.0.3.1** | **Hotfix v2.0.3** — IDOR journal, push unsubscribe, focus rings, BottomNav safe-area | ✅ Producción 2026-05-02 | `main` (tag `v2.0.3.1`) |
+| **v2.0.4** | **Catálogo + Consenso** — ActivityTemplate + ConfigurationProposal + ProposalsPanel | 🟢 Sprint 2 implementado 2026-05-03 | `feature/v2.0.4-catalog-consensus` |
+| **v2.0.5** | **Quick wins** — anniversary timer + image proof tareas | 🧠 Brainstorm pendiente | `feature/v2.0.5-quick-wins` |
+| **v2.1** | **Conectados** — Google sync + push real + ICS + referidos | 📝 Spec aprobado | `feature/v2.1-conectados` |
+| **v2.2** | **Multiidiomas** — i18n ES/EN/CA/PT | 🧠 Brainstorm pendiente | `feature/v2.2-multiidiomas` |
+| v3.0 | Premium | 📝 Spec aprobado | `feature/v3.0-premium` |
 
 Roadmap completo: `docs/ROADMAP.md` · Decisiones: `docs/DECISIONS.md` · Spec original (2026-04-11): `docs/superpowers/specs/2026-04-11-roadmap-versiones-design.md` · Spec v1.6: `docs/superpowers/specs/2026-04-26-v1.6-la-personalidad-design.md`
 

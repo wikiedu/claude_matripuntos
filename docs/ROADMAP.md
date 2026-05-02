@@ -30,7 +30,11 @@
 | **v2.0.1** | **Calendario 360** | ✅ **En producción 2026-05-02** (feature flag, Google OAuth pendiente v2.0.1.x) | `main` | `v2.0.1` |
 | **v2.0.2** | **Journaling** | ✅ **En producción 2026-05-02** (esqueleto MVP, atachments diferidos) | `main` | `v2.0.2` |
 | **v2.0.3** | **Analytics Pro** — aggregator con invariantes matemáticos + insights cards + heatmap | ✅ **En producción 2026-05-02** | `main` | `v2.0.3` |
+| **v2.0.3.1** | **Hotfix técnico + UX must-fix** — IDOR journal, push unsubscribe, focus rings, BottomNav safe-area | ✅ **En producción 2026-05-02** | `main` | `v2.0.3.1` |
+| **v2.0.4** | **Catálogo + consenso** — ActivityTemplate (catálogo de actividades) + ConfigurationProposal (cambios consensuados) | 🟢 **Sprint 2 implementado 2026-05-03** — schema + routes + frontend pickers; pendiente deploy | `feature/v2.0.4-catalog-consensus` | — |
+| **v2.0.5** | **Quick wins** — anniversary timer + image proof tareas | 🧠 Brainstorm pendiente | `feature/v2.0.5-quick-wins` | — |
 | **v2.1** | **Conectados** — Google sync bidireccional + push real + ICS + referidos | 📝 Spec aprobado (2026-05-02) | `feature/v2.1-conectados` | — |
+| **v2.2** | **Multiidiomas** — i18n ES/EN/CA/PT (interfaz, prompts journal, emails) | 🧠 Brainstorm pendiente | `feature/v2.2-multiidiomas` | — |
 | **v3.0** | **Premium** — Stripe + freemium B + AI Claude Haiku + Themes + RN opcional | 📝 Spec aprobado (2026-05-02) | `feature/v3.0-premium` | — |
 
 **Principios para todo lo post-v1.5:** versiones estables, test-first, contract testing back↔front, QA automatizado (Vitest + Jest unit + Playwright E2E desde v1.6.1), security-by-default, deploy reproducible.
@@ -365,6 +369,41 @@ Cobertura prometida en v1.5 y no completada — se aprovecha el touch en `profil
 
 ---
 
+## v2.0.4 · Catálogo + Consenso 📚
+
+**Foco:** llevar el modelo de "consenso de pareja" (ya activo en negociación de eventos) a la configuración del sistema, y formalizar un catálogo de actividades reutilizable.
+
+**Decisión clave (checkpoint 2026-05-03):** el core de la app es la gamificación; las **actividades restan** matripuntos, las **tareas suman**. Por eso necesitamos un catálogo limpio de actividades (paralelo al de tareas) en el que los puntos base sugeridos sean editables y consensuados.
+
+**Features:**
+- `ActivityTemplate`: catálogo de actividades global (visible para todas las parejas) + custom por pareja, con `pointsBaseSuggested`, `defaultDurationMinutes`, `defaultImpact`, `emoji`. ~50 templates seed en 8 categorías (trabajo, salud, ocio, social, alto_impacto, viaje, cuidado, personal) con subcategorías.
+- Picker visual al crear evento: el usuario elige un template, los campos del formulario se rellenan automáticamente (puntos, duración, impacto), pero sigue siendo editable y negociable como cualquier evento.
+- `ConfigurationProposal`: cualquier campo de `Configuration` (puntos base de tareas, multiplicadores) se puede proponer cambiar; el partner acepta/rechaza/cancela; al aceptar, se aplica + se logea en `ConfigurationChangeLog`.
+- Nueva sección "Propuestas pendientes" en Settings.
+- Feature flags `CATALOG_ENABLED` y `CONFIG_PROPOSALS_ENABLED` (default ON), `VITE_*` correspondientes en frontend.
+
+**Out-of-scope MVP** (diferidos):
+- Contraoferta en propuestas (MVP: solo accept/reject).
+- Notificaciones push para nuevas propuestas (se verá en v2.1 push real).
+- UI de "proponer cambio" inline en cada slider de Settings (de momento solo el panel + endpoint).
+
+**Branch:** `feature/v2.0.4-catalog-consensus` · **Tag pendiente:** `v2.0.4`
+
+---
+
+## v2.0.5 · Quick wins ⚡
+
+**Foco:** wins rápidos identificados en el análisis de competencia (Lasting, Paired, Splitwise, ChoreList) que aportan diferenciación con poco esfuerzo.
+
+**Features candidatas:**
+- Anniversary timer en dashboard ("Llevamos juntos 3 años, 4 meses").
+- Image proof opcional en tareas completadas (anti-fraude soft, foto del baño limpio).
+- Más por confirmar tras D30 con datos.
+
+**Branch:** `feature/v2.0.5-quick-wins` · **Tag pendiente:** `v2.0.5`
+
+---
+
 ## v2.1 · Conectados 🌐
 
 **Foco:** integraciones externas y crecimiento.
@@ -379,6 +418,28 @@ Cobertura prometida en v1.5 y no completada — se aprovecha el touch en `profil
 - Notificación al partner al cambiar mood (heredada del backlog v1.6, opcional, opt-in).
 
 **Branch:** `feature/v2.1-conectados` · **Tag:** `v2.1`
+
+---
+
+## v2.2 · Multiidiomas 🌍
+
+**Foco:** internacionalizar la app para que funcione en castellano, inglés, catalán y portugués (mínimos viables; otros idiomas si la demanda lo justifica).
+
+**Scope:**
+- i18n con `react-i18next` o equivalente; estructura `locales/{es,en,ca,pt}/common.json`.
+- Toggle de idioma en Settings con persistencia por usuario (`User.locale`).
+- Catálogo de prompts de Journal (v2.0.2) localizado por idioma.
+- Plantillas de email (v2.1) localizadas.
+- Catálogo global de actividades (v2.0.4) con campo `name_i18n` JSON para traducciones.
+- ¿Geolocalización al primer login para sugerir idioma? (opt-in vía Accept-Language).
+- Tests E2E mínimos en cada idioma para asegurar no se rompe el layout.
+
+**Out-of-scope:**
+- Localización fina de fechas/monedas (date-fns ya cubre, mantener default UTC).
+- RTL (no relevante con ES/EN/CA/PT).
+- Voice prompts traducidos (Journal voice → diferido).
+
+**Branch:** `feature/v2.2-multiidiomas` · **Tag pendiente:** `v2.2`
 
 ---
 
