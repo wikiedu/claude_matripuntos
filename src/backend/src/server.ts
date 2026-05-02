@@ -171,6 +171,9 @@ import('./routes/notificationsPush.js').then(m => app.use('/api/notifications/pu
 import('./routes/calendarV2.js').then(m => app.use('/api/calendar/v2', m.default)).catch(() => {})
 import('./routes/googleCalendarOauth.js').then(m => app.use('/api/calendar/google', m.default)).catch(() => {})
 
+// v2.0.2 — Journaling (feature-flagged JOURNAL_ENABLED, default ON)
+import('./routes/journal.js').then(m => app.use('/api/journal', m.default)).catch(() => {})
+
 // Calendar Routes (FASE 5)
 app.use('/api/calendar', calendarRoutes)
 
