@@ -24,10 +24,11 @@
 | **v1.6.3** | **QA fixes + intento desbloqueo Render** | ⚠️ Tag aplicado pero deploy Render aún fallaba por symlink workspace | `main` | `v1.6.3` |
 | **v1.6.4** | **Render deploy fix definitivo** (imports relativos al shared dist, sin symlink workspace) | ✅ Producción 2026-05-02 — primer deploy exitoso desde v1.6 | `main` | `v1.6.4` |
 | **v1.6.5** | **Mood propio no aparecía** (auth/me + auth/couple no exponían moodUpdatedAt) | ✅ Producción 2026-05-02 | `main` | `v1.6.5` |
-| **v1.6.6** | **Sprint 2 partial** (authMiddleware deletedAt filter + 15 tests accountDel/coupleLife) | ✅ **En producción 2026-05-02** | `main` | `v1.6.6` |
-| **v1.7** | **El Juego (segundo round)** | 🧠 Brainstorm pendiente | `feature/v1.7-el-juego-2` | — |
-| **v2.0.1** | **Calendario 360** | 🧠 Brainstorm pendiente | `feature/v2.0.1-calendario-360` | — |
-| **v2.0.2** | **Journaling** | 🧠 Brainstorm pendiente | `feature/v2.0.2-journaling` | — |
+| **v1.6.6** | **Sprint 2 partial** (authMiddleware deletedAt filter + 15 tests accountDel/coupleLife) | ✅ Producción 2026-05-02 | `main` | `v1.6.6` |
+| **v1.6.7** | **Sprint 2 final** (Resend email + ghost partial index) | ✅ Producción 2026-05-02 | `main` | `v1.6.7` |
+| **v1.7** | **El Juego (segundo round)** | 📝 Spec + plan aprobados (2026-05-02) | `feature/v1.7-el-juego-2` | — |
+| **v2.0.1** | **Calendario 360** | 📝 Spec aprobado (2026-05-02) | `feature/v2.0.1-calendario-360` | — |
+| **v2.0.2** | **Journaling** | 📝 Spec aprobado (2026-05-02) | `feature/v2.0.2-journaling` | — |
 | **v2.0.3** | **Analytics Pro** | 🧠 Brainstorm pendiente | `feature/v2.0.3-analytics-pro` | — |
 | v2.1 | Conectados (push + Google Cal + export + referidos) | 🧠 Brainstorm pendiente | `feature/v2.1-conectados` | — |
 | v3.0 | Premium (Stripe + freemium B + IA + React Native) | 🧠 Futuro | `feature/v3.0-premium` | — |
