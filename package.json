@@ -17,7 +17,8 @@
   "workspaces": [
     "src/frontend",
     "src/backend",
-    "src/database"
+    "src/database",
+    "packages/*"
   ],
   "devDependencies": {
     "typescript": "^5.3.3"
