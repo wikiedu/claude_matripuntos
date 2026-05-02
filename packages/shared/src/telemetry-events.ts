@@ -31,6 +31,15 @@ export const TELEMETRY_EVENT_SCHEMAS = {
   'account.exported':                z.object({}),
   'consent.changed':                 z.object({ analytics: z.boolean() }),
   'ratelimit.hit':                   z.object({ endpoint: z.string(), bucket: z.string() }),
+  // v1.7 — Gamification v2 telemetry catalog
+  'gamification.level_up':           z.object({ from: z.number().int(), to: z.number().int() }),
+  'gamification.achievement_unlocked': z.object({ achievementId: z.string(), rarity: z.string() }),
+  'gamification.streak_milestone':   z.object({ type: z.enum(['daily', 'weekly']), count: z.number().int() }),
+  'gamification.streak_lost':        z.object({ type: z.enum(['daily', 'weekly']), prevCount: z.number().int() }),
+  'gamification.challenge_completed': z.object({ challengeType: z.string(), weekStart: z.string() }),
+  'gamification.replay_seen':        z.object({ replayType: z.string() }),
+  'notification.push_subscribed':    z.object({}),
+  'notification.push_unsubscribed':  z.object({}),
 } as const
 
 export type TelemetryEventName = keyof typeof TELEMETRY_EVENT_SCHEMAS
