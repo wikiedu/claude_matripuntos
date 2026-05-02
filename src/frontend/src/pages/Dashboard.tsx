@@ -7,6 +7,11 @@ import { useShoppingList } from '../hooks/useShoppingList'
 import { useTodos } from '../hooks/useTodos'
 import { DailyPhrase } from '../components/v2/dashboard/DailyPhrase'
 import { MoodPairCard } from '../components/v2/dashboard/MoodPairCard'
+import { LevelBar } from '../components/v2/dashboard/LevelBar'
+import { StreakBadge } from '../components/v2/dashboard/StreakBadge'
+import { ChallengeCard } from '../components/v2/dashboard/ChallengeCard'
+import { ReplayCard } from '../components/v2/dashboard/ReplayCard'
+import { useLevel, useStreak, useChallenge, useReplays, isGamificationV2Enabled } from '../hooks/useGamificationV2'
 import { MoodNudge } from '../components/v2/dashboard/MoodNudge'
 import { ProfileCompletionBanner } from '../components/v2/dashboard/ProfileCompletionBanner'
 import { BalanceLevelHero } from '../components/v2/dashboard/BalanceLevelHero'
@@ -189,11 +194,28 @@ export default function Dashboard() {
     btn?.click()
   }
 
+  // v1.7 — Hooks gamification v2 (no-op si feature flag off → enabled false).
+  const levelQ = useLevel()
+  const streakQ = useStreak()
+  const challengeQ = useChallenge()
+  const replaysQ = useReplays()
+  const v2Enabled = isGamificationV2Enabled()
+
   return (
     <main className="pb-4 pt-2">
       {showTour && <DashboardTour onClose={() => setShowTour(false)} />}
       {isSolo && <NoPartnerBanner />}
       <ProfileCompletionBanner firstLoginAt={(user as any)?.firstLoginAt} />
+      {v2Enabled && !isSolo && (
+        <div className="px-4 mb-3 space-y-2">
+          {levelQ.data && <LevelBar level={levelQ.data} />}
+          {streakQ.data && <StreakBadge streak={streakQ.data} />}
+          {challengeQ.data && <ChallengeCard challenge={challengeQ.data} />}
+          {(replaysQ.data ?? []).slice(0, 1).map(r => (
+            <ReplayCard key={r.key} replay={r} />
+          ))}
+        </div>
+      )}
       {!isSolo && (
         <div className="px-4 mb-3 space-y-2">
           <MoodNudge hasMood={myMoodIsVigent} dateKey={todayKey} onTap={triggerMoodSheet} />
