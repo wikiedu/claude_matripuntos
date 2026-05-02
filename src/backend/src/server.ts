@@ -163,6 +163,10 @@ app.use('/api/events', negotiationV2Routes)
 app.use('/api/achievements', achievementRoutes)
 app.use('/api/gamification', gamificationRoutes)
 
+// v1.7 — Gamification v2 (feature-flagged)
+import('./routes/gamificationV2.js').then(m => app.use('/api/gamification-v2', m.default)).catch(() => {})
+import('./routes/notificationsPush.js').then(m => app.use('/api/notifications/push', m.default)).catch(() => {})
+
 // Calendar Routes (FASE 5)
 app.use('/api/calendar', calendarRoutes)
 
