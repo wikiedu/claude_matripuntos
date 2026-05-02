@@ -174,6 +174,9 @@ import('./routes/googleCalendarOauth.js').then(m => app.use('/api/calendar/googl
 // v2.0.2 — Journaling (feature-flagged JOURNAL_ENABLED, default ON)
 import('./routes/journal.js').then(m => app.use('/api/journal', m.default)).catch(() => {})
 
+// v2.0.3 — Analytics Pro (feature-flagged ANALYTICS_V2_ENABLED, default ON)
+import('./routes/analyticsV2.js').then(m => app.use('/api/analytics/v2', m.default)).catch(() => {})
+
 // Calendar Routes (FASE 5)
 app.use('/api/calendar', calendarRoutes)
 

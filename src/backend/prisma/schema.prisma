@@ -77,6 +77,9 @@ model Couple {
   journalEntries        JournalEntry[]
   journalRetrospectives JournalRetrospective[]
 
+  // v2.0.3 relations
+  analyticsInsights     AnalyticsInsight[]
+
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
@@ -884,6 +887,28 @@ model RefreshToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+// v2.0.3 — Analytics Pro insights cache. Generadas por cron diario.
+// validUntil expira la card → cron la regenera. Rotación visible al user
+// vía seenAt: solo se muestran las cards no vistas (prioridad) o vistas
+// hace >24h.
+model AnalyticsInsight {
+  id          String   @id @default(cuid())
+  coupleId    String
+  couple      Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  kind        String   // 'time-of-day' | 'top-category' | 'streak-broken' | 'weekly-balance' | etc.
+  title       String
+  body        String
+  payload     String   @default("{}")  // JSON con números/refs concretos
+  trend       String?  // 'up' | 'down' | 'flat'
+  generatedAt DateTime @default(now())
+  validUntil  DateTime
+  seenByUser1 Boolean  @default(false)
+  seenByUser2 Boolean  @default(false)
+
+  @@index([coupleId, validUntil])
+  @@index([coupleId, kind])
 }
 
 // AchievementDefinition — global achievement catalog (v1.2)

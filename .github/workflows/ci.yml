@@ -36,7 +36,7 @@ jobs:
         working-directory: src/backend
         run: >
           npx jest
-          --testPathPatterns='(pointsCalculator|taskLogPoints|joinCode|insightHeuristic|taskRoutesContract|healthShape|profileContract|moodHistoryContract|rateLimitContract|authContract|eventsContract|notificationsContract|pointsContract|accountContract|coupleContract|accountDeletionService|coupleLifecycleService|levelService|streakService|challengeService|achievementEngineV2|replayService|cryptoService|recurrenceService|holidaysService|birthdaysService|calendarV2Contract|journalPromptsService|journalRetrospectiveService|journalContract|refreshTokenService)'
+          --testPathPatterns='(pointsCalculator|taskLogPoints|joinCode|insightHeuristic|taskRoutesContract|healthShape|profileContract|moodHistoryContract|rateLimitContract|authContract|eventsContract|notificationsContract|pointsContract|accountContract|coupleContract|accountDeletionService|coupleLifecycleService|levelService|streakService|challengeService|achievementEngineV2|replayService|cryptoService|recurrenceService|holidaysService|birthdaysService|calendarV2Contract|journalPromptsService|journalRetrospectiveService|journalContract|refreshTokenService|analyticsAggregator|insightsGenerator)'
         env:
           JWT_SECRET: ci-secret-not-for-production
           DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
