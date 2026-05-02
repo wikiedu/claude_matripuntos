@@ -1,0 +1,105 @@
+// v1.8-prep — Tests hermetic para refreshTokenService. Mocked Prisma.
+
+import { describe, it, expect, jest, beforeEach } from '@jest/globals'
+
+const mockPrisma: any = {
+  refreshToken: {
+    create: jest.fn(),
+    findUnique: jest.fn(),
+    update: jest.fn(),
+    updateMany: jest.fn(),
+    deleteMany: jest.fn(),
+  },
+}
+
+jest.mock('../src/lib/prisma', () => ({ __esModule: true, default: mockPrisma }))
+
+import { generateRefreshToken, hashRefreshToken, issueRefresh, rotateRefresh, revokeAllForUser, purgeExpired } from '../src/services/refreshTokenService.js'
+
+describe('refreshTokenService', () => {
+  beforeEach(() => {
+    Object.values(mockPrisma.refreshToken).forEach((fn: any) => fn.mockReset?.())
+  })
+
+  it('generateRefreshToken returns 64-char hex', () => {
+    const t = generateRefreshToken()
+    expect(t).toMatch(/^[a-f0-9]{64}$/)
+  })
+
+  it('hashRefreshToken is deterministic', () => {
+    const t = 'sample'
+    expect(hashRefreshToken(t)).toBe(hashRefreshToken(t))
+  })
+
+  it('hashRefreshToken differs for different inputs', () => {
+    expect(hashRefreshToken('a')).not.toBe(hashRefreshToken('b'))
+  })
+
+  it('issueRefresh creates row + returns plaintext + expiry ~30d', async () => {
+    mockPrisma.refreshToken.create.mockResolvedValueOnce({})
+    const r = await issueRefresh('u1')
+    expect(r.plaintext).toMatch(/^[a-f0-9]{64}$/)
+    const days = (r.expiresAt.getTime() - Date.now()) / (24 * 3600 * 1000)
+    expect(days).toBeGreaterThan(29.5)
+    expect(days).toBeLessThan(30.5)
+    expect(mockPrisma.refreshToken.create).toHaveBeenCalled()
+  })
+
+  it('rotateRefresh: not_found if hash unknown', async () => {
+    mockPrisma.refreshToken.findUnique.mockResolvedValueOnce(null)
+    const r = await rotateRefresh('plaintext')
+    expect(r.ok).toBe(false)
+    expect(r.reason).toBe('not_found')
+  })
+
+  it('rotateRefresh: expired branch', async () => {
+    mockPrisma.refreshToken.findUnique.mockResolvedValueOnce({
+      id: 't1', userId: 'u1',
+      revokedAt: null,
+      expiresAt: new Date(Date.now() - 1000),
+    })
+    const r = await rotateRefresh('plaintext')
+    expect(r.ok).toBe(false)
+    expect(r.reason).toBe('expired')
+  })
+
+  it('rotateRefresh: revoked → reuse_detected + revokeAll', async () => {
+    mockPrisma.refreshToken.findUnique.mockResolvedValueOnce({
+      id: 't1', userId: 'u1',
+      revokedAt: new Date(Date.now() - 1000),
+      expiresAt: new Date(Date.now() + 86400000),
+    })
+    mockPrisma.refreshToken.updateMany.mockResolvedValueOnce({ count: 3 })
+    const r = await rotateRefresh('plaintext')
+    expect(r.ok).toBe(false)
+    expect(r.reason).toBe('reuse_detected')
+    expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalled()
+  })
+
+  it('rotateRefresh: success rotates token (revokes + creates new)', async () => {
+    mockPrisma.refreshToken.findUnique.mockResolvedValueOnce({
+      id: 't1', userId: 'u1',
+      revokedAt: null,
+      expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+    })
+    mockPrisma.refreshToken.update.mockResolvedValueOnce({})
+    mockPrisma.refreshToken.create.mockResolvedValueOnce({})
+    const r = await rotateRefresh('plaintext')
+    expect(r.ok).toBe(true)
+    expect(r.userId).toBe('u1')
+    expect(r.newPlaintext).toMatch(/^[a-f0-9]{64}$/)
+    expect(mockPrisma.refreshToken.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ revokedAt: expect.any(Date) }),
+    }))
+  })
+
+  it('revokeAllForUser updates all non-revoked', async () => {
+    mockPrisma.refreshToken.updateMany.mockResolvedValueOnce({ count: 5 })
+    expect(await revokeAllForUser('u1')).toBe(5)
+  })
+
+  it('purgeExpired deletes old', async () => {
+    mockPrisma.refreshToken.deleteMany.mockResolvedValueOnce({ count: 12 })
+    expect(await purgeExpired()).toBe(12)
+  })
+})

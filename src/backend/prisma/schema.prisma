@@ -209,6 +209,9 @@ model User {
   journalEntriesReceived  JournalEntry[]      @relation("JournalRecipient")
   journalReactions        JournalReaction[]
 
+  // v1.8-prep relations (refresh tokens)
+  refreshTokens           RefreshToken[]
+
   // v1.6.1 — User lifecycle:
   //  - deletedAt: soft delete papelera 30d antes de hard purge.
   //  - firstLoginAt: para timer del banner "Completa tu perfil" del invitado.
@@ -861,6 +864,26 @@ model JournalRetrospective {
   seenByUser2 Boolean  @default(false)
 
   @@unique([coupleId, period, startDate])
+}
+
+// v1.8-prep — Refresh tokens para rotación de JWT (S1-6 audit).
+// Esquema preparado pero NO activo en producción aún. Activación requiere
+// reducir JWT_EXPIRY a 1h y añadir interceptor frontend en una versión
+// dedicada (riesgo de romper sesiones actuales). Ver docs/STATUS.md §5.
+model RefreshToken {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash     String   @unique  // SHA-256 hex del refresh token (no almacenamos el plaintext)
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  rotatedFrom   String?           // id del refresh token previo en la cadena de rotation
+  deviceFingerprint String?       // user-agent + IP hash opcional para detectar reuse
+  createdAt     DateTime @default(now())
+  lastUsedAt    DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 // AchievementDefinition — global achievement catalog (v1.2)
