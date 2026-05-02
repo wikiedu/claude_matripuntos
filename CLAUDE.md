@@ -258,6 +258,7 @@ Formato: `vX.Y · Nombre`. Branches: `feature/vX.Y-nombre-kebab`. Tags git: `mvp
 | v1.5.1 | Hotfix Supabase migrations | ✅ Cerrado 2026-05-02 (script + verificación) | `main` (commit `3d378ad`) |
 | v1.6 | La Personalidad (frase + mood + avatares) | ✅ Producción 2026-05-02 | `main` (tag `v1.6`) |
 | v1.6.1 | Confianza (privacy + telemetría + lifecycle + E2E) | ✅ Producción 2026-05-02 | `main` (tag `v1.6.1`) |
+| v1.6.2 | Hotfix post-auditoría (4 S0 + 11 S1) | ✅ Producción 2026-05-02 | `main` (tag `v1.6.2`) |
 | **v1.7** | **El Juego (2º round)** | 🧠 Brainstorm pendiente | `feature/v1.7-el-juego-2` |
 | v2.0.1 | Calendario 360 | 🧠 Brainstorm pendiente | `feature/v2.0.1-calendario-360` |
 | v2.0.2 | Journaling | 🧠 Brainstorm pendiente | `feature/v2.0.2-journaling` |
