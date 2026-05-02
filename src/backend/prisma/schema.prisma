@@ -57,6 +57,9 @@ model Couple {
   shoppingLists           ShoppingList[]
   todos                   Todo[]
 
+  // v1.6 relations
+  moodLogs                MoodLog[]
+
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
@@ -99,6 +102,9 @@ model User {
   ruleProposalsResponded  RuleProposal[]   @relation("ProposalsResponded")
   todos                   Todo[]
   premiumInterests        PremiumInterest[]
+
+  // v1.6 relations
+  moodLogs                MoodLog[]
 
   lastLogin             DateTime?
   lastSeenAt            DateTime?
@@ -762,4 +768,19 @@ model PremiumInterest {
 
   @@index([email])
   @@index([notified])
+}
+
+// v1.6 — Mood log: histórico personal de moods. Sirve para MyMoodWeek.
+model MoodLog {
+  id        String   @id @default(uuid())
+  userId    String
+  coupleId  String
+  moodKey   String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  couple    Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([coupleId, createdAt])
 }
