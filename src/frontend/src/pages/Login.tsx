@@ -66,7 +66,14 @@ export default function Login() {
           <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required />
           <div className="relative">
             <Input label="Contraseña" type={showPwd ? 'text' : 'password'} value={pwd} onChange={e => setPwd(e.target.value)} autoComplete="current-password" required />
-            <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-2 bottom-2 text-text-secondary text-lg" aria-label="Mostrar contraseña">👁</button>
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => setShowPwd(!showPwd)}
+              className="absolute right-2 bottom-2 text-text-secondary text-lg"
+              aria-label={showPwd ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              aria-pressed={showPwd}
+            >👁</button>
           </div>
           {err && <div className="text-xs text-danger">{err}</div>}
           <button type="button" className="text-[11px] text-brand-purple self-end">olvidé mi contraseña →</button>

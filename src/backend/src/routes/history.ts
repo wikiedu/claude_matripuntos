@@ -30,9 +30,12 @@ router.get('/past-couples', readBucket, async (req: Request, res: Response) => {
 
   const result = couples.map(c => {
     const partner = c.users.find(u => u.id !== userId)
+    // v1.6.2 fix S1-5: si el partner se eliminó, anonimizar nombre. No exponer
+    // PII de un user que ejerció derecho al olvido.
+    const partnerName = partner?.deletedAt ? null : (partner?.name ?? 'Desconocido')
     return {
       id: c.id,
-      partnerName: partner?.name ?? 'Desconocido',
+      partnerName,
       dissolvedAt: c.dissolvedAt!.toISOString(),
       createdAt: c.createdAt.toISOString(),
       finalBalance: 0,  // Cálculo agregado se difiere; placeholder no-blocking

@@ -5,7 +5,7 @@
 import { Router, Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import { authenticateToken } from '../middleware/auth.js'
-import { criticalBucket } from '../middleware/rateLimiter.js'
+import { criticalBucket, readBucket } from '../middleware/rateLimiter.js'
 import { accountDeleteRequestSchema, accountDeleteSchema } from '@matripuntos/shared'
 import prisma from '../lib/prisma.js'
 import { deleteAccount } from '../services/accountDeletionService.js'
@@ -68,6 +68,81 @@ router.post('/delete', criticalBucket, async (req: Request, res: Response) => {
   await deleteAccount(userId)
   void telemetryBackend.track(userId, 'account.deleted', {})
   res.json({ ok: true })
+})
+
+// v1.6.2 fix S0-1: GDPR Art. 20 — derecho de portabilidad.
+// Devuelve un bundle JSON con todos los datos del usuario en formato
+// estructurado y legible por máquina. Headers indican download.
+router.get('/export', readBucket, async (req: Request, res: Response) => {
+  const userId = (req as any).user.id
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      profile: true,
+      couple: true,
+      moodLogs: { orderBy: { createdAt: 'desc' } },
+      notifications: { orderBy: { createdAt: 'desc' } },
+    },
+  })
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' })
+
+  const [pointsTransactions, eventsCreated, taskLogs, invitationsSent] = await Promise.all([
+    prisma.pointsTransaction.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.event.findMany({
+      where: { createdBy: userId },
+      orderBy: { dateStart: 'desc' },
+    }),
+    prisma.taskLog.findMany({
+      where: { OR: [{ completedBy: userId }, { verifiedBy: userId }] },
+      orderBy: { date: 'desc' },
+    }),
+    prisma.invitation.findMany({
+      where: { coupleId: user.coupleId ?? undefined },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ])
+
+  const bundle = {
+    exportedAt: new Date().toISOString(),
+    schemaVersion: '1.6.2',
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      language: user.language,
+      hasCompletedOnboarding: user.hasCompletedOnboarding,
+      createdAt: user.createdAt,
+      firstLoginAt: user.firstLoginAt,
+      lastSeenAt: user.lastSeenAt,
+    },
+    profile: user.profile,
+    couple: user.couple
+      ? {
+          id: user.couple.id,
+          numChildren: user.couple.numChildren,
+          language: user.couple.language,
+          createdAt: user.couple.createdAt,
+          dissolvedAt: user.couple.dissolvedAt,
+        }
+      : null,
+    pointsTransactions,
+    eventsCreated,
+    taskLogs,
+    moodLogs: user.moodLogs,
+    notifications: user.notifications,
+    invitationsSent,
+  }
+
+  void telemetryBackend.track(userId, 'account.exported', {})
+  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="matripuntos-export-${userId}-${Date.now()}.json"`,
+  )
+  res.send(JSON.stringify(bundle, null, 2))
 })
 
 export default router

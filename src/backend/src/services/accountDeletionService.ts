@@ -26,20 +26,31 @@ export async function deleteAccount(userId: string): Promise<void> {
 
   await prisma.$transaction(async (tx) => {
     // 1. Crear o reutilizar ghost user del couple.
+    // v1.6.2 fix: email determinista por coupleId. El UNIQUE constraint de email
+    // garantiza idempotencia bajo concurrencia: si dos deletes del mismo couple
+    // se ejecutan a la vez, el segundo create falla y findFirst lo recoge.
+    const ghostEmail = `ghost-${coupleId}@deleted.local`
     let ghost = await tx.user.findFirst({
-      where: { coupleId, name: 'Usuario eliminado', deletedAt: { not: null } },
+      where: { coupleId, email: ghostEmail, deletedAt: { not: null } },
     })
     if (!ghost) {
-      ghost = await tx.user.create({
-        data: {
-          coupleId,
-          email: `ghost-${coupleId}-${Date.now()}@deleted.local`, // unique constraint
-          passwordHash: '',
-          name: 'Usuario eliminado',
-          deletedAt: new Date(),
-          hasCompletedOnboarding: true,
-        },
-      })
+      try {
+        ghost = await tx.user.create({
+          data: {
+            coupleId,
+            email: ghostEmail,
+            passwordHash: '',
+            name: 'Usuario eliminado',
+            deletedAt: new Date(),
+            hasCompletedOnboarding: true,
+          },
+        })
+      } catch (e: any) {
+        // Race: otro proceso lo creó entremedias. Refetch.
+        ghost = await tx.user.findFirstOrThrow({
+          where: { coupleId, email: ghostEmail },
+        })
+      }
     }
 
     // 2. Reasignar referencias críticas al ghost.

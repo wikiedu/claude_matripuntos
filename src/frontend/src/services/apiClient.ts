@@ -146,6 +146,7 @@ class ApiClient {
       name: string
       joinCode: string
       language?: string
+      ageConfirmed?: true
     }) =>
       this.request('/auth/register-with-code', {
         method: 'POST',

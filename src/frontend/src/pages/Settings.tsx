@@ -700,6 +700,38 @@ function PrivacySection({ onBack }: { onBack: () => void }) {
 
         <div className="h-px bg-brd-subtle" />
 
+        {/* v1.6.2 — Export portability (GDPR Art. 20) */}
+        <Button
+          variant="ghost"
+          fullWidth
+          data-testid="btn-export-data"
+          onClick={async () => {
+            try {
+              const token = localStorage.getItem('auth_token')
+              const res = await fetch(
+                (import.meta.env.VITE_API_BASE ?? '') + '/api/account/export',
+                { headers: { Authorization: `Bearer ${token}` } },
+              )
+              if (!res.ok) throw new Error('Error en export')
+              const blob = await res.blob()
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `matripuntos-export-${Date.now()}.json`
+              a.click()
+              URL.revokeObjectURL(url)
+            } catch (err: any) {
+              alert(err?.message ?? 'No pudimos exportar tus datos')
+            }
+          }}
+        >
+          <span className="flex items-center justify-center gap-2">
+            📥 Descargar mis datos (JSON)
+          </span>
+        </Button>
+
+        <div className="h-px bg-brd-subtle" />
+
         {/* v1.6.1 — Eliminar cuenta (wizard real) */}
         <Button
           variant="danger"

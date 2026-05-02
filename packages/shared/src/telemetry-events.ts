@@ -28,6 +28,7 @@ export const TELEMETRY_EVENT_SCHEMAS = {
   'task.log_auto_verified':          z.object({}),
   'couple.left':                     z.object({}),
   'account.deleted':                 z.object({}),
+  'account.exported':                z.object({}),
   'consent.changed':                 z.object({ analytics: z.boolean() }),
   'ratelimit.hit':                   z.object({ endpoint: z.string(), bucket: z.string() }),
 } as const

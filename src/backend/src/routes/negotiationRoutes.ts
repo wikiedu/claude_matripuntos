@@ -25,13 +25,15 @@ class RespondError extends Error {
 const createNegotiationSchema = z.object({
   eventId: z.string().cuid('Invalid event ID'),
   pointsProposed: z.number().positive('Points must be positive'),
-  message: z.string().optional(),
+  // v1.6.2 fix S1-7: límite contra DoS por payload gigante.
+  message: z.string().max(2000).optional(),
 })
 
 const respondNegotiationSchema = z.object({
   responseType: z.enum(['accepted', 'rejected', 'counter_proposed']),
   pointsProposed: z.number().positive('Points must be positive').optional(),
-  message: z.string().optional(),
+  // v1.6.2 fix S1-7: límite contra DoS por payload gigante.
+  message: z.string().max(2000).optional(),
 })
 
 // Create initial negotiation (propose activity)

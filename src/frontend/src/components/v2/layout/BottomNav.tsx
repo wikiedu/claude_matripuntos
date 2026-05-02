@@ -22,7 +22,13 @@ export function BottomNav({ onFab }: Props) {
     const active = loc.pathname === it.to || loc.pathname.startsWith(it.to + '/')
     const Icon = it.icon
     return (
-      <button key={it.id} onClick={() => nav(it.to)} className="flex flex-col items-center gap-1 px-2 bg-transparent border-0">
+      <button
+        key={it.id}
+        onClick={() => nav(it.to)}
+        aria-label={it.label}
+        aria-current={active ? 'page' : undefined}
+        className="flex flex-col items-center justify-center gap-1 px-3 py-1 min-w-[44px] min-h-[44px] bg-transparent border-0 focus:outline-none focus:ring-2 focus:ring-brand-purple/40 rounded"
+      >
         <Icon size={18} className={active ? 'text-brand-amber' : 'text-text-tertiary'} />
         <span className={`text-[9px] font-semibold ${active ? 'text-brand-amber' : 'text-text-tertiary'}`}>{it.label}</span>
       </button>

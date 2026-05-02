@@ -23,11 +23,18 @@ export const getCoupleSchema = z.object({
   coupleId: z.string().cuid('Invalid couple ID'),
 })
 
+// v1.6.2 fix S0-2: GDPR Art. 8 — declarar mayoría de edad en registro.
+// `ageConfirmed: true` requerido. `.optional()` con default false porque
+// puede haber clientes legacy que no envían el campo todavía — log de
+// auditoría debe vigilar tasa de rechazos para detectar UI desactualizada.
 export const signupUserSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   name: z.string().min(2),
   language: z.string().default('es'),
+  ageConfirmed: z.literal(true, {
+    errorMap: () => ({ message: 'Debes confirmar que tienes 18 años o más' }),
+  }),
 })
 
 export const inviteSchema = z.object({
@@ -40,6 +47,9 @@ export const acceptInviteSchema = z.object({
   password: z.string().min(8),
   name: z.string().min(2),
   language: z.string().default('es'),
+  ageConfirmed: z.literal(true, {
+    errorMap: () => ({ message: 'Debes confirmar que tienes 18 años o más' }),
+  }),
 })
 
 export const rejectInviteSchema = z.object({
@@ -63,4 +73,7 @@ export const registerWithCodeSchema = z.object({
   name: z.string().min(2),
   joinCode: z.string().length(6),
   language: z.string().default('es'),
+  ageConfirmed: z.literal(true, {
+    errorMap: () => ({ message: 'Debes confirmar que tienes 18 años o más' }),
+  }),
 })

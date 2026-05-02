@@ -124,7 +124,14 @@ export class PointsCalculator {
       const childrenMultiplier = await this.getChildrenMultiplier(event.coupleId, event)
       const impactMultiplier = this.getImpactMultiplier(event.type)
 
-      const totalMultiplier = impactMultiplier * timeMultiplier * durationMultiplier * childrenMultiplier
+      // v1.6.2 fix S1-1: aplicar compensationDiscount si está set. Es un
+      // multiplicador (1.0 = sin descuento, 0.8 = 20% descuento). Documentado
+      // en docs/PUNTOS.md y persistido en Event. Sin esto las compensaciones
+      // se almacenaban pero nunca se aplicaban a los puntos finales.
+      const compensationDiscount = event.compensationDiscount
+        ? new Decimal(event.compensationDiscount as any).toNumber()
+        : 1.0
+      const totalMultiplier = impactMultiplier * timeMultiplier * durationMultiplier * childrenMultiplier * compensationDiscount
       const raw = new Decimal(event.pointsBase).mul(new Decimal(totalMultiplier))
       const rounded = new Decimal(this.roundToHalf(raw.toNumber()))
 
@@ -144,8 +151,11 @@ export class PointsCalculator {
       const durationMultiplier = this.getDurationMultiplier(event.dateStart, event.dateEnd)
       const childrenMultiplier = await this.getChildrenMultiplier(event.coupleId, event)
       const impactMultiplier = this.getImpactMultiplier(event.type)
+      const compensationDiscount = event.compensationDiscount
+        ? new Decimal(event.compensationDiscount as any).toNumber()
+        : 1.0
 
-      const totalMultiplier = impactMultiplier * timeMultiplier * durationMultiplier * childrenMultiplier
+      const totalMultiplier = impactMultiplier * timeMultiplier * durationMultiplier * childrenMultiplier * compensationDiscount
       const raw = new Decimal(event.pointsBase).mul(new Decimal(totalMultiplier))
       const rounded = this.roundToHalf(raw.toNumber())
       const finalPoints = Math.min(500, Math.max(0, rounded))
@@ -157,6 +167,7 @@ export class PointsCalculator {
           time:     { value: timeMultiplier,     label: 'Hora del día' },
           duration: { value: durationMultiplier, label: 'Duración' },
           children: { value: childrenMultiplier, label: 'Hijos a cargo' },
+          compensation: { value: compensationDiscount, label: 'Compensación' },
         },
         totalMultiplier,
         calculatedPoints: raw.toNumber(),

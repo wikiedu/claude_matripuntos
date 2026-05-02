@@ -38,6 +38,8 @@ export default function Signup() {
   const [pwd, setPwd]           = useState('')
   const [confirm, setConfirm]   = useState('')
   const [accept, setAccept]     = useState(false)
+  // v1.6.2 fix S0-2: GDPR Art. 8 — confirmación de mayoría de edad obligatoria.
+  const [ageOk, setAgeOk]       = useState(false)
   const [name, setName]         = useState('')
   const [showPwd, setShowPwd]   = useState(false)
   const [loading, setLoading]   = useState(false)
@@ -83,7 +85,8 @@ export default function Signup() {
     email.includes('@') &&
     pwd.length >= 8 &&
     confirm === pwd &&
-    accept
+    accept &&
+    ageOk
 
   const step2Valid = name.trim().length >= 2
 
@@ -95,6 +98,7 @@ export default function Signup() {
       if (pwd.length < 8)              return setErr('La contraseña necesita al menos 8 caracteres')
       if (confirm !== pwd)             return setErr('Las contraseñas no coinciden')
       if (!accept)                     return setErr('Debes aceptar los términos')
+      if (!ageOk)                      return setErr('Debes confirmar que tienes 18 años o más')
     }
     setStep(2)
   }
@@ -116,10 +120,11 @@ export default function Signup() {
             name: name.trim(),
             joinCode: preview.code,
             language: 'es',
+            ageConfirmed: true,
           })
         : await apiClient.request('/auth/signup', {
             method: 'POST',
-            body: JSON.stringify({ email, password: pwd, name: name.trim(), language: 'es' }),
+            body: JSON.stringify({ email, password: pwd, name: name.trim(), language: 'es', ageConfirmed: true }),
           })
 
       apiClient.setToken(data.token)
@@ -204,7 +209,14 @@ export default function Signup() {
             <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required />
             <div className="relative">
               <Input label="Contraseña (mín. 8)" type={showPwd ? 'text' : 'password'} value={pwd} onChange={e => setPwd(e.target.value)} autoComplete="new-password" required />
-              <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-2 bottom-2 text-text-secondary text-lg" aria-label="Mostrar contraseña">👁</button>
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setShowPwd(!showPwd)}
+                className="absolute right-2 bottom-2 text-text-secondary text-lg"
+                aria-label={showPwd ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                aria-pressed={showPwd}
+              >👁</button>
             </div>
             {pwd.length > 0 && pwd.length < 8 && (
               <div className="text-[11px] text-danger -mt-2">
@@ -220,6 +232,16 @@ export default function Signup() {
             <label className="flex items-center gap-2 text-xs text-text-secondary mt-1">
               <input type="checkbox" checked={accept} onChange={e => setAccept(e.target.checked)} className="accent-brand-purple" />
               Acepto los términos y la política de privacidad
+            </label>
+            <label className="flex items-center gap-2 text-xs text-text-secondary mt-1" data-testid="age-confirm-label">
+              <input
+                type="checkbox"
+                checked={ageOk}
+                onChange={e => setAgeOk(e.target.checked)}
+                className="accent-brand-purple"
+                data-testid="age-confirm-checkbox"
+              />
+              Confirmo tener 18 años o más
             </label>
             {err && <div className="text-xs text-danger">{err}</div>}
             <Button variant="primary" fullWidth size="lg" type="submit" disabled={!step1Valid || preview.kind === 'full'} className="mt-2">

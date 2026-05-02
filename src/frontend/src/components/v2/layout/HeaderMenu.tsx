@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 interface Props {
@@ -11,6 +12,17 @@ interface Props {
 
 export function HeaderMenu({ open, onClose, unlockedCount = 0, totalAchievements = 0, partnerName, onLogout }: Props) {
   const nav = useNavigate()
+
+  // v1.6.2 fix S1-14 (WCAG 2.1.1 + 2.4.2): Escape cierra el menú.
+  useEffect(() => {
+    if (!open) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
   if (!open) return null
 
   const items = [
@@ -26,8 +38,8 @@ export function HeaderMenu({ open, onClose, unlockedCount = 0, totalAchievements
 
   return (
     <>
-      <div onClick={onClose} className="fixed inset-0 bg-black/55 backdrop-blur-sm z-[58]" />
-      <div className="fixed top-[68px] right-4 z-[59] w-[260px] bg-[rgba(26,16,53,0.98)] border border-brd-purple rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+      <div onClick={onClose} className="fixed inset-0 bg-black/55 backdrop-blur-sm z-[58]" aria-hidden="true" />
+      <div role="menu" aria-label="Menú principal" className="fixed top-[68px] right-4 z-[59] w-[260px] bg-[rgba(26,16,53,0.98)] border border-brd-purple rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
         {items.map((it, i) => (
           <button
             key={it.id}

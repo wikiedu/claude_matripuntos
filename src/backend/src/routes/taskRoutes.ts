@@ -41,7 +41,8 @@ const createTaskLogSchema = z.object({
 const updateTaskLogSchema = z.object({
   status: z.enum(['pending', 'verified', 'disputed']).optional(),
   verifiedBy: z.string().optional(),
-  disputeReason: z.string().optional(),
+  // v1.6.2 fix S1-7: límite contra DoS por payload gigante.
+  disputeReason: z.string().max(2000).optional(),
   pointsDisputed: z.number().optional(),
 })
 

@@ -21,7 +21,9 @@ export async function runRetention(opts: { dryRun: boolean } = { dryRun: false }
   const moodCutoff = new Date(now - 90 * 86400000)
   const notifCutoff = new Date(now - 60 * 86400000)
   const inviteCutoff = new Date(now - 14 * 86400000)
-  const userPurgeCutoff = new Date(now - 30 * 86400000)
+  // v1.6.2 fix S1-2: usamos 31d para añadir 24h de margen y evitar borrado
+  // en el segundo exacto que cumplen 30d (off-by-one con `lt`).
+  const userPurgeCutoff = new Date(now - 31 * 86400000)
 
   if (opts.dryRun) {
     const [moodLog, notification, invitation, userPurged] = await Promise.all([
