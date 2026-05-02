@@ -80,6 +80,11 @@ model Couple {
   // v2.0.3 relations
   analyticsInsights     AnalyticsInsight[]
 
+  // v2.0.4 relations
+  activityTemplates     ActivityTemplate[]
+  configurationProposals ConfigurationProposal[]
+  configurationChangeLog ConfigurationChangeLog[]
+
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
@@ -214,6 +219,10 @@ model User {
 
   // v1.8-prep relations (refresh tokens)
   refreshTokens           RefreshToken[]
+
+  // v2.0.4 relations
+  configurationProposals  ConfigurationProposal[] @relation("ConfigProposer")
+  configurationChangesApplied ConfigurationChangeLog[]
 
   // v1.6.1 — User lifecycle:
   //  - deletedAt: soft delete papelera 30d antes de hard purge.
@@ -909,6 +918,73 @@ model AnalyticsInsight {
 
   @@index([coupleId, validUntil])
   @@index([coupleId, kind])
+}
+
+// v2.0.4 — Catálogo de actividades. Templates seed + custom de couple.
+// 2 niveles: category → subcategory. Pre-fill pointsBaseSuggested editable.
+model ActivityTemplate {
+  id                    String   @id @default(cuid())
+  // Ámbito: si coupleId is null, es seed global; si tiene valor, es custom de ese couple.
+  coupleId              String?
+  couple                Couple?  @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  category              String   // gastronomia | cuidado | logistica | salud | ocio | mantenimiento | viaje | otros
+  subcategory           String?  // ej: "Cita médica", "Despertar nocturno", "Compra grande"
+  name                  String
+  description           String?
+  pointsBaseSuggested   Decimal  @default(10.0)  // sugerencia editable al crear Event
+  defaultDurationMinutes Int?
+  defaultImpact         String?  // 'necesaria' | 'salud' | 'ocio' | 'alto-impacto'
+  emoji                 String?
+  isActive              Boolean  @default(true)
+  // v2.0.4: instances counter actualizado por trigger backend al crear Event
+  // que referencia este template. Solo para CUSTOM templates (per couple).
+  instancesThisMonth    Int      @default(0)
+  lastInstanceAt        DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([coupleId, isActive])
+  @@index([category])
+}
+
+// v2.0.4 — Propuesta de cambio de configuración consensuada.
+// Status active → accepted | rejected | expired (timeout 7d).
+// Cap 3 propuestas active por user (rate-limit en route).
+model ConfigurationProposal {
+  id           String   @id @default(cuid())
+  coupleId     String
+  couple       Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  proposedById String
+  proposedBy   User     @relation("ConfigProposer", fields: [proposedById], references: [id], onDelete: Cascade)
+  field        String   // 'multipliersConfig.nightMult' | 'taskBasePoints.cocina' | 'reset_factory'
+  oldValue     String   // JSON
+  newValue     String   // JSON
+  rationale    String?  // razón opcional explicada al partner
+  status       String   @default("active")  // active | accepted | rejected | expired
+  respondedById String?
+  respondedAt  DateTime?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([coupleId, status])
+  @@index([expiresAt])
+}
+
+// v2.0.4 — Histórico de cambios aplicados (cuando ConfigurationProposal acepta).
+// Visible en Settings → Reglas → "Log de cambios" últimas 10.
+model ConfigurationChangeLog {
+  id          String   @id @default(cuid())
+  coupleId    String
+  couple      Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  field       String
+  oldValue    String   // JSON
+  newValue    String   // JSON
+  appliedById String
+  appliedBy   User     @relation(fields: [appliedById], references: [id], onDelete: Cascade)
+  proposalId  String?
+  appliedAt   DateTime @default(now())
+
+  @@index([coupleId, appliedAt])
 }
 
 // AchievementDefinition — global achievement catalog (v1.2)
