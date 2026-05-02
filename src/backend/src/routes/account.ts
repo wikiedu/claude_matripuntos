@@ -10,6 +10,7 @@ import { accountDeleteRequestSchema, accountDeleteSchema } from '../../../../pac
 import prisma from '../lib/prisma.js'
 import { deleteAccount } from '../services/accountDeletionService.js'
 import { telemetryBackend } from '../services/telemetry.js'
+import { sendEmail, deleteAccountCodeEmail } from '../services/emailService.js'
 
 const router = Router()
 router.use(authenticateToken)
@@ -38,13 +39,24 @@ router.post('/delete-request', criticalBucket, async (req: Request, res: Respons
     return res.json({ ok: true, codeViaConsole: true, code })  // exposed only in dev
   }
 
-  // Producción: requiere SMTP configurado. Si no, 503 explícito.
-  if (!process.env.SMTP_HOST) {
+  // v1.6.7 S1-8: integración Resend. Si RESEND_API_KEY no está set, 503 explícito.
+  if (!process.env.RESEND_API_KEY) {
     return res.status(503).json({ error: 'Servicio de email no disponible. Contacta soporte.' })
   }
 
-  // TODO post-merge: integrar Resend/SendGrid. Plan en docs/legal/scaling-notes.md.
-  // Por ahora con SMTP_HOST set pero sin código real implementado, devolvemos ok.
+  const tpl = deleteAccountCodeEmail(code, user.name)
+  const result = await sendEmail({
+    to: user.email,
+    subject: tpl.subject,
+    html: tpl.html,
+    text: tpl.text,
+    tags: [{ name: 'type', value: 'delete_account' }],
+  })
+  if (!result.ok) {
+    console.error('[delete-request] email send failed:', result.error)
+    return res.status(503).json({ error: 'No pudimos enviar el código. Inténtalo más tarde.' })
+  }
+
   return res.json({ ok: true })
 })
 
