@@ -416,6 +416,8 @@ class ApiClient {
       theme?: string
       currentMood?: string
       hasCompletedOnboarding?: boolean
+      weeklyWorkHours?: number
+      workMode?: 'presencial' | 'remoto' | 'hibrido'
     }) =>
       this.request('/profile/me', {
         method: 'PUT',

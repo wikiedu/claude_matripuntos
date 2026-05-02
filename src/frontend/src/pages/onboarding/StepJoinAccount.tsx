@@ -7,6 +7,9 @@ import { useAppStore } from '../../store/useAppStore'
 
 interface Props {
   token: string
+  // v1.6.1: si se pasa, se llama tras crear la cuenta en lugar de nav('/dashboard').
+  // Permite encadenar pasos extra del invitee (avatar + workMode) antes de entrar.
+  onAfterRegister?: () => void
 }
 
 interface InvitationInfo {
@@ -18,7 +21,7 @@ interface InvitationInfo {
 // without an existing account. We validate the token to show whose invite it
 // is, then collect just enough to create the account (name + password) and
 // drop the user straight into the dashboard already paired.
-export function StepJoinAccount({ token }: Props) {
+export function StepJoinAccount({ token, onAfterRegister }: Props) {
   const nav = useNavigate()
   const [info, setInfo] = useState<InvitationInfo | null>(null)
   const [loadingInfo, setLoadingInfo] = useState(true)
@@ -99,7 +102,8 @@ export function StepJoinAccount({ token }: Props) {
         // fall back to the round-trip so at least the user is logged in.
         await useAppStore.getState().loadUserData().catch(() => {})
       }
-      nav('/dashboard')
+      if (onAfterRegister) onAfterRegister()
+      else nav('/dashboard')
     } catch (err: any) {
       const msg = String(err?.message ?? '')
       if (msg.includes('Email already registered')) {

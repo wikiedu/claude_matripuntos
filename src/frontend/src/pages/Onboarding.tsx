@@ -9,6 +9,8 @@ import { StepRules } from './onboarding/StepRules'
 import { StepCategories } from './onboarding/StepCategories'
 import { StepDone } from './onboarding/StepDone'
 import { StepJoinAccount } from './onboarding/StepJoinAccount'
+import { StepInviteeAvatar } from './onboarding/StepInviteeAvatar'
+import { StepInviteeWork } from './onboarding/StepInviteeWork'
 
 export interface OnboardingData {
   avatarEmoji: string
@@ -154,13 +156,68 @@ export default function Onboarding() {
   const isWelcomeStep = currentKey === 'welcome'
   const isDoneStep = currentKey === 'done'
 
-  // Invitee landing — pre-account. Render the single-step join screen and
-  // bypass the wizard entirely.
+  // Invitee landing — pre-account. Render the single-step join screen y, tras
+  // crear la cuenta, encadenamos dos pasos extra (avatar + work) para igualar
+  // perfil con el creador antes de soltar al dashboard.
+  type InviteeStage = 'join' | 'avatar' | 'work'
+  const [inviteeStage, setInviteeStage] = useState<InviteeStage>('join')
+  const [inviteeBusy, setInviteeBusy] = useState(false)
+  const [inviteeErr, setInviteeErr] = useState<string | null>(null)
+
+  async function persistInviteeAvatar(av: { emoji: string; color: string }) {
+    setInviteeBusy(true); setInviteeErr(null)
+    try {
+      // 1) Asegurar UserProfile creado.
+      await apiClient.request('/profile/user', { method: 'POST', body: JSON.stringify({}) }).catch(() => {})
+      // 2) Persistir avatar.
+      await apiClient.profile.updateMe({ avatarEmoji: av.emoji, avatarColor: av.color })
+      setInviteeStage('work')
+    } catch (e: any) {
+      setInviteeErr(e?.message ?? 'Error al guardar tu avatar')
+    } finally {
+      setInviteeBusy(false)
+    }
+  }
+
+  async function persistInviteeWork(w: { weeklyWorkHours: number; workMode: 'presencial' | 'remoto' | 'hibrido' }) {
+    setInviteeBusy(true); setInviteeErr(null)
+    try {
+      await apiClient.profile.updateMe({ weeklyWorkHours: w.weeklyWorkHours, workMode: w.workMode })
+      await useAppStore.getState().loadUserData().catch(() => {})
+      nav('/dashboard')
+    } catch (e: any) {
+      setInviteeErr(e?.message ?? 'Error al guardar tu jornada')
+    } finally {
+      setInviteeBusy(false)
+    }
+  }
+
+  function skipInviteeWork() {
+    nav('/dashboard')
+  }
+
   if (showJoinAccountFlow) {
     return (
       <main className="bg-surface-base min-h-screen px-6 flex flex-col">
         <div className="flex-1 flex flex-col py-8 max-w-md mx-auto w-full">
-          <StepJoinAccount token={urlToken} />
+          {inviteeStage === 'join' && (
+            <StepJoinAccount
+              token={urlToken}
+              onAfterRegister={() => setInviteeStage('avatar')}
+            />
+          )}
+          {inviteeStage === 'avatar' && (
+            <StepInviteeAvatar onContinue={persistInviteeAvatar} />
+          )}
+          {inviteeStage === 'work' && (
+            <StepInviteeWork onContinue={persistInviteeWork} onSkip={skipInviteeWork} />
+          )}
+          {inviteeBusy && (
+            <p className="text-xs text-text-tertiary mt-2">Guardando…</p>
+          )}
+          {inviteeErr && (
+            <p className="text-xs text-danger bg-danger/10 rounded-md px-3 py-2 mt-2">{inviteeErr}</p>
+          )}
         </div>
       </main>
     )
