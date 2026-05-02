@@ -265,7 +265,8 @@ Formato: `vX.Y · Nombre`. Branches: `feature/vX.Y-nombre-kebab`. Tags git: `mvp
 | v1.6.6 | Sprint 2 partial (auth deletedAt filter + 15 service tests) | ✅ Producción 2026-05-02 | `main` (tag `v1.6.6`) |
 | v1.6.7 | Sprint 2 final (Resend email + ghost partial index) | ✅ Producción 2026-05-02 | `main` (tag `v1.6.7`) |
 | v1.7 | El Juego (2º round) — niveles + achievements + streaks + retos + replays + push | ✅ Producción 2026-05-02 (feature flag) | `main` (tag `v1.7`) |
-| **v2.0.1** | **Calendario 360** — CalendarEntry extendido + recurrence + holidays + birthdays + Google OAuth esqueleto | ✅ Producción 2026-05-02 (feature flag) | `main` (tag `v2.0.1`) |
+| v2.0.1 | Calendario 360 — CalendarEntry extendido + recurrence + holidays + birthdays + Google OAuth esqueleto | ✅ Producción 2026-05-02 | `main` (tag `v2.0.1`) |
+| **v2.0.2** | **Journaling** — entries CRUD + reactions + prompts diarios + retrospectivas | ✅ Producción 2026-05-02 | `main` (tag `v2.0.2`) |
 | **v1.7** | **El Juego (2º round)** | 🧠 Brainstorm pendiente | `feature/v1.7-el-juego-2` |
 | v2.0.1 | Calendario 360 | 🧠 Brainstorm pendiente | `feature/v2.0.1-calendario-360` |
 | v2.0.2 | Journaling | 🧠 Brainstorm pendiente | `feature/v2.0.2-journaling` |

@@ -28,7 +28,7 @@
 | **v1.6.7** | **Sprint 2 final** (Resend email + ghost partial index) | ✅ Producción 2026-05-02 | `main` | `v1.6.7` |
 | **v1.7** | **El Juego (segundo round)** | ✅ **En producción 2026-05-02** — niveles pareja, achievements 30, streaks, retos semanales, replays, web push | `main` | `v1.7` |
 | **v2.0.1** | **Calendario 360** | ✅ **En producción 2026-05-02** (feature flag, Google OAuth pendiente v2.0.1.x) | `main` | `v2.0.1` |
-| **v2.0.2** | **Journaling** | 📝 Spec aprobado (2026-05-02) | `feature/v2.0.2-journaling` | — |
+| **v2.0.2** | **Journaling** | ✅ **En producción 2026-05-02** (esqueleto MVP, atachments diferidos) | `main` | `v2.0.2` |
 | **v2.0.3** | **Analytics Pro** | 🧠 Brainstorm pendiente | `feature/v2.0.3-analytics-pro` | — |
 | v2.1 | Conectados (push + Google Cal + export + referidos) | 🧠 Brainstorm pendiente | `feature/v2.1-conectados` | — |
 | v3.0 | Premium (Stripe + freemium B + IA + React Native) | 🧠 Futuro | `feature/v3.0-premium` | — |
