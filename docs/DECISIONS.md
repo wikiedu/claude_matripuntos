@@ -157,3 +157,54 @@ Plan: `docs/superpowers/plans/2026-04-21-actividades-module.md`
 **Decisión técnica:** Los tests que mockean `apiClient` declaran estado compartido con `const mockState = vi.hoisted(() => ({ events: [] as any[] }))` y lo mutan en `beforeEach`. El `vi.mock` cierra sobre `mockState` y cada test mueve el contenido antes de renderizar.
 **Alternativas descartadas:** `vi.doMock` dentro de cada test — no funciona si el módulo ya está cacheado por un `vi.mock` hoisteado previo; reiniciar el módulo con `vi.resetModules` en cada test — lento y rompe la simetría con el resto del stack de providers.
 **Razón:** `vi.mock` se hoistea al top del archivo antes de cualquier declaración, así que el único forma de parametrizar el mock por test sin que se caché es hoistear también el estado y mutarlo. Patrón ya documentado en Vitest pero fácil de olvidar.
+
+---
+
+## 2026-04-26 · v1.6 · La Personalidad — decisiones de brainstorming
+
+### 1. Modelo conceptual de personalidad
+**Decisión:** Opción C sin co-creación: frase + mood + avatar, ambicioso, pero sin permitir que la pareja escriba sus propias frases.
+**Razón:** Riesgo UX (spam, frases que envejecen, conflictos editoriales). Las frases co-creadas se difieren a v2.1/v3.0.
+
+### 2. Modelo de frases
+**Decisión:** Catálogo curado por nosotros, determinista pareja+día, sin IA, sin user input.
+**Alternativas:** API externa con IA, frases generadas por user.
+**Razón:** Control de tono, calidad consistente, cero coste de tokens, cero moderación.
+
+### 3. Cascada de selección de frase
+**Decisión:** Por urgencia emocional con orden fijo: disputa abierta > racha rota > hito > weekend > semana cargada > partner alto aporte > lunes > neutra-positivo.
+**Razón:** Ranking fijo es predecible y testeable. Ranking dinámico añade complejidad sin valor.
+
+### 4. Catálogo de moods
+**Decisión:** 10 moods (4 positivos, 2 neutros, 2 low-energy, 2 negative-soft). Sin moods hostiles ("enfadado", "cabreado").
+**Razón:** Mood = invitación, nunca dardo. Conflicto se canaliza por disputas/negociación.
+
+### 5. Caducidad de mood
+**Decisión:** 24h rolling desde `moodUpdatedAt`. Pasadas las 24h se considera vacío.
+**Alternativas:** Persistente hasta cambio explícito, caducidad horaria.
+**Razón:** El mood "ayer" no representa el estado de hoy; rolling automático evita que el partner vea info obsoleta.
+
+### 6. Notificación al partner al cambiar mood
+**Decisión:** No notificar. Discovery pasivo cuando el partner abre la app.
+**Razón:** Privacidad emocional. Push activos sobre mood serían intrusivos.
+
+### 7. Histórico de mood
+**Decisión:** Solo propio (vista 7 días en perfil). Vista pareja-mood-week → backlog v2.0.2 Journaling.
+**Razón:** Ver el histórico ajeno puede sentirse intrusivo; mejor empaquetado en Journaling con consentimiento explícito.
+
+### 8. Sistema de avatares
+**Decisión:** Emoji+color ampliado y consolidado (30 emojis × 12 colores). Ilustraciones SVG (B) y accesorios desbloqueables (C) → backlog v1.7+.
+**Razón:** Coste/beneficio: SVG requiere diseño dedicado; accesorios solo tienen sentido junto a gamificación profunda de v1.7.
+
+### 9. Anti-spam de MoodLog
+**Decisión técnica:** No loguear duplicados <5 min. Si user toca mismo mood varias veces seguidas, solo el primero queda en historial.
+**Razón:** Evita inflación del histórico personal por toques repetidos sin cambio real.
+
+### 10. Hash determinista para selección de frase
+**Decisión técnica:** `cyrb53(coupleId-dayKey-category)` inline (sin deps). Mismo seed con misma pool → mismo índice → ambos miembros ven la misma frase.
+**Alternativas:** Math.random con seed (no es estable entre engines), MD5 (deps), índice por hash JS (colisiones).
+**Razón:** cyrb53 es 53-bit, distribución suficiente para ~80-280 frases, ~10 líneas, sin deps.
+
+### 11. Migración de currentMood antiguos
+**Decisión:** Mapping en SQL de migración: 😊→feliz, 😎→tranquilo, 😴→cansado, 😰→estresado, 😐→tranquilo. Cualquier valor fuera del catálogo → NULL (resilient).
+**Razón:** Legacy users no pierden funcionalidad: o se les preserva el mood razonablemente equivalente o se limpia para que vuelvan a fijarlo.
