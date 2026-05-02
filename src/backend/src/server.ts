@@ -167,6 +167,10 @@ app.use('/api/gamification', gamificationRoutes)
 import('./routes/gamificationV2.js').then(m => app.use('/api/gamification-v2', m.default)).catch(() => {})
 import('./routes/notificationsPush.js').then(m => app.use('/api/notifications/push', m.default)).catch(() => {})
 
+// v2.0.1 — Calendario 360 (feature-flagged CALENDAR_360_ENABLED)
+import('./routes/calendarV2.js').then(m => app.use('/api/calendar/v2', m.default)).catch(() => {})
+import('./routes/googleCalendarOauth.js').then(m => app.use('/api/calendar/google', m.default)).catch(() => {})
+
 // Calendar Routes (FASE 5)
 app.use('/api/calendar', calendarRoutes)
 

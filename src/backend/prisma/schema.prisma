@@ -71,6 +71,7 @@ model Couple {
   coupleChallenges      CoupleChallenge[]
   pushSubscriptions     PushSubscription[]
   replaysSeen           CoupleReplaySeen[]
+  serviceProviders      ServiceProvider[]
 
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
@@ -195,6 +196,9 @@ model User {
 
   // v1.7 relations
   pushSubscriptions       PushSubscription[]
+
+  // v2.0.1 relations
+  googleCalendarSync      GoogleCalendarSync?
 
   // v1.6.1 — User lifecycle:
   //  - deletedAt: soft delete papelera 30d antes de hard purge.
@@ -720,23 +724,71 @@ model CalendarEntry {
   id                    String                   @id @default(cuid())
   coupleId              String
 
-  type                  String                   // event, task, service, birthday, holiday
+  type                  String                   // event | task | service | birthday | holiday | external
   title                 String
   date                  DateTime
+  endDate               DateTime?
+  allDay                Boolean                  @default(true)
 
   relatedEventId        String?
   relatedTaskId         String?
   description           String?
   color                 String?
+  category              String?
+
+  // v2.0.1 — Calendario 360
+  externalSource        String?                  // 'google_calendar' | 'manual' | 'auto'
+  externalId            String?                  // ID del provider (Google event id)
+  recurrence            String?                  // RRULE simplificado subset RFC 5545
+  metadata              String?                  // JSON: { childId?, serviceProviderId?, taskId? }
 
   // Relations
   couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
 
   createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt @default(now())
 
   @@index([coupleId])
   @@index([date])
   @@index([type])
+  @@index([coupleId, date])
+  @@index([coupleId, type])
+  @@unique([externalSource, externalId])
+}
+
+// v2.0.1 — Sincronización Google Calendar por user (read-only OAuth).
+// refreshToken cifrado AES-256-GCM con GOOGLE_TOKEN_ENCRYPTION_KEY.
+model GoogleCalendarSync {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken  String   // cifrado: iv:authTag:cipher base64
+  scope         String
+  syncEnabled   Boolean  @default(true)
+  lastSyncedAt  DateTime?
+  lastSyncToken String?  // sync incremental Google
+  syncWindow    Int      @default(90)  // días forward + backward
+  filters       String   @default("[]")  // JSON whitelist calendarIds
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// v2.0.1 — Proveedores externos recurrentes (limpieza, jardinería, etc).
+// recurrence en RRULE simplificado se expande a CalendarEntry.
+model ServiceProvider {
+  id          String   @id @default(cuid())
+  coupleId    String
+  couple      Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  name        String
+  type        String   // limpieza | jardineria | cuidado_ninos | mantenimiento | otro
+  recurrence  String?  // RRULE
+  color       String?
+  active      Boolean  @default(true)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([coupleId, active])
 }
 
 // AchievementDefinition — global achievement catalog (v1.2)
