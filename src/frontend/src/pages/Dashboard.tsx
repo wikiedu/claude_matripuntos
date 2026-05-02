@@ -6,6 +6,8 @@ import { useGamificationStatus } from '../hooks/useGamificationStatus'
 import { useShoppingList } from '../hooks/useShoppingList'
 import { useTodos } from '../hooks/useTodos'
 import { DailyPhrase } from '../components/v2/dashboard/DailyPhrase'
+import { MoodPairCard } from '../components/v2/dashboard/MoodPairCard'
+import { MoodNudge } from '../components/v2/dashboard/MoodNudge'
 import { BalanceLevelHero } from '../components/v2/dashboard/BalanceLevelHero'
 import { StreakStrip } from '../components/v2/dashboard/StreakStrip'
 import { ActivitiesBanner } from '../components/v2/dashboard/ActivitiesBanner'
@@ -168,10 +170,52 @@ export default function Dashboard() {
 
   const isSolo = (couple.users?.length ?? 0) < 2
 
+  // v1.6 — dateKey local para anti-spam del MoodNudge por sesión.
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Madrid'
+  const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+  // Considera mood vigente si tiene moodKey + moodUpdatedAt en últimas 24h.
+  const userMoodUpdatedAt = (user as any)?.moodUpdatedAt
+  const myMoodIsVigent = !!user?.currentMood && !!userMoodUpdatedAt &&
+    (Date.now() - new Date(userMoodUpdatedAt).getTime()) < 24 * 60 * 60 * 1000
+  // Tap → AuthedLayout maneja el sheet via avatar; aquí emitimos un click sintético
+  // sobre el botón del header que ya está integrado. Más simple: navegar al perfil
+  // que también abre el flujo. Trade-off: re-uso del flow existente vs duplicar
+  // el MoodSelectorSheet aquí. Optamos por trigger via custom event escuchado
+  // por AuthedLayout — pero como todavía no hay event bus, usamos solución
+  // mínima: tap dispara click programático sobre el avatar del header.
+  const triggerMoodSheet = () => {
+    const btn = document.querySelector<HTMLElement>('[aria-label="Mi perfil"]')
+    btn?.click()
+  }
+
   return (
     <main className="pb-4 pt-2">
       {showTour && <DashboardTour onClose={() => setShowTour(false)} />}
       {isSolo && <NoPartnerBanner />}
+      {!isSolo && (
+        <div className="px-4 mb-3 space-y-2">
+          <MoodNudge hasMood={myMoodIsVigent} dateKey={todayKey} onTap={triggerMoodSheet} />
+          {user && (
+            <MoodPairCard
+              me={{
+                name: user.name,
+                avatarEmoji: user.avatarEmoji,
+                avatarColor: user.avatarColor,
+                currentMood: user.currentMood,
+                moodUpdatedAt: userMoodUpdatedAt,
+              }}
+              partner={partner ? {
+                name: partner.name ?? 'Pareja',
+                avatarEmoji: (partner as any).avatarEmoji,
+                avatarColor: (partner as any).avatarColor,
+                currentMood: (partner as any).currentMood,
+                moodUpdatedAt: (partner as any).moodUpdatedAt,
+              } : null}
+              onPickMine={triggerMoodSheet}
+            />
+          )}
+        </div>
+      )}
       <DailyPhrase />
       <BalanceLevelHero
         youName={you.name}
