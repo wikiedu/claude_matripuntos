@@ -12,7 +12,9 @@ import { PremiumInterestModal } from '../components/v2/premium/PremiumInterestMo
 import { RuleProposalCard } from '../components/RuleProposalCard'
 import { CoupleHealthCard } from '../components/v2/couple/CoupleHealthCard'
 import { AvatarPicker } from '../components/v2/primitives/AvatarPicker'
+import { MyMoodWeek } from '../components/v2/profile/MyMoodWeek'
 import { MOODS } from '../data/moods'
+import { getMoodHistory } from '../services/apiClient'
 
 type SectionSlug =
   | 'profile'
@@ -271,6 +273,23 @@ function ProfileSection({ onBack }: { onBack: () => void }) {
           {saving ? 'Guardando…' : 'Guardar cambios'}
         </Button>
       </Card>
+
+      <MyMoodWeekPanel />
+    </div>
+  )
+}
+
+// v1.6 — Panel "Mi mood — últimos 7 días" en perfil. Solo el del usuario.
+function MyMoodWeekPanel() {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Madrid'
+  const { data, isLoading } = useQuery({
+    queryKey: ['mood-history', 7, tz],
+    queryFn: () => getMoodHistory(7, tz),
+    staleTime: 60_000,
+  })
+  return (
+    <div className="mt-4">
+      <MyMoodWeek history={data?.history ?? []} loading={isLoading} />
     </div>
   )
 }
