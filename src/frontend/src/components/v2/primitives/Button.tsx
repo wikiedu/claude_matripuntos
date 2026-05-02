@@ -28,7 +28,7 @@ export function Button({ variant = 'primary', size = 'md', fullWidth, className 
   const width = fullWidth ? 'w-full' : ''
   return (
     <button
-      className={`rounded-md font-bold transition disabled:opacity-40 disabled:cursor-not-allowed ${variants[variant]} ${sizes[size]} ${width} ${className}`}
+      className={`rounded-md font-bold transition disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber/60 focus-visible:ring-offset-1 focus-visible:ring-offset-surface-base ${variants[variant]} ${sizes[size]} ${width} ${className}`}
       {...rest}
     >
       {children}

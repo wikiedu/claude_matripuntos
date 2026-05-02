@@ -60,12 +60,15 @@ router.post('/subscribe', writeBucket, async (req: Request, res: Response) => {
 // POST /api/notifications/push/unsubscribe
 router.post('/unsubscribe', writeBucket, async (req: Request, res: Response) => {
   const userId = (req as any).user.id as string
+  const coupleId = (req as any).user.coupleId as string | undefined
   const endpointSchema = z.object({ endpoint: z.string().url().max(2000) })
   const parsed = endpointSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Datos inválidos' })
 
+  // v2.0.3.1 fix S1-2: incluir coupleId en where para que un user no pueda
+  // borrar push subscriptions del partner si conoce su endpoint.
   await prisma.pushSubscription.deleteMany({
-    where: { userId, endpoint: parsed.data.endpoint },
+    where: { userId, coupleId, endpoint: parsed.data.endpoint },
   })
   res.json({ ok: true })
 })

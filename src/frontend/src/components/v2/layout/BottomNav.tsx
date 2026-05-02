@@ -7,7 +7,7 @@ interface Props {
 
 const LEFT = [
   { id: 'dashboard', label: 'Inicio',     icon: Home,       to: '/dashboard' },
-  { id: 'home',      label: 'Hogar',      icon: CheckSquare, to: '/home' },
+  { id: 'home',      label: 'Tareas',     icon: CheckSquare, to: '/home' },
 ]
 const RIGHT = [
   { id: 'calendar',  label: 'Calendario', icon: Calendar,   to: '/calendar' },
@@ -36,7 +36,10 @@ export function BottomNav({ onFab }: Props) {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-surface-elevated border-t border-brd-subtle backdrop-blur-md max-w-[500px] mx-auto flex items-center justify-around py-2 pb-3">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 bg-surface-elevated border-t border-brd-subtle backdrop-blur-md max-w-[500px] mx-auto flex items-center justify-around py-2"
+      style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+    >
       {LEFT.map(renderItem)}
       <button
         onClick={onFab}

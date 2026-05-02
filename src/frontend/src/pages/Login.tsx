@@ -76,7 +76,13 @@ export default function Login() {
             >👁</button>
           </div>
           {err && <div className="text-xs text-danger">{err}</div>}
-          <button type="button" className="text-[11px] text-brand-purple self-end">olvidé mi contraseña →</button>
+          {/* v2.0.3.1: temporal mailto soporte mientras implementamos flow reset proper */}
+          <a
+            href="mailto:soporte@matripuntos.app?subject=Reset%20de%20contraseña"
+            className="text-[11px] text-brand-purple self-end hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/50 rounded"
+          >
+            ¿Olvidaste tu contraseña?
+          </a>
           <Button variant="primary" fullWidth size="lg" type="submit" disabled={loading}>
             {loading ? 'Entrando…' : 'Entrar'}
           </Button>

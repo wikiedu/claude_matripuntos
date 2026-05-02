@@ -64,6 +64,17 @@ router.post('/entries', writeBucket, async (req: Request, res: Response) => {
   if (!parsed.success) return res.status(400).json({ error: 'Datos inválidos' })
 
   const data = parsed.data
+
+  // v2.0.3.1 fix S1-1: validar que recipientId pertenece al mismo couple para
+  // evitar IDOR (un user enviando journal letter a partner de otro couple).
+  if (data.recipientId) {
+    const recipient = await prisma.user.findFirst({
+      where: { id: data.recipientId, coupleId, deletedAt: null },
+      select: { id: true },
+    })
+    if (!recipient) return res.status(403).json({ error: 'Recipient no pertenece a tu pareja' })
+  }
+
   const entry = await prisma.journalEntry.create({
     data: {
       coupleId,
