@@ -17,7 +17,7 @@
 | v1.4 | La Evolución (diseño v2) | ✅ En producción | `feature/v1.4-la-evolucion` → `main` | `v1.4` |
 | v1.4.1 | Hardening post-v1.4 (Actividades + join-code + audit sweep + onboarding/tasks fixes) | ✅ En producción (2026-04-22) | `main` | `v1.4.1` |
 | v1.5 | Red de Seguridad (tests + CI + 16 quick-wins) | ✅ En producción (2026-04-23) | `main` | `v1.5` |
-| **v1.5.1** | **Hotfix Supabase migrations** | 🛠️ Código listo (script + docs/DEPLOY.md) — pendiente ejecución manual contra prod Supabase | `main` (entregado en commit) | — |
+| **v1.5.1** | **Hotfix Supabase migrations** | ✅ Cerrado 2026-05-02 (script entregado + verificado en prod: 14 migraciones registradas, `migrate status` "up to date") | `main` (commit `3d378ad`) | — |
 | **v1.6** | **La Personalidad** (frase + mood + avatares) | 📝 Spec aprobado, plan pendiente | `feature/v1.6-la-personalidad` | — |
 | **v1.6.1** | **Confianza** (privacy + telemetría + onboarding invitee + E2E) | 🧠 Brainstorm pendiente | `feature/v1.6.1-confianza` | — |
 | **v1.7** | **El Juego (segundo round)** | 🧠 Brainstorm pendiente | `feature/v1.7-el-juego-2` | — |
@@ -219,14 +219,9 @@ Code shipped a `main` directo (sin feature branch). Se etiqueta `v1.5` tras QA r
 - ✅ Scripts npm: `migrate:status` y `migrate:reconcile` en `src/backend/package.json`.
 - ✅ Documentación completa en `docs/DEPLOY.md` (topología, env vars, configuración Render, procedimiento de release, reconcile §5, verificación, rollback).
 
-**Pendiente de ejecución manual** (lo hace el usuario con `DATABASE_URL` de prod):
-1. Exportar `DATABASE_URL` de Supabase prod en una shell aislada.
-2. Ejecutar dry-run: `DRY_RUN=1 DATABASE_URL=... node scripts/reconcile-prisma-migrations.mjs`.
-3. Ejecutar reconcile real: `DATABASE_URL=... node scripts/reconcile-prisma-migrations.mjs`.
-4. Verificar `cd src/backend && npm run migrate:status` → "Database schema is up to date".
-5. Cerrar la shell.
+**Verificación en prod** (2026-05-02): el dry-run del script confirmó vía `prisma migrate status` que **las 14 migraciones de `prisma/migrations/` están registradas en `_prisma_migrations`** y la base de datos está sana. El reconcile manual hecho en v1.4 (2026-04-22) ha mantenido la integridad. La nueva migración de v1.6 (`20260427000000_v1_6_mood_log_and_mood_keys`) se aplicará automáticamente vía `prisma migrate deploy` en el `start` de Render cuando v1.6 se mergee a `main`.
 
-Se cierra v1.5.1 cuando ese paso 4 retorna verde en producción y el primer deploy posterior a Render aplica `prisma migrate deploy` limpiamente.
+El script `scripts/reconcile-prisma-migrations.mjs` queda como herramienta reusable para futuros incidentes.
 
 ---
 
