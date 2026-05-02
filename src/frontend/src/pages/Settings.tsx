@@ -10,6 +10,7 @@ import { Pill } from '../components/v2/primitives/Pill'
 import { Card } from '../components/v2/primitives/Card'
 import { PremiumInterestModal } from '../components/v2/premium/PremiumInterestModal'
 import { RuleProposalCard } from '../components/RuleProposalCard'
+import { ProposalsPanel } from '../components/v2/consensus/ProposalsPanel'
 import { CoupleHealthCard } from '../components/v2/couple/CoupleHealthCard'
 import { AvatarPicker } from '../components/v2/primitives/AvatarPicker'
 import { MyMoodWeek } from '../components/v2/profile/MyMoodWeek'
@@ -26,6 +27,7 @@ type SectionSlug =
   | 'notifications'
   | 'premium'
   | 'rules'
+  | 'consensus'
   | 'language-theme'
   | 'privacy'
 
@@ -41,6 +43,7 @@ const SECTIONS: Array<{
   { slug: 'notifications',   emoji: '🔔', title: 'Notificaciones',        subtitle: () => 'Push, email, horarios' },
   { slug: 'premium',         emoji: '👑', title: 'Suscripción Premium',   subtitle: () => 'Gratis' },
   { slug: 'rules',           emoji: '📜', title: 'Reglas de puntos',      subtitle: () => 'Multiplicadores' },
+  { slug: 'consensus',       emoji: '🤝', title: 'Propuestas pendientes',  subtitle: () => 'Cambios de configuración consensuados' },
   { slug: 'language-theme',  emoji: '🎨', title: 'Idioma y tema',         subtitle: () => 'Español · Oscuro' },
   { slug: 'privacy',         emoji: '🔒', title: 'Privacidad y datos',    subtitle: () => 'Exportar, eliminar' },
 ]
@@ -576,6 +579,20 @@ function PremiumSection({ onBack }: { onBack: () => void }) {
 // Section: Rules
 // -----------------------------------------------------------------------------
 
+function ConsensusSection({ onBack }: { onBack: () => void }) {
+  return (
+    <div>
+      <SectionHeader title="Propuestas pendientes" onBack={onBack} />
+      <Card className="mb-4">
+        <p className="text-xs text-text-secondary leading-relaxed">
+          Cambios de configuración propuestos por uno de los dos. Solo se aplican cuando el otro acepta.
+        </p>
+      </Card>
+      <ProposalsPanel />
+    </div>
+  )
+}
+
 function RulesSection({ onBack }: { onBack: () => void }) {
   const { user } = useAppStore()
   const { data: rulesData, isLoading } = useQuery({
@@ -1027,6 +1044,7 @@ export default function Settings() {
     case 'notifications':   content = <NotificationsSection   onBack={goIndex} />; break
     case 'premium':         content = <PremiumSection         onBack={goIndex} />; break
     case 'rules':           content = <RulesSection           onBack={goIndex} />; break
+    case 'consensus':       content = <ConsensusSection       onBack={goIndex} />; break
     case 'language-theme':  content = <LanguageThemeSection   onBack={goIndex} />; break
     case 'privacy':         content = <PrivacySection         onBack={goIndex} />; break
     default:                content = <SettingsIndex />

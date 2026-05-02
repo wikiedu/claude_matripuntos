@@ -177,6 +177,12 @@ import('./routes/journal.js').then(m => app.use('/api/journal', m.default)).catc
 // v2.0.3 — Analytics Pro (feature-flagged ANALYTICS_V2_ENABLED, default ON)
 import('./routes/analyticsV2.js').then(m => app.use('/api/analytics/v2', m.default)).catch(() => {})
 
+// v2.0.4 — Activity catalog (feature-flagged CATALOG_ENABLED, default ON)
+import('./routes/activityTemplates.js').then(m => app.use('/api/activity-templates', m.default)).catch(() => {})
+
+// v2.0.4 — Configuration consensus proposals (feature-flagged CONFIG_PROPOSALS_ENABLED, default ON)
+import('./routes/configurationProposals.js').then(m => app.use('/api/config-proposals', m.default)).catch(() => {})
+
 // Calendar Routes (FASE 5)
 app.use('/api/calendar', calendarRoutes)
 
