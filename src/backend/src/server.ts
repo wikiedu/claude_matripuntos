@@ -30,6 +30,12 @@ import ruleProposalRoutes from './routes/ruleProposals.js'
 import shoppingRoutes from './routes/shopping.js'
 import todoRoutes from './routes/todos.js'
 import premiumRoutes from './routes/premium.js'
+// v1.6.1
+import accountRoutes from './routes/account.js'
+import coupleLifecycleRoutes from './routes/couple.js'
+import historyRoutes from './routes/history.js'
+import profileCompletionRoutes from './routes/profileCompletion.js'
+import { runRetention } from './jobs/dataRetentionJob.js'
 import cron from 'node-cron'
 import { runWeeklyGeneration } from './services/recurringTaskService.js'
 import { sendWeeklyDigests } from './services/digestService.js'
@@ -174,6 +180,26 @@ app.use('/api/todos', todoRoutes)
 
 // v1.4 Routes
 app.use('/api/premium', premiumRoutes)
+
+// v1.6.1 Routes — privacy + lifecycle + completion
+app.use('/api/account', accountRoutes)
+app.use('/api/couple', coupleLifecycleRoutes)
+app.use('/api/history', historyRoutes)
+app.use('/api/profile', profileCompletionRoutes)  // GET /completion (no choca con profile.ts existente)
+
+// v1.6.1 Cron retención: en producción, dry-run las primeras 2 ejecuciones.
+let retentionRunCount = 0
+if (process.env.NODE_ENV === 'production') {
+  cron.schedule('0 4 * * *', async () => {
+    const dryRun = retentionRunCount < 2
+    try {
+      await runRetention({ dryRun })
+      retentionRunCount++
+    } catch (e) {
+      console.error('[retention cron] failed', e)
+    }
+  })
+}
 
 // 404 handler
 app.use((req, res) => {

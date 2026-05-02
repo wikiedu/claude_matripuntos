@@ -60,6 +60,11 @@ model Couple {
   // v1.6 relations
   moodLogs                MoodLog[]
 
+  // v1.6.1 — Couple lifecycle: dissolvedAt marca la pareja como disuelta
+  // tras "Salir de la pareja". Datos quedan accesibles read-only via
+  // /api/history/past-couples.
+  dissolvedAt           DateTime?
+
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
@@ -105,6 +110,12 @@ model User {
 
   // v1.6 relations
   moodLogs                MoodLog[]
+
+  // v1.6.1 — User lifecycle:
+  //  - deletedAt: soft delete papelera 30d antes de hard purge.
+  //  - firstLoginAt: para timer del banner "Completa tu perfil" del invitado.
+  deletedAt             DateTime?
+  firstLoginAt          DateTime?
 
   lastLogin             DateTime?
   lastSeenAt            DateTime?
