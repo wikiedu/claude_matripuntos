@@ -80,9 +80,10 @@ async function evaluateCondition(
       return { met: current >= target, current, target }
     }
     case 'level_reached': {
-      const levelOrder = ['nido', 'brote', 'hogar', 'raices', 'diamante', 'leyenda', 'eterno']
+      // v2.1.0 — sistema unificado de 10 niveles (encuentro → mito).
+      const levelOrder = ['encuentro', 'confianza', 'compania', 'complicidad', 'refugio', 'raices', 'tribu', 'legado', 'eterno', 'mito']
       const couple = await prisma.couple.findUnique({ where: { id: coupleId } })
-      const currentIdx = levelOrder.indexOf(couple?.level || 'nido')
+      const currentIdx = levelOrder.indexOf(couple?.level || 'encuentro')
       return { met: currentIdx >= target, current: currentIdx, target }
     }
     default:

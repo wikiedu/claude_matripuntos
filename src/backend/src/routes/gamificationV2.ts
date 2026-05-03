@@ -1,19 +1,18 @@
 // v1.7 — Routes de gamification v2. Todas requieren auth + readBucket.
-// Si feature flag GAMIFICATION_V2_ENABLED=false, devolvemos 404 → frontend
-// renderiza vista pre-v1.7. El v1.2 routes/gamification.ts se mantiene
-// intacto para legacy compat.
+// v2.1.0 — el endpoint /level ahora consulta el sistema unificado
+// (gamificationService.LEVELS) en vez del retirado levelService/levelTable.
+// Streak/challenge/replay se mantienen igual.
 
 import { Router, Request, Response } from 'express'
 import { authenticateToken } from '../middleware/auth.js'
 import { readBucket } from '../middleware/rateLimiter.js'
 import prisma from '../lib/prisma.js'
-import { computeLevel, xpToNext } from '../services/levelService.js'
+import { LEVELS, getLevelInfo } from '../services/gamificationService.js'
 import { computeAvailableReplays } from '../services/replayService.js'
 
 const router = Router()
 router.use(authenticateToken)
 
-// v2.0.x — default ON. Solo se desactiva con env var = 'false'.
 function isFlagEnabled(): boolean {
   return process.env.GAMIFICATION_V2_ENABLED !== 'false'
 }
@@ -24,21 +23,29 @@ router.use((_req, res, next) => {
 })
 
 // GET /api/gamification-v2/level
+// v2.1.0 — devuelve el nivel del sistema unificado de 10 niveles
+// (Encuentro/Confianza/...). Ya no usa CoupleLevel separado: lee Couple.xp.
 router.get('/level', readBucket, async (req: Request, res: Response) => {
   const coupleId = (req as any).user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
-  const row = await prisma.coupleLevel.findUnique({ where: { coupleId } })
-  const xp = row?.xp ?? 0
-  const info = computeLevel(xp)
+  const couple = await prisma.couple.findUnique({
+    where: { id: coupleId },
+    select: { xp: true },
+  })
+  const xp = couple?.xp ?? 0
+  const info = getLevelInfo(xp)
+  const ordinal = LEVELS.findIndex((l) => l.level === info.current.level) + 1
   res.json({
     xp,
-    level: info.level,
-    name: info.name,
-    perks: info.perks,
-    threshold: info.threshold,
-    nextThreshold: info.nextThreshold,
-    xpToNext: xpToNext(xp),
+    level: info.current.level,
+    levelOrdinal: ordinal,
+    name: info.current.name,
+    emoji: info.current.emoji,
+    threshold: info.current.minXp,
+    nextThreshold: info.next.minXp,
+    xpToNext: info.xpToNext,
+    progressPct: info.xpProgress,
   })
 })
 
@@ -116,7 +123,6 @@ router.get('/replay', readBucket, async (req: Request, res: Response) => {
   res.json({ replays: fresh })
 })
 
-// POST /api/gamification-v2/replay/:key/seen
 router.post('/replay/:key/seen', readBucket, async (req: Request, res: Response) => {
   const coupleId = (req as any).user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })

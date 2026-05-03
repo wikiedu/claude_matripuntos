@@ -13,7 +13,8 @@ import { RankingTab } from '../components/v2/achievements/RankingTab'
 import { HistoryTab } from '../components/v2/achievements/HistoryTab'
 import type { AchievementMapNode } from '../types/index'
 
-const LEVEL_ORDER = ['nido', 'brote', 'hogar', 'raices', 'diamante', 'leyenda', 'eterno']
+// v2.1.0 — sistema unificado de 10 niveles (opción C aprobada).
+const LEVEL_ORDER = ['encuentro', 'confianza', 'compania', 'complicidad', 'refugio', 'raices', 'tribu', 'legado', 'eterno', 'mito']
 
 type Tab = 'badges' | 'ranking' | 'historial'
 
@@ -49,7 +50,7 @@ export default function Achievements() {
   const inProgress = useMemo(() => nodes.filter(n => n.status === 'in_progress'), [nodes])
   const locked = useMemo(() => nodes.filter(n => n.status === 'locked'), [nodes])
 
-  const levelOrdinal = (LEVEL_ORDER.indexOf(gamificationStatus?.level ?? 'nido') + 1) || 1
+  const levelOrdinal = (LEVEL_ORDER.indexOf(gamificationStatus?.level ?? 'encuentro') + 1) || 1
   const currentXp = gamificationStatus?.xp ?? 0
   const xpToNext = gamificationStatus?.xpToNext ?? 100
   const neededXp = currentXp + xpToNext
@@ -81,7 +82,7 @@ export default function Achievements() {
       </div>
 
       <LevelHero
-        levelName={gamificationStatus?.levelName ?? 'Nido'}
+        levelName={gamificationStatus?.levelName ?? 'Encuentro'}
         levelOrdinal={levelOrdinal}
         currentXp={currentXp}
         neededXp={neededXp}

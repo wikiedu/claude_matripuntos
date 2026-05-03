@@ -43,7 +43,7 @@ model Couple {
 
   // v1.2 gamification fields
   xp                     Int       @default(0)
-  level                  String    @default("nido")
+  level                  String    @default("encuentro")
   dailyStreakDays         Int       @default(0)
   weeklyStreakWeeks       Int       @default(0)
   dailyStreakFreezerUsed  Boolean   @default(false)
