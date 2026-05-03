@@ -1,7 +1,7 @@
 # STATUS — Matripuntos
 
-**Última actualización:** 2026-05-03 (noche)
-**Versión actual desplegada en producción:** `v2.1.0` · Gamificación unificada (10 niveles)
+**Última actualización:** 2026-05-03 (noche tardía)
+**Versión actual desplegada en producción:** `v2.1.1` · Refactor flujo Tareas/Actividades + consenso puntos
 **Branch principal:** `main`
 **URL prod:** https://matripuntos.com (frontend FTP) · backend Render · Supabase Postgres
 
@@ -61,7 +61,20 @@
 - `ProposalsPanel` + sección "Propuestas pendientes" en Settings.
 - `/api/activity-templates` + `/api/config-proposals` (flags `CATALOG_ENABLED` y `CONFIG_PROPOSALS_ENABLED`, default ON).
 
-### v2.1.0 Gamificación unificada — **acaba de deployear 2026-05-03 noche**
+### v2.1.1 Refactor flujo Tareas/Actividades — **acaba de deployear 2026-05-03 noche tardía**
+- **Tareas — dos botones diferenciados**:
+  - Primario "Añadir tarea" → sheet del catálogo (TASK_CATALOG estático + tareas custom de la pareja). Selección → mini-form con puntos editables, día programado, recurrencia + frecuencia, asignación.
+  - Secundario "Crear nueva" (ghost) → form en blanco para tareas que no están en el catálogo.
+  - Sin consenso para tareas (decisión founder).
+- **Actividades — wizard limpio + consenso de puntos en plantillas**:
+  - Botón "🔎 Catálogo" del wizard `RequestActivity` retirado. Vuelve al flujo histórico.
+  - Tab Catálogo de `/home/activities` mantiene gestión de plantillas.
+  - Categorías cerradas (8 fijas).
+  - Consenso híbrido (opción C): nuevo template / cambio de puntos lanza `ConfigurationProposal` con field `activity_template:<id>:points`. Hasta que el partner acepta, badge "pts pendientes" + valor tachado.
+  - Migración `20261110000000`: backfill defensivo (globales + custom previas como ya aprobadas).
+  - Banner explicativo en AddActivityTemplateSheet.
+
+### v2.1.0 Gamificación unificada
 - **Eliminados los dos sistemas de niveles paralelos** ('Vecinos · Lv 1' arriba y 'Brote · Nivel 2' abajo). Ahora uno solo.
 - 10 niveles temáticos: **Encuentro 🌱 · Confianza 🌿 · Compañía 🤝 · Complicidad 💫 · Refugio 🏡 · Raíces 🌳 · Tribu 🔥 · Legado 💎 · Eterno ♾️ · Mito ⭐**.
 - XP thresholds: 0/100/300/700/1500/3000/6000/12000/24000/100000.
@@ -223,7 +236,9 @@
 | v2.0.7 Bugfixes mood/replay/calendar/rules | ✅ Producción 2026-05-03 (noche) | Mood reset día, fecha en mejor día, botones calendar, banner reglas honesto, auto-seed catálogo |
 | v2.0.8 Actividades full-CRUD | ✅ Producción 2026-05-03 (noche) | Tab Catálogo + add/edit/delete templates |
 | v2.1.0 Gamificación unificada | ✅ Producción 2026-05-03 (noche) | 10 niveles Encuentro→Mito, eliminado el dual-banner |
-| v2.1.x Reglas reales | 🔴 Pendiente | Conectar consensus proposals con persistencia a Configuration |
+| v2.1.1 Tareas/Actividades flow | ✅ Producción 2026-05-03 (noche tardía) | Añadir vs Crear + consenso puntos en plantillas |
+| v2.1.x Reglas reales | 🔴 Pendiente | Conectar config proposals con persistencia a Configuration (multipliers/tasks) |
+| v2.1.x Mockups Claude Design | ⏳ En progreso | Eduardo está iterando handoff con Claude Design |
 | v2.2 Multiidiomas | 🧠 Brainstorm pendiente | i18n ES/EN/CA/PT |
 | v3.0 Premium | 📝 Spec aprobado | Stripe + AI + RN |
 | v2.1 Conectados | 📝 Spec aprobado | Push real + Google sync + email |
