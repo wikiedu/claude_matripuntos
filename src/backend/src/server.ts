@@ -332,4 +332,8 @@ cron.schedule('0 * * * *', async () => {
 app.listen(PORT, () => {
   console.log(`🚀 Matripuntos backend running on http://localhost:${PORT}`)
   console.log(`📊 Health check: http://localhost:${PORT}/api/health`)
+  // v2.0.7 — auto-seed del catálogo de actividades. Idempotente, no bloqueante.
+  import('./services/bootstrapCatalog.js')
+    .then((m) => m.bootstrapActivityCatalog())
+    .catch((err) => console.error('[bootstrap] failed', err))
 })

@@ -75,13 +75,21 @@ export function computeAvailableReplays(input: ReplayInput): ReplayCard[] {
       if (!best || v.count > best.count) best = v
     }
     if (best && best.count >= 3) {
+      // v2.0.7 fix UX: el subtitle decía "ese día" sin contexto temporal;
+      // ahora mostramos la fecha (ej: "Lunes 28 abr · 3 actividades · 37 pts").
+      const localeDay = best.date.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'short',
+      })
+      const niceDay = localeDay.charAt(0).toUpperCase() + localeDay.slice(1)
       out.push({
         key: `best-day-${best.date.toISOString().slice(0, 10)}`,
         type: 'best_day',
         title: 'Vuestro mejor día reciente',
-        subtitle: `${best.count} actividades · ${best.points} pts ese día.`,
+        subtitle: `${niceDay} · ${best.count} actividades · ${best.points} pts.`,
         date: best.date.toISOString(),
-        payload: { count: best.count, points: best.points },
+        payload: { count: best.count, points: best.points, dateLabel: niceDay },
       })
     }
   }

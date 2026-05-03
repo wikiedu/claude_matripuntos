@@ -615,6 +615,9 @@ function RulesSection({ onBack }: { onBack: () => void }) {
         <p className="text-xs text-text-secondary leading-relaxed">
           Las reglas del sistema de puntos acordadas por la pareja. Cualquiera puede proponer un cambio — el otro debe aprobar.
         </p>
+        <p className="text-[11px] text-warn/90 mt-2 leading-relaxed">
+          ⚠️ <strong>Estado provisional:</strong> las propuestas se registran y el partner las puede aceptar o rechazar, pero el cambio aceptado <strong>todavía no se aplica automáticamente al cálculo de puntos</strong>. Esa parte llega en la próxima versión (v2.1). Mientras tanto sirve como acuerdo formal entre vosotros.
+        </p>
       </Card>
 
       {isLoading && (

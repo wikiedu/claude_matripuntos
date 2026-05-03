@@ -231,6 +231,11 @@ export const Calendar: React.FC = () => {
     navigate(`/request-activity?date=${target}`)
   }
 
+  // v2.0.7 — desde Calendar también se puede crear tarea, no sólo actividad.
+  const openNewTask = () => {
+    navigate('/tasks?new=1')
+  }
+
   const currentUserId = user?.id ?? ''
 
   return (
@@ -269,12 +274,20 @@ export const Calendar: React.FC = () => {
             { value: 'week', label: 'Semana' },
           ]}
         />
-        <Button size="sm" onClick={openNewActivity}>
-          <span className="inline-flex items-center gap-1">
-            <Plus className="w-4 h-4" />
-            Nueva actividad
-          </span>
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="ghost" onClick={openNewTask}>
+            <span className="inline-flex items-center gap-1">
+              <Plus className="w-4 h-4" />
+              Tarea
+            </span>
+          </Button>
+          <Button size="sm" onClick={openNewActivity}>
+            <span className="inline-flex items-center gap-1">
+              <Plus className="w-4 h-4" />
+              Actividad
+            </span>
+          </Button>
+        </div>
       </div>
 
       {/* Inline banners */}
