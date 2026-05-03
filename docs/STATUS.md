@@ -1,7 +1,7 @@
 # STATUS — Matripuntos
 
-**Última actualización:** 2026-05-03
-**Versión actual desplegada en producción:** `v2.0.5` · Quick wins (anniversary + image proof)
+**Última actualización:** 2026-05-03 (tarde)
+**Versión actual desplegada en producción:** `v2.0.6` · Refinos + bugfixes críticos
 **Branch principal:** `main`
 **URL prod:** https://matripuntos.com (frontend FTP) · backend Render · Supabase Postgres
 
@@ -61,7 +61,15 @@
 - `ProposalsPanel` + sección "Propuestas pendientes" en Settings.
 - `/api/activity-templates` + `/api/config-proposals` (flags `CATALOG_ENABLED` y `CONFIG_PROPOSALS_ENABLED`, default ON).
 
-### Quick wins (v2.0.5) — **acaba de deployear**
+### Refinos + bugfixes (v2.0.6) — **acaba de deployear 2026-05-03 tarde**
+- **Fix crítico**: rutas v2.0.4/v2.0.5 devolvían `Route not found` en cold-start de Render. Convertidas de dynamic import a static import → garantizado el orden del middleware stack.
+- **Fix bug "tareas fantasma"**: una tarea sin `scheduledFor` aparecía en "Hoy" todos los días, en ambas cuentas, para siempre. Ahora "Hoy" requiere `scheduledFor <= hoy`.
+- **Wiring del catálogo de actividades** (v2.0.4 que faltaba): botón "🔎 Catálogo" en `RequestActivity` step 1; al seleccionar un template prefilla título/descripción/duración.
+- **Botón "Proponer cambio"** por cada regla en Settings → Reglas de puntos. Crea `ConfigurationProposal` consensuada para el partner.
+- **AnniversaryCard rediseñada**: estilo dark coherente con el dashboard, chip discreto en vez de banner rosa.
+- **CI E2E arreglado**: `prisma db push` en vez de `migrate deploy` contra la BD efímera (la init migration usa `DATETIME` de SQLite, incompatible con Postgres CI).
+
+### Quick wins (v2.0.5)
 - **Anniversary timer**: `Couple.relationshipStartDate` + `anniversaryService` PURE (años/meses/días + hito siguiente). `AnniversaryCard` en dashboard. `/api/anniversary` GET|PUT|DELETE.
 - **Image proof opcional**: `TaskLog.proofImageUrl` + `proofUploadedAt`. `TaskProofUploader` en `Tasks.tsx` (mis pendientes, edit) y en `TaskPendingCard` (verificador, read-only). `/api/task-logs/:logId/proof` GET|POST|DELETE.
 - Diseño sin almacenar binarios: data-URL <500KB o https:// hosteada por el usuario.
@@ -96,9 +104,12 @@
 
 > Componentes/servicios listos en código pero falta enchufarlos al flujo principal.
 
-- **`ActivityCatalogPicker` en creación de eventos.** El componente está listo y usable; falta sustituir el formulario de "tipo libre" por el picker en `EventCreate`/`Calendar` para que la mayoría de eventos pase por el catálogo. (Se puede hacer en v2.0.4.1 o como parte del rediseño UX que venga después.)
+- ~~**`ActivityCatalogPicker` en creación de eventos.**~~ ✅ Enchufado en v2.0.6 (botón "🔎 Catálogo" en RequestActivity).
+- ~~**Botón "Proponer cambio" en cada regla de Settings.**~~ ✅ Enchufado en v2.0.6.
+- **CRUD completo en página de Actividades** (feedback usuario 2026-05-03): la sección "Actividades" del nav es mucho menos completa que "Tareas". Falta poder añadir, editar, eliminar actividades del catálogo desde una página dedicada (no sólo el modal del picker). → Backlog v2.0.7.
 - **`refreshTokenService` con rotación + reuse detection.** Implementado en backend, pero el flujo de auth todavía emite JWT puro. Activar al introducir mobile RN en v3.0.
 - **Anuario PDF preview** (mencionado en spec v3.0 como gancho freemium). Servicio Puppeteer no implementado todavía.
+- **Seed del catálogo global en Supabase**: ejecutar `npx ts-node prisma/seedActivityTemplates.ts` una vez. Sin esto, el picker mostrará "No hay actividades".
 
 ---
 
@@ -185,7 +196,8 @@
 | v2.0.3.1 Hotfix | ✅ Producción | IDOR + UX must-fix |
 | v2.0.4 Catálogo + Consenso | ✅ Producción 2026-05-03 | Pendiente seed + QA E2E |
 | v2.0.5 Quick wins | ✅ Producción 2026-05-03 | Anniversary + image proof |
-| v2.0.6 Refinos catálogo | 🤔 Por decidir tras D30 | Picker en EventCreate, contraoferta |
+| v2.0.6 Refinos + bugfixes | ✅ Producción 2026-05-03 (tarde) | Wiring v2.0.4 + fix routes 404 + fix tareas fantasma + UX anniversary + CI |
+| v2.0.7 Página Actividades full-CRUD | 🔴 Pendiente | Mismo polish que Tareas: añadir/editar/eliminar actividades del catálogo |
 | v2.1 Conectados | 📝 Spec aprobado | Push real + Google sync + email |
 | v2.2 Multiidiomas | 🧠 Brainstorm pendiente | i18n ES/EN/CA/PT |
 | v3.0 Premium | 📝 Spec aprobado | Stripe + AI + RN |
