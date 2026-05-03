@@ -85,6 +85,9 @@ model Couple {
   configurationProposals ConfigurationProposal[]
   configurationChangeLog ConfigurationChangeLog[]
 
+  // v2.0.5 — anniversary timer (fecha en la que la pareja "empezó"; null hasta que se setea)
+  relationshipStartDate DateTime?
+
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
@@ -344,6 +347,11 @@ model TaskLog {
   disputeReason         String?
   disputedAt            DateTime?
   pointsDisputed        Decimal?
+
+  // v2.0.5 — image proof opcional (URL https). No se sube binario al backend; se
+  // espera URL ya hosteada (cloud storage del usuario o data-URL pequeño <500KB)
+  proofImageUrl         String?
+  proofUploadedAt       DateTime?
 
   // Relations
   couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)

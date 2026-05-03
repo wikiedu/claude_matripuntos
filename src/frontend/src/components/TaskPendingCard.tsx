@@ -4,6 +4,7 @@ import { Button } from './Button'
 import { Alert } from './Alert'
 import { Check, X } from 'lucide-react'
 import { TaskPendingLog } from '../types/activity'
+import { TaskProofUploader } from './v2/proof/TaskProofUploader'
 
 interface TaskPendingCardProps {
   taskLog: TaskPendingLog
@@ -124,6 +125,9 @@ export function TaskPendingCard({ taskLog, onVerify, onReject }: TaskPendingCard
             <span className="font-semibold text-blue-700">{taskLog.pointsFinal} pts</span>
           </div>
         </div>
+
+        {/* v2.0.5 — Imagen de prueba opcional (solo lectura desde la verificación) */}
+        <TaskProofUploader logId={taskLog.id} canEdit={false} />
 
         {/* Error message */}
         {error && <div className="mt-4"><Alert type="error" message={error} /></div>}

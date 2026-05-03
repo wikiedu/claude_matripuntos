@@ -183,6 +183,12 @@ import('./routes/activityTemplates.js').then(m => app.use('/api/activity-templat
 // v2.0.4 — Configuration consensus proposals (feature-flagged CONFIG_PROPOSALS_ENABLED, default ON)
 import('./routes/configurationProposals.js').then(m => app.use('/api/config-proposals', m.default)).catch(() => {})
 
+// v2.0.5 — Anniversary timer (feature-flagged ANNIVERSARY_ENABLED, default ON)
+import('./routes/anniversary.js').then(m => app.use('/api/anniversary', m.default)).catch(() => {})
+
+// v2.0.5 — Task proof image (feature-flagged TASK_PROOF_ENABLED, default ON)
+import('./routes/taskProof.js').then(m => app.use('/api/task-logs', m.default)).catch(() => {})
+
 // Calendar Routes (FASE 5)
 app.use('/api/calendar', calendarRoutes)
 
