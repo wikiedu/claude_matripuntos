@@ -38,6 +38,8 @@ import profileCompletionRoutes from './routes/profileCompletion.js'
 // v2.0.4 + v2.0.5 — antes eran dynamic import, lo que provocaba race en
 // cold-start: el 404 handler quedaba registrado antes y devolvía "Route not
 // found" para /api/anniversary, /api/activity-templates, etc. Ahora estáticos.
+// v2.1.0 — gamificationV2 sigue activo para /streak, /challenge, /replay y /level
+// (este último ahora consulta el sistema unificado de 10 niveles).
 import gamificationV2Routes from './routes/gamificationV2.js'
 import notificationsPushRoutes from './routes/notificationsPush.js'
 import calendarV2Routes from './routes/calendarV2.js'

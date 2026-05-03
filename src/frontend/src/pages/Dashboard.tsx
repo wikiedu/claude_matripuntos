@@ -8,11 +8,11 @@ import { useTodos } from '../hooks/useTodos'
 import { DailyPhrase } from '../components/v2/dashboard/DailyPhrase'
 import { AnniversaryCard } from '../components/v2/anniversary/AnniversaryCard'
 import { MoodPairCard } from '../components/v2/dashboard/MoodPairCard'
-import { LevelBar } from '../components/v2/dashboard/LevelBar'
+// v2.1.0 — LevelBar retirado: BalanceLevelHero ya muestra el nivel.
 import { StreakBadge } from '../components/v2/dashboard/StreakBadge'
 import { ChallengeCard } from '../components/v2/dashboard/ChallengeCard'
 import { ReplayCard } from '../components/v2/dashboard/ReplayCard'
-import { useLevel, useStreak, useChallenge, useReplays, isGamificationV2Enabled } from '../hooks/useGamificationV2'
+import { useStreak, useChallenge, useReplays, isGamificationV2Enabled } from '../hooks/useGamificationV2'
 import { MoodNudge } from '../components/v2/dashboard/MoodNudge'
 import { ProfileCompletionBanner } from '../components/v2/dashboard/ProfileCompletionBanner'
 import { BalanceLevelHero } from '../components/v2/dashboard/BalanceLevelHero'
@@ -29,7 +29,8 @@ import { toLocalDateString } from '../utils/dateUtils'
 import type { RecentActivity } from '../types/activity'
 import type { Task, TaskLog } from '../types/index'
 
-const LEVEL_ORDER = ['nido', 'brote', 'hogar', 'raices', 'diamante', 'leyenda', 'eterno']
+// v2.1.0 — sistema unificado de 10 niveles (opción C aprobada).
+const LEVEL_ORDER = ['encuentro', 'confianza', 'compania', 'complicidad', 'refugio', 'raices', 'tribu', 'legado', 'eterno', 'mito']
 
 function deriveKind(a: RecentActivity): 'activity' | 'task' | 'negotiation' {
   if (a.type === 'task') return 'task'
@@ -134,7 +135,7 @@ export default function Dashboard() {
   const partnerSharedPending =
     todosData?.partnerShared.filter((t: { isCompleted: boolean }) => !t.isCompleted).length ?? 0
 
-  const levelOrdinal = (LEVEL_ORDER.indexOf(gamificationStatus?.level ?? 'nido') + 1) || 1
+  const levelOrdinal = (LEVEL_ORDER.indexOf(gamificationStatus?.level ?? 'encuentro') + 1) || 1
   const currentXp = gamificationStatus?.xp ?? 0
   const xpToNext = gamificationStatus?.xpToNext ?? 100
   const neededXp = currentXp + xpToNext
@@ -196,7 +197,8 @@ export default function Dashboard() {
   }
 
   // v1.7 — Hooks gamification v2 (no-op si feature flag off → enabled false).
-  const levelQ = useLevel()
+  // v2.1.0 — useLevel retirado del dashboard porque BalanceLevelHero ya muestra
+  // el nivel inline. Se sigue usando en Achievements page.
   const streakQ = useStreak()
   const challengeQ = useChallenge()
   const replaysQ = useReplays()
@@ -209,7 +211,9 @@ export default function Dashboard() {
       <ProfileCompletionBanner firstLoginAt={(user as any)?.firstLoginAt} />
       {v2Enabled && !isSolo && (
         <div className="px-4 mb-3 space-y-2">
-          {levelQ.data && <LevelBar level={levelQ.data} />}
+          {/* v2.1.0 — LevelBar retirado del dashboard. BalanceLevelHero ya muestra
+              el nivel pareja inline con el balance, así que tener un banner
+              independiente arriba es duplicación visual. */}
           {streakQ.data && <StreakBadge streak={streakQ.data} />}
           {challengeQ.data && <ChallengeCard challenge={challengeQ.data} />}
           {(replaysQ.data ?? []).slice(0, 1).map(r => (

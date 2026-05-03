@@ -1,14 +1,23 @@
 import prisma from '../lib/prisma.js'
 import { createCoupleNotification } from './notificationService.js'
 
+// v2.1.0 — sistema unificado de 10 niveles (opción C aprobada 2026-05-03).
+// Reemplaza tanto al "Nido/Brote/..." legacy de v1.2 como al "Vecinos/Amigos/..."
+// del intento abortado en v1.7. Una sola fuente de verdad. Migración SQL en
+// 20261105000000_v2_1_0_levels_rename mapea Couple.level del esquema viejo al
+// nuevo (nido→encuentro, brote→confianza, hogar→refugio, raices→raices,
+// diamante→legado, leyenda→eterno, eterno→mito).
 export const LEVELS = [
-  { level: 'nido',     emoji: '🪺', name: 'Nido',     minXp: 0 },
-  { level: 'brote',    emoji: '🌿', name: 'Brote',    minXp: 300 },
-  { level: 'hogar',    emoji: '🏡', name: 'Hogar',    minXp: 2000 },
-  { level: 'raices',   emoji: '🌳', name: 'Raíces',   minXp: 6000 },
-  { level: 'diamante', emoji: '💎', name: 'Diamante', minXp: 15000 },
-  { level: 'leyenda',  emoji: '⭐', name: 'Leyenda',  minXp: 35000 },
-  { level: 'eterno',   emoji: '♾️', name: 'Eterno',   minXp: 80000 },
+  { level: 'encuentro',   emoji: '🌱', name: 'Encuentro',    minXp: 0 },
+  { level: 'confianza',   emoji: '🌿', name: 'Confianza',    minXp: 100 },
+  { level: 'compania',    emoji: '🤝', name: 'Compañía',     minXp: 300 },
+  { level: 'complicidad', emoji: '💫', name: 'Complicidad',  minXp: 700 },
+  { level: 'refugio',     emoji: '🏡', name: 'Refugio',      minXp: 1500 },
+  { level: 'raices',      emoji: '🌳', name: 'Raíces',       minXp: 3000 },
+  { level: 'tribu',       emoji: '🔥', name: 'Tribu',        minXp: 6000 },
+  { level: 'legado',      emoji: '💎', name: 'Legado',       minXp: 12000 },
+  { level: 'eterno',      emoji: '♾️', name: 'Eterno',       minXp: 24000 },
+  { level: 'mito',        emoji: '⭐', name: 'Mito',         minXp: 100000 },
 ]
 
 export function getLevelInfo(xp: number) {
