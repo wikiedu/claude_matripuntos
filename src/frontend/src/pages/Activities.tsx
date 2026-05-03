@@ -10,8 +10,10 @@ import { ActivityActionCard } from '../components/v2/activities/ActivityActionCa
 import { ActivityWaitingCard } from '../components/v2/activities/ActivityWaitingCard'
 import { HistoryFilters, HistoryFilterValues } from '../components/v2/activities/HistoryFilters'
 import { Pill } from '../components/v2/primitives/Pill'
+import { ActivityCatalogManager } from '../components/v2/catalog/ActivityCatalogManager'
+import { Plus } from 'lucide-react'
 
-type Tab = 'active' | 'history'
+type Tab = 'active' | 'history' | 'catalog'
 
 export default function Activities() {
   const nav = useNavigate()
@@ -65,7 +67,22 @@ export default function Activities() {
           Activas {pending.length + waiting.length > 0 && <Pill tone="danger">{pending.length + waiting.length}</Pill>}
         </TabBtn>
         <TabBtn active={tab === 'history'} onClick={() => setTab('history')}>Historial</TabBtn>
+        <TabBtn active={tab === 'catalog'} onClick={() => setTab('catalog')}>Catálogo</TabBtn>
       </div>
+
+      {/* v2.0.8 — botón rápido de "Nueva actividad" siempre visible. Lleva al
+          wizard de crear evento, no al catálogo (que se gestiona en su tab). */}
+      {tab !== 'catalog' && (
+        <div className="mx-4 mb-3 flex justify-end">
+          <button
+            type="button"
+            onClick={() => nav('/request-activity')}
+            className="px-3 py-2 rounded-md bg-brand-purple text-white text-sm font-semibold hover:bg-brand-purple/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple flex items-center gap-1.5"
+          >
+            <Plus className="w-4 h-4" /> Nueva actividad
+          </button>
+        </div>
+      )}
 
       {tab === 'active' && (
         <ActiveView
@@ -92,6 +109,12 @@ export default function Activities() {
           setFilters={setFilters}
           onOpen={handleOpen}
         />
+      )}
+
+      {tab === 'catalog' && (
+        <div className="mx-4">
+          <ActivityCatalogManager />
+        </div>
       )}
     </main>
   )
