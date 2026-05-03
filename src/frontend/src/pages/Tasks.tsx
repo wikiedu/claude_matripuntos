@@ -24,6 +24,7 @@ import { TaskItemLarge } from '../components/v2/tasks/TaskItemLarge'
 import { TaskItemMedium } from '../components/v2/tasks/TaskItemMedium'
 import { TaskCatalogRow } from '../components/v2/tasks/TaskCatalogRow'
 import { AddTaskSheet } from '../components/v2/tasks/AddTaskSheet'
+import { AddTaskFromCatalogSheet } from '../components/v2/tasks/AddTaskFromCatalogSheet'
 import { RecurringTaskManager } from '../components/v2/tasks/RecurringTaskManager'
 import { ConfirmDialog } from '../components/v2/primitives/ConfirmDialog'
 import { TaskProofUploader } from '../components/v2/proof/TaskProofUploader'
@@ -329,6 +330,9 @@ export default function Tasks() {
   const [disputingLog, setDisputingLog] = useState<TaskLog | null>(null)
   const [verifyingId, setVerifyingId] = useState<string | null>(null)
   const [showAddSheet, setShowAddSheet] = useState(false)
+  // v2.1.1: el botón primario abre el sheet del catálogo. El secundario abre
+  // el AddTaskSheet en blanco (crear tarea nueva fuera del catálogo).
+  const [showCatalogSheet, setShowCatalogSheet] = useState(false)
   const [addingFromCatalog, setAddingFromCatalog] = useState<string | null>(null)
   const [showCatalog, setShowCatalog] = useState(false)
   const [deletingTask, setDeletingTask] = useState<Task | null>(null)
@@ -580,6 +584,21 @@ export default function Tasks() {
         onClose={() => setShowAddSheet(false)}
         onSaved={handleAddSheetSaved}
       />
+      <AddTaskFromCatalogSheet
+        open={showCatalogSheet}
+        catalog={TASK_CATALOG}
+        existingTasks={tasks.map((t) => ({
+          id: t.id,
+          name: t.name,
+          category: t.category ?? '',
+          pointsBase: String(t.pointsBase ?? 0),
+          isDefault: !!(t as any).isDefault,
+        }))}
+        partnerName={(useAppStore.getState().couple?.users ?? []).find(u => u.id !== user?.id)?.name ?? 'Tu pareja'}
+        meName={user?.name ?? 'Yo'}
+        onClose={() => setShowCatalogSheet(false)}
+        onSaved={() => { setShowCatalogSheet(false); handleAddSheetSaved() }}
+      />
       <ConfirmDialog
         open={deletingTask !== null}
         title="¿Borrar tarea?"
@@ -609,10 +628,18 @@ export default function Tasks() {
           >
             <RefreshCw className="w-4 h-4" />
           </button>
-          <Button size="sm" onClick={() => setShowAddSheet(true)}>
+          {/* v2.1.1: botón primario = añadir del catálogo (lo más usado).
+              Secundario = crear tarea nueva en blanco. */}
+          <Button size="sm" onClick={() => setShowCatalogSheet(true)}>
             <span className="inline-flex items-center gap-1">
               <Plus className="w-4 h-4" />
-              Nueva tarea
+              Añadir tarea
+            </span>
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setShowAddSheet(true)}>
+            <span className="inline-flex items-center gap-1">
+              <Plus className="w-4 h-4" />
+              Crear nueva
             </span>
           </Button>
         </div>

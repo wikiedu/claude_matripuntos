@@ -144,10 +144,21 @@ export function ActivityCatalogManager() {
                       {isCustom && (
                         <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-brand-purple/15 text-brand-purple">tuya</span>
                       )}
+                      {/* v2.1.1: badge de puntos pendientes de acuerdo */}
+                      {!t.pointsApproved && (
+                        <span
+                          className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-warn/20 text-warn"
+                          title="Esperando que tu pareja acepte los puntos sugeridos"
+                        >
+                          pts pendientes
+                        </span>
+                      )}
                     </p>
                     <p className="text-[11px] text-text-tertiary">
                       {t.subcategory && <span>{t.subcategory} · </span>}
-                      {Number(t.pointsBaseSuggested)} pts base
+                      <span className={!t.pointsApproved ? 'opacity-60 line-through' : ''}>
+                        {Number(t.pointsBaseSuggested)} pts base
+                      </span>
                       {t.defaultDurationMinutes ? ` · ${t.defaultDurationMinutes} min` : ''}
                     </p>
                   </div>

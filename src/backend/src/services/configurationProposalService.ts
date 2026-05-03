@@ -104,8 +104,10 @@ export class ConfigurationProposalService {
       throw Object.assign(new Error('Propuesta expirada'), { code: 'EXPIRED' })
     }
 
-    // Aplicar cambio + cerrar propuesta + log, todo en transacción
-    const [updatedProposal, _log] = await prisma.$transaction([
+    // Aplicar cambio + cerrar propuesta + log, todo en transacción.
+    // v2.1.1: cuando el field empieza por 'activity_template:<id>:points',
+    // marcamos pointsApproved=true en el template como side-effect.
+    const txOps: any[] = [
       prisma.configurationProposal.update({
         where: { id: proposalId },
         data: {
@@ -124,9 +126,25 @@ export class ConfigurationProposalService {
           proposalId,
         },
       }),
-    ])
+    ]
 
-    return updatedProposal
+    const tplPointsMatch = proposal.field.match(/^activity_template:([a-z0-9]+):points$/i)
+    if (tplPointsMatch) {
+      const templateId = tplPointsMatch[1]
+      txOps.push(
+        prisma.activityTemplate.updateMany({
+          where: { id: templateId, coupleId },
+          data: {
+            pointsApproved: true,
+            pointsApprovedAt: new Date(),
+            pointsBaseSuggested: Number(proposal.newValue),
+          },
+        }),
+      )
+    }
+
+    const result = await prisma.$transaction(txOps)
+    return result[0]
   }
 
   /** Rechaza — el partner del proposer puede. MVP: sin contraoferta. */

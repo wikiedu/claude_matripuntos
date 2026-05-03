@@ -19,6 +19,10 @@ export interface ActivityTemplate {
   isActive: boolean
   instancesThisMonth: number
   lastInstanceAt: string | null
+  // v2.1.1 — consenso híbrido: los puntos sugeridos requieren acuerdo
+  // antes de quedar firmes. Templates globales vienen pre-aprobados.
+  pointsApproved: boolean
+  pointsApprovedAt: string | null
   createdAt: string
   updatedAt: string
 }
