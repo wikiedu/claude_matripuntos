@@ -26,6 +26,7 @@ import { TaskCatalogRow } from '../components/v2/tasks/TaskCatalogRow'
 import { AddTaskSheet } from '../components/v2/tasks/AddTaskSheet'
 import { RecurringTaskManager } from '../components/v2/tasks/RecurringTaskManager'
 import { ConfirmDialog } from '../components/v2/primitives/ConfirmDialog'
+import { TaskProofUploader } from '../components/v2/proof/TaskProofUploader'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Task {
@@ -701,17 +702,20 @@ export default function Tasks() {
                   </p>
                   <div className="space-y-1.5">
                     {myPendingLogs.map((log) => (
-                      <div key={log.id} className="flex items-center justify-between bg-surface-card rounded-md px-3 py-2 border border-brd-subtle">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-base">{CATEGORY_EMOJI[log.taskCategory?.toLowerCase()] || '✅'}</span>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-text-primary truncate">{log.taskName}</p>
-                            <p className="text-xs text-text-tertiary">{formatLocalDate(log.date)}</p>
+                      <div key={log.id} className="bg-surface-card rounded-md px-3 py-2 border border-brd-subtle">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-base">{CATEGORY_EMOJI[log.taskCategory?.toLowerCase()] || '✅'}</span>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-text-primary truncate">{log.taskName}</p>
+                              <p className="text-xs text-text-tertiary">{formatLocalDate(log.date)}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 ml-2">
+                            <span className="text-sm font-bold text-warn tabular-nums">+{log.pointsFinal} pts</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 ml-2">
-                          <span className="text-sm font-bold text-warn tabular-nums">+{log.pointsFinal} pts</span>
-                        </div>
+                        <TaskProofUploader logId={log.id} canEdit={true} compact />
                       </div>
                     ))}
                   </div>

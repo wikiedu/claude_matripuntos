@@ -6,6 +6,7 @@ import { useGamificationStatus } from '../hooks/useGamificationStatus'
 import { useShoppingList } from '../hooks/useShoppingList'
 import { useTodos } from '../hooks/useTodos'
 import { DailyPhrase } from '../components/v2/dashboard/DailyPhrase'
+import { AnniversaryCard } from '../components/v2/anniversary/AnniversaryCard'
 import { MoodPairCard } from '../components/v2/dashboard/MoodPairCard'
 import { LevelBar } from '../components/v2/dashboard/LevelBar'
 import { StreakBadge } from '../components/v2/dashboard/StreakBadge'
@@ -241,6 +242,7 @@ export default function Dashboard() {
         </div>
       )}
       <DailyPhrase />
+      <AnniversaryCard />
       <BalanceLevelHero
         youName={you.name}
         youBalance={Number(you.balance)}
