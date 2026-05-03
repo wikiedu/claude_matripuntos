@@ -7,8 +7,8 @@
 ## 1. PROYECTO
 App web gamificada para parejas: gestión equitativa de responsabilidades del hogar mediante puntos negociables. Repo: https://github.com/wikiedu/claude_matripuntos
 
-**Versión actual en producción:** v2.0.3.1 · Hotfix técnico + UX (tag `v2.0.3.1`, 2026-05-02)  
-**En desarrollo:** v2.0.4 · Catálogo + Consenso (branch `feature/v2.0.4-catalog-consensus`, Sprint 2 implementado 2026-05-03)  
+**Versión actual en producción:** v2.0.5 · Quick wins (tag `v2.0.5`, 2026-05-03)  
+**Estado del proyecto:** ver `docs/STATUS.md` para snapshot completo (qué está en prod, qué está pendiente, qué decisiones quedan).  
 **Branch principal:** `main`
 
 ## 2. STACK TÉCNICO
@@ -202,6 +202,16 @@ Todas requieren `Authorization: Bearer <JWT>` salvo `/auth/register` y `/auth/lo
   POST /:id/reject        Solo el partner
   POST /:id/cancel        Solo el proposer
 
+/api/anniversary         (v2.0.5 — flag ANNIVERSARY_ENABLED, default ON)
+  GET  /                  Breakdown años/meses/días + próximo hito
+  PUT  /                  { startDate: ISO } — fija fecha (no futura)
+  DELETE /                Limpia la fecha
+
+/api/task-logs           (v2.0.5 — flag TASK_PROOF_ENABLED, default ON)
+  GET  /:logId/proof      proofImageUrl + proofUploadedAt
+  POST /:logId/proof      { proofImageUrl } — solo el completer
+  DELETE /:logId/proof    solo el completer
+
 /api/profile
   GET|PUT /me
 
@@ -284,8 +294,9 @@ Formato: `vX.Y · Nombre`. Branches: `feature/vX.Y-nombre-kebab`. Tags git: `mvp
 | v2.0.2 | Journaling — entries CRUD + reactions + prompts diarios + retrospectivas | ✅ Producción 2026-05-02 | `main` (tag `v2.0.2`) |
 | **v2.0.3** | **Analytics Pro** — aggregator con invariantes mat. + insights + heatmap | ✅ Producción 2026-05-02 | `main` (tag `v2.0.3`) |
 | **v2.0.3.1** | **Hotfix v2.0.3** — IDOR journal, push unsubscribe, focus rings, BottomNav safe-area | ✅ Producción 2026-05-02 | `main` (tag `v2.0.3.1`) |
-| **v2.0.4** | **Catálogo + Consenso** — ActivityTemplate + ConfigurationProposal + ProposalsPanel | 🟢 Sprint 2 implementado 2026-05-03 | `feature/v2.0.4-catalog-consensus` |
-| **v2.0.5** | **Quick wins** — anniversary timer + image proof tareas | 🧠 Brainstorm pendiente | `feature/v2.0.5-quick-wins` |
+| **v2.0.4** | **Catálogo + Consenso** — ActivityTemplate + ConfigurationProposal + ProposalsPanel | ✅ Producción 2026-05-03 (pendiente seed + QA E2E manual) | `main` (tag `v2.0.4`) |
+| **v2.0.5** | **Quick wins** — anniversary timer + image proof tareas | ✅ Producción 2026-05-03 | `main` (tag `v2.0.5`) |
+| **v2.0.6** | **Refinos catálogo** — picker en EventCreate, contraoferta, "proponer" inline | 🤔 Por decidir tras D30 | `feature/v2.0.6-refinos` |
 | **v2.1** | **Conectados** — Google sync + push real + ICS + referidos | 📝 Spec aprobado | `feature/v2.1-conectados` |
 | **v2.2** | **Multiidiomas** — i18n ES/EN/CA/PT | 🧠 Brainstorm pendiente | `feature/v2.2-multiidiomas` |
 | v3.0 | Premium | 📝 Spec aprobado | `feature/v3.0-premium` |

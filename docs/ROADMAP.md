@@ -31,8 +31,9 @@
 | **v2.0.2** | **Journaling** | ✅ **En producción 2026-05-02** (esqueleto MVP, atachments diferidos) | `main` | `v2.0.2` |
 | **v2.0.3** | **Analytics Pro** — aggregator con invariantes matemáticos + insights cards + heatmap | ✅ **En producción 2026-05-02** | `main` | `v2.0.3` |
 | **v2.0.3.1** | **Hotfix técnico + UX must-fix** — IDOR journal, push unsubscribe, focus rings, BottomNav safe-area | ✅ **En producción 2026-05-02** | `main` | `v2.0.3.1` |
-| **v2.0.4** | **Catálogo + consenso** — ActivityTemplate (catálogo de actividades) + ConfigurationProposal (cambios consensuados) | 🟢 **Sprint 2 implementado 2026-05-03** — schema + routes + frontend pickers; pendiente deploy | `feature/v2.0.4-catalog-consensus` | — |
-| **v2.0.5** | **Quick wins** — anniversary timer + image proof tareas | 🧠 Brainstorm pendiente | `feature/v2.0.5-quick-wins` | — |
+| **v2.0.4** | **Catálogo + consenso** — ActivityTemplate + ConfigurationProposal + ProposalsPanel | ✅ **En producción 2026-05-03** (pendiente seed + QA E2E manual) | `main` | `v2.0.4` |
+| **v2.0.5** | **Quick wins** — anniversary timer + image proof tareas (data-URL <500KB) | ✅ **En producción 2026-05-03** | `main` | `v2.0.5` |
+| **v2.0.6** | **Refinos catálogo** — picker en EventCreate, contraoferta en propuestas, "proponer cambio" inline | 🤔 Por decidir tras D30 | `feature/v2.0.6-refinos` | — |
 | **v2.1** | **Conectados** — Google sync bidireccional + push real + ICS + referidos | 📝 Spec aprobado (2026-05-02) | `feature/v2.1-conectados` | — |
 | **v2.2** | **Multiidiomas** — i18n ES/EN/CA/PT (interfaz, prompts journal, emails) | 🧠 Brainstorm pendiente | `feature/v2.2-multiidiomas` | — |
 | **v3.0** | **Premium** — Stripe + freemium B + AI Claude Haiku + Themes + RN opcional | 📝 Spec aprobado (2026-05-02) | `feature/v3.0-premium` | — |
@@ -395,12 +396,30 @@ Cobertura prometida en v1.5 y no completada — se aprovecha el touch en `profil
 
 **Foco:** wins rápidos identificados en el análisis de competencia (Lasting, Paired, Splitwise, ChoreList) que aportan diferenciación con poco esfuerzo.
 
-**Features candidatas:**
-- Anniversary timer en dashboard ("Llevamos juntos 3 años, 4 meses").
-- Image proof opcional en tareas completadas (anti-fraude soft, foto del baño limpio).
-- Más por confirmar tras D30 con datos.
+**Features:**
+- **Anniversary timer**: `Couple.relationshipStartDate` + `anniversaryService` PURE (años/meses/días + próximo hito redondo). Card en dashboard con CTA inline para fijar fecha. Tests con invariantes (same-day, month-underflow, milestones 1/5/10/25 años).
+- **Image proof opcional en tareas**: `TaskLog.proofImageUrl` + `proofUploadedAt`. Uploader con captura de cámara, validación de tamaño (≤500KB), data-URL embebida. Visible en `Tasks.tsx` (mis pendientes, edit) y `TaskPendingCard` (verificador, read-only). Sin almacenar binarios en BD: data-URL <500KB o https:// hosteada por el usuario.
 
-**Branch:** `feature/v2.0.5-quick-wins` · **Tag pendiente:** `v2.0.5`
+**Out-of-scope (diferidos):**
+- Cloud storage real para imágenes — decidir tras D30 según uso.
+- Reglas anti-fraude duras (foto obligatoria) — la imagen sigue siendo opcional.
+- Galería/mosaico de pruebas en analytics.
+
+**Branch:** `feature/v2.0.5-quick-wins` · **Tag:** `v2.0.5`
+
+---
+
+## v2.0.6 · Refinos catálogo 🪄 (tentativo)
+
+**Foco:** mejorar el catálogo + consenso de v2.0.4 según feedback de D30.
+
+**Features candidatas (a confirmar tras métricas):**
+- `ActivityCatalogPicker` integrado en EventCreate/Calendar (sustituye o complementa entrada libre).
+- Contraoferta en `ConfigurationProposal` (hoy sólo accept/reject).
+- Botón "Proponer cambio" inline en cada slider de Settings, en lugar de un panel separado.
+- `name_i18n` JSON en `ActivityTemplate` preparando v2.2.
+
+**Branch:** `feature/v2.0.6-refinos` · **Tag pendiente:** `v2.0.6`
 
 ---
 
