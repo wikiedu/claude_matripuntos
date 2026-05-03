@@ -1,7 +1,7 @@
 # STATUS — Matripuntos
 
-**Última actualización:** 2026-05-03 (tarde)
-**Versión actual desplegada en producción:** `v2.0.6` · Refinos + bugfixes críticos
+**Última actualización:** 2026-05-03 (noche)
+**Versión actual desplegada en producción:** `v2.1.0` · Gamificación unificada (10 niveles)
 **Branch principal:** `main`
 **URL prod:** https://matripuntos.com (frontend FTP) · backend Render · Supabase Postgres
 
@@ -61,7 +61,30 @@
 - `ProposalsPanel` + sección "Propuestas pendientes" en Settings.
 - `/api/activity-templates` + `/api/config-proposals` (flags `CATALOG_ENABLED` y `CONFIG_PROPOSALS_ENABLED`, default ON).
 
-### Refinos + bugfixes (v2.0.6) — **acaba de deployear 2026-05-03 tarde**
+### v2.1.0 Gamificación unificada — **acaba de deployear 2026-05-03 noche**
+- **Eliminados los dos sistemas de niveles paralelos** ('Vecinos · Lv 1' arriba y 'Brote · Nivel 2' abajo). Ahora uno solo.
+- 10 niveles temáticos: **Encuentro 🌱 · Confianza 🌿 · Compañía 🤝 · Complicidad 💫 · Refugio 🏡 · Raíces 🌳 · Tribu 🔥 · Legado 💎 · Eterno ♾️ · Mito ⭐**.
+- XP thresholds: 0/100/300/700/1500/3000/6000/12000/24000/100000.
+- Migración SQL `20261105000000_v2_1_0_levels_rename` mapea slugs viejos a nuevos (defensiva: cualquier valor inesperado vuelve a 'encuentro').
+- `LevelBar` retirado del dashboard. `BalanceLevelHero` queda como única fuente.
+- Borrados: `levelService.ts`, `levelTable.ts` (sistema A nunca llegó a producción real). `/api/gamification-v2/level` reescrito para devolver el sistema unificado.
+
+### v2.0.8 Actividades full-CRUD — **acaba de deployear 2026-05-03 noche**
+- Tab nueva "Catálogo" en `/home/activities` (junto a Activas e Historial).
+- `ActivityCatalogManager`: lista templates globales + propios, agrupados por categoría con filtro chip.
+- Templates propios: editar (Pencil) + eliminar (Trash) con confirm.
+- Templates globales: badge "global", read-only.
+- `AddActivityTemplateSheet`: form completo (categoría, subcategoría, emoji, puntos, duración, impacto, descripción).
+- Botón "Nueva actividad" siempre visible en activas/historial.
+
+### v2.0.7 Bugfixes críticos
+- Mood ahora se resetea al cambiar de día (`useMoodVigent` exige mismo día local en vez de sliding 24h).
+- Replay "Vuestro mejor día reciente" muestra fecha (`Lunes 28 abr · 3 actividades · 37 pts`).
+- Calendar: añadidos botones "Tarea" + "Actividad".
+- Settings → Reglas de puntos: banner WARN explícito de que las propuestas no aplican aún al backend (eso llega en v2.1.x).
+- Auto-seed del catálogo de actividades en arranque del backend.
+
+### Refinos + bugfixes (v2.0.6)
 - **Fix crítico**: rutas v2.0.4/v2.0.5 devolvían `Route not found` en cold-start de Render. Convertidas de dynamic import a static import → garantizado el orden del middleware stack.
 - **Fix bug "tareas fantasma"**: una tarea sin `scheduledFor` aparecía en "Hoy" todos los días, en ambas cuentas, para siempre. Ahora "Hoy" requiere `scheduledFor <= hoy`.
 - **Wiring del catálogo de actividades** (v2.0.4 que faltaba): botón "🔎 Catálogo" en `RequestActivity` step 1; al seleccionar un template prefilla título/descripción/duración.
@@ -197,7 +220,12 @@
 | v2.0.4 Catálogo + Consenso | ✅ Producción 2026-05-03 | Pendiente seed + QA E2E |
 | v2.0.5 Quick wins | ✅ Producción 2026-05-03 | Anniversary + image proof |
 | v2.0.6 Refinos + bugfixes | ✅ Producción 2026-05-03 (tarde) | Wiring v2.0.4 + fix routes 404 + fix tareas fantasma + UX anniversary + CI |
-| v2.0.7 Página Actividades full-CRUD | 🔴 Pendiente | Mismo polish que Tareas: añadir/editar/eliminar actividades del catálogo |
+| v2.0.7 Bugfixes mood/replay/calendar/rules | ✅ Producción 2026-05-03 (noche) | Mood reset día, fecha en mejor día, botones calendar, banner reglas honesto, auto-seed catálogo |
+| v2.0.8 Actividades full-CRUD | ✅ Producción 2026-05-03 (noche) | Tab Catálogo + add/edit/delete templates |
+| v2.1.0 Gamificación unificada | ✅ Producción 2026-05-03 (noche) | 10 niveles Encuentro→Mito, eliminado el dual-banner |
+| v2.1.x Reglas reales | 🔴 Pendiente | Conectar consensus proposals con persistencia a Configuration |
+| v2.2 Multiidiomas | 🧠 Brainstorm pendiente | i18n ES/EN/CA/PT |
+| v3.0 Premium | 📝 Spec aprobado | Stripe + AI + RN |
 | v2.1 Conectados | 📝 Spec aprobado | Push real + Google sync + email |
 | v2.2 Multiidiomas | 🧠 Brainstorm pendiente | i18n ES/EN/CA/PT |
 | v3.0 Premium | 📝 Spec aprobado | Stripe + AI + RN |
