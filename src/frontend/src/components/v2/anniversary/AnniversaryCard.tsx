@@ -1,7 +1,8 @@
 // v2.0.5 — Tarjeta de aniversario para el dashboard.
-// Si la pareja no tiene relationshipStartDate, muestra un CTA para añadirla.
+// v2.0.6 fix UX: estilo dark, más discreta, no domina el dashboard.
 
 import { useState } from 'react'
+import { Heart } from 'lucide-react'
 import { useAnniversary, useSetAnniversary } from '../../../hooks/useAnniversary'
 
 export function AnniversaryCard() {
@@ -12,18 +13,43 @@ export function AnniversaryCard() {
   const [error, setError] = useState<string | null>(null)
 
   const ann = data?.anniversary
-
   if (isLoading) return null
 
-  if (!ann || editing) {
+  // Sin fecha: chip discreto, una sola línea
+  if (!ann && !editing) {
     return (
-      <div className="rounded-xl border border-pink-200 bg-pink-50 p-4">
-        <h3 className="text-sm font-semibold text-pink-900 mb-2">
-          {editing ? 'Edita vuestra fecha' : '¿Cuándo empezasteis juntos?'}
-        </h3>
-        <p className="text-xs text-pink-800 mb-3">
-          Pon la fecha en la que empezasteis a estar en pareja. Aparecerá un timer en el dashboard.
-        </p>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md bg-surface-card border border-brd-subtle hover:border-brand-purple/40 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple"
+      >
+        <span className="flex items-center gap-2 text-xs text-text-tertiary">
+          <Heart className="w-3.5 h-3.5 text-brand-purple/70" />
+          Añade vuestra fecha de aniversario
+        </span>
+        <span className="text-[11px] text-brand-purple">Añadir →</span>
+      </button>
+    )
+  }
+
+  // Form de edición: compacto, en línea con el resto de cards del dashboard
+  if (editing) {
+    return (
+      <div className="rounded-md bg-surface-card border border-brd-subtle p-3">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+            <Heart className="w-3.5 h-3.5 text-brand-purple" />
+            ¿Cuándo empezasteis juntos?
+          </p>
+          <button
+            type="button"
+            onClick={() => { setEditing(false); setError(null) }}
+            className="text-xs text-text-tertiary hover:text-text-secondary"
+            aria-label="Cancelar"
+          >
+            ✕
+          </button>
+        </div>
         <form
           className="flex flex-wrap gap-2 items-center"
           onSubmit={async (e) => {
@@ -33,7 +59,10 @@ export function AnniversaryCard() {
               await setMut.mutateAsync(date)
               setEditing(false)
             } catch (err: any) {
-              setError(err?.message ?? 'Error al guardar')
+              const msg = err?.message ?? 'Error al guardar'
+              setError(msg.includes('Route not found')
+                ? 'Esta función está actualizándose. Espera unos segundos y reintenta.'
+                : msg)
             }
           }}
         >
@@ -43,51 +72,43 @@ export function AnniversaryCard() {
             onChange={(e) => setDate(e.target.value)}
             max={new Date().toISOString().slice(0, 10)}
             required
-            className="px-2 py-1 border border-pink-300 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500"
+            className="flex-1 min-w-[140px] px-2 py-1.5 text-sm bg-surface-base border border-brd-subtle rounded-md text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple"
           />
           <button
             type="submit"
             disabled={setMut.isPending}
-            className="px-3 py-1 rounded bg-pink-600 text-white text-sm hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50"
+            className="px-3 py-1.5 rounded-md bg-brand-purple text-white text-xs font-semibold hover:bg-brand-purple/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple disabled:opacity-50"
           >
-            Guardar
+            {setMut.isPending ? '...' : 'Guardar'}
           </button>
-          {editing && (
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              className="px-3 py-1 rounded border text-sm"
-            >
-              Cancelar
-            </button>
-          )}
         </form>
-        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+        {error && <p className="mt-2 text-[11px] text-danger">{error}</p>}
       </div>
     )
   }
 
+  // Estado normal: pill compacta con label inline
   return (
-    <div className="rounded-xl border border-pink-200 bg-gradient-to-br from-pink-50 to-rose-50 p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-pink-700 font-semibold">Llevamos juntos</p>
-          <p className="text-2xl font-bold text-pink-900 mt-1">{ann.label}</p>
-          <p className="text-xs text-pink-700 mt-1">{ann.nextMilestoneLabel}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setDate(ann.startDate.slice(0, 10))
-            setEditing(true)
-          }}
-          className="text-xs text-pink-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 rounded"
-          aria-label="Editar fecha de aniversario"
-        >
-          Editar
-        </button>
-      </div>
-    </div>
+    <button
+      type="button"
+      onClick={() => {
+        setDate(ann!.startDate.slice(0, 10))
+        setEditing(true)
+      }}
+      className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-surface-card border border-brd-subtle hover:border-brand-purple/40 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple"
+      aria-label="Editar fecha de aniversario"
+    >
+      <span className="flex items-center gap-2 min-w-0">
+        <Heart className="w-3.5 h-3.5 text-brand-purple flex-shrink-0" />
+        <span className="text-xs">
+          <span className="text-text-tertiary">Llevamos juntos </span>
+          <span className="text-text-primary font-semibold">{ann!.label}</span>
+        </span>
+      </span>
+      <span className="text-[10px] text-brand-purple whitespace-nowrap">
+        {ann!.nextMilestoneDays}d
+      </span>
+    </button>
   )
 }
 

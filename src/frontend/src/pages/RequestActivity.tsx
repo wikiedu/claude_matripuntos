@@ -13,6 +13,8 @@ import { useAppStore } from '../store/useAppStore'
 import { Button } from '../components/v2/primitives/Button'
 import { Pill } from '../components/v2/primitives/Pill'
 import { Card } from '../components/v2/primitives/Card'
+import { ActivityCatalogPicker } from '../components/v2/catalog/ActivityCatalogPicker'
+import type { ActivityTemplate } from '../hooks/useActivityCatalog'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Subcategory {
@@ -212,6 +214,32 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitSuccess, setSubmitSuccess] = useState(false)
+
+  // v2.0.6 — picker del catálogo de actividades
+  const [showCatalog, setShowCatalog] = useState(false)
+  const handleCatalogSelect = (tpl: ActivityTemplate) => {
+    // Prefill ligero: título + descripción + duración. La categoría/puntos se
+    // calculan a partir de las Category de la pareja (no del template directamente)
+    // — mapeamos por nombre cuando coincide para acelerar el wizard.
+    if (tpl.name && !title) setTitle(tpl.name)
+    if (tpl.description && !description) setDescription(tpl.description)
+
+    const cat = categories.find(
+      (c) => c.name.toLowerCase() === tpl.category.toLowerCase()
+        || c.name.toLowerCase().includes(tpl.category.toLowerCase()),
+    )
+    if (cat) setSelectedCategoryId(cat.id)
+
+    if (tpl.defaultDurationMinutes && tpl.defaultDurationMinutes > 0 && startDate && !endDate) {
+      const start = new Date(`${startDate}T${startTime || '20:00'}`)
+      const end = new Date(start.getTime() + tpl.defaultDurationMinutes * 60_000)
+      const pad = (n: number) => String(n).padStart(2, '0')
+      setEndDate(`${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`)
+      setEndTime(`${pad(end.getHours())}:${pad(end.getMinutes())}`)
+    }
+
+    setShowCatalog(false)
+  }
 
   const numChildren = useMemo(() => couple?.children?.length ?? 0, [couple])
   const partnerName = couple?.users?.find((u) => u.id !== user?.id)?.name || 'tu pareja'
@@ -431,10 +459,27 @@ export default function RequestActivity({ onBack }: { onBack?: () => void }) {
         {step === 1 && (
           <>
             <Card>
-              <div className="flex items-center gap-2 mb-3">
-                <Tag className="w-5 h-5 text-brand-purple" />
-                <h2 className="font-semibold text-text-primary">Tipo de actividad</h2>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-brand-purple" />
+                  <h2 className="font-semibold text-text-primary">Tipo de actividad</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCatalog(true)}
+                  className="text-xs px-2.5 py-1 rounded-md bg-brand-purple/15 text-brand-purple hover:bg-brand-purple/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple"
+                >
+                  🔎 Catálogo
+                </button>
               </div>
+              {showCatalog && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                  <ActivityCatalogPicker
+                    onSelect={handleCatalogSelect}
+                    onClose={() => setShowCatalog(false)}
+                  />
+                </div>
+              )}
               {isLoadingCats ? (
                 <div className="flex items-center gap-2 text-text-tertiary py-4">
                   <Loader className="w-4 h-4 animate-spin" />

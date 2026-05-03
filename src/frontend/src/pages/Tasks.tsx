@@ -449,8 +449,13 @@ export default function Tasks() {
     // explícitamente). Antes contaminaban el listado de cada día con todo
     // el catálogo.
     .filter((t) => !t.isDefault || !!t.scheduledFor || t.isRecurring)
+    // v2.0.6 fix bug "tareas que aparecen solas": antes una tarea sin
+    // `scheduledFor` aparecía en "Hoy" para siempre, todos los días, en ambas
+    // cuentas de la pareja. Ahora "Hoy" sólo muestra tareas con scheduledFor
+    // hoy o en el pasado (vencidas). Las no programadas viven en el catálogo y
+    // solo entran a "Hoy" cuando el usuario las programa.
     .filter((t) => {
-      if (!t.scheduledFor) return true
+      if (!t.scheduledFor) return false
       const sf = toLocalDateString(t.scheduledFor)
       return sf <= today
     })
