@@ -35,6 +35,19 @@ import accountRoutes from './routes/account.js'
 import coupleLifecycleRoutes from './routes/couple.js'
 import historyRoutes from './routes/history.js'
 import profileCompletionRoutes from './routes/profileCompletion.js'
+// v2.0.4 + v2.0.5 — antes eran dynamic import, lo que provocaba race en
+// cold-start: el 404 handler quedaba registrado antes y devolvía "Route not
+// found" para /api/anniversary, /api/activity-templates, etc. Ahora estáticos.
+import gamificationV2Routes from './routes/gamificationV2.js'
+import notificationsPushRoutes from './routes/notificationsPush.js'
+import calendarV2Routes from './routes/calendarV2.js'
+import googleCalendarOauthRoutes from './routes/googleCalendarOauth.js'
+import journalRoutes from './routes/journal.js'
+import analyticsV2Routes from './routes/analyticsV2.js'
+import activityTemplatesRoutes from './routes/activityTemplates.js'
+import configurationProposalsRoutes from './routes/configurationProposals.js'
+import anniversaryRoutes from './routes/anniversary.js'
+import taskProofRoutes from './routes/taskProof.js'
 import { runRetention } from './jobs/dataRetentionJob.js'
 import { authBucket as v161AuthBucket, writeBucket, readBucket } from './middleware/rateLimiter.js'
 import cron from 'node-cron'
@@ -164,30 +177,30 @@ app.use('/api/achievements', achievementRoutes)
 app.use('/api/gamification', gamificationRoutes)
 
 // v1.7 — Gamification v2 (feature-flagged)
-import('./routes/gamificationV2.js').then(m => app.use('/api/gamification-v2', m.default)).catch(() => {})
-import('./routes/notificationsPush.js').then(m => app.use('/api/notifications/push', m.default)).catch(() => {})
+app.use('/api/gamification-v2', gamificationV2Routes)
+app.use('/api/notifications/push', notificationsPushRoutes)
 
 // v2.0.1 — Calendario 360 (feature-flagged CALENDAR_360_ENABLED)
-import('./routes/calendarV2.js').then(m => app.use('/api/calendar/v2', m.default)).catch(() => {})
-import('./routes/googleCalendarOauth.js').then(m => app.use('/api/calendar/google', m.default)).catch(() => {})
+app.use('/api/calendar/v2', calendarV2Routes)
+app.use('/api/calendar/google', googleCalendarOauthRoutes)
 
 // v2.0.2 — Journaling (feature-flagged JOURNAL_ENABLED, default ON)
-import('./routes/journal.js').then(m => app.use('/api/journal', m.default)).catch(() => {})
+app.use('/api/journal', journalRoutes)
 
 // v2.0.3 — Analytics Pro (feature-flagged ANALYTICS_V2_ENABLED, default ON)
-import('./routes/analyticsV2.js').then(m => app.use('/api/analytics/v2', m.default)).catch(() => {})
+app.use('/api/analytics/v2', analyticsV2Routes)
 
 // v2.0.4 — Activity catalog (feature-flagged CATALOG_ENABLED, default ON)
-import('./routes/activityTemplates.js').then(m => app.use('/api/activity-templates', m.default)).catch(() => {})
+app.use('/api/activity-templates', activityTemplatesRoutes)
 
 // v2.0.4 — Configuration consensus proposals (feature-flagged CONFIG_PROPOSALS_ENABLED, default ON)
-import('./routes/configurationProposals.js').then(m => app.use('/api/config-proposals', m.default)).catch(() => {})
+app.use('/api/config-proposals', configurationProposalsRoutes)
 
 // v2.0.5 — Anniversary timer (feature-flagged ANNIVERSARY_ENABLED, default ON)
-import('./routes/anniversary.js').then(m => app.use('/api/anniversary', m.default)).catch(() => {})
+app.use('/api/anniversary', anniversaryRoutes)
 
 // v2.0.5 — Task proof image (feature-flagged TASK_PROOF_ENABLED, default ON)
-import('./routes/taskProof.js').then(m => app.use('/api/task-logs', m.default)).catch(() => {})
+app.use('/api/task-logs', taskProofRoutes)
 
 // Calendar Routes (FASE 5)
 app.use('/api/calendar', calendarRoutes)

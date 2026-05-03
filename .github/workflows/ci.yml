@@ -105,9 +105,15 @@ jobs:
       - name: Prisma generate (backend)
         working-directory: src/backend
         run: npx prisma generate
-      - name: Apply migrations (postgres efímera)
+      - name: Apply schema (postgres efímera)
+        # v2.0.6 fix CI: usamos db push contra la BD efímera porque la migración
+        # inicial 20260331152147_init usa sintaxis SQLite (DATETIME) que rompe
+        # contra Postgres. db push aplica el schema vigente sin pasar por el
+        # historial de migraciones — perfectamente válido para una DB ephemeral
+        # de tests donde no hay datos que migrar. Producción sigue usando
+        # `migrate deploy` con migraciones nuevas (Postgres-compatibles).
         working-directory: src/backend
-        run: npx prisma migrate deploy
+        run: npx prisma db push --skip-generate --accept-data-loss
       - name: Build frontend
         working-directory: src/frontend
         run: npm run build

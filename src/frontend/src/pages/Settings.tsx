@@ -11,6 +11,7 @@ import { Card } from '../components/v2/primitives/Card'
 import { PremiumInterestModal } from '../components/v2/premium/PremiumInterestModal'
 import { RuleProposalCard } from '../components/RuleProposalCard'
 import { ProposalsPanel } from '../components/v2/consensus/ProposalsPanel'
+import { ProposeChangeDialog } from '../components/v2/consensus/ProposeChangeDialog'
 import { CoupleHealthCard } from '../components/v2/couple/CoupleHealthCard'
 import { AvatarPicker } from '../components/v2/primitives/AvatarPicker'
 import { MyMoodWeek } from '../components/v2/profile/MyMoodWeek'
@@ -603,6 +604,9 @@ function RulesSection({ onBack }: { onBack: () => void }) {
   const rules = rulesData?.rules ?? []
   const pendingProposals = (rulesData?.proposals ?? []).filter((p: any) => p.status === 'pending')
 
+  // v2.0.6 — diálogo para proponer cambios de configuración consensuados (v2.0.4 endpoint)
+  const [proposeTarget, setProposeTarget] = useState<{ field: string; label: string; oldValue: string } | null>(null)
+
   return (
     <div>
       <SectionHeader title="Reglas de puntos" onBack={onBack} />
@@ -636,9 +640,29 @@ function RulesSection({ onBack }: { onBack: () => void }) {
                   <div className="text-[11px] text-brand-amber mt-0.5">{String(rule.value ?? 'automático')}</div>
                   <Pill tone="success" className="mt-1">✓ Acordado</Pill>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setProposeTarget({
+                    field: rule.key,
+                    label: rule.description,
+                    oldValue: String(rule.value ?? ''),
+                  })}
+                  className="text-[11px] px-2 py-1 rounded-md bg-brand-purple/15 text-brand-purple hover:bg-brand-purple/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple flex-shrink-0"
+                >
+                  Proponer cambio
+                </button>
               </div>
             ))}
           </div>
+
+          {proposeTarget && (
+            <ProposeChangeDialog
+              field={proposeTarget.field}
+              fieldLabel={proposeTarget.label}
+              oldValue={proposeTarget.oldValue}
+              onClose={() => setProposeTarget(null)}
+            />
+          )}
 
           {pendingProposals.length > 0 && (
             <div className="space-y-3 mb-4">
