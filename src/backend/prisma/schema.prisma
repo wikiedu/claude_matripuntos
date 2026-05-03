@@ -948,6 +948,12 @@ model ActivityTemplate {
   // que referencia este template. Solo para CUSTOM templates (per couple).
   instancesThisMonth    Int      @default(0)
   lastInstanceAt        DateTime?
+  // v2.1.1: consenso híbrido (opción C). Los templates globales (coupleId=null)
+  // vienen pre-aprobados. Los custom de pareja entran con pointsApproved=false
+  // hasta que el partner acepte mediante una ConfigurationProposal con field
+  // 'activity_template:<id>:points'.
+  pointsApproved        Boolean   @default(false)
+  pointsApprovedAt      DateTime?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

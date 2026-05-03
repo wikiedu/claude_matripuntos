@@ -51,6 +51,8 @@ export class ActivityTemplateService {
   }
 
   async create(coupleId: string, input: TemplateCreateInput) {
+    // v2.1.1: nuevos templates de pareja entran sin acuerdo de puntos.
+    // Globales (al seed) ya vienen con pointsApproved=true vía migración.
     return prisma.activityTemplate.create({
       data: {
         coupleId,
@@ -62,6 +64,7 @@ export class ActivityTemplateService {
         defaultDurationMinutes: input.defaultDurationMinutes ?? null,
         defaultImpact: input.defaultImpact ?? null,
         emoji: input.emoji ?? null,
+        pointsApproved: false,
       },
     })
   }
@@ -71,6 +74,10 @@ export class ActivityTemplateService {
     if (!existing || existing.coupleId !== coupleId) {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' })
     }
+    // v2.1.1: si cambian los puntos, reseteamos el approval. Resto de campos se
+    // aplican al instante. Si el valor de puntos no cambia, no tocamos el flag.
+    const pointsChanged = input.pointsBaseSuggested !== undefined
+      && Number(input.pointsBaseSuggested) !== Number(existing.pointsBaseSuggested)
     return prisma.activityTemplate.update({
       where: { id },
       data: {
@@ -82,7 +89,20 @@ export class ActivityTemplateService {
         ...(input.defaultDurationMinutes !== undefined && { defaultDurationMinutes: input.defaultDurationMinutes ?? null }),
         ...(input.defaultImpact !== undefined && { defaultImpact: input.defaultImpact ?? null }),
         ...(input.emoji !== undefined && { emoji: input.emoji ?? null }),
+        ...(pointsChanged && { pointsApproved: false, pointsApprovedAt: null }),
       },
+    })
+  }
+
+  /**
+   * v2.1.1: marca puntos del template como acordados. Llamado por
+   * configurationProposalService cuando el partner acepta una propuesta con
+   * field='activity_template:<id>:points'.
+   */
+  async approvePoints(templateId: string) {
+    return prisma.activityTemplate.update({
+      where: { id: templateId },
+      data: { pointsApproved: true, pointsApprovedAt: new Date() },
     })
   }
 

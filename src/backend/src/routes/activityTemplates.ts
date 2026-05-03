@@ -6,6 +6,8 @@ import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 import { readBucket, writeBucket } from '../middleware/rateLimiter.js'
 import { activityTemplateService } from '../services/activityTemplateService.js'
+import { configurationProposalService } from '../services/configurationProposalService.js'
+import prisma from '../lib/prisma.js'
 
 const router = Router()
 router.use(authenticateToken)
@@ -44,6 +46,7 @@ router.get('/', readBucket, async (req: Request, res: Response) => {
 })
 
 router.post('/', writeBucket, async (req: Request, res: Response) => {
+  const userId = (req as any).user?.id as string
   const coupleId = (req as any).user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
@@ -51,10 +54,28 @@ router.post('/', writeBucket, async (req: Request, res: Response) => {
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input', details: parsed.error.issues })
 
   const created = await activityTemplateService.create(coupleId, parsed.data as any)
+
+  // v2.1.1: dispara propuesta de puntos para que el partner los apruebe.
+  // No-bloqueante (try/catch) — si falla la propuesta el template queda
+  // creado igual con pointsApproved=false; el usuario lo verá como pendiente.
+  try {
+    await configurationProposalService.propose({
+      coupleId,
+      proposedById: userId,
+      field: `activity_template:${created.id}:points`,
+      oldValue: '0',
+      newValue: String(Number(created.pointsBaseSuggested)),
+      rationale: `Puntos sugeridos para la nueva actividad "${created.name}"`,
+    })
+  } catch (e) {
+    console.warn('[v2.1.1] propose template points failed:', e)
+  }
+
   res.status(201).json({ template: created })
 })
 
 router.put('/:id', writeBucket, async (req: Request, res: Response) => {
+  const userId = (req as any).user?.id as string
   const coupleId = (req as any).user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
@@ -62,7 +83,30 @@ router.put('/:id', writeBucket, async (req: Request, res: Response) => {
   if (!parsed.success) return res.status(400).json({ error: 'Invalid input', details: parsed.error.issues })
 
   try {
+    const before = await prisma.activityTemplate.findUnique({
+      where: { id: req.params.id },
+      select: { pointsBaseSuggested: true },
+    })
     const updated = await activityTemplateService.update(coupleId, req.params.id, parsed.data)
+
+    // v2.1.1: si los puntos cambiaron, lanzamos propuesta para el partner.
+    const oldPoints = before ? Number(before.pointsBaseSuggested) : 0
+    const newPoints = Number(updated.pointsBaseSuggested)
+    if (oldPoints !== newPoints) {
+      try {
+        await configurationProposalService.propose({
+          coupleId,
+          proposedById: userId,
+          field: `activity_template:${updated.id}:points`,
+          oldValue: String(oldPoints),
+          newValue: String(newPoints),
+          rationale: `Cambio de puntos sugeridos en "${updated.name}"`,
+        })
+      } catch (e) {
+        console.warn('[v2.1.1] propose template points (update) failed:', e)
+      }
+    }
+
     res.json({ template: updated })
   } catch (e: any) {
     if (e.code === 'NOT_FOUND') return res.status(404).json({ error: 'Not found' })

@@ -112,6 +112,14 @@ export function AddActivityTemplateSheet({ open, initial, onClose, onSaved }: Pr
             className="text-text-tertiary hover:text-text-secondary text-sm">✕</button>
         </div>
 
+        {/* v2.1.1 — banner consenso opción C híbrida */}
+        <div className="rounded-md bg-warn/10 border border-warn/30 p-2.5 text-[11px] text-warn leading-relaxed">
+          🤝 <strong>Los puntos sugeridos quedan pendientes</strong> hasta que tu pareja los acepte.
+          El resto de campos (nombre, categoría, duración) se aplican al instante.
+          Mientras no se acuerden, los eventos creados desde esta plantilla
+          ignorarán los puntos sugeridos.
+        </div>
+
         <div>
           <label className="block text-xs font-semibold text-text-secondary mb-1">Nombre *</label>
           <input
