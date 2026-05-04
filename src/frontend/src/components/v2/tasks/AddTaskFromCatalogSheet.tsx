@@ -9,9 +9,10 @@
 //   3) Submit → si la tarea no existe aún en la pareja, se crea (isDefault=false);
 //      luego se llama a /tasks/:id/schedule para programarla con la config.
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { ChevronLeft, X, Plus } from 'lucide-react'
 import { apiClient } from '../../../services/apiClient'
+import { acquireSheetLock, releaseSheetLock } from '../../../lib/sheetLock'
 
 type CatalogItem = { name: string; pts: number; desc?: string; existing?: { id: string; isDefault: boolean } }
 type CatalogGroup = { category: string; tasks: CatalogItem[] }
@@ -43,6 +44,8 @@ type Frequency = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'bimonthly'
 export function AddTaskFromCatalogSheet({
   open, catalog, existingTasks, partnerName, meName, onClose, onSaved,
 }: Props) {
+  // v2.3.2 — pestañas internas según canvas 15: 'catalog' (default) y 'create'.
+  const [tab, setTab] = useState<'catalog' | 'create'>('catalog')
   const [step, setStep] = useState<'pick' | 'configure'>('pick')
   const [filter, setFilter] = useState('')
   const [picked, setPicked] = useState<{ name: string; category: string; pts: number; existingId?: string } | null>(null)
@@ -56,6 +59,19 @@ export function AddTaskFromCatalogSheet({
   const [assignedTo, setAssignedTo] = useState<'me' | 'partner' | 'either'>('either')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  // v2.3.2 — Crear nueva (form en blanco)
+  const [newName, setNewName] = useState('')
+  const [newCategory, setNewCategory] = useState('cocina')
+  const [newPoints, setNewPoints] = useState<number>(5)
+  const [newSaveToCatalog, setNewSaveToCatalog] = useState(true)
+
+  // v2.3.2 — sheetLock: pausar polling de loadUserData mientras esté abierto.
+  useEffect(() => {
+    if (!open) return
+    acquireSheetLock()
+    return () => releaseSheetLock()
+  }, [open])
 
   // Mezcla catálogo estático con tareas existentes de la pareja: si la pareja
   // ya tiene un Task con name+category igual, marcamos `existing` para evitar
@@ -161,6 +177,47 @@ export function AddTaskFromCatalogSheet({
     }
   }
 
+  // v2.3.2 — Crear tarea nueva en blanco. Si saveToCatalog=true (default),
+  // se guarda como Task con isDefault=false en el couple para que en futuras
+  // aperturas del sheet aparezca en la lista.
+  const handleCreateNew = async () => {
+    if (!newName.trim()) {
+      setError('El nombre es obligatorio')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      const createRes: any = await apiClient.request('/tasks', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: newName.trim(),
+          category: newCategory,
+          pointsBase: newPoints,
+          isDefault: false,
+        }),
+      })
+      const taskId = createRes?.task?.id
+      if (!taskId) throw new Error('No se pudo crear la tarea')
+
+      const body: any = { scheduledFor: new Date(scheduledFor).toISOString() }
+      if (isRecurring) body.frequency = frequency
+      await apiClient.request(`/tasks/${taskId}/schedule`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      })
+
+      onSaved()
+      onClose()
+      // reset
+      setTab('catalog'); setStep('pick'); setNewName(''); setNewPoints(5); setIsRecurring(false)
+    } catch (e: any) {
+      setError(e?.message ?? 'Error al crear')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center sm:p-4">
       <div className="w-full sm:max-w-lg bg-surface-card border border-brd-subtle rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 max-h-[92vh] overflow-y-auto">
@@ -175,7 +232,9 @@ export function AddTaskFromCatalogSheet({
             </button>
           )}
           <h2 className="text-base font-bold text-text-primary flex-1 text-center sm:text-left">
-            {step === 'pick' ? 'Añadir tarea del catálogo' : `Configurar "${picked?.name}"`}
+            {step === 'configure'
+              ? `Configurar "${picked?.name}"`
+              : tab === 'catalog' ? 'Añadir tarea' : 'Crear tarea nueva'}
           </h2>
           <button type="button" onClick={onClose} aria-label="Cerrar"
             className="text-text-tertiary hover:text-text-secondary text-sm">
@@ -183,7 +242,35 @@ export function AddTaskFromCatalogSheet({
           </button>
         </div>
 
+        {/* v2.3.2 — Tabs catálogo / crear nueva (canvas 15) */}
         {step === 'pick' && (
+          <div className="flex gap-1.5 mb-3">
+            <button
+              type="button"
+              onClick={() => setTab('catalog')}
+              className={`flex-1 px-2.5 py-2 rounded-lg text-xs font-bold border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber inline-flex items-center justify-center gap-1.5 ${
+                tab === 'catalog'
+                  ? 'bg-brand-amber/10 border-brand-amber/40 text-brand-amber'
+                  : 'bg-surface-card border-brd-subtle text-text-tertiary'
+              }`}
+            >
+              📚 Del catálogo <span className="text-[10px] opacity-70">{catalog.reduce((s, g) => s + g.tasks.length, 0)} ideas</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('create')}
+              className={`flex-1 px-2.5 py-2 rounded-lg text-xs font-bold border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber inline-flex items-center justify-center gap-1.5 ${
+                tab === 'create'
+                  ? 'bg-brand-amber/10 border-brand-amber/40 text-brand-amber'
+                  : 'bg-surface-card border-brd-subtle text-text-tertiary'
+              }`}
+            >
+              ✏️ Crear nueva
+            </button>
+          </div>
+        )}
+
+        {step === 'pick' && tab === 'catalog' && (
           <>
             <input
               type="search"
@@ -225,6 +312,128 @@ export function AddTaskFromCatalogSheet({
               ))}
             </div>
           </>
+        )}
+
+        {/* v2.3.2 — Crear nueva en blanco (canvas 15 sheet-tabs) */}
+        {step === 'pick' && tab === 'create' && (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary mb-1">Nombre *</label>
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Ej: Sacar al perro al parque"
+                maxLength={120}
+                autoFocus
+                className="w-full px-3 py-2 text-sm bg-surface-base border border-brd-subtle rounded-md text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary mb-1">Categoría</label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(['cocina', 'limpieza', 'baños', 'compra', 'logistica', 'cuidado', 'mantenimiento', 'jardineria', 'mascotas'] as const).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setNewCategory(c)}
+                    className={`px-2 py-1.5 rounded-md text-[11px] font-bold border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber capitalize ${
+                      newCategory === c
+                        ? 'bg-brand-amber/10 border-brand-amber/40 text-brand-amber'
+                        : 'bg-surface-base border-brd-subtle text-text-tertiary'
+                    }`}
+                  >
+                    {CATEGORY_EMOJI[c] ?? '✅'} {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary mb-1">Puntos base</label>
+              <input
+                type="number"
+                value={newPoints}
+                onChange={(e) => setNewPoints(Number(e.target.value))}
+                min={0}
+                max={50}
+                step={0.5}
+                className="w-full px-3 py-2 text-sm bg-surface-base border border-brd-subtle rounded-md text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary mb-1">Día programado</label>
+              <input
+                type="date"
+                value={scheduledFor}
+                onChange={(e) => setScheduledFor(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-surface-base border border-brd-subtle rounded-md text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-text-primary cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isRecurring}
+                onChange={(e) => setIsRecurring(e.target.checked)}
+                className="w-4 h-4 accent-brand-amber"
+              />
+              Es recurrente
+            </label>
+
+            {isRecurring && (
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1">Frecuencia</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {(['daily', 'weekly', 'biweekly', 'monthly', 'bimonthly'] as Frequency[]).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setFrequency(f)}
+                      className={`px-2 py-1.5 rounded-md text-xs border ${
+                        frequency === f
+                          ? 'bg-brand-amber/10 border-brand-amber/40 text-brand-amber'
+                          : 'bg-surface-base border-brd-subtle text-text-tertiary'
+                      }`}
+                    >
+                      {f === 'daily' ? 'Diaria' : f === 'weekly' ? 'Semanal'
+                        : f === 'biweekly' ? 'Cada 2 días' : f === 'monthly' ? 'Mensual' : 'Quincenal'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={newSaveToCatalog}
+                onChange={(e) => setNewSaveToCatalog(e.target.checked)}
+                className="w-3.5 h-3.5 accent-brand-purple"
+              />
+              Guardar en catálogo de pareja para reusar más adelante
+            </label>
+
+            {error && <p className="text-xs text-danger">{error}</p>}
+
+            <div className="flex gap-2 justify-end pt-2">
+              <button type="button" onClick={onClose}
+                className="px-3 py-2 rounded-md border border-brd-subtle text-sm text-text-secondary hover:bg-surface-base">
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateNew}
+                disabled={saving}
+                className="px-3 py-2 rounded-md bg-grad-cta text-white text-sm font-semibold disabled:opacity-50 inline-flex items-center gap-1"
+              >
+                <Plus className="w-4 h-4" />
+                {saving ? 'Creando…' : 'Crear y añadir'}
+              </button>
+            </div>
+          </div>
         )}
 
         {step === 'configure' && picked && (

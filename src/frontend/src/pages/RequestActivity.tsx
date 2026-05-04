@@ -13,6 +13,7 @@ import { useAppStore } from '../store/useAppStore'
 import { Button } from '../components/v2/primitives/Button'
 import { Pill } from '../components/v2/primitives/Pill'
 import { Card } from '../components/v2/primitives/Card'
+import { acquireSheetLock, releaseSheetLock } from '../lib/sheetLock'
 // v2.1.1: el picker del catálogo se retiró del wizard. La gestión vive en la
 // tab "Catálogo" de /home/activities.
 
@@ -192,6 +193,12 @@ function StepperHeader({ step, onJump }: { step: 1 | 2 | 3; onJump: (s: 1 | 2 | 
 export default function RequestActivity({ onBack }: { onBack?: () => void }) {
   const navigate = useNavigate()
   const { user, couple } = useAppStore()
+
+  // v2.3.2 — pausa polling externo durante el wizard (canvas 12 lock).
+  useEffect(() => {
+    acquireSheetLock()
+    return () => releaseSheetLock()
+  }, [])
 
   const [step, setStep] = useState<1 | 2 | 3>(1)
 
