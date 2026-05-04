@@ -6,6 +6,7 @@ import { MOOD_KEYS } from '../data/moodKeys.js'
 
 const router = Router()
 import prisma from '../lib/prisma.js'
+import { getPreferencesForUser, setPreferencesForUser } from '../services/notificationPreferencesService.js'
 
 // v1.6 — Schema canónico para PUT /me. El test hermético en
 // tests/profileContract.test.ts replica este schema; si éste cambia, el
@@ -395,6 +396,45 @@ router.get('/mood-history', async (req: Request, res: Response) => {
   } catch (e) {
     console.error('Error fetching mood history:', e)
     res.status(500).json({ error: 'Failed to fetch mood history' })
+  }
+})
+
+// v2.2.4 — preferencias de notificación (canvas 10 Claude Design).
+// 3 tiers: critical (siempre llega) / digest (resumen diario) / off.
+// Quiet hours configurables. Toggles por categoría.
+router.get('/notification-preferences', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' })
+    const prefs = await getPreferencesForUser(userId)
+    res.json({ preferences: prefs })
+  } catch (e) {
+    console.error('[notification-preferences GET] error:', e)
+    res.status(500).json({ error: 'Failed to fetch preferences' })
+  }
+})
+
+router.put('/notification-preferences', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' })
+    const body = req.body ?? {}
+    // Defensive: validar estructura mínima
+    const current = await getPreferencesForUser(userId)
+    const next = {
+      quietHours: {
+        start: typeof body.quietHours?.start === 'string' ? body.quietHours.start : current.quietHours.start,
+        end:   typeof body.quietHours?.end   === 'string' ? body.quietHours.end   : current.quietHours.end,
+      },
+      digestEnabled: typeof body.digestEnabled === 'boolean' ? body.digestEnabled : current.digestEnabled,
+      digestHour: typeof body.digestHour === 'string' ? body.digestHour : current.digestHour,
+      categories: { ...current.categories, ...(body.categories ?? {}) },
+    }
+    const saved = await setPreferencesForUser(userId, next)
+    res.json({ preferences: saved })
+  } catch (e) {
+    console.error('[notification-preferences PUT] error:', e)
+    res.status(500).json({ error: 'Failed to save preferences' })
   }
 })
 
