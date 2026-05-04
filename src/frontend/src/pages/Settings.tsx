@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ChevronRight, Copy, CheckCircle, Trash2, ExternalLink } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
 import { Button } from '../components/v2/primitives/Button'
@@ -452,90 +452,181 @@ function CoupleSection({ onBack }: { onBack: () => void }) {
 // Section: Notifications
 // -----------------------------------------------------------------------------
 
-const PREFS_EMAIL_KEY = 'matripuntos.prefs.email'
-const PREFS_QUIET_KEY = 'matripuntos.prefs.quietHours'
+// v2.2.4 — los flags localStorage PREFS_EMAIL_KEY/PREFS_QUIET_KEY de la versión
+// previa quedan obsoletos: ahora todo persiste en backend via
+// /api/profile/notification-preferences.
+
+// v2.2.4 — Sección rediseñada según Claude Design canvas 10.
+// 3 tiers (critical / digest / off) por categoría + quiet hours + digest hour.
+// Persiste en backend via /api/profile/notification-preferences.
+
+const NOTIF_CATEGORIES: Array<{ key: string; emoji: string; name: string; sub: string }> = [
+  { key: 'request',      emoji: '📩', name: 'Peticiones recibidas',     sub: 'Cuando tu pareja te pide algo' },
+  { key: 'negotiation',  emoji: '🤝', name: 'Negociación',              sub: 'Contraofertas que necesitan tu OK' },
+  { key: 'calendar',     emoji: '📅', name: 'Calendario · 30 min antes', sub: 'Citas comunes' },
+  { key: 'ruleProposal', emoji: '📜', name: 'Propuestas de reglas',     sub: 'Cambios de configuración a aceptar' },
+  { key: 'achievements', emoji: '🏆', name: 'Logros y niveles',         sub: 'Solo en el resumen diario' },
+  { key: 'streak',       emoji: '🔥', name: 'Rachas y "te falta poco"', sub: 'Off por defecto · gamification leve' },
+]
+
+const TIERS: Array<{ key: 'critical' | 'digest' | 'off'; label: string; tone: string }> = [
+  { key: 'critical', label: 'Al momento',   tone: 'bg-success/15 text-success' },
+  { key: 'digest',   label: 'Solo resumen', tone: 'bg-brand-purple/15 text-brand-purple' },
+  { key: 'off',      label: 'No avisar',    tone: 'bg-surface-muted text-text-tertiary' },
+]
 
 function NotificationsSection({ onBack }: { onBack: () => void }) {
-  const [emailOn, setEmailOn] = useState(() => {
-    const raw = localStorage.getItem(PREFS_EMAIL_KEY)
-    return raw === null ? true : raw === 'true'
+  const queryClient = useQueryClient()
+  const { data, isLoading } = useQuery<{ preferences: any }>({
+    queryKey: ['notification-preferences'],
+    queryFn: () => apiClient.request('/profile/notification-preferences'),
   })
-  const [quietFrom, setQuietFrom] = useState('22:00')
-  const [quietTo, setQuietTo] = useState('08:00')
+  const [saved, setSaved] = useState(false)
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(PREFS_QUIET_KEY)
-      if (raw) {
-        const parsed = JSON.parse(raw)
-        if (parsed.from) setQuietFrom(parsed.from)
-        if (parsed.to)   setQuietTo(parsed.to)
-      }
-    } catch { /* ignore */ }
-  }, [])
-
-  function saveEmail(v: boolean) {
-    setEmailOn(v)
-    localStorage.setItem(PREFS_EMAIL_KEY, String(v))
+  const update = async (patch: any) => {
+    const next = {
+      ...data?.preferences,
+      ...patch,
+      categories: { ...(data?.preferences?.categories ?? {}), ...(patch.categories ?? {}) },
+      quietHours: { ...(data?.preferences?.quietHours ?? {}), ...(patch.quietHours ?? {}) },
+    }
+    await apiClient.request('/profile/notification-preferences', {
+      method: 'PUT',
+      body: JSON.stringify(next),
+    })
+    queryClient.setQueryData(['notification-preferences'], { preferences: next })
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1500)
   }
 
-  function saveQuiet(from: string, to: string) {
-    setQuietFrom(from); setQuietTo(to)
-    localStorage.setItem(PREFS_QUIET_KEY, JSON.stringify({ from, to }))
+  if (isLoading || !data) {
+    return (
+      <div>
+        <SectionHeader title="Notificaciones" onBack={onBack} />
+        <p className="text-text-tertiary text-sm">Cargando…</p>
+      </div>
+    )
   }
+
+  const prefs = data.preferences
 
   return (
-    <div>
+    <div className="space-y-4">
       <SectionHeader title="Notificaciones" onBack={onBack} />
-      <Card className="space-y-4">
-        {/* Push — disabled v1.4 */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-text-primary">Notificaciones push</p>
-            <p className="text-[11px] text-text-tertiary">Disponible en v2.1</p>
-          </div>
-          <Toggle checked={false} onChange={() => {}} disabled />
-        </div>
 
-        <div className="h-px bg-brd-subtle" />
-
-        {/* Email */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-text-primary">Notificaciones por email</p>
-            <p className="text-[11px] text-text-secondary">Resúmenes semanales y alertas importantes</p>
-          </div>
-          <Toggle checked={emailOn} onChange={saveEmail} />
-        </div>
-
-        <div className="h-px bg-brd-subtle" />
-
-        {/* Quiet hours */}
-        <div>
-          <p className="text-sm font-bold text-text-primary mb-1">Horas de silencio</p>
-          <p className="text-[11px] text-text-secondary mb-3">No recibirás notificaciones en este rango</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[11px] font-semibold text-text-secondary block mb-1">Desde</label>
-              <input
-                type="time"
-                value={quietFrom}
-                onChange={(e) => saveQuiet(e.target.value, quietTo)}
-                className="w-full bg-surface-card border border-brd-purple rounded-md px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-brand-purple"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] font-semibold text-text-secondary block mb-1">Hasta</label>
-              <input
-                type="time"
-                value={quietTo}
-                onChange={(e) => saveQuiet(quietFrom, e.target.value)}
-                className="w-full bg-surface-card border border-brd-purple rounded-md px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-brand-purple"
-              />
-            </div>
-          </div>
-        </div>
+      <Card className="bg-brand-purple/5 border-brand-purple/20">
+        <p className="text-[11px] text-text-secondary leading-relaxed">
+          Filosofía: <strong className="text-text-primary">3 tiers</strong>. <em>Al momento</em> llega siempre (incluso en silencio). <em>Solo resumen</em> se acumula en una notif diaria. <em>No avisar</em> nunca llega.
+        </p>
       </Card>
+
+      {/* Resumen diario */}
+      <div>
+        <h2 className="text-[10px] uppercase tracking-wide text-text-tertiary font-bold mb-2">Resumen diario</h2>
+        <div
+          className="rounded-xl p-3.5"
+          style={{
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.18), rgba(168,85,247,0.08))',
+            border: '1px solid rgba(99,102,241,0.35)',
+          }}
+        >
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-base">📊</span>
+            <p className="text-sm font-bold text-text-primary flex-1 m-0">Una sola noti al día</p>
+            <input
+              type="time"
+              value={prefs.digestHour ?? '20:30'}
+              onChange={(e) => update({ digestHour: e.target.value })}
+              className="text-xs bg-surface-elevated border border-brd-subtle rounded px-2 py-1 text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple"
+            />
+          </div>
+          <p className="text-[11px] text-text-secondary leading-relaxed">
+            Tú + tu pareja, totales del día, nivel y siguiente meta. Editable hora.
+          </p>
+          <div className="flex items-center justify-between mt-2.5">
+            <span className="text-xs text-text-tertiary">Activado</span>
+            <Toggle
+              checked={!!prefs.digestEnabled}
+              onChange={(v) => update({ digestEnabled: v })}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Quiet hours */}
+      <div>
+        <h2 className="text-[10px] uppercase tracking-wide text-text-tertiary font-bold mb-2">Modo silencio</h2>
+        <div
+          className="rounded-xl p-3.5"
+          style={{
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.10), rgba(168,85,247,0.06))',
+            border: '1px solid rgba(99,102,241,0.25)',
+          }}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-base">🌙</span>
+            <p className="text-sm font-bold text-text-primary flex-1 m-0">Horas de silencio</p>
+          </div>
+          <p className="text-[11px] text-text-secondary mb-2">
+            Solo las críticas pasan. El resto se acumula en el resumen.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[10px] font-semibold text-text-tertiary mb-1">Desde</label>
+              <input
+                type="time"
+                value={prefs.quietHours?.start ?? '22:00'}
+                onChange={(e) => update({ quietHours: { start: e.target.value } })}
+                className="w-full bg-surface-elevated border border-brd-subtle rounded px-2 py-1.5 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-semibold text-text-tertiary mb-1">Hasta</label>
+              <input
+                type="time"
+                value={prefs.quietHours?.end ?? '09:00'}
+                onChange={(e) => update({ quietHours: { end: e.target.value } })}
+                className="w-full bg-surface-elevated border border-brd-subtle rounded px-2 py-1.5 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Categorías */}
+      <div>
+        <h2 className="text-[10px] uppercase tracking-wide text-text-tertiary font-bold mb-2">Categorías</h2>
+        <div className="space-y-1.5">
+          {NOTIF_CATEGORIES.map((c) => {
+            const tier = (prefs.categories?.[c.key] as 'critical' | 'digest' | 'off') ?? 'off'
+            return (
+              <div
+                key={c.key}
+                className="flex items-center gap-2.5 rounded-xl p-2.5 bg-surface-card border border-brd-subtle"
+              >
+                <span className="text-base">{c.emoji}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-text-primary leading-tight">{c.name}</p>
+                  <p className="text-[10px] text-text-tertiary leading-tight">{c.sub}</p>
+                </div>
+                <select
+                  value={tier}
+                  onChange={(e) => update({ categories: { [c.key]: e.target.value } })}
+                  className="text-[10px] bg-surface-elevated border border-brd-subtle rounded px-2 py-1 text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple flex-shrink-0"
+                >
+                  {TIERS.map((t) => (
+                    <option key={t.key} value={t.key}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {saved && (
+        <p className="text-[11px] text-success text-center">✓ Guardado</p>
+      )}
     </div>
   )
 }
