@@ -352,9 +352,12 @@ export default function Tasks() {
   })
 
   const loadData = useCallback(async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
+    setIsLoading(true)
+    setError(null)
+    // v2.2.12 — Render hace cold-start tras inactividad; el primer request
+    // a veces falla con "Failed to fetch". Reintentamos 2 veces con backoff
+    // antes de mostrar error al usuario.
+    const attempt = async () => {
       const [tasksRes, logsRes] = await Promise.all([
         apiClient.tasks.getAll(),
         apiClient.tasks.getAllLogs(),
@@ -365,11 +368,24 @@ export default function Tasks() {
         taskName: l.taskName ?? l.task?.name ?? '',
         taskCategory: l.taskCategory ?? l.task?.category ?? '',
       })))
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error cargando tareas')
-    } finally {
-      setIsLoading(false)
     }
+    let lastErr: unknown = null
+    for (let i = 0; i < 3; i++) {
+      try {
+        await attempt()
+        lastErr = null
+        break
+      } catch (e) {
+        lastErr = e
+        const isNetwork = e instanceof TypeError || (e instanceof Error && /failed to fetch/i.test(e.message))
+        if (!isNetwork) break
+        await new Promise((r) => setTimeout(r, 600 * (i + 1)))
+      }
+    }
+    if (lastErr) {
+      setError(lastErr instanceof Error ? lastErr.message : 'Error cargando tareas')
+    }
+    setIsLoading(false)
   }, [])
 
   useEffect(() => { loadData() }, [loadData])

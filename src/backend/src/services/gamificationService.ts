@@ -245,9 +245,23 @@ export async function getGamificationStatus(coupleId: string) {
   const dailyMultiplier = getDailyMultiplier(couple.dailyStreakDays)
   const weeklyBonus = getWeeklyBonus(couple.weeklyStreakWeeks)
 
+  // v2.2.12 — bug fix: tras la migración v2.1.0 (mapeo defensivo de slugs
+  // viejos a nuevos), Couple.level puede quedar desfasado vs el calculado
+  // por XP. Si XP=736 y los thresholds nuevos lo ponen en Complicidad pero
+  // el slug en BD sigue siendo 'confianza', el frontend pinta
+  // "Lv 2 Complicidad · Próximo: Complicidad" (ordinal vs name de fuentes
+  // distintas). Reconciliamos en el momento.
+  const expectedLevel = levelInfo.current.level
+  if (couple.level !== expectedLevel) {
+    await prisma.couple.update({
+      where: { id: coupleId },
+      data: { level: expectedLevel },
+    }).catch((e) => console.warn('[getGamificationStatus] level reconcile failed:', e))
+  }
+
   return {
     xp: couple.xp,
-    level: couple.level,
+    level: expectedLevel,                         // ← consistente con XP
     levelEmoji: levelInfo.current.emoji,
     levelName: levelInfo.current.name,
     nextLevel: levelInfo.next.name,

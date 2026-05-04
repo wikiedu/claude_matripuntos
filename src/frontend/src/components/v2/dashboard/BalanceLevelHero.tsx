@@ -36,13 +36,14 @@ interface Props {
   partnerBalance: number
   level: number
   levelName: string
+  nextLevelName?: string
   current: number
   needed: number
 }
 
 export function BalanceLevelHero({
   youName, youBalance, partnerName, partnerBalance,
-  level, levelName, current, needed,
+  level, levelName, nextLevelName, current, needed,
 }: Props) {
   const diff = youBalance - partnerBalance
   const lead = diff > 0.5
@@ -53,7 +54,15 @@ export function BalanceLevelHero({
                 : '🤝 Estáis empatados'
   const pct = needed > 0 ? Math.min(100, (current / needed) * 100) : 0
   const emoji = LEVEL_EMOJI[level] ?? '🌱'
-  const nextPerk = level >= 10 ? '—' : LEVEL_PERK[level + 1] ?? ''
+  // v2.2.12 — preferimos `nextLevelName` que viene del backend (consistente
+  // con XP) si lo recibimos. Si no, caemos a LEVEL_PERK[level+1] como antes.
+  // Defensivo: si por desfase nextLevelName == levelName, mostramos "—"
+  // para no pintar 'Próximo: Complicidad' cuando ya estás en Complicidad.
+  const fallbackPerk = LEVEL_PERK[level + 1] ?? ''
+  let nextPerk = level >= 10 ? '—' : (nextLevelName || fallbackPerk)
+  if (nextPerk && nextPerk.toLowerCase() === levelName.toLowerCase()) {
+    nextPerk = '—'
+  }
 
   // v2.2.2 — animar la barra desde 0 a pct al montar
   const [renderedPct, setRenderedPct] = useState(0)
