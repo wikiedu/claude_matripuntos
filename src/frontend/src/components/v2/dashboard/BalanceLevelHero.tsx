@@ -4,6 +4,10 @@
 //   - Nombre explícito de quien lleva ventaja ("Blanca va 13.5 por delante").
 //   - Level row con badge emoji 32x32 + perk + % visible.
 //   - Barra interior con gradiente amber→orange en vez de blanco plano.
+// v2.2.2 — Microinteracción canvas 13: la barra anima de 0% al valor real al
+// montar (600ms cubic-bezier ease-out). Da sensación de "carga gratificante".
+
+import { useState, useEffect } from 'react'
 
 const LEVEL_EMOJI: Record<number, string> = {
   1: '🌱', 2: '🌿', 3: '🤝', 4: '💫', 5: '🏡',
@@ -48,6 +52,13 @@ export function BalanceLevelHero({
   const pct = needed > 0 ? Math.min(100, (current / needed) * 100) : 0
   const emoji = LEVEL_EMOJI[level] ?? '🌱'
   const nextPerk = level >= 10 ? '—' : LEVEL_PERK[level + 1] ?? ''
+
+  // v2.2.2 — animar la barra desde 0 a pct al montar
+  const [renderedPct, setRenderedPct] = useState(0)
+  useEffect(() => {
+    const t = window.setTimeout(() => setRenderedPct(pct), 60)
+    return () => window.clearTimeout(t)
+  }, [pct])
 
   return (
     <div className="mx-4 mb-3.5 p-4 pb-3.5 rounded-xl bg-grad-hero shadow-xl shadow-brand-indigo/30 relative overflow-hidden">
@@ -110,10 +121,11 @@ export function BalanceLevelHero({
         </div>
         <div className="relative h-1.5 bg-black/25 rounded-full overflow-hidden">
           <div
-            className="absolute inset-y-0 left-0 rounded-full transition-all"
+            className="absolute inset-y-0 left-0 rounded-full"
             style={{
-              width: `${pct}%`,
+              width: `${renderedPct}%`,
               background: 'linear-gradient(90deg, #fbbf24, #f59e0b)',
+              transition: 'width 600ms cubic-bezier(0.22, 0.61, 0.36, 1)',
             }}
           />
         </div>
