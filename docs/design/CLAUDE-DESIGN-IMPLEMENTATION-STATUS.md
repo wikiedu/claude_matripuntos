@@ -1,9 +1,16 @@
 # Claude Design Handoff — estado de implementación
 
-**Bundle bajado:** 2026-05-04
+**Bundle bajado:** 2026-05-04 (canvases 1-14) + 2026-05-04 (canvas 15)
 **Ubicación raw del bundle:** `docs/design/claude-design-bundle/`
-**Versión actual implementada:** v2.2.11
-**Estado: 14 / 14 canvases con implementación productiva** (12 cerrados completos, 2 con extensiones de bajo impacto diferidas).
+**Versión actual implementada:** v2.3.0
+**Estado: 15 / 15 canvases con implementación productiva** (13 cerrados completos, 2 con extensiones de bajo impacto diferidas).
+
+**Canvas 15 (Tareas/Actividades rediseño)** — implementado en v2.3.0:
+- MPTabs (top tabs +MP/−MP)
+- HeaderStrip único (3 niveles → 1)
+- VerifyBanner condicional (sustituye inner tab vacía)
+- Botones unificados (2→1)
+- Simetría Tareas/Actividades
 
 > Claude Design entregó **14 canvases** (HTML mockup + spec). Este documento mapea cada canvas con su estado real de implementación en código.
 

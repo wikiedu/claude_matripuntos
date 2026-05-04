@@ -1,9 +1,10 @@
 # STATUS — Matripuntos
 
 **Última actualización:** 2026-05-04
-**Versión actual desplegada en producción:** `v2.2.11` · Presence indicator (canvas 12 mínimo)
+**Versión actual desplegada en producción:** `v2.3.0` · Refactor Tareas/Actividades canvas 15
 
-> **Handoff Claude Design completado al 100%** (12 canvases cerrados, 2 con extensiones diferidas — sin pendientes bloqueantes).
+> **Handoff Claude Design 14 canvases iniciales completado al 100%.**
+> **Canvas 15 (Tareas/Actividades rediseño)** desplegado en v2.3.0.
 **Branch principal:** `main`
 **URL prod:** https://matripuntos.com (frontend FTP) · backend Render · Supabase Postgres
 
@@ -63,7 +64,17 @@
 - `ProposalsPanel` + sección "Propuestas pendientes" en Settings.
 - `/api/activity-templates` + `/api/config-proposals` (flags `CATALOG_ENABLED` y `CONFIG_PROPOSALS_ENABLED`, default ON).
 
-### v2.2.11 Presence indicator — **acaba de deployear 2026-05-04**
+### v2.3.0 Refactor visual Tareas/Actividades — **acaba de deployear 2026-05-04**
+- Canvas 15 Claude Design (Tareas/Actividades rediseño v2.2). De 4 niveles de UI apilados a 2.
+- **MPTabs** top: Tareas con chip "+ MP" verde (suman) y Actividades con chip "− MP" morado (consumen). Diferencia económica visible al instante.
+- **HeaderStrip** único: segment Mías/Todas/Recurrentes + icono toggle Lista/Semana + botón "+" primario (gradient amber para Tareas, purple para Actividades).
+- **VerifyBanner** condicional sustituye la inner tab "Verificar" que estaba vacía 80% del tiempo. Ocupa 0px si no hay nada.
+- 2 botones "+ Añadir tarea" + "+ Crear nueva" unificados en 1 solo "+" (el sheet ya tiene ambas opciones internamente).
+- Activities simétrico: MPTabs + título + segment Activas/Historial/Catálogo en mismo pattern.
+- 5 componentes nuevos (`MPTabs`, `HeaderStrip`, `VerifyBanner`, `TaskRow`, `AllDoneCard`).
+- Bundle Claude Design canvas 15 guardado en `docs/design/claude-design-bundle/project/ui_kits/refactor_v2/`.
+
+### v2.2.11 Presence indicator — **2026-05-04**
 - AppHeader muestra el partner con dot verde "en línea ahora" cuando hace <2min, gris "hace X min" hasta 7d. Coexiste con su mood (antes el mood ocultaba la presence).
 - AuthedLayout polea `loadUserData()` cada 60s solo cuando la pestaña está visible.
 - Cierra canvas 12 en su forma mínima sin websockets.
@@ -317,6 +328,7 @@
 | v2.2.9 Microinteracciones extras | ✅ Producción 2026-05-04 | Level-up modal con confeti + balance counter tween + flame flicker (canvas 13) |
 | v2.2.10 Empty states restantes | ✅ Producción 2026-05-04 | AnalyticsTeaser + banner achievements (cierra canvas 11) |
 | v2.2.11 Presence indicator | ✅ Producción 2026-05-04 | Dot verde + polling 60s (cierra canvas 12 mínimo) |
+| v2.3.0 Tareas/Actividades canvas 15 | ✅ Producción 2026-05-04 | MPTabs + HeaderStrip + VerifyBanner — 4 niveles de UI a 2 |
 | v2.2.x Más microinteracciones | 🔴 Pendiente | level-up confetti + balance counter + streak flame + undo swipe (canvas 13 restantes) |
 | v2.2 Multiidiomas | 🧠 Brainstorm pendiente | i18n ES/EN/CA/PT |
 | v3.0 Premium | 📝 Spec aprobado | Stripe + AI + RN |
