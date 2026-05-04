@@ -88,6 +88,13 @@ model Couple {
   // v2.0.5 — anniversary timer (fecha en la que la pareja "empezó"; null hasta que se setea)
   relationshipStartDate DateTime?
 
+  // v2.2.8 — modo vacaciones (Claude Design canvas 14). Mientras pausedUntil
+  // > now: streaks no se actualizan, digest no manda noti, dashboard muestra
+  // banner '🏖️ Modo pausa hasta DD MMM'. El saldo se congela; al volver,
+  // retoma donde estaba.
+  pausedUntil           DateTime?
+  pausedReason          String?
+
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
