@@ -42,6 +42,7 @@ import { useStreak, useChallenge, useReplays, isGamificationV2Enabled } from '..
 // v2.2.0 — MoodNudge retirado (sustituido por MoodCard).
 import { ProfileCompletionBanner } from '../components/v2/dashboard/ProfileCompletionBanner'
 import { BalanceLevelHero } from '../components/v2/dashboard/BalanceLevelHero'
+import { EmptyStateHero } from '../components/v2/dashboard/EmptyStateHero'
 import { StreakStrip } from '../components/v2/dashboard/StreakStrip'
 import { ActivitiesBanner } from '../components/v2/dashboard/ActivitiesBanner'
 import { VerifyTasksBanner } from '../components/v2/dashboard/VerifyTasksBanner'
@@ -248,16 +249,21 @@ export default function Dashboard() {
           3. Mood card unificada (sustituye Nudge + PairCard)
           4. Anniversary chip (discreto)
           → luego sigue: streaks, tareas hoy, etc. */}
-      <BalanceLevelHero
-        youName={you.name}
-        youBalance={Number(you.balance)}
-        partnerName={partner?.name ?? 'Tu pareja'}
-        partnerBalance={Number(partner?.balance ?? 0)}
-        level={levelOrdinal}
-        levelName={gamificationStatus?.levelName ?? 'Encuentro'}
-        current={currentXp}
-        needed={neededXp}
-      />
+      {/* v2.2.7 — empty state cuando aún no se ha registrado nada (canvas 11). */}
+      {(currentXp === 0 && Number(you.balance) === 0 && Number(partner?.balance ?? 0) === 0) ? (
+        <EmptyStateHero partnerName={partner?.name ?? 'tu pareja'} />
+      ) : (
+        <BalanceLevelHero
+          youName={you.name}
+          youBalance={Number(you.balance)}
+          partnerName={partner?.name ?? 'Tu pareja'}
+          partnerBalance={Number(partner?.balance ?? 0)}
+          level={levelOrdinal}
+          levelName={gamificationStatus?.levelName ?? 'Encuentro'}
+          current={currentXp}
+          needed={neededXp}
+        />
+      )}
       <DailyPhrase />
       {!isSolo && user && (
         <DashboardMoodCard
