@@ -7,6 +7,7 @@ import { useShoppingList } from '../hooks/useShoppingList'
 import { useTodos } from '../hooks/useTodos'
 import { DailyPhrase } from '../components/v2/dashboard/DailyPhrase'
 import { AnniversaryCard } from '../components/v2/anniversary/AnniversaryCard'
+import { RedBalanceCard } from '../components/v2/dashboard/RedBalanceCard'
 // v2.2.0 — MoodPairCard + MoodNudge sustituidos por MoodCard unificado
 // (handoff Claude Design canvas 03).
 import { MoodCard } from '../components/v2/dashboard/MoodCard'
@@ -266,6 +267,9 @@ export default function Dashboard() {
           onPickMine={triggerMoodSheet}
         />
       )}
+      {/* v2.2.6 — card escalada si llevo días en rojo crónico (privacidad
+          asimétrica: solo la veo yo, mi pareja no recibe ninguna alerta). */}
+      <RedBalanceCard />
       <AnniversaryCard />
       <StreakStrip
         streakDays={gamificationStatus?.dailyStreak ?? 0}

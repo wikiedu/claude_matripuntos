@@ -513,4 +513,22 @@ router.post('/reset-confirm', authMiddleware, async (req: Request, res: Response
   }
 })
 
+// v2.2.6 — Saldo en rojo crónico (Claude Design canvas 09).
+// Devuelve si el user lleva días consecutivos en rojo y la severity (soft/
+// warn/crit) para que el dashboard renderice la card escalada apropiada.
+router.get('/red-balance', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.userId || !req.coupleId) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
+    }
+    const { computeRedBalance } = await import('../services/redBalanceService.js')
+    const status = await computeRedBalance(req.coupleId, req.userId)
+    res.json({ status })
+  } catch (error) {
+    console.error('[red-balance]', error)
+    res.status(500).json({ error: 'Failed to compute red balance' })
+  }
+})
+
 export default router
