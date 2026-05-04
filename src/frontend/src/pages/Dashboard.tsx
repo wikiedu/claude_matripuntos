@@ -270,6 +270,7 @@ export default function Dashboard() {
           partnerBalance={Number(partner?.balance ?? 0)}
           level={levelOrdinal}
           levelName={gamificationStatus?.levelName ?? 'Encuentro'}
+          nextLevelName={gamificationStatus?.nextLevel}
           current={currentXp}
           needed={neededXp}
         />
