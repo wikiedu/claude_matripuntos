@@ -143,6 +143,40 @@ export class ConfigurationProposalService {
       )
     }
 
+    // v2.2.1: si el field empieza por 'tasks.<cat>' o 'multipliers.<grupo>.<key>'
+    // aplicamos el cambio al Configuration de la pareja. Esto convierte el
+    // sistema de propuestas en algo que sí afecta al cálculo real de puntos
+    // (antes solo registraba acuerdos sin aplicarlos — el banner WARN de v2.0.7).
+    const tasksMatch = proposal.field.match(/^tasks\.(.+)$/)
+    const multMatch = proposal.field.match(/^multipliers\.([a-zA-Z]+)\.(.+)$/)
+    if (tasksMatch || multMatch) {
+      const config = await prisma.configuration.findUnique({ where: { coupleId } })
+      if (config) {
+        const tasksConfig = JSON.parse(config.tasksConfig || '{}')
+        const multipliersConfig = JSON.parse(config.multipliersConfig || '{}')
+        const newNum = Number(proposal.newValue)
+
+        if (tasksMatch && !Number.isNaN(newNum)) {
+          tasksConfig[tasksMatch[1]] = newNum
+        }
+        if (multMatch && !Number.isNaN(newNum)) {
+          const [, group, key] = multMatch
+          if (!multipliersConfig[group]) multipliersConfig[group] = {}
+          multipliersConfig[group][key] = newNum
+        }
+
+        txOps.push(
+          prisma.configuration.update({
+            where: { id: config.id },
+            data: {
+              tasksConfig: JSON.stringify(tasksConfig),
+              multipliersConfig: JSON.stringify(multipliersConfig),
+            },
+          }),
+        )
+      }
+    }
+
     const result = await prisma.$transaction(txOps)
     return result[0]
   }
