@@ -11,6 +11,7 @@ import { StepDone } from './onboarding/StepDone'
 import { StepJoinAccount } from './onboarding/StepJoinAccount'
 import { StepInviteeAvatar } from './onboarding/StepInviteeAvatar'
 import { StepInviteeWork } from './onboarding/StepInviteeWork'
+import { PartnerCatchUp } from './onboarding/PartnerCatchUp'
 
 export interface OnboardingData {
   avatarEmoji: string
@@ -194,6 +195,28 @@ export default function Onboarding() {
 
   function skipInviteeWork() {
     nav('/dashboard')
+  }
+
+  // v2.2.3 — Si el user logged-in entra con token (acaba de unirse a una pareja
+  // ya activa) y el partner tiene historial real, mostramos el catch-up de
+  // 4 pasos (Claude Design canvas 08) en lugar del wizard de 5 pasos. El
+  // catch-up es self-contained: si el endpoint devuelve summary=null (partner
+  // recién creado sin actividad), redirige al onboarding normal.
+  const isPartnerJoiningSecond = user && hasPartner && !user.hasCompletedOnboarding
+  if (isPartnerJoiningSecond) {
+    return (
+      <PartnerCatchUp
+        onComplete={async () => {
+          // Marca onboarding como completo + carga datos
+          try {
+            await apiClient.request('/profile/user', { method: 'POST', body: JSON.stringify({}) }).catch(() => {})
+            await useAppStore.getState().loadUserData().catch(() => {})
+          } finally {
+            nav('/dashboard')
+          }
+        }}
+      />
+    )
   }
 
   if (showJoinAccountFlow) {

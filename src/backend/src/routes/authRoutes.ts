@@ -250,6 +250,99 @@ router.get('/couple', authMiddleware, async (req: Request, res: Response): Promi
   }
 })
 
+/**
+ * v2.2.3 — Catch-up summary del partner para el onboarding del que llega segundo
+ * (Claude Design canvas 08). Devuelve qué tiene el partner ya en marcha:
+ * nivel, saldo neto, mood vigente, tareas completadas esta semana, número de
+ * plantillas custom configuradas y top categorías con su puntos base.
+ *
+ * Solo significativo si la pareja tiene 2 users y el otro tiene actividad
+ * previa. El frontend decide si muestra el flow catch-up o el normal según
+ * `partner.xp > 0` o `lastActivityDate != null`.
+ */
+router.get('/partner-summary', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.userId || !req.coupleId) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
+    }
+
+    const couple = await getCoupleData(req.coupleId)
+    const partner = couple.users.find((u: any) => u.id !== req.userId)
+    if (!partner) {
+      res.json({ summary: null })
+      return
+    }
+
+    // Saldo neto del partner (suma de todas sus PointsTransaction)
+    const balanceAgg = await prisma.pointsTransaction.aggregate({
+      where: { coupleId: req.coupleId, userId: partner.id },
+      _sum: { amount: true },
+    })
+    const partnerBalance = balanceAgg._sum.amount?.toNumber() ?? 0
+
+    // Tareas verificadas que completó el partner esta semana
+    const monday = new Date()
+    monday.setHours(0, 0, 0, 0)
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
+    const tasksThisWeek = await prisma.taskLog.count({
+      where: {
+        coupleId: req.coupleId,
+        completedBy: partner.id,
+        status: 'verified',
+        date: { gte: monday },
+      },
+    })
+
+    // Plantillas custom de la pareja (cualquiera de los dos las creó)
+    const customTemplates = await prisma.activityTemplate.count({
+      where: { coupleId: req.coupleId, isActive: true },
+    })
+
+    // Resumen de reglas: top 3 categorías por puntos base
+    const config = couple.configurations
+    const tasksConfig = config ? JSON.parse(config.tasksConfig) : {}
+    const topRules = Object.entries(tasksConfig)
+      .map(([k, v]) => ({ key: k, value: Number(v) }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 3)
+
+    // Multipliers activos: weekend bonus, etc.
+    const multConfig = config ? JSON.parse(config.multipliersConfig) : {}
+    const activeMultipliers: string[] = []
+    if (multConfig.franja?.mañana && multConfig.franja.mañana > 1) activeMultipliers.push('Bono mañana')
+    if (multConfig.franja?.noche && multConfig.franja.noche > 1) activeMultipliers.push('Bono noche')
+    if (multConfig.duracion?.larga && multConfig.duracion.larga > 1) activeMultipliers.push('Bono duración larga')
+
+    res.json({
+      summary: {
+        partner: {
+          id: partner.id,
+          name: partner.name,
+          avatarEmoji: partner.profile?.avatarEmoji ?? '🐼',
+          avatarColor: partner.profile?.avatarColor ?? '#7c3aed',
+          currentMood: partner.profile?.currentMood ?? null,
+          moodUpdatedAt: partner.profile?.moodUpdatedAt ?? null,
+        },
+        couple: {
+          xp: couple.xp ?? 0,
+          level: couple.level ?? 'encuentro',
+          dailyStreakDays: couple.dailyStreakDays ?? 0,
+          createdAt: couple.createdAt,
+        },
+        partnerBalance,
+        tasksThisWeek,
+        customTemplates,
+        topRules,
+        activeMultipliers,
+      },
+    })
+  } catch (error) {
+    console.error('[partner-summary] error:', error)
+    res.status(500).json({ error: 'Failed to fetch partner summary' })
+  }
+})
+
 // Send email invitation to partner
 router.post('/invite', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
