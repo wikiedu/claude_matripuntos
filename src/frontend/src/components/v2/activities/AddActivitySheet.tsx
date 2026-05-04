@@ -1,14 +1,16 @@
 // v2.3.5 — Sheet de Actividades simplificado (KISS).
 // Una sola vista: catálogo (search + chips de categoría + listado agrupado).
 // Picker → wizard /request-activity con templateId pre-seleccionado.
-// CTA secundario abajo del listado: "✏️ Crear desde cero" → wizard sin
-// templateId. Sin pestaña explainer, sin saltos extra.
+// CTA secundario abajo del listado: "✏️ Crear desde cero" → abre el editor
+// de plantilla (AddActivityTemplateSheet) para que el usuario añada la suya
+// al catálogo y luego la seleccione.
 
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { X, ChevronRight, Pencil } from 'lucide-react'
 import { useActivityCatalog, useRecordTemplateUse, type ActivityTemplate } from '../../../hooks/useActivityCatalog'
 import { acquireSheetLock, releaseSheetLock } from '../../../lib/sheetLock'
+import { AddActivityTemplateSheet } from '../catalog/AddActivityTemplateSheet'
 
 const CATEGORY_LABEL: Record<string, { emoji: string; label: string }> = {
   trabajo:      { emoji: '💼', label: 'Trabajo' },
@@ -30,7 +32,8 @@ export function AddActivitySheet({ open, onClose }: Props) {
   const nav = useNavigate()
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState<string>('all')
-  const { data, isLoading } = useActivityCatalog()
+  const [showTemplateSheet, setShowTemplateSheet] = useState(false)
+  const { data, isLoading, refetch } = useActivityCatalog()
   const recordUse = useRecordTemplateUse()
 
   useEffect(() => {
@@ -73,8 +76,7 @@ export function AddActivitySheet({ open, onClose }: Props) {
   }
 
   const handleStartBlank = () => {
-    onClose()
-    nav('/request-activity')
+    setShowTemplateSheet(true)
   }
 
   return (
@@ -178,10 +180,17 @@ export function AddActivitySheet({ open, onClose }: Props) {
             <Pencil className="w-4 h-4" /> Crear desde cero
           </button>
           <p className="text-[10px] text-text-tertiary text-center mt-1.5 leading-relaxed">
-            Abre el wizard completo (categoría, fecha, duración, puntos, compensación). Tu pareja podrá aceptarla, contraofertarla o rechazarla.
+            Crea una plantilla nueva en tu catálogo (nombre, categoría, puntos, duración) y luego selecciónala para programarla.
           </p>
         </div>
       </div>
+
+      <AddActivityTemplateSheet
+        open={showTemplateSheet}
+        initial={null}
+        onClose={() => setShowTemplateSheet(false)}
+        onSaved={() => refetch()}
+      />
     </div>
   )
 }
