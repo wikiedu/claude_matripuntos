@@ -92,6 +92,23 @@ export default function Achievements() {
         extra={extra}
       />
 
+      {/* v2.2.10 — banner empty cuando 0 logros desbloqueados (canvas 11). */}
+      {!isLoading && unlocked.length === 0 && nodes.length > 0 && (
+        <div
+          className="mx-4 mb-3 rounded-xl p-3.5 text-center border"
+          style={{
+            background: 'linear-gradient(135deg, rgba(245,158,11,0.18), rgba(168,85,247,0.08))',
+            borderColor: 'rgba(245,158,11,0.40)',
+          }}
+        >
+          <p className="m-0 text-[10px] font-extrabold tracking-wide text-brand-amber uppercase">Siguiente · a 1 paso</p>
+          <p className="m-0 mt-1 text-sm font-bold text-text-primary">🌱 Primer día</p>
+          <p className="m-0 mt-1 text-[11px] text-text-secondary leading-relaxed">
+            Apuntad la primera tarea juntos · se desbloquea solo al hacerlo. Los logros llegan solos — no los persigáis.
+          </p>
+        </div>
+      )}
+
       <AchievementsTabs tab={tab} onTab={changeTab} />
 
       {isLoading && (
