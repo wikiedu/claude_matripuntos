@@ -773,7 +773,15 @@ export default function Tasks() {
                 pip,
               }
             })
-            return <WeekStrip days={days} />
+            return (
+              <WeekStrip
+                days={days}
+                onDayClick={(iso) => {
+                  const el = document.getElementById(`day-${iso}`)
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
+                }}
+              />
+            )
           })()}
 
           <div className="px-4">

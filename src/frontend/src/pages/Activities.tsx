@@ -13,6 +13,7 @@ import { Pill } from '../components/v2/primitives/Pill'
 import { ActivityCatalogManager } from '../components/v2/catalog/ActivityCatalogManager'
 import { Plus } from 'lucide-react'
 import { MPTabs } from '../components/v2/tasks/MPTabs'
+import { AddActivitySheet } from '../components/v2/activities/AddActivitySheet'
 
 type Tab = 'active' | 'history' | 'catalog'
 
@@ -24,6 +25,7 @@ export default function Activities() {
 
   const [tab, setTab] = useState<Tab>('active')
   const [filters, setFilters] = useState<HistoryFilterValues>({ status: 'all', who: 'all', range: 'month' })
+  const [showAddSheet, setShowAddSheet] = useState(false)
 
   const partnerName = couple?.users?.find((u) => u.id !== user?.id)?.name ?? 'Tu pareja'
 
@@ -69,7 +71,7 @@ export default function Activities() {
         <h1 className="m-0 text-[22px] font-black tracking-tight text-text-primary">Actividades</h1>
         <button
           type="button"
-          onClick={() => nav('/request-activity')}
+          onClick={() => setShowAddSheet(true)}
           className="text-[11px] font-bold text-white bg-gradient-to-br from-brand-purple to-[#7c3aed] rounded-full px-3 py-1.5 inline-flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple shadow-[0_6px_14px_rgba(168,85,247,0.30)]"
         >
           <Plus className="w-3.5 h-3.5" /> Nueva actividad
@@ -131,6 +133,8 @@ export default function Activities() {
           <ActivityCatalogManager />
         </div>
       )}
+
+      <AddActivitySheet open={showAddSheet} onClose={() => setShowAddSheet(false)} />
     </main>
   )
 }
