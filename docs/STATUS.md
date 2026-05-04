@@ -1,7 +1,7 @@
 # STATUS — Matripuntos
 
 **Última actualización:** 2026-05-04
-**Versión actual desplegada en producción:** `v2.2.8` · Vacation mode MVP (canvas 14)
+**Versión actual desplegada en producción:** `v2.2.9` · Level-up modal + balance counter + flame flicker (canvas 13)
 **Branch principal:** `main`
 **URL prod:** https://matripuntos.com (frontend FTP) · backend Render · Supabase Postgres
 
@@ -61,7 +61,13 @@
 - `ProposalsPanel` + sección "Propuestas pendientes" en Settings.
 - `/api/activity-templates` + `/api/config-proposals` (flags `CATALOG_ENABLED` y `CONFIG_PROPOSALS_ENABLED`, default ON).
 
-### v2.2.8 Vacation mode MVP — **acaba de deployear 2026-05-04**
+### v2.2.9 Microinteracciones extras — **acaba de deployear 2026-05-04**
+- **LevelUpModal**: cuando el couple sube de nivel, modal con confeti + emoji nivel + CTA "Genial". Detección via localStorage. Auto-dismiss 5s.
+- **AnimatedNumber**: el balance del hero anima de su valor previo al nuevo (700ms cubic ease-out) cada vez que cambia. Mount inicial directo.
+- **Flame flicker**: el 🔥 del streak parpadea sutilmente cada 2.4s (scale + opacity).
+- Cierra 4 de 7 microinteracciones del canvas 13 (PointsBurst v2.2.0 + progress bar mount v2.2.2 + estos 3). Quedan: success haptic, ripple, undo swipe — bajo impacto, backlog.
+
+### v2.2.8 Vacation mode MVP — **2026-05-04**
 - `Couple.pausedUntil` + `pausedReason` (migración 20261115000000).
 - `/api/couple/pause { days, reason? }` + `/resume` + `/pause-status`.
 - `updateDailyStreak` y `notificationDigestService` respetan pausa.
@@ -296,6 +302,7 @@
 | v2.2.6 Red balance card | ✅ Producción 2026-05-04 | Saldo en rojo crónico escalado (canvas 09) |
 | v2.2.7 Empty state hero | ✅ Producción 2026-05-04 | Día 1 motivador (canvas 11 estado 1/4) |
 | v2.2.8 Vacation mode | ✅ Producción 2026-05-04 | Couple.pausedUntil + banner + respeto en streaks/digest (canvas 14) |
+| v2.2.9 Microinteracciones extras | ✅ Producción 2026-05-04 | Level-up modal con confeti + balance counter tween + flame flicker (canvas 13) |
 | v2.2.x Más microinteracciones | 🔴 Pendiente | level-up confetti + balance counter + streak flame + undo swipe (canvas 13 restantes) |
 | v2.2 Multiidiomas | 🧠 Brainstorm pendiente | i18n ES/EN/CA/PT |
 | v3.0 Premium | 📝 Spec aprobado | Stripe + AI + RN |

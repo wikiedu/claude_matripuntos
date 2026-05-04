@@ -19,7 +19,7 @@
 | 05 · Calendar FAB | Botones + actividad / + tarea | v2.0.7 | Versión simple sin speed-dial todavía |
 | 06 · Settings rules | Editor con consensus + multipliers reales | **v2.2.1** | RealRulesSection con tareas + factor hijos/franja/duración + audit log. Consensus aplica al backend. |
 | 07 · Tasks/Activities | Add vs Create + consensus puntos | v2.1.1 | Implementación completa |
-| 13 · Microinteracciones | +X MP flotante + progress bar mount | **v2.2.0 / v2.2.2** | PointsBurst hook + progress bar 0→pct (600ms ease-out) |
+| 13 · Microinteracciones | 4 de 7 (PointsBurst, progress mount, level-up confetti, balance counter, flame flicker) | **v2.2.0 / v2.2.2 / v2.2.9** | Restantes: success haptic, ripple, undo swipe (bajo impacto). |
 
 ---
 
@@ -41,7 +41,7 @@
 | ~~10 · Push notifications~~ ✅ **v2.2.4** + **v2.2.5**: preferences (3 tiers + quiet hours + 6 categorías) + scheduler diario que agrega y manda 1 push consolidada. | (cerrado) |
 | ~~11 · Empty states & analytics~~ ✅ **v2.2.7** (parcial): Dashboard día 1 sustituye hero numérico por `EmptyStateHero` con CTA. Estados restantes (history, achievements, analytics <7 días) → backlog bajo. | (parcial) |
 | 12 · Conflictos tiempo real | Doble registro / choque calendar / live presence / toasts last-write-wins. | 🟡 MEDIO (bug caro de detectar) | 2 sesiones | Cuando crezca el uso concurrente real. |
-| 13 · Microinteracciones | ✅ Implementado parcial (points-rise + progress mount). 5 animaciones restantes: balance counter, level-up confetti, streak flame flicker, success haptic, ripple. | 🟢 BAJO (sensación) | 1 sesión | Implementación incremental — añadir 1-2 por sprint. |
+| 13 · Microinteracciones | ✅ **4 de 7** (points-rise + progress mount + level-up confetti + balance counter + flame flicker). Restantes: success haptic, ripple, undo swipe (bajo impacto). | 🟢 BAJO (sensación) | — | (parcial cerrado) |
 | ~~14 · Modo vacaciones~~ ✅ **v2.2.8** MVP: `Couple.pausedUntil` + endpoints + banner + streaks/digest respetan pausa. Activación manual; detección automática diferida. | (cerrado MVP) |
 
 ---
