@@ -1,7 +1,7 @@
 # STATUS — Matripuntos
 
 **Última actualización:** 2026-05-04
-**Versión actual desplegada en producción:** `v2.3.4` · Polish chips/sheet actividades/scroll-to-day
+**Versión actual desplegada en producción:** `v2.3.5` · KISS Actividades + refresh hardening
 
 > **Handoff Claude Design 14 canvases iniciales completado al 100%.**
 > **Canvas 15 (Tareas/Actividades rediseño)** desplegado en v2.3.0.
@@ -64,7 +64,16 @@
 - `ProposalsPanel` + sección "Propuestas pendientes" en Settings.
 - `/api/activity-templates` + `/api/config-proposals` (flags `CATALOG_ENABLED` y `CONFIG_PROPOSALS_ENABLED`, default ON).
 
-### v2.3.4 Polish — **acaba de deployear 2026-05-04**
+### v2.3.5 KISS Actividades + refresh hardening — **acaba de deployear 2026-05-04**
+- **Desambiguación 'plantilla' vs 'actividad'**: en la pestaña Catálogo de Actividades el botón se llama '+ Nueva plantilla' (no '+ Nueva actividad'); el editor usa títulos 'Editar plantilla' / 'Nueva plantilla del catálogo'.
+- **Botón superior** '+ Nueva actividad' se oculta en pestaña Catálogo (allí solo tiene sentido la acción de gestión de plantillas, no la de crear actividad real).
+- **AddActivitySheet simplificado**: eliminada la pestaña '✏️ Crear nueva' (era explainer + redirect). Ahora una sola vista con search + chips + listado catálogo y un CTA secundario 'Crear desde cero' que va directo al wizard.
+- **Refresh hardening**:
+  - QueryClient global con `refetchOnWindowFocus: false` — alt-tab/blur ya no refetchea todas las queries.
+  - Polling de notifications (30s) ahora también respeta `isSheetOpen()` además del de `loadUserData` (60s).
+  - Import estático de sheetLock — sin warning de Vite por dynamic vs static import.
+
+### v2.3.4 Polish — **2026-05-04**
 - **Chips de categoría** en `AddTaskFromCatalogSheet` (amber): filtra el listado del catálogo de tareas para no scrollear largo.
 - **AddActivitySheet** (nuevo): sheet unificado simétrico al de Tareas con dos pestañas — "📚 Del catálogo" (default, con search + chips de categoría purple + listado agrupado) y "✏️ Crear nueva" (explainer + botón al wizard `/request-activity`). El botón `+ Nueva actividad` ahora abre este sheet en lugar de navegar directo al wizard. Misma decisión de UX que en Tareas.
 - **Scroll-to-day**: `WeekStrip.onDayClick` hace `scrollIntoView` sobre `#day-{iso}` (anchor añadido a cada columna de `WeeklyTaskView`). Tap en un día de la tira → centra la columna correspondiente.
@@ -353,6 +362,7 @@
 | v2.3.2 Sheet bugfixes | ✅ Producción 2026-05-04 | Crear nueva en sheet + recurrencia + sheetLock para no interrumpir acciones |
 | v2.3.3 WeekStrip vista Semana | ✅ Producción 2026-05-04 | 7 columnas con pip color por día (canvas 15 S03) |
 | v2.3.4 Polish UX | ✅ Producción 2026-05-04 | Chips catálogo tareas + AddActivitySheet simétrico + scroll-to-day |
+| v2.3.5 KISS Actividades | ✅ Producción 2026-05-04 | Desambiguar plantilla vs actividad, sheet 1 vista, refetchOnWindowFocus off |
 | v2.2.x Más microinteracciones | 🔴 Pendiente | level-up confetti + balance counter + streak flame + undo swipe (canvas 13 restantes) |
 | v2.2 Multiidiomas | 🧠 Brainstorm pendiente | i18n ES/EN/CA/PT |
 | v3.0 Premium | 📝 Spec aprobado | Stripe + AI + RN |
