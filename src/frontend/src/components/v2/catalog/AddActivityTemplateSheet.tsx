@@ -114,7 +114,7 @@ export function AddActivityTemplateSheet({ open, initial, onClose, onSaved }: Pr
       >
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-text-primary">
-            {editing ? 'Editar actividad' : 'Nueva actividad personal'}
+            {editing ? 'Editar plantilla' : 'Nueva plantilla del catálogo'}
           </h2>
           <button type="button" onClick={onClose} aria-label="Cerrar"
             className="text-text-tertiary hover:text-text-secondary text-sm">✕</button>

@@ -11,6 +11,7 @@ import { telemetry } from '../services/telemetry'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
 import type { AchievementMapNode } from '../types/index'
+import { isSheetOpen } from '../lib/sheetLock'
 
 export function AuthedLayout({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -27,11 +28,10 @@ export function AuthedLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return
     let cancelled = false
-    const tick = async () => {
+    const tick = () => {
       if (cancelled) return
       if (typeof document === 'undefined') return
       if (document.visibilityState !== 'visible') return
-      const { isSheetOpen } = await import('../lib/sheetLock')
       if (isSheetOpen()) return
       loadUserData?.().catch(() => {})
     }
@@ -43,12 +43,14 @@ export function AuthedLayout({ children }: { children: ReactNode }) {
   // The hook is always called (before the null-return) so rules-of-hooks are preserved.
   // Backend returns { unreadCount } (see notificationRoutes.ts:98) — accept both
   // shapes so old clients keep working if we ever change it.
+  // v2.3.5 — refetchInterval respeta sheetLock: cuando hay un sheet abierto
+  // (false stop) no refetcheamos para no provocar re-renders intermedios.
   const { data: unreadRes } = useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: () =>
       apiClient.notifications.getUnreadCount() as Promise<{ unreadCount?: number; count?: number }>,
     enabled: !!user,
-    refetchInterval: 30_000,
+    refetchInterval: () => (isSheetOpen() ? false : 30_000),
     staleTime: 10_000,
   })
   const unreadCount = unreadRes?.unreadCount ?? unreadRes?.count ?? 0

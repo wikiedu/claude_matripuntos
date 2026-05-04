@@ -37,6 +37,9 @@ export const queryClient = new QueryClient({
     queries: {
       staleTime: 5 * 60 * 1000, // 5 minutes
       gcTime: 10 * 60 * 1000,   // 10 minutes
+      // v2.3.5 — evitar que alt-tab/blur-focus refetche todas las queries
+      // y reinicie estado UI mientras el usuario tiene un sheet abierto.
+      refetchOnWindowFocus: false,
     },
   },
 })
