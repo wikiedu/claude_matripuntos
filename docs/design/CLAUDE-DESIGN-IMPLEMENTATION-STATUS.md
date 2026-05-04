@@ -37,8 +37,8 @@
 | Canvas | Tema | Impacto | Esfuerzo | Recomendación |
 |---|---|---|---|---|
 | ~~08 · Onboarding partner~~ ✅ **v2.2.3**: `PartnerCatchUp.tsx` + `/api/auth/partner-summary`. Cuando Edu llega segundo a una pareja activa, ve 4 pasos de catch-up (Welcome → resumen partner → primera tarea → Done). Hereda config completa. | (cerrado) |
-| 09 · Saldo en rojo crónico | Tratamiento escalado día 3/7/14/21 cuando uno está consistentemente en rojo. App sugiere conversación, no solo números rojos. Privacidad asimétrica (solo el afectado lo ve). | 🔴 ALTO (diferenciador) | 1 sesión | v2.3.x — define personalidad del producto. |
-| ~~10 · Push notifications~~ ✅ **v2.2.4**: `notificationPreferencesService` + UI Settings con 3 tiers (critical/digest/off), quiet hours configurables, 6 categorías. Falta scheduler real del digest diario (v2.2.5). | (parcial — preferences + filtro listo) |
+| ~~09 · Saldo en rojo crónico~~ ✅ **v2.2.6**: `redBalanceService` + `RedBalanceCard` con 3 umbrales (3/7/14 días) y privacidad asimétrica. | (cerrado) |
+| ~~10 · Push notifications~~ ✅ **v2.2.4** + **v2.2.5**: preferences (3 tiers + quiet hours + 6 categorías) + scheduler diario que agrega y manda 1 push consolidada. | (cerrado) |
 | 11 · Empty states & analytics | Estados día-1/semana-1 con teasers visuales, insights sin juicio. Hoy un user nuevo ve gráficos vacíos. | 🟡 MEDIO | 1 sesión | Cuando se aborde v2.3.x analytics review. |
 | 12 · Conflictos tiempo real | Doble registro / choque calendar / live presence / toasts last-write-wins. | 🟡 MEDIO (bug caro de detectar) | 2 sesiones | Cuando crezca el uso concurrente real. |
 | 13 · Microinteracciones | ✅ Implementado parcial (points-rise). El handoff incluye 6 animaciones más: balance counter, level-up confetti, streak flame flicker, progress fill, success haptic, ripple. | 🟢 BAJO (sensación) | 1 sesión | Implementación incremental — añadir 1-2 por sprint. |
