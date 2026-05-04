@@ -1,0 +1,164 @@
+/* Matripuntos refactor v2 — tokens REALES desde tailwind.config.js */
+
+:root {
+  /* Page / surfaces */
+  --bg-page: #0f0a1e;
+  --grad-page: linear-gradient(180deg, #0f0a1e 0%, #1a0f35 100%);
+  --grad-hero: linear-gradient(135deg, #4f46e5, #7c3aed);
+  --grad-cta: linear-gradient(135deg, #f59e0b, #d97706);
+  --grad-premium: linear-gradient(135deg, #1a1138, #2d1e5f);
+  --surface-card: rgba(26, 16, 53, 0.6);
+  --surface-elevated: rgba(26, 16, 53, 0.95);
+  --surface-muted: rgba(168, 85, 247, 0.08);
+
+  /* Brand */
+  --brand-amber: #f59e0b;
+  --brand-amber-dark: #d97706;
+  --brand-purple: #a855f7;
+  --brand-purple-dark: #7c3aed;
+  --brand-indigo: #4f46e5;
+
+  /* Text */
+  --text-primary: #e2e8f0;
+  --text-secondary: #9ca3af;
+  --text-tertiary: #6b7280;
+
+  /* Borders */
+  --brd-subtle: rgba(168, 85, 247, 0.12);
+  --brd-purple: rgba(168, 85, 247, 0.25);
+
+  /* Semantic */
+  --success: #22c55e;
+  --warn: #fbbf24;
+  --danger: #ef4444;
+
+  /* Radii */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 14px;
+  --r-xl: 18px;
+}
+
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--grad-page);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv02', 'cv03', 'cv04';
+}
+* { box-sizing: border-box; }
+
+/* ── Phone mock ─────────────────────────────────────────── */
+.phone {
+  width: 360px;
+  background: var(--grad-page);
+  border-radius: 28px;
+  border: 1px solid rgba(255,255,255,0.06);
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 30px 60px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(168,85,247,0.05) inset;
+}
+.phone-tall { height: 760px; }
+.phone-screen { padding: 0; height: 100%; overflow-y: auto; }
+.phone-screen::-webkit-scrollbar { width: 4px; }
+.phone-screen::-webkit-scrollbar-thumb { background: rgba(168,85,247,0.3); border-radius: 2px; }
+
+/* ── Status bar mock ───────────────────────────────────── */
+.statusbar {
+  height: 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 18px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ── App header ────────────────────────────────────────── */
+.appheader {
+  padding: 8px 16px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.appheader-greet { font-size: 11px; color: var(--text-tertiary); margin: 0; }
+.appheader-name { font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; line-height: 1.1; }
+.appheader-icons { display: flex; gap: 8px; align-items: center; }
+.icon-btn {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: var(--surface-card); border: 1px solid var(--brd-subtle);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-secondary); cursor: pointer;
+}
+
+/* ── Card primitives ───────────────────────────────────── */
+.card {
+  background: var(--surface-card);
+  border: 1px solid var(--brd-subtle);
+  border-radius: var(--r-md);
+}
+
+/* Bottom nav stub */
+.bottomnav {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 64px;
+  background: var(--surface-elevated);
+  border-top: 1px solid var(--brd-subtle);
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  align-items: center; justify-items: center;
+}
+.bottomnav-item {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  font-size: 9px; font-weight: 600; color: var(--text-tertiary);
+}
+.bottomnav-item.active { color: var(--brand-amber); }
+.bottomnav-fab {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--grad-cta); color: white; font-size: 22px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-top: -28px;
+  box-shadow: 0 8px 20px rgba(245,158,11,0.4);
+}
+
+/* ── Page label / title chip ──────────────────────────── */
+.spec-label {
+  position: absolute;
+  top: 10px; right: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brand-purple);
+  background: rgba(168,85,247,0.08);
+  border: 1px solid var(--brd-subtle);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* ── Annotation chips for design canvas ───────────────── */
+.note {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: rgba(255,255,255,0.02);
+  border-left: 3px solid var(--brand-amber);
+  padding: 8px 12px;
+  border-radius: 4px;
+  max-width: 320px;
+}
+.note strong { color: var(--text-primary); font-weight: 600; }
+.note-purple { border-left-color: var(--brand-purple); }
+.note-danger { border-left-color: var(--danger); }
+.note-success { border-left-color: var(--success); }
+
+/* ── Helper utilities used across mocks ──────────────── */
+.tabular { font-variant-numeric: tabular-nums; }
+.muted { color: var(--text-secondary); }
+.dim { color: var(--text-tertiary); }
+.amber { color: var(--brand-amber); }
+.purple { color: var(--brand-purple); }
+.success { color: var(--success); }
+.danger { color: var(--danger); }

@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>05 · Calendar FAB — Matripuntos v2.1</title>
+  <link rel="stylesheet" href="shared.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .ds-canvas-stage { background: #06030f !important; }
+    .ds-canvas-section-title { color: #c4b5fd !important; }
+    .ds-canvas-section-subtitle { color: #6b7280 !important; }
+    .ds-canvas-artboard-label { color: #9ca3af !important; font-weight: 600 !important; }
+
+    /* Header */
+    .cal-header {
+      padding: 16px 16px 8px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .cal-title { font-size: 22px; font-weight: 800; color: var(--text-primary); margin: 0; letter-spacing: -0.01em; }
+    .cal-month-nav { display: flex; align-items: center; gap: 4px; }
+    .cal-month-nav button { background: transparent; border: 0; color: var(--text-secondary); font-size: 16px; padding: 4px 8px; cursor: pointer; }
+    .cal-month-label { font-size: 12px; font-weight: 700; color: var(--text-primary); }
+
+    /* View switcher */
+    .view-switch {
+      margin: 4px 16px 12px;
+      display: flex; gap: 4px; padding: 3px;
+      background: rgba(26,16,53,0.6); border: 1px solid var(--brd-subtle);
+      border-radius: 10px;
+    }
+    .view-switch button {
+      flex: 1; padding: 7px 10px; border: 0; cursor: pointer;
+      border-radius: 7px;
+      font-size: 11px; font-weight: 700;
+      background: transparent; color: var(--text-tertiary);
+    }
+    .view-switch button.active {
+      background: var(--grad-primary); color: white;
+    }
+
+    /* Mini month view */
+    .mini-month {
+      margin: 0 16px 14px;
+      padding: 12px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 12px;
+    }
+    .mini-grid {
+      display: grid; grid-template-columns: repeat(7,1fr); gap: 3px;
+    }
+    .mini-dow {
+      text-align: center; font-size: 9px; font-weight: 700;
+      color: var(--text-tertiary); padding: 2px 0;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .mini-day {
+      aspect-ratio: 1; border-radius: 7px; border: 1px solid transparent;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-size: 11px; color: var(--text-primary); position: relative;
+      gap: 2px;
+    }
+    .mini-day.today { background: rgba(168,85,247,0.18); border-color: rgba(168,85,247,0.4); font-weight: 700; }
+    .mini-day.sel { background: var(--grad-cta); color: white; font-weight: 700; }
+    .mini-day .dots { display: flex; gap: 2px; }
+    .mini-day .dot { width: 4px; height: 4px; border-radius: 999px; }
+
+    /* Upcoming list */
+    .upcoming-h { padding: 12px 16px 6px; font-size: 12px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.005em; }
+    .ev-row {
+      margin: 0 16px 8px;
+      padding: 10px 12px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 12px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .ev-day {
+      width: 40px; flex-shrink: 0;
+      text-align: center;
+      padding: 4px 0;
+      background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.25);
+      border-radius: 8px;
+    }
+    .ev-day b { display: block; color: var(--brand-amber); font-size: 16px; font-weight: 800; line-height: 1; }
+    .ev-day span { color: var(--brand-amber); font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .ev-body { flex: 1; min-width: 0; }
+    .ev-name { color: var(--text-primary); font-weight: 700; font-size: 13px; margin: 0; line-height: 1.2; }
+    .ev-meta { color: var(--text-tertiary); font-size: 11px; margin: 2px 0 0; line-height: 1.2; }
+    .ev-emoji { font-size: 20px; }
+
+    /* FAB system */
+    .fab-anchor { position: absolute; right: 18px; bottom: 88px; }
+    .fab {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--grad-cta);
+      box-shadow: 0 12px 28px rgba(245,158,11,0.45), 0 0 0 4px rgba(11,5,29,0.6);
+      border: 0; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 26px; font-weight: 300;
+      transition: transform 0.2s ease;
+    }
+    .fab.expanded {
+      background: var(--surface-elevated);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.4), 0 0 0 1px var(--brd-subtle);
+      transform: rotate(45deg);
+    }
+    .fab-menu {
+      position: absolute; right: 0; bottom: 64px;
+      display: flex; flex-direction: column; gap: 10px;
+      align-items: flex-end;
+    }
+    .fab-mini {
+      display: flex; align-items: center; gap: 10px;
+      animation: fabIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+    }
+    .fab-mini:nth-child(1) { animation-delay: 0ms; }
+    .fab-mini:nth-child(2) { animation-delay: 40ms; }
+    .fab-mini:nth-child(3) { animation-delay: 80ms; }
+    .fab-mini:nth-child(4) { animation-delay: 120ms; }
+    @keyframes fabIn {
+      from { opacity: 0; transform: translateY(8px) scale(0.9); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .fab-mini-label {
+      background: var(--surface-elevated); border: 1px solid var(--brd-subtle);
+      padding: 6px 10px; border-radius: 8px;
+      font-size: 12px; font-weight: 600; color: var(--text-primary);
+      box-shadow: 0 6px 14px rgba(0,0,0,0.4);
+      white-space: nowrap;
+    }
+    .fab-mini-label small { display: block; color: var(--text-tertiary); font-size: 9px; font-weight: 500; margin-top: 1px; }
+    .fab-mini-btn {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 0; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.4);
+    }
+    .fab-mini-btn.event { background: rgba(245,158,11,0.20); border: 1px solid rgba(245,158,11,0.4); }
+    .fab-mini-btn.activity { background: rgba(168,85,247,0.20); border: 1px solid rgba(168,85,247,0.4); }
+    .fab-mini-btn.task { background: rgba(34,197,94,0.18); border: 1px solid rgba(34,197,94,0.4); }
+    .fab-mini-btn.shopping { background: rgba(96,165,250,0.18); border: 1px solid rgba(96,165,250,0.4); }
+    .fab-scrim {
+      position: absolute; inset: 0;
+      background: rgba(6,3,15,0.65);
+      backdrop-filter: blur(2px);
+      animation: fade 0.2s ease;
+    }
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+    /* Decision panel */
+    .decision-panel {
+      width: 380px; padding: 20px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 14px;
+    }
+    .decision-panel h3 { font-size: 14px; color: var(--text-primary); margin: 0 0 10px; font-weight: 800; }
+    .decision-panel p { font-size: 12px; color: var(--text-secondary); line-height: 1.55; margin: 0 0 10px; }
+    .decision-panel .opt {
+      padding: 10px 12px; border-radius: 8px; border: 1px solid var(--brd-subtle);
+      margin-bottom: 8px; font-size: 12px; color: var(--text-secondary);
+    }
+    .decision-panel .opt strong { display: block; color: var(--text-primary); font-size: 13px; margin-bottom: 4px; font-weight: 700; }
+    .decision-panel .opt.chosen { border-color: var(--success); background: rgba(34,197,94,0.06); }
+    .decision-panel em { color: var(--success); font-style: normal; font-weight: 700; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; display: block; margin-bottom: 4px; }
+
+    /* Cross-screen FAB rules */
+    .rules-panel {
+      width: 380px; padding: 20px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 14px;
+    }
+    .rules-panel h3 { font-size: 14px; color: var(--text-primary); margin: 0 0 12px; font-weight: 800; }
+    .rules-row {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 6px; padding: 8px 0;
+      border-bottom: 1px solid var(--brd-subtle);
+      font-size: 12px;
+    }
+    .rules-row:last-child { border: 0; }
+    .rules-row.head {
+      font-size: 10px; font-weight: 700; color: var(--text-tertiary);
+      letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .rules-row b { color: var(--text-primary); font-weight: 600; }
+    .rules-row i { color: var(--brand-amber); font-style: normal; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <div id="root"></div>
+  <script type="text/babel">
+    function Phone({ children, label, fab, scrim }) {
+      return (
+        <div className="phone phone-tall" style={{ position: 'relative' }}>
+          {label && <div className="spec-label">{label}</div>}
+          <div className="statusbar">
+            <span>9:41</span>
+            <span style={{ fontSize: 11 }}>●●● 📶 🔋</span>
+          </div>
+          <div className="phone-screen" style={{ position: 'relative', overflow: 'hidden' }}>
+            {children}
+            {scrim && <div className="fab-scrim"></div>}
+            {fab && <div className="fab-anchor">{fab}</div>}
+          </div>
+          <div className="bottomnav">
+            <div className="bottomnav-item"><span>🏠</span><span>Inicio</span></div>
+            <div className="bottomnav-item"><span>✓</span><span>Tareas</span></div>
+            <div className="bottomnav-item active"><span>📅</span><span>Calendario</span></div>
+            <div className="bottomnav-item"><span>📊</span><span>Analítica</span></div>
+            <div className="bottomnav-item"><span>⚙</span><span>Más</span></div>
+          </div>
+        </div>
+      );
+    }
+
+    function MiniMonth() {
+      const events = { 5: ['amber'], 12: ['purple'], 14: ['blue'], 18: ['pink','green'], 22: ['amber'], 23: ['purple'], 24: ['blue'], 27: ['pink'] };
+      const colorMap = { amber: '#f59e0b', purple: '#a855f7', blue: '#60a5fa', pink: '#ec4899', green: '#22c55e' };
+      const days = Array.from({ length: 30 }, (_, i) => i + 1);
+      return (
+        <div className="mini-month">
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'center' }}>
+            <button style={{ background: 'none', border: 0, color: 'var(--text-secondary)', fontSize: 14 }}>‹</button>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Abril 2025</div>
+            <button style={{ background: 'none', border: 0, color: 'var(--text-secondary)', fontSize: 14 }}>›</button>
+          </div>
+          <div className="mini-grid">
+            {['L','M','X','J','V','S','D'].map(d => <div key={d} className="mini-dow">{d}</div>)}
+            {Array.from({ length: 1 }).map((_, i) => <div key={'e' + i}></div>)}
+            {days.map(d => {
+              const ev = events[d];
+              return (
+                <div key={d} className={`mini-day ${d === 18 ? 'today' : ''} ${d === 22 ? 'sel' : ''}`}>
+                  <span>{d}</span>
+                  {ev && <div className="dots">{ev.map((c, i) => <span key={i} className="dot" style={{ background: colorMap[c] }}></span>)}</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    function UpcomingList() {
+      const items = [
+        { d: '22', m: 'Abr', e: '🎂', n: 'Cumple Sofía', t: '18:00 · ambos' },
+        { d: '23', m: 'Abr', e: '🍕', n: 'Cena con Marta', t: '21:00 · ambos' },
+        { d: '24', m: 'Abr', e: '🩺', n: 'Pediatra', t: '10:30 · Edu' },
+        { d: '27', m: 'Abr', e: '🎭', n: 'Teatro', t: '20:00 · tú' },
+      ];
+      return (
+        <>
+          <div className="upcoming-h">Próximos eventos</div>
+          {items.map(it => (
+            <div key={it.d + it.n} className="ev-row">
+              <div className="ev-day"><b>{it.d}</b><span>{it.m}</span></div>
+              <span className="ev-emoji">{it.e}</span>
+              <div className="ev-body">
+                <p className="ev-name">{it.n}</p>
+                <p className="ev-meta">{it.t}</p>
+              </div>
+            </div>
+          ))}
+        </>
+      );
+    }
+
+    function CalendarHeader() {
+      return (
+        <div className="cal-header">
+          <h1 className="cal-title">Calendario</h1>
+        </div>
+      );
+    }
+
+    function ViewSwitch() {
+      return (
+        <div className="view-switch">
+          <button>Mes</button>
+          <button className="active">Semana</button>
+          <button>Lista</button>
+        </div>
+      );
+    }
+
+    /* ----- SCREEN A · BEFORE: header button only ----- */
+    function CalendarBefore() {
+      return (
+        <Phone label="ANTES · botón en header">
+          <div className="cal-header">
+            <h1 className="cal-title">Calendario</h1>
+            <button style={{
+              padding: '6px 12px', borderRadius: 9999, border: 0,
+              background: 'var(--grad-cta)', color: 'white',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            }}>＋ Evento</button>
+          </div>
+          <ViewSwitch />
+          <MiniMonth />
+          <UpcomingList />
+        </Phone>
+      );
+    }
+
+    /* ----- SCREEN B · AFTER (closed): bare FAB ----- */
+    function CalendarAfterClosed() {
+      return (
+        <Phone label="DESPUÉS · FAB cerrado" fab={<button className="fab">＋</button>}>
+          <CalendarHeader />
+          <ViewSwitch />
+          <MiniMonth />
+          <UpcomingList />
+        </Phone>
+      );
+    }
+
+    /* ----- SCREEN C · AFTER (expanded): FAB with mini-FAB menu ----- */
+    function CalendarAfterOpen() {
+      const Fab = (
+        <>
+          <div className="fab-menu">
+            <div className="fab-mini">
+              <span className="fab-mini-label">Evento<small>cumple, cita, plan</small></span>
+              <button className="fab-mini-btn event">📅</button>
+            </div>
+            <div className="fab-mini">
+              <span className="fab-mini-label">Actividad<small>resta MP</small></span>
+              <button className="fab-mini-btn activity">🍽️</button>
+            </div>
+            <div className="fab-mini">
+              <span className="fab-mini-label">Tarea<small>suma MP</small></span>
+              <button className="fab-mini-btn task">✓</button>
+            </div>
+            <div className="fab-mini">
+              <span className="fab-mini-label">A la lista<small>compra rápida</small></span>
+              <button className="fab-mini-btn shopping">🛒</button>
+            </div>
+          </div>
+          <button className="fab expanded">＋</button>
+        </>
+      );
+      return (
+        <Phone label="DESPUÉS · FAB abierto (speed dial)" fab={Fab} scrim>
+          <CalendarHeader />
+          <ViewSwitch />
+          <MiniMonth />
+          <UpcomingList />
+        </Phone>
+      );
+    }
+
+    /* ----- SCREEN D · contextual sobre día seleccionado ----- */
+    function CalendarContext() {
+      const Fab = (
+        <button className="fab">＋</button>
+      );
+      return (
+        <Phone label="VARIANTE · FAB contextual al día" fab={Fab}>
+          <CalendarHeader />
+          <ViewSwitch />
+          <MiniMonth />
+          <div style={{ margin: '0 16px 12px', padding: '12px 14px', background: 'rgba(245,158,11,0.10)', border: '1px dashed rgba(245,158,11,0.4)', borderRadius: 12 }}>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--brand-amber)', fontWeight: 700 }}>22 Abr · martes</p>
+            <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-secondary)' }}>1 evento · pulsa FAB para crear aquí</p>
+          </div>
+          <UpcomingList />
+        </Phone>
+      );
+    }
+
+    function DecisionPanel() {
+      return (
+        <div className="decision-panel">
+          <h3>FAB en Calendario · 3 caminos</h3>
+          <p>El header con "+ Evento" choca con el patrón del resto de la app (Tasks, Activities tienen "+ Nueva" en header pero <em>también</em> hay FAB global desde el bottom nav). Decidir uno.</p>
+          <div className="opt">
+            <strong>Opción 1 · Solo header (hoy)</strong>
+            Botón "+ Evento" en el header. Limita a 1 acción.
+            <span style={{ display: 'block', marginTop: 4, color: 'var(--text-tertiary)' }}>👍 Simple · 👎 Solo crea evento, ¿y si quiero ligar tarea/actividad al día?</span>
+          </div>
+          <div className="opt chosen">
+            <em>✓ Recomendada</em>
+            <strong>Opción 2 · FAB speed-dial</strong>
+            FAB redondo abajo-derecha. Tap → desplega 4 mini-FABs: Evento · Actividad · Tarea · Lista. Mismo gesto en toda la app.
+            <span style={{ display: 'block', marginTop: 4, color: 'var(--text-tertiary)' }}>👍 Coherente, escalable · 👎 1 tap extra para crear evento.</span>
+          </div>
+          <div className="opt">
+            <strong>Opción 3 · Long-press sobre día</strong>
+            Mantén pulsado un día → menú contextual.
+            <span style={{ display: 'block', marginTop: 4, color: 'var(--text-tertiary)' }}>👍 Power-user · 👎 Invisible, hay que enseñarlo.</span>
+          </div>
+        </div>
+      );
+    }
+
+    function CrossScreenRules() {
+      return (
+        <div className="rules-panel">
+          <h3>Reglas del FAB en toda la app</h3>
+          <div className="rules-row head">
+            <span>Pantalla</span><span>FAB hace</span>
+          </div>
+          <div className="rules-row">
+            <b>Dashboard</b><i>Speed-dial completo</i>
+          </div>
+          <div className="rules-row">
+            <b>Tasks</b><i>Crear tarea (directo)</i>
+          </div>
+          <div className="rules-row">
+            <b>Activities</b><i>Crear actividad (directo)</i>
+          </div>
+          <div className="rules-row">
+            <b>Calendar</b><i>Speed-dial completo*</i>
+          </div>
+          <div className="rules-row">
+            <b>Shopping</b><i>Añadir item</i>
+          </div>
+          <div className="rules-row">
+            <b>History / Achievements</b><i>(no FAB · read-only)</i>
+          </div>
+          <p style={{ marginTop: 12, fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
+            *Calendario lleva speed-dial porque es donde planificas <strong style={{ color: 'var(--text-primary)' }}>todo</strong>: eventos, actividades futuras, tareas con fecha. El day pre-selecciona la fecha del nuevo item.
+          </p>
+        </div>
+      );
+    }
+
+    function App() {
+      return (
+        <DesignCanvas
+          title="05 · Calendar FAB · de header a speed-dial"
+          subtitle="El botón en header solo crea eventos. Un FAB unificado permite crear cualquier item con la fecha pre-rellenada."
+        >
+          <DCSection id="states" title="Comparativa">
+            <DCArtboard id="before" label="ANTES · solo botón header" width={380} height={780}>
+              <CalendarBefore />
+            </DCArtboard>
+            <DCArtboard id="closed" label="DESPUÉS · FAB cerrado" width={380} height={780}>
+              <CalendarAfterClosed />
+            </DCArtboard>
+            <DCArtboard id="open" label="DESPUÉS · FAB abierto" width={380} height={780}>
+              <CalendarAfterOpen />
+            </DCArtboard>
+            <DCArtboard id="context" label="Variante · día seleccionado" width={380} height={780}>
+              <CalendarContext />
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection id="logic" title="Decisión & reglas">
+            <DCArtboard id="decision" label="3 opciones evaluadas" width={420} height={460}>
+              <div style={{ padding: 20 }}><DecisionPanel /></div>
+            </DCArtboard>
+            <DCArtboard id="rules" label="FAB en otras pantallas" width={420} height={420}>
+              <div style={{ padding: 20 }}><CrossScreenRules /></div>
+            </DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

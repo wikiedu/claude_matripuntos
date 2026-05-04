@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>14 · Modo vacaciones — Matripuntos v2.1</title>
+  <link rel="stylesheet" href="shared.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .ds-canvas-stage { background: #06030f !important; }
+    .ds-canvas-section-title { color: #c4b5fd !important; }
+    .ds-canvas-section-subtitle { color: #6b7280 !important; }
+    .ds-canvas-artboard-label { color: #9ca3af !important; font-weight: 600 !important; }
+
+    .h-pad { padding: 16px; }
+    .h-title { font-size: 20px; font-weight: 800; color: var(--text-primary); margin: 0 0 4px; letter-spacing: -0.01em; }
+    .h-sub { font-size: 12px; color: var(--text-tertiary); margin: 0 0 12px; line-height: 1.5; }
+
+    /* ENTRY · trigger card */
+    .trigger-card {
+      margin: 12px 16px; padding: 18px;
+      background: linear-gradient(135deg, rgba(99,102,241,0.20), rgba(168,85,247,0.10));
+      border: 1px solid rgba(99,102,241,0.4);
+      border-radius: 16px;
+    }
+    .trigger-card .em { font-size: 32px; margin-bottom: 8px; }
+    .trigger-card h3 { margin: 0 0 6px; font-size: 16px; font-weight: 800; color: var(--text-primary); }
+    .trigger-card p { margin: 0 0 10px; font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+    .trigger-card .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+    .trigger-card .opt {
+      padding: 9px; background: rgba(0,0,0,0.3); border: 1px solid var(--brd-subtle);
+      border-radius: 8px; font-size: 11px; font-weight: 700; color: var(--text-primary);
+      text-align: center; cursor: pointer;
+    }
+    .trigger-card .opt.active { border-color: var(--brand-amber); background: rgba(245,158,11,0.15); color: var(--brand-amber); }
+
+    /* SETUP · choose duration */
+    .preset-row {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+      padding: 0 16px; margin-bottom: 12px;
+    }
+    .preset {
+      padding: 14px 6px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 10px;
+      text-align: center; cursor: pointer;
+    }
+    .preset.active { border-color: var(--brand-amber); background: rgba(245,158,11,0.08); }
+    .preset .num { font-size: 18px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em; }
+    .preset .lbl { font-size: 9px; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase; margin-top: 2px; }
+
+    .toggle-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px; background: var(--surface-card);
+      border: 1px solid var(--brd-subtle); border-radius: 12px;
+      margin: 0 16px 6px;
+    }
+    .toggle-row .icn { font-size: 18px; }
+    .toggle-row .info { flex: 1; }
+    .toggle-row .info .nm { font-size: 12px; font-weight: 700; color: var(--text-primary); }
+    .toggle-row .info .sb { font-size: 10px; color: var(--text-tertiary); margin-top: 1px; line-height: 1.3; }
+    .toggle-row .sw {
+      width: 36px; height: 20px; background: var(--brand-amber); border-radius: 999px;
+      position: relative;
+    }
+    .toggle-row .sw.off { background: var(--surface-card2); }
+    .toggle-row .sw::after { content: ''; position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; background: white; border-radius: 50%; }
+    .toggle-row .sw.off::after { right: auto; left: 2px; }
+
+    /* PAUSED · dashboard look */
+    .paused-banner {
+      margin: 12px 16px; padding: 14px;
+      background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(99,102,241,0.06));
+      border: 1px solid rgba(99,102,241,0.4);
+      border-radius: 14px;
+    }
+    .paused-banner .row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .paused-banner .em { font-size: 22px; }
+    .paused-banner h4 { margin: 0; font-size: 13px; font-weight: 800; color: var(--text-primary); flex: 1; }
+    .paused-banner .left { font-size: 11px; color: var(--brand-purple); font-weight: 700; }
+    .paused-banner p { margin: 0; font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+
+    .frozen-card {
+      margin: 0 16px 12px; padding: 14px;
+      background: var(--surface-card);
+      border: 1px solid var(--brd-subtle);
+      border-radius: 12px;
+      position: relative;
+      opacity: 0.55;
+      filter: grayscale(0.4);
+    }
+    .frozen-card::after {
+      content: '🔒 congelado';
+      position: absolute; top: 10px; right: 10px;
+      font-size: 9px; font-weight: 700; padding: 3px 8px;
+      background: rgba(99,102,241,0.25);
+      color: var(--brand-purple);
+      border-radius: 999px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .frozen-card .lbl { font-size: 10px; color: var(--text-tertiary); margin-bottom: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+    .frozen-card .val { font-size: 22px; font-weight: 800; color: var(--text-primary); }
+
+    .active-card {
+      margin: 0 16px 12px; padding: 14px;
+      background: var(--surface-card);
+      border: 1px solid var(--brd-subtle);
+      border-radius: 12px;
+    }
+    .active-card .lbl { font-size: 10px; color: var(--text-tertiary); margin-bottom: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+    .active-card .val { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+    .active-card .pill { display: inline-block; margin-top: 4px; font-size: 10px; padding: 2px 8px; background: rgba(34,197,94,0.2); color: #4ade80; border-radius: 999px; font-weight: 700; }
+
+    /* RESUME · check-in */
+    .checkin-card {
+      margin: 12px 16px; padding: 18px;
+      background: linear-gradient(135deg, rgba(245,158,11,0.16), rgba(168,85,247,0.06));
+      border: 1px solid rgba(245,158,11,0.4);
+      border-radius: 14px;
+    }
+    .checkin-card h3 { margin: 0 0 8px; font-size: 16px; font-weight: 800; color: var(--text-primary); }
+    .checkin-card p { margin: 0; font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+    .question-block {
+      margin: 12px 16px; padding: 14px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 12px;
+    }
+    .question-block .q { font-size: 12px; color: var(--text-primary); font-weight: 700; margin-bottom: 10px; line-height: 1.4; }
+    .ans-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .ans-row .a {
+      padding: 9px 8px;
+      background: rgba(0,0,0,0.25); border: 1px solid var(--brd-subtle);
+      border-radius: 8px;
+      font-size: 11px; font-weight: 600;
+      color: var(--text-secondary); text-align: center; cursor: pointer;
+    }
+    .ans-row .a.active { border-color: var(--brand-amber); background: rgba(245,158,11,0.12); color: var(--brand-amber); }
+
+    .btn-pri-full {
+      width: 100%; padding: 14px; border: 0; border-radius: 12px;
+      background: var(--grad-cta); color: white; font-weight: 800; font-size: 14px;
+      cursor: pointer; box-shadow: 0 8px 18px rgba(245,158,11,0.3);
+    }
+    .btn-sec-full {
+      width: 100%; padding: 12px; border: 1px solid var(--brd-subtle); border-radius: 10px;
+      background: var(--surface-card); color: var(--text-primary); font-weight: 700; font-size: 13px;
+    }
+    .cta-stack { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+
+    .panel { width: 380px; padding: 22px; background: var(--surface-card); border: 1px solid var(--brd-subtle); border-radius: 14px; }
+    .panel h3 { margin: 0 0 8px; font-size: 14px; font-weight: 800; color: var(--text-primary); }
+    .panel p { margin: 0 0 10px; font-size: 12px; color: var(--text-secondary); line-height: 1.55; }
+    .panel ul { margin: 0; padding-left: 18px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+    .panel ul b { color: var(--text-primary); }
+    .panel h4 { margin: 14px 0 6px; color: var(--brand-amber); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+  </style>
+</head>
+<body>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <div id="root"></div>
+  <script type="text/babel">
+    function Phone({ children, label }) {
+      return (
+        <div className="phone phone-tall" style={{ position: 'relative' }}>
+          {label && <div className="spec-label">{label}</div>}
+          <div className="statusbar"><span>9:41</span><span style={{ fontSize: 11 }}>●●● 📶 🔋</span></div>
+          <div className="phone-screen" style={{ position: 'relative' }}>{children}</div>
+        </div>
+      );
+    }
+
+    /* 01 · ENTRY · how it triggers */
+    function Entry() {
+      return (
+        <Phone label="01 · Cómo entras a modo pausa">
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title">¿Pausamos puntos?</h1>
+            <p className="h-sub">Algo está fuera del flujo normal · sin drama</p>
+          </div>
+          <div className="trigger-card">
+            <div className="em">🏖️</div>
+            <h3>Vais de viaje 5 días</h3>
+            <p>Lo vemos en el calendario · "Vacaciones · Mallorca". El conteo de puntos en vacaciones suele añadir ruido. ¿Pausamos solo el conteo, o también todo lo demás?</p>
+            <div className="opts">
+              <div className="opt active">Solo puntos</div>
+              <div className="opt">Pausa total</div>
+              <div className="opt">No pausar</div>
+              <div className="opt">Pregúntame en 2 días</div>
+            </div>
+          </div>
+          <div style={{ padding: '0 16px', marginTop: 12 }}>
+            <p style={{ fontSize: 10, color: 'var(--text-tertiary)', textAlign: 'center', margin: '8px 0 0', lineHeight: 1.5 }}>
+              <b style={{ color: 'var(--brand-purple)' }}>3 vías de entrada:</b> calendario detecta vacaciones · saldo rojo &gt; 14 días · manual desde Ajustes.
+            </p>
+          </div>
+          <div style={{ padding: '12px 16px', marginTop: 6 }}>
+            <div style={{
+              padding: 12, background: 'rgba(168,85,247,0.08)',
+              border: '1px solid rgba(168,85,247,0.25)', borderRadius: 10,
+              fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5,
+            }}>
+              <b style={{ color: 'var(--brand-purple)' }}>📌 Importante</b> · cualquier pausa requiere acuerdo de los dos · si Edu pausa, Blanca recibe noti y puede revertir.
+            </div>
+          </div>
+        </Phone>
+      );
+    }
+
+    /* 02 · SETUP */
+    function Setup() {
+      return (
+        <Phone label="02 · Configurar pausa">
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title">¿Cuánto tiempo?</h1>
+            <p className="h-sub">El saldo se congela · al volver, retomas exactamente donde lo dejaste.</p>
+          </div>
+          <div className="preset-row">
+            <div className="preset"><div className="num">3</div><div className="lbl">días</div></div>
+            <div className="preset active"><div className="num">7</div><div className="lbl">días</div></div>
+            <div className="preset"><div className="num">14</div><div className="lbl">días</div></div>
+            <div className="preset"><div className="num">∞</div><div className="lbl">indef.</div></div>
+          </div>
+          <h4 style={{ padding: '4px 16px', fontSize: 10, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 800, margin: '8px 0 6px' }}>Qué pausa</h4>
+          <div className="toggle-row">
+            <div className="icn">🪙</div>
+            <div className="info"><div className="nm">Conteo de puntos</div><div className="sb">No se gana ni se pierde · saldo congelado</div></div>
+            <div className="sw"></div>
+          </div>
+          <div className="toggle-row">
+            <div className="icn">🔥</div>
+            <div className="info"><div className="nm">Rachas y nivel</div><div className="sb">Se congelan · no rompen</div></div>
+            <div className="sw"></div>
+          </div>
+          <div className="toggle-row">
+            <div className="icn">📩</div>
+            <div className="info"><div className="nm">Peticiones nuevas</div><div className="sb">Se permiten · sin coste de MP</div></div>
+            <div className="sw off"></div>
+          </div>
+          <div className="toggle-row">
+            <div className="icn">📅</div>
+            <div className="info"><div className="nm">Calendario</div><div className="sb">Sigue activo siempre</div></div>
+            <div className="sw"></div>
+          </div>
+          <div className="cta-stack">
+            <button className="btn-pri-full">Pausar 7 días</button>
+            <button className="btn-sec-full" style={{ width: '100%' }}>Cancelar</button>
+          </div>
+        </Phone>
+      );
+    }
+
+    /* 03 · DURING */
+    function During() {
+      return (
+        <Phone label="03 · Dashboard durante la pausa">
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title">Buenos días</h1>
+            <p className="h-sub">Lunes 14 · día 3 de pausa</p>
+          </div>
+          <div className="paused-banner">
+            <div className="row"><div className="em">🏖️</div><h4>En pausa</h4><div className="left">quedan 4 días</div></div>
+            <p>Disfrutad · al volver retomáis donde estabais.</p>
+          </div>
+          <div className="frozen-card">
+            <div className="lbl">Tu saldo · congelado</div>
+            <div className="val">+8.5 MP</div>
+          </div>
+          <div className="frozen-card">
+            <div className="lbl">Nivel · congelado</div>
+            <div className="val">Aprendiz · L2</div>
+          </div>
+          <h4 style={{ padding: '4px 16px', fontSize: 10, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 800, margin: '8px 0 6px' }}>Sigue activo</h4>
+          <div className="active-card">
+            <div className="lbl">Calendario</div>
+            <div className="val">Cena con Marta · viernes 21h</div>
+            <div className="pill">activo</div>
+          </div>
+          <div className="active-card">
+            <div className="lbl">Lista compartida</div>
+            <div className="val">Compras: pan, cerveza, fruta</div>
+            <div className="pill">activo</div>
+          </div>
+          <div className="cta-stack" style={{ marginTop: 6 }}>
+            <button className="btn-sec-full" style={{ width: '100%' }}>Reanudar antes</button>
+          </div>
+        </Phone>
+      );
+    }
+
+    /* 04 · RESUME */
+    function Resume() {
+      return (
+        <Phone label="04 · Reanudar · check-in">
+          <div className="checkin-card">
+            <h3>Habéis vuelto 👋</h3>
+            <p>Antes de reactivar el conteo · 2 preguntas rápidas para ajustar lo que haga falta.</p>
+          </div>
+          <div className="question-block">
+            <div className="q">1 · ¿Os ha funcionado la pausa?</div>
+            <div className="ans-row">
+              <div className="a active">Sí · sin estrés</div>
+              <div className="a">Regular</div>
+              <div className="a">Mejor sin app</div>
+              <div className="a">Lo necesitamos otra vez</div>
+            </div>
+          </div>
+          <div className="question-block">
+            <div className="q">2 · ¿Algo que cambiar antes de seguir?</div>
+            <div className="ans-row">
+              <div className="a">Subir umbral pausa</div>
+              <div className="a active">Todo bien · seguir igual</div>
+              <div className="a">Reducir notis</div>
+              <div className="a">Hablamos en pareja antes</div>
+            </div>
+          </div>
+          <div className="cta-stack">
+            <button className="btn-pri-full">Reactivar conteo</button>
+            <button className="btn-sec-full" style={{ width: '100%' }}>Pausar 7 días más</button>
+          </div>
+        </Phone>
+      );
+    }
+
+    function Decisions() {
+      return (
+        <div className="panel">
+          <h3>Modo vacaciones / pausa</h3>
+          <p>Las apps de pareja con conteo necesitan una <b>válvula de escape</b>. Sin ella, mueren al primer viaje, primera enfermedad, primera mudanza.</p>
+
+          <h4>Tres vías de entrada</h4>
+          <ul>
+            <li><b>Auto · calendario</b> · evento "Vacaciones X" detectado → se pregunta a los dos.</li>
+            <li><b>Auto · saldo rojo &gt; 14d</b> · escalado del canvas 09 → pausa sugerida.</li>
+            <li><b>Manual · Ajustes</b> · botón visible "pausar".</li>
+          </ul>
+
+          <h4>Qué se pausa</h4>
+          <ul>
+            <li><b>Siempre se pausa:</b> conteo de MP, rachas, nivel, recordatorios.</li>
+            <li><b>Nunca se pausa:</b> calendario, listas compartidas, comunicación entre los dos.</li>
+            <li><b>Opcional:</b> peticiones (puede haber emergencias que no son negociables).</li>
+          </ul>
+
+          <h4>Reglas</h4>
+          <ul>
+            <li><b>Pausar requiere acuerdo</b> · uno la activa, el otro recibe noti y puede revertir en 1h.</li>
+            <li><b>Saldo se congela, no se borra.</b> Visible pero gris.</li>
+            <li><b>Reanudar requiere check-in</b> · 2 preguntas rápidas → señal cualitativa que vale más que el saldo.</li>
+            <li><b>Pausa indefinida es legítima.</b> Si la pareja decide parar para siempre, el calendario y la lista siguen.</li>
+          </ul>
+
+          <h4>Para ti (founder)</h4>
+          <ul>
+            <li><b>Métrica clave</b>: % de parejas que pausan al menos 1 vez en 90 días. Si es &gt;30%, es feature; si es &lt;5%, está mal expuesta.</li>
+            <li><b>Check-in al reanudar</b> es oro para retención · se puede usar como hook para email.</li>
+            <li><b>Modo "pausa para siempre" sin desinstalar</b>: ¿lo llamamos "Solo calendario y listas"? Más friendly que "modo zombie".</li>
+            <li><b>¿Quién puede revertir la pausa?</b> Si Blanca pausa pero Edu necesita el conteo → conflicto. Yo voto: <b>cualquiera puede revertir hasta 1h después.</b></li>
+          </ul>
+        </div>
+      );
+    }
+
+    function App() {
+      return (
+        <DesignCanvas
+          title="14 · Modo vacaciones · pausa con dignidad"
+          subtitle="Entrada · Setup · Durante · Reanudar. Válvula de escape sin perder lo construido."
+        >
+          <DCSection id="flow" title="Cuatro pantallas del flujo">
+            <DCArtboard id="entry" label="01 · Entrada" width={400} height={780}><Entry /></DCArtboard>
+            <DCArtboard id="setup" label="02 · Configurar" width={400} height={780}><Setup /></DCArtboard>
+            <DCArtboard id="during" label="03 · Durante" width={400} height={780}><During /></DCArtboard>
+            <DCArtboard id="resume" label="04 · Reanudar · check-in" width={400} height={780}><Resume /></DCArtboard>
+            <DCArtboard id="dec" label="Reglas & decisiones" width={420} height={780}><div style={{ padding: 20 }}><Decisions /></div></DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

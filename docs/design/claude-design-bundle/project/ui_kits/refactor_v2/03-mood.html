@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>03 · Mood card — Matripuntos v2.1</title>
+  <link rel="stylesheet" href="shared.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .ds-canvas-stage { background: #06030f !important; }
+    .ds-canvas-section-title { color: #c4b5fd !important; }
+    .ds-canvas-section-subtitle { color: #6b7280 !important; }
+    .ds-canvas-artboard-label { color: #9ca3af !important; font-weight: 600 !important; }
+
+    .mood-card {
+      width: 320px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: var(--surface-card);
+      border: 1px solid var(--brd-subtle);
+    }
+    .mood-empty { background: linear-gradient(135deg, rgba(245,158,11,0.10), rgba(168,85,247,0.10)); border-color: rgba(245,158,11,0.25); }
+    .mood-row { display: flex; align-items: center; gap: 12px; }
+    .mood-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); display: inline-flex; align-items: center; justify-content: center; font-size: 20px; }
+    .mood-text { flex: 1; }
+    .mood-title { font-size: 13px; font-weight: 700; color: var(--text-primary); margin: 0; line-height: 1.2; }
+    .mood-sub { font-size: 11px; color: var(--text-tertiary); margin: 2px 0 0; }
+    .mood-arrow { color: var(--brand-amber); font-weight: 700; font-size: 16px; }
+
+    .mood-filled { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .mood-side { display: flex; align-items: center; gap: 8px; flex: 1; }
+    .mood-emoji { font-size: 22px; line-height: 1; }
+    .mood-name { font-size: 10px; color: var(--text-tertiary); margin: 0; line-height: 1; }
+    .mood-label { font-size: 12px; font-weight: 600; color: var(--text-primary); margin: 1px 0 0; line-height: 1; }
+    .mood-divider { width: 1px; height: 24px; background: var(--brd-subtle); }
+    .mood-edit { font-size: 10px; color: var(--brand-purple); background: transparent; border: 1px solid var(--brd-purple); border-radius: 999px; padding: 3px 8px; cursor: pointer; }
+
+    /* Privacy decision card */
+    .pdec { width: 380px; padding: 20px; background: var(--surface-card); border: 1px solid var(--brd-subtle); border-radius: 14px; }
+    .pdec h3 { margin: 0 0 8px; font-size: 14px; color: var(--text-primary); font-weight: 800; }
+    .pdec p { margin: 0 0 12px; font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+    .pdec-opt { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--brd-subtle); margin-bottom: 8px; font-size: 12px; }
+    .pdec-opt.chosen { border-color: var(--success); background: rgba(34,197,94,0.06); }
+    .pdec-opt strong { display: block; color: var(--text-primary); font-size: 13px; margin-bottom: 4px; }
+    .pdec-opt em { color: var(--success); font-style: normal; font-weight: 700; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; }
+
+    /* States table */
+    .states-table { width: 480px; padding: 20px; background: var(--surface-card); border: 1px solid var(--brd-subtle); border-radius: 14px; font-size: 12px; color: var(--text-secondary); }
+    .states-table h3 { margin: 0 0 12px; color: var(--text-primary); font-size: 14px; font-weight: 800; }
+    .st-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--brd-subtle); }
+    .st-row.head { font-size: 10px; font-weight: 700; color: var(--text-tertiary); letter-spacing: 0.06em; text-transform: uppercase; }
+    .st-row:last-child { border: 0; }
+    .st-row b { color: var(--text-primary); font-weight: 600; }
+
+    /* Reset behavior diagram */
+    .reset { width: 380px; padding: 20px; background: var(--surface-card); border: 1px solid var(--brd-subtle); border-radius: 14px; }
+    .reset h3 { margin: 0 0 12px; color: var(--text-primary); font-size: 14px; font-weight: 800; }
+    .reset p { margin: 0 0 8px; font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+    .reset code { background: rgba(168,85,247,0.10); border: 1px solid var(--brd-subtle); padding: 2px 6px; border-radius: 4px; color: var(--brand-purple); font-size: 11px; }
+  </style>
+</head>
+<body>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <div id="root"></div>
+  <script type="text/babel">
+    function MoodEmpty() {
+      return (
+        <div className="mood-card mood-empty">
+          <div className="mood-row">
+            <div className="mood-icon">🫥</div>
+            <div className="mood-text">
+              <p className="mood-title">¿Cómo estás hoy?</p>
+              <p className="mood-sub">Comparte tu mood con Edu</p>
+            </div>
+            <span className="mood-arrow">→</span>
+          </div>
+        </div>
+      );
+    }
+    function MoodMineOnly() {
+      return (
+        <div className="mood-card">
+          <div className="mood-filled">
+            <div className="mood-side">
+              <span className="mood-emoji">😊</span>
+              <div><p className="mood-name">Tú</p><p className="mood-label">Bien</p></div>
+            </div>
+            <div className="mood-divider"></div>
+            <div className="mood-side">
+              <span className="mood-emoji" style={{ opacity: 0.4 }}>🫥</span>
+              <div><p className="mood-name">Edu</p><p className="mood-label" style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>aún no</p></div>
+            </div>
+            <button className="mood-edit">cambiar</button>
+          </div>
+        </div>
+      );
+    }
+    function MoodBoth() {
+      return (
+        <div className="mood-card">
+          <div className="mood-filled">
+            <div className="mood-side">
+              <span className="mood-emoji">😊</span>
+              <div><p className="mood-name">Tú</p><p className="mood-label">Bien</p></div>
+            </div>
+            <div className="mood-divider"></div>
+            <div className="mood-side">
+              <span className="mood-emoji">💪</span>
+              <div><p className="mood-name">Edu</p><p className="mood-label">Con energía</p></div>
+            </div>
+            <button className="mood-edit">cambiar</button>
+          </div>
+        </div>
+      );
+    }
+    function MoodNoPartner() {
+      return (
+        <div className="mood-card">
+          <div className="mood-filled">
+            <div className="mood-side">
+              <span className="mood-emoji">😊</span>
+              <div><p className="mood-name">Tú</p><p className="mood-label">Bien</p></div>
+            </div>
+            <div className="mood-divider"></div>
+            <div className="mood-side">
+              <span className="mood-emoji" style={{ opacity: 0.3 }}>·</span>
+              <div><p className="mood-name" style={{ color: 'var(--text-tertiary)' }}>Sin pareja</p><p className="mood-label" style={{ color: 'var(--text-tertiary)' }}>—</p></div>
+            </div>
+            <button className="mood-edit">cambiar</button>
+          </div>
+        </div>
+      );
+    }
+
+    function PrivacyDecision() {
+      return (
+        <div className="pdec">
+          <h3>Privacidad · ¿se ve el mood del partner siempre?</h3>
+          <p>Hay 3 caminos. La pregunta de fondo: ¿es info "social" (ver al otro) o info de pareja (ver juntos)?</p>
+          <div className="pdec-opt">
+            <strong>Opción 1 · Siempre visible</strong>
+            Vea quien vea, ambos lados se ven. Si el otro no ha puesto, sale 🫥 "aún no".
+            <span style={{ color: 'var(--text-tertiary)', display: 'block', marginTop: 4 }}>👍 Cero fricción · 👎 Pone presión social ("¿por qué no has marcado?").</span>
+          </div>
+          <div className="pdec-opt chosen">
+            <em>✓ Recomendada</em>
+            <strong>Opción 2 · Visible cuando ambos han puesto hoy</strong>
+            Si solo uno ha marcado, el otro ve un placeholder neutro "Edu: aún no" sin nudge agresivo. Cuando ambos están, se revela.
+            <span style={{ color: 'var(--text-tertiary)', display: 'block', marginTop: 4 }}>👍 Sigue siendo info compartida pero sin presionar · 👎 Curva de aprendizaje (1 nudge la 1ª semana).</span>
+          </div>
+          <div className="pdec-opt">
+            <strong>Opción 3 · Mood privado por defecto, opt-in</strong>
+            Cada persona decide en Settings si su mood se ve. Default = solo yo lo veo.
+            <span style={{ color: 'var(--text-tertiary)', display: 'block', marginTop: 4 }}>👍 Máxima privacidad · 👎 Mata la mecánica social del producto.</span>
+          </div>
+        </div>
+      );
+    }
+
+    function StatesTable() {
+      return (
+        <div className="states-table">
+          <h3>Estados a contemplar</h3>
+          <div className="st-row head"><span>Yo hoy</span><span>Partner hoy</span><span>UI</span></div>
+          <div className="st-row"><b>—</b><b>—</b>Empty CTA grande</div>
+          <div className="st-row"><b>✓</b><b>—</b>Yo ✓ · Edu "aún no"</div>
+          <div className="st-row"><b>—</b><b>✓</b>Empty CTA · "Edu ya compartió 💪"</div>
+          <div className="st-row"><b>✓</b><b>✓</b>Ambos visibles</div>
+          <div className="st-row"><b>—</b><b>sin pareja</b>Empty solo "Tu mood" sin partner side</div>
+        </div>
+      );
+    }
+
+    function ResetBehavior() {
+      return (
+        <div className="reset">
+          <h3>Bug fix · reset diario</h3>
+          <p><strong style={{ color: 'var(--text-primary)' }}>Hoy:</strong> el mood se queda pegado entre días. Si pongo "Bien" el lunes a las 23h, el martes a las 9h sigue diciendo "Bien".</p>
+          <p><strong style={{ color: 'var(--text-primary)' }}>Fix:</strong> usa <code>useMoodVigent(currentMood, moodUpdatedAt)</code> que ya existe — devuelve <code>null</code> si <code>moodUpdatedAt</code> no es del día local actual (timezone del user).</p>
+          <p>Limit visible <strong>solo</strong> si <code>moodUpdatedAt</code> ≥ inicio del día local. Sin tocar backend.</p>
+        </div>
+      );
+    }
+
+    function App() {
+      return (
+        <DesignCanvas
+          title="03 · Mood card · refactor"
+          subtitle="Antes: nudge + pair card duplicados. Después: 1 sola card con 4 estados claros."
+        >
+          <DCSection id="states" title="Estados de la card">
+            <DCArtboard id="empty" label="A · Sin mood (CTA)" width={360} height={120}>
+              <div style={{ padding: 20 }}><MoodEmpty /></div>
+            </DCArtboard>
+            <DCArtboard id="mine" label="B · Solo yo" width={360} height={120}>
+              <div style={{ padding: 20 }}><MoodMineOnly /></div>
+            </DCArtboard>
+            <DCArtboard id="both" label="C · Ambos compartido" width={360} height={120}>
+              <div style={{ padding: 20 }}><MoodBoth /></div>
+            </DCArtboard>
+            <DCArtboard id="solo" label="D · Sin pareja vinculada" width={360} height={120}>
+              <div style={{ padding: 20 }}><MoodNoPartner /></div>
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection id="logic" title="Lógica & decisiones">
+            <DCArtboard id="states-table" label="Combinaciones" width={520} height={260}>
+              <div style={{ padding: 20 }}><StatesTable /></div>
+            </DCArtboard>
+            <DCArtboard id="privacy" label="Decisión de privacidad" width={420} height={420}>
+              <div style={{ padding: 20 }}><PrivacyDecision /></div>
+            </DCArtboard>
+            <DCArtboard id="reset" label="Bug · reset diario" width={420} height={260}>
+              <div style={{ padding: 20 }}><ResetBehavior /></div>
+            </DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

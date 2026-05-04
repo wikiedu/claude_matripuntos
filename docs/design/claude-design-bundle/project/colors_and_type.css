@@ -1,0 +1,226 @@
+/* ============================================================
+   Matripuntos Design System — Core Tokens
+   ============================================================
+   Dual-theme (dark default / warm light) couples app.
+   Import this file once at the top of any HTML:
+
+     <link rel="stylesheet" href="colors_and_type.css">
+     <html class="dark">  OR  <html class="light">
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+/* ─── Dark (default) ──────────────────────────────────────── */
+:root,
+html.dark {
+  /* Backgrounds */
+  --matri-bg: linear-gradient(160deg, #0d0a1a, #0f0a1e, #12103a);
+  --matri-bg-solid: #0f0a1e;
+  --matri-card-bg: rgba(26, 16, 53, 0.85);
+  --matri-card-border: rgba(168, 85, 247, 0.15);
+  --matri-overlay: rgba(0, 0, 0, 0.5);
+
+  /* Brand — Amber (CTAs, warmth, "positive" energy) */
+  --matri-amber: #f59e0b;
+  --matri-amber-dark: #d97706;
+  --matri-amber-soft: rgba(245, 158, 11, 0.15);
+  --matri-amber-border: rgba(245, 158, 11, 0.3);
+  --matri-amber-gradient: linear-gradient(135deg, #f59e0b, #d97706);
+
+  /* Brand — Purple (gamification, level, weekly) */
+  --matri-purple: #a855f7;
+  --matri-purple-dark: #7c3aed;
+  --matri-purple-soft: rgba(168, 85, 247, 0.15);
+  --matri-purple-border: rgba(168, 85, 247, 0.3);
+  --matri-purple-gradient: linear-gradient(135deg, #a855f7, #7c3aed);
+
+  /* Indigo (balance hero) */
+  --matri-indigo: #6366f1;
+  --matri-indigo-dark: #4f46e5;
+  --matri-indigo-gradient: linear-gradient(135deg, #4f46e5, #7c3aed);
+
+  /* Pink / secondary (partner axis) */
+  --matri-pink: #ec4899;
+
+  /* Text */
+  --matri-text:    #e2e8f0;  /* fg1 - primary */
+  --matri-text-2:  #9ca3af;  /* fg2 - muted */
+  --matri-text-3:  #6b7280;  /* fg3 - faint / labels */
+  --matri-text-inv:#1c1917;  /* on amber gradient buttons */
+
+  /* Semantic */
+  --matri-success: #22c55e;
+  --matri-success-soft: rgba(34, 197, 94, 0.12);
+  --matri-warning: #facc15;
+  --matri-warning-soft: rgba(250, 204, 21, 0.1);
+  --matri-danger:  #ef4444;
+  --matri-danger-soft: rgba(239, 68, 68, 0.1);
+  --matri-info:    #60a5fa;
+  --matri-info-soft: rgba(96, 165, 250, 0.1);
+}
+
+/* ─── Light (warm paper) ──────────────────────────────────── */
+html.light {
+  --matri-bg: linear-gradient(160deg, #fffbf0, #fef9ec, #fdf4e3);
+  --matri-bg-solid: #fffbf0;
+  --matri-card-bg: #ffffff;
+  --matri-card-border: #fde68a;
+  --matri-overlay: rgba(0, 0, 0, 0.4);
+
+  --matri-amber: #d97706;
+  --matri-amber-dark: #b45309;
+  --matri-amber-soft: rgba(217, 119, 6, 0.12);
+  --matri-amber-border: rgba(217, 119, 6, 0.3);
+  --matri-amber-gradient: linear-gradient(135deg, #f59e0b, #d97706);
+
+  --matri-purple: #7c3aed;
+  --matri-purple-dark: #6d28d9;
+  --matri-purple-soft: rgba(124, 58, 237, 0.1);
+  --matri-purple-border: rgba(124, 58, 237, 0.25);
+  --matri-purple-gradient: linear-gradient(135deg, #a855f7, #7c3aed);
+
+  --matri-indigo: #4f46e5;
+  --matri-indigo-dark: #4338ca;
+  --matri-indigo-gradient: linear-gradient(135deg, #4f46e5, #7c3aed);
+  --matri-pink: #db2777;
+
+  --matri-text:    #1c1917;
+  --matri-text-2:  #78716c;
+  --matri-text-3:  #9ca3af;
+  --matri-text-inv:#ffffff;
+
+  --matri-success: #16a34a;
+  --matri-success-soft: rgba(22, 163, 74, 0.1);
+  --matri-warning: #ca8a04;
+  --matri-warning-soft: rgba(202, 138, 4, 0.1);
+  --matri-danger:  #dc2626;
+  --matri-danger-soft: rgba(220, 38, 38, 0.1);
+  --matri-info:    #2563eb;
+  --matri-info-soft: rgba(37, 99, 235, 0.1);
+}
+
+/* ─── Typography scale ────────────────────────────────────── */
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* Display — used sparingly (onboarding landing, hero) */
+  --fs-display:  28px;  --fw-display:  800; --lh-display: 1.1;
+  /* Page title (header inside app) */
+  --fs-title:    20px;  --fw-title:    700; --lh-title:   1.2;
+  /* Section H2 */
+  --fs-h2:       16px;  --fw-h2:       700; --lh-h2:      1.3;
+  /* Card title */
+  --fs-h3:       15px;  --fw-h3:       600; --lh-h3:      1.3;
+  /* Body */
+  --fs-body:     14px;  --fw-body:     400; --lh-body:    1.5;
+  /* Small / meta */
+  --fs-sm:       13px;  --fw-sm:       400; --lh-sm:      1.5;
+  /* Caption / micro */
+  --fs-xs:       12px;  --fw-xs:       500; --lh-xs:      1.4;
+  /* Tiny (labels, dots) */
+  --fs-2xs:      11px;  --fw-2xs:      500; --lh-2xs:     1.3;
+  --fs-3xs:      10px;  --fw-3xs:      500; --lh-3xs:     1.2;
+
+  /* Numeric display (balance, streak number) */
+  --fs-numeric:  32px;  --fw-numeric:  700;
+  --fs-stat:     28px;  --fw-stat:     700;
+  --fs-streak:   40px;  --fw-streak:   900;
+
+  /* Spacing scale (4px base) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+
+  /* Radii */
+  --r-sm:  8px;
+  --r-md: 10px;   /* cards */
+  --r-lg: 12px;   /* CTA buttons, widgets */
+  --r-xl: 16px;   /* balance hero, modals */
+  --r-2xl: 20px;  /* bottom-sheet modals */
+  --r-full: 9999px;
+
+  /* Shadows — kept subtle, dark-mode-first */
+  --sh-sm:  0 1px 2px rgba(0, 0, 0, 0.15);
+  --sh-md:  0 4px 12px rgba(0, 0, 0, 0.2);
+  --sh-lg:  0 4px 24px rgba(79, 70, 229, 0.3);     /* indigo glow — balance card */
+  --sh-amber:  0 4px 12px rgba(245, 158, 11, 0.4); /* FAB */
+  --sh-glow-amber: 0 0 6px rgba(245, 158, 11, 0.6);
+  --sh-glow-purple: 0 0 6px rgba(168, 85, 247, 0.6);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --dur-fast: 0.15s;
+  --dur-base: 0.2s;
+  --dur-slow: 0.5s;
+}
+
+/* ─── Reset-ish + base ────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--matri-text);
+  background: var(--matri-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Semantic typography classes ─────────────────────────── */
+.mp-display { font-size: var(--fs-display); font-weight: var(--fw-display); line-height: var(--lh-display); letter-spacing: -0.02em; color: var(--matri-text); }
+.mp-title   { font-size: var(--fs-title);   font-weight: var(--fw-title);   line-height: var(--lh-title);   color: var(--matri-text); }
+.mp-h2      { font-size: var(--fs-h2);      font-weight: var(--fw-h2);      line-height: var(--lh-h2);      color: var(--matri-text); }
+.mp-h3      { font-size: var(--fs-h3);      font-weight: var(--fw-h3);      line-height: var(--lh-h3);      color: var(--matri-text); }
+.mp-body    { font-size: var(--fs-body);    color: var(--matri-text); }
+.mp-sm      { font-size: var(--fs-sm);      color: var(--matri-text-2); }
+.mp-xs      { font-size: var(--fs-xs);      color: var(--matri-text-2); }
+.mp-caption { font-size: var(--fs-2xs);     color: var(--matri-text-3); }
+.mp-micro   { font-size: var(--fs-3xs);     color: var(--matri-text-3); text-transform: uppercase; letter-spacing: 0.05em; }
+
+.mp-numeric { font-size: var(--fs-numeric); font-weight: var(--fw-numeric); letter-spacing: -0.02em; color: var(--matri-text); font-variant-numeric: tabular-nums; }
+.mp-stat    { font-size: var(--fs-stat);    font-weight: var(--fw-stat); line-height: 1.1; color: var(--matri-text); font-variant-numeric: tabular-nums; }
+.mp-streak  { font-size: var(--fs-streak);  font-weight: var(--fw-streak); line-height: 1; font-variant-numeric: tabular-nums; }
+
+/* ─── Reusable element classes ────────────────────────────── */
+.mp-card {
+  background: var(--matri-card-bg);
+  border: 1px solid var(--matri-card-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-5) var(--sp-6);
+}
+
+.mp-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-sm);
+  font: inherit; font-size: var(--fs-body); font-weight: 500;
+  border: none; cursor: pointer;
+  transition: opacity var(--dur-fast), background var(--dur-fast);
+}
+.mp-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.mp-btn-primary   { background: var(--matri-amber-gradient); color: #fff; }
+.mp-btn-secondary { background: var(--matri-card-bg); color: var(--matri-text); border: 1px solid var(--matri-card-border); }
+.mp-btn-danger    { background: var(--matri-danger); color: #fff; }
+
+.mp-badge {
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+  padding: 1px 8px;
+  border-radius: var(--r-full);
+  font-size: var(--fs-3xs); font-weight: 600;
+  border: 1px solid transparent;
+}
+.mp-badge-amber   { background: var(--matri-amber-soft);   color: var(--matri-amber);   border-color: var(--matri-amber-border);  }
+.mp-badge-purple  { background: var(--matri-purple-soft);  color: var(--matri-purple);  border-color: var(--matri-purple-border); }
+.mp-badge-success { background: var(--matri-success-soft); color: var(--matri-success); }
+.mp-badge-warn    { background: var(--matri-warning-soft); color: var(--matri-warning); }
+.mp-badge-danger  { background: var(--matri-danger-soft);  color: var(--matri-danger);  }

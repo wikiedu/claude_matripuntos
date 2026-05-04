@@ -1,0 +1,40 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css"><style>
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.card { border-radius: 12px; padding: 14px; text-align: center; background: rgba(26,16,53,.85); }
+.amb { border: 1px solid rgba(245,158,11,.3); }
+.prp { border: 1px solid rgba(168,85,247,.2); }
+.num { font-variant-numeric: tabular-nums; font-weight: 900; font-size: 40px; line-height: 1; }
+.num.amb { color: #f59e0b; text-shadow: 0 0 6px rgba(245,158,11,.6); }
+.num.prp { color: #a855f7; text-shadow: 0 0 6px rgba(168,85,247,.6); }
+.lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; margin-top: 4px; }
+.dots { display: flex; gap: 6px; justify-content: center; margin-top: 8px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot.done { background: #f59e0b; }
+.dot.today { background: #f59e0b; box-shadow: 0 0 6px rgba(245,158,11,.6); }
+.dot.empty { background: rgba(255,255,255,.1); }
+.dot.pdone { background: #a855f7; }
+.dot.ptoday { background: #a855f7; box-shadow: 0 0 6px rgba(168,85,247,.6); }
+.sub { font-size: 10px; color: #9ca3af; margin-top: 4px; }
+.chip { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 9999px; margin-top: 8px; }
+.chip.amb { background: rgba(245,158,11,.12); color: #f59e0b; border: 1px solid rgba(245,158,11,.3); }
+.chip.prp { background: rgba(168,85,247,.15); color: #a855f7; border: 1px solid rgba(168,85,247,.3); }
+</style></head><body>
+<div class="grid">
+  <div class="card amb">
+    <div style="font-size:20px">🔥</div>
+    <div class="num amb">12</div>
+    <div class="lbl">Racha diaria</div>
+    <div class="dots"><span class="dot done"></span><span class="dot done"></span><span class="dot done"></span><span class="dot done"></span><span class="dot done"></span><span class="dot done"></span><span class="dot today"></span></div>
+    <div class="sub">Tareas completadas</div>
+    <span class="chip amb">×1.5 pts</span>
+  </div>
+  <div class="card prp">
+    <div style="font-size:20px">⚖️</div>
+    <div class="num prp">4</div>
+    <div class="lbl">Racha semanal</div>
+    <div class="dots"><span class="dot pdone"></span><span class="dot pdone"></span><span class="dot pdone"></span><span class="dot ptoday"></span><span class="dot empty"></span></div>
+    <div class="sub">Semanas equilibradas</div>
+    <span class="chip prp">+25%</span>
+  </div>
+</div>
+</body></html>

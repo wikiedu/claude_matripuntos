@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Refactor v2.1 — Matripuntos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #06030f;
+      --surface: #0f0a1f;
+      --card: #1a1035;
+      --line: rgba(168,85,247,0.18);
+      --text: #f5f3ff;
+      --text-mute: #9ca3af;
+      --text-faint: #6b7280;
+      --amber: #f59e0b;
+      --purple: #a855f7;
+      --green: #22c55e;
+      --blue: #60a5fa;
+      --pink: #ec4899;
+      --red: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+
+    /* Background */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(1200px circle at 20% 0%, rgba(168,85,247,0.12), transparent 50%),
+        radial-gradient(900px circle at 80% 100%, rgba(245,158,11,0.08), transparent 50%);
+      pointer-events: none; z-index: 0;
+    }
+    main { position: relative; z-index: 1; }
+
+    /* Header */
+    .hero {
+      max-width: 1080px; margin: 0 auto;
+      padding: 64px 32px 32px;
+    }
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 700;
+      color: var(--amber);
+      text-transform: uppercase; letter-spacing: 0.1em;
+      padding: 5px 10px;
+      background: rgba(245,158,11,0.10);
+      border: 1px solid rgba(245,158,11,0.3);
+      border-radius: 999px;
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      margin: 0 0 12px;
+      font-size: 56px; font-weight: 900;
+      letter-spacing: -0.03em; line-height: 1.05;
+      color: var(--text);
+    }
+    .hero h1 em {
+      font-style: normal;
+      background: linear-gradient(120deg, #f59e0b, #ec4899, #a855f7);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-lede {
+      max-width: 720px;
+      font-size: 18px; line-height: 1.55;
+      color: var(--text-mute);
+      margin: 0 0 24px;
+    }
+    .hero-meta {
+      display: flex; gap: 24px;
+      font-size: 12px; color: var(--text-faint);
+    }
+    .hero-meta b { color: var(--text); font-weight: 700; }
+
+    /* Decisions strip */
+    .decisions {
+      max-width: 1080px; margin: 0 auto;
+      padding: 32px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .decisions h2 {
+      font-size: 11px; font-weight: 700;
+      color: var(--purple);
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin: 0 0 20px;
+    }
+    .decisions-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+    }
+    .decision { font-size: 13px; line-height: 1.5; color: var(--text-mute); }
+    .decision strong { display: block; color: var(--text); font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+
+    /* Canvas list */
+    .canvases {
+      max-width: 1080px; margin: 0 auto;
+      padding: 48px 32px 64px;
+    }
+    .canvases h2 {
+      font-size: 11px; font-weight: 700;
+      color: var(--purple);
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin: 0 0 24px;
+    }
+    .canvas-list {
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .canvas-card {
+      display: grid;
+      grid-template-columns: 80px 1fr auto;
+      gap: 24px; align-items: center;
+      padding: 24px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .canvas-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(168,85,247,0.5);
+    }
+    .canvas-num {
+      font-size: 56px; font-weight: 900;
+      color: var(--amber);
+      letter-spacing: -0.04em;
+      line-height: 1; font-variant-numeric: tabular-nums;
+      opacity: 0.8;
+    }
+    .canvas-body h3 {
+      margin: 0 0 4px;
+      font-size: 20px; font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .canvas-body p {
+      margin: 0;
+      font-size: 13px; color: var(--text-mute);
+      line-height: 1.5;
+    }
+    .canvas-body .tags {
+      display: flex; gap: 6px; margin-top: 10px;
+    }
+    .tag {
+      display: inline-block;
+      font-size: 10px; font-weight: 700;
+      padding: 3px 8px; border-radius: 4px;
+      background: rgba(168,85,247,0.12);
+      color: var(--purple);
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .tag.amber { background: rgba(245,158,11,0.12); color: var(--amber); }
+    .tag.green { background: rgba(34,197,94,0.12); color: var(--green); }
+    .tag.blue { background: rgba(96,165,250,0.12); color: var(--blue); }
+    .tag.pink { background: rgba(236,72,153,0.12); color: var(--pink); }
+    .canvas-arrow {
+      font-size: 24px; color: var(--text-faint);
+      font-weight: 300;
+    }
+    .canvas-card:hover .canvas-arrow { color: var(--amber); }
+
+    /* Footer */
+    footer {
+      max-width: 1080px; margin: 0 auto;
+      padding: 32px;
+      border-top: 1px solid var(--line);
+      font-size: 12px; color: var(--text-faint);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    footer a { color: var(--purple); text-decoration: none; font-weight: 700; }
+
+    @media (max-width: 720px) {
+      .hero h1 { font-size: 38px; }
+      .decisions-grid { grid-template-columns: 1fr; }
+      .canvas-card { grid-template-columns: 50px 1fr auto; gap: 16px; padding: 16px; }
+      .canvas-num { font-size: 36px; }
+      .canvas-body h3 { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <span class="hero-eyebrow">● Refactor v2.1 · Abr–May 2025</span>
+      <h1>De <em>app que cuenta puntos</em><br/>a app que <em>negocia el reparto.</em></h1>
+      <p class="hero-lede">
+        Auditoría de fricciones detectadas en v2.0.5 — y exploración de los blind spots que no están en pantalla pero matan la app: cuando entra el segundo, cuando uno está mal, cuando hay vacaciones, cuando hay pelea. Cada canvas trae el antes, el después y la decisión de fondo.
+      </p>
+      <div class="hero-meta">
+        <span><b>14</b> canvases</span>
+        <span><b>60+</b> pantallas mockeadas</span>
+        <span><b>40+</b> decisiones explicadas</span>
+        <span>Owner · <b>Blanca</b></span>
+      </div>
+    </section>
+
+    <section class="decisions">
+      <h2>Decisiones de fondo de este refactor</h2>
+      <div class="decisions-grid">
+        <div class="decision">
+          <strong>Densidad ≠ valor</strong>
+          El dashboard estaba lleno de info, pero solo el saldo importa para abrir la app. Lo demás se gana el sitio si aporta o se va.
+        </div>
+        <div class="decision">
+          <strong>Coherencia de patrones</strong>
+          Tasks y Activities tienen la misma forma (header + filtros + secciones temporales + catálogo). Lo que cambia es el signo del MP.
+        </div>
+        <div class="decision">
+          <strong>Reglas son conversación</strong>
+          Lo que afecta a los dos lo aprueban los dos. Cualquier cambio de puntos pasa por aprobación del partner con audit log.
+        </div>
+        <div class="decision">
+          <strong>Asistente, no casino</strong>
+          Cero leaderboards, cero "tu pareja te gana", cero confeti diario. Las celebraciones reservadas para hitos reales — si pasan cada día, dejan de celebrar.
+        </div>
+        <div class="decision">
+          <strong>Privacidad emocional</strong>
+          Información asimétrica entre los dos. El partner ve "días flojos", no el saldo exacto. El mood propio antes que el del otro. Pausa antes que sermón.
+        </div>
+        <div class="decision">
+          <strong>Válvulas de escape</strong>
+          La app que mejor sobrevive es la que tolera no usarla. Modo pausa, modo vacaciones, "lo dejamos una semana" — sin perder lo construido.
+        </div>
+      </div>
+    </section>
+
+    <section class="canvases">
+      <h2 style="display: flex; align-items: baseline; gap: 12px;"><span>Bloque 1 · Refactor de pantallas existentes</span><span style="color: var(--text-faint); font-weight: 600; text-transform: none; letter-spacing: 0; font-size: 11px;">canvases 01–07</span></h2>
+      <div class="canvas-list">
+
+        <a class="canvas-card" href="01-dashboard.html">
+          <div class="canvas-num">01</div>
+          <div class="canvas-body">
+            <h3>Dashboard · 5 estados</h3>
+            <p>De pantalla "todo en uno" a una jerarquía clara: saldo grande, pair status, próxima acción. Los 5 estados (vacío / solo / activo / negativo / aniversario) y por qué.</p>
+            <div class="tags">
+              <span class="tag amber">jerarquía</span>
+              <span class="tag">estados vacíos</span>
+              <span class="tag">copy</span>
+            </div>
+          </div>
+          <span class="canvas-arrow">→</span>
+        </a>
+
+        <a class="canvas-card" href="02-level-system.html">
+          <div class="canvas-num">02</div>
+          <div class="canvas-body">
+            <h3>Sistema de niveles · curva</h3>
+            <p>Hoy los niveles son lineales y aburridos. Curva exponencial L1-L10 con nombres ("Aprendiz" → "Constelación") y el hero card del dashboard que muestra progreso real.</p>
+            <div class="tags">
+              <span class="tag green">progresión</span>
+              <span class="tag">gamification</span>
+              <span class="tag amber">retención</span>
+            </div>
+          </div>
+          <span class="canvas-arrow">→</span>
+        </a>
+
+        <a class="canvas-card" href="03-mood.html">
+          <div class="canvas-num">03</div>
+          <div class="canvas-body">
+            <h3>Mood card · estados + privacidad</h3>
+            <p>Una sola card en lugar de un nudge + pair-card duplicados. 4 estados (vacía / solo yo / ambos / sin pareja) y la decisión: ¿cuándo se ve el mood del partner? Y el bug del reset diario.</p>
+            <div class="tags">
+              <span class="tag pink">privacidad</span>
+              <span class="tag">consolidación</span>
+              <span class="tag blue">bug fix</span>
+            </div>
+          </div>
+          <span class="canvas-arrow">→</span>
+        </a>
+
+        <a class="canvas-card" href="04-activities.html">
+          <div class="canvas-num">04</div>
+          <div class="canvas-body">
+            <h3>Activities asimiladas a Tasks</h3>
+            <p>Hoy Activities solo abre wizard. Después: misma estructura que Tareas (header / filtros / Hoy-Semana-Próximas / catálogo). Lo único que cambia es el signo del MP y "quien paga".</p>
+            <div class="tags">
+              <span class="tag">consistencia</span>
+              <span class="tag amber">patrón</span>
+            </div>
+          </div>
+          <span class="canvas-arrow">→</span>
+        </a>
+
+        <a class="canvas-card" href="05-calendar-fab.html">
+          <div class="canvas-num">05</div>
+          <div class="canvas-body">
+            <h3>Calendar · de header a FAB</h3>
+            <p>El "+ Evento" del header solo crea eventos. Un FAB speed-dial unifica creación: Evento / Actividad / Tarea / Lista — todos con la fecha pre-rellenada. Reglas para todos los FABs de la app.</p>
+            <div class="tags">
+              <span class="tag blue">interaction</span>
+              <span class="tag">FAB</span>
+              <span class="tag">calendario</span>
+            </div>
+          </div>
+          <span class="canvas-arrow">→</span>
+        </a>
+
+        <a class="canvas-card" href="06-settings-rules.html">
+          <div class="canvas-num">06</div>
+          <div class="canvas-body">
+            <h3>Settings · reglas de puntos editables</h3>
+            <p>Hoy los puntos están hardcoded. Después: catálogo editable con consentimiento mutuo (proponer + aprobar) y audit log. La pieza más cargada de producto del refactor.</p>
+            <div class="tags">
+              <span class="tag amber">producto</span>
+              <span class="tag pink">consentimiento</span>
+              <span class="tag">audit log</span>
+            </div>
+          </div>
+          <span class="canvas-arrow">→</span>
+        </a>
+
+        <a class="canvas-card" href="07-tasks-activities-handoff.html" style="border-color: rgba(245,158,11,0.4);">
+          <div class="canvas-num">07</div>
+          <div class="canvas-body">
+            <h3>Tasks &amp; Activities · handoff de implementación</h3>
+            <p>Adenda 2026-05-03 · modelo final. 2 botones diferenciados en Tasks, Tab Catálogo separado en Activities con 8 categorías cerradas, plantillas con consenso de puntos. 8 pantallas + specs estructuradas + storyboard.</p>
+            <div class="tags">
+              <span class="tag amber">handoff</span>
+              <span class="tag">specs</span>
+              <span class="tag pink">consenso</span>
+              <span class="tag green">final</span>
+            </div>
+          </div>
+          <span class="canvas-arrow">→</span>
+        </a>
+
+      </div>
+
+      <h2 style="display: flex; align-items: baseline; gap: 12px; margin-top: 56px;"><span>Bloque 2 · Blind spots · momentos no diseñados</span><span style="color: var(--text-faint); font-weight: 600; text-transform: none; letter-spacing: 0; font-size: 11px;">canvases 08–14</span></h2>
+      <p style="margin: -8px 0 24px; font-size: 13px; color: var(--text-mute); line-height: 1.5; max-width: 720px;">Las pantallas existen, pero estos <b style="color: var(--text);">momentos</b> no están diseñados. Si la app no los aguanta, se desinstala el primer mes — y no quedan rastros de por qué.</p>
+      <div class="canvas-list">
+
+        <a class="canvas-card" href="08-onboarding-partner.html">
+          <div class="canvas-num">08</div>
+          <div class="canvas-body">
+            <h3>Onboarding del partner · cuando llega segundo</h3>
+            <p>Edu abre el link de Blanca · 4 pasos en lugar de 6. No re-configura nada — hereda reglas. La pieza clave: pantalla de "catch-up" que evita la sensación de llegar tarde a una fiesta.</p>
+            <div class="tags">
+              <span class="tag amber">activación</span>
+              <span class="tag pink">parejas</span>
+              <span class="tag">onboarding</span>
+            </div>
+          </div>
+          <span class="canvas-arrow">→</span>
+        </a>
+
+        <a class="canvas-card" href="09-saldo-rojo.html">
+          <div class="canvas-num">09</div>
+          <div class="canvas-body">
+            <h3>Saldo en rojo crónico · escalado emocional</h3>
+            <p>Día 3 / 7 / 14 / 21 — escalado no punitivo. La app sugiere pausa antes que el usuario, privacidad asimétrica con el partner. "Llevas días flojos" ≠ "estás fallando".</p>
+            <div class="tags">
+              <span class="tag pink">retención</span>
+              <span class="tag">crisis</span>
+              <span class="tag amber">copy</span>
+            </div>
+          </div>
+          <span class="canvas-arrow">→</span>
+        </a>
+
+        <a class="canvas-card" href="10-notifications.html">
+          <div class="canvas-num">10</div>
+          <div class="canvas-body">
+            <h3>Notificaciones · timing y tono</h3>
+            <p>3 tiers · críticas / resumen 20:30 / silencio. Quiet hours por defecto, agrupación si llegan en ráfaga. Y los 4 lock-screen mocks del "qué NO hacemos" — la app no compite con tu pareja.</p>
+            <div class="tags">
+              <span class="tag blue">notificaciones</span>
+              <span class="tag">timing</span>
+              <span class="tag amber">copy</span>
+            </div>
+          </div>
+          <span class="canvas-arrow">→</span>
+        </a>
+
+        <a class="canvas-card" href="11-empty-analytics.html">
+          <div class="canvas-num">11</div>
+          <div class="canvas-body">
+            <h3>Empty states &amp; analytics · datos sin juicio</h3>
+            <p>Los 4 vacíos del día 1 (dashboard / historial / logros / analytics) y la versión rica con 4 semanas de datos. Insights como observaciones, no veredictos. Cero leaderboards.</p>
+            <div class="tags">
+              <span class="tag green">empty states</span>
+              <span class="tag">analytics</span>
+              <span class="tag pink">tono</span>
+            </div>
+          </div>
+          <span class="canvas-arrow">→</span>
+        </a>
+
+        <a class="canvas-card" href="12-conflicts-realtime.html">
+          <div class="canvas-num">12</div>
+          <div class="canvas-body">
+            <h3>Conflictos en tiempo real · 4 patrones</h3>
+            <p>Doble registro · choque de calendario · edición simultánea (con ghost events) · cambios cruzados (toasts apilados). Las colisiones de pareja son el corazón, no edge cases.</p>
+            <div class="tags">
+              <span class="tag blue">tiempo real</span>
+              <span class="tag">conflictos</span>
+              <span class="tag amber">UX</span>
+            </div>
+          </div>
+          <span class="canvas-arrow">→</span>
+        </a>
+
+        <a class="canvas-card" href="13-microinteractions.html">
+          <div class="canvas-num">13</div>
+          <div class="canvas-body">
+            <h3>Microinteracciones · sistema de animación</h3>
+            <p>6 animaciones core animadas + spec sheet completo (duraciones, easings, haptics). "Asistente, no casino" — celebración reservada solo para nivel arriba. Reduced-motion respetado.</p>
+            <div class="tags">
+              <span class="tag amber">animación</span>
+              <span class="tag">specs</span>
+              <span class="tag green">sistema</span>
+            </div>
+          </div>
+          <span class="canvas-arrow">→</span>
+        </a>
+
+        <a class="canvas-card" href="14-vacation-mode.html">
+          <div class="canvas-num">14</div>
+          <div class="canvas-body">
+            <h3>Modo vacaciones · pausa con dignidad</h3>
+            <p>4 pantallas del flujo · entrada (3 vías) / setup / durante / reanudar con check-in. La válvula de escape sin la cual mueren al primer viaje. Saldo se congela, no se borra.</p>
+            <div class="tags">
+              <span class="tag pink">retención</span>
+              <span class="tag">pausa</span>
+              <span class="tag blue">flujo</span>
+            </div>
+          </div>
+          <span class="canvas-arrow">→</span>
+        </a>
+
+      </div>
+    </section>
+
+    <footer>
+      <span>Matripuntos · Refactor v2.1 — abril 2025</span>
+      <a href="../app/index.html">Volver a la app actual ↗</a>
+    </footer>
+  </main>
+</body>
+</html>

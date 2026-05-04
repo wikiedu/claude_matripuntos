@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Matripuntos — UI Kit</title>
+  <link rel="stylesheet" href="../../colors_and_type.css" />
+  <style>
+    html, body { height: 100%; }
+    body {
+      background: radial-gradient(ellipse at top, #1a1138 0%, #0d0a1a 50%, #0f0a1e 100%);
+      display: flex; align-items: stretch; justify-content: center;
+      padding: 20px;
+      overflow: hidden;
+    }
+    .phone {
+      width: 390px;
+      max-width: 100%;
+      height: min(860px, calc(100vh - 40px));
+      background: linear-gradient(160deg, #0d0a1a, #0f0a1e, #12103a);
+      border-radius: 36px;
+      border: 1px solid rgba(168,85,247,0.15);
+      box-shadow: 0 30px 80px rgba(0,0,0,0.55), 0 0 0 8px #000;
+      overflow: hidden;
+      position: relative;
+      display: flex; flex-direction: column;
+    }
+    .phone .inner {
+      flex: 1;
+      overflow-y: auto;
+      padding-bottom: 80px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(168,85,247,0.3) transparent;
+    }
+    .phone .inner::-webkit-scrollbar { width: 6px; }
+    .phone .inner::-webkit-scrollbar-thumb { background: rgba(168,85,247,0.3); border-radius: 3px; }
+    #root { height: 100%; display: flex; }
+    .page-title {
+      padding: 12px 16px 8px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .page-title h2 { margin: 0; font-size: 20px; font-weight: 700; color: #e2e8f0; letter-spacing: -0.01em; }
+  </style>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="phone" data-screen-label="Matripuntos App">
+    <div class="inner" id="appscroll">
+      <div id="root"></div>
+    </div>
+  </div>
+
+  <script type="text/babel" src="./Primitives.jsx"></script>
+  <script type="text/babel" src="./Navigation.jsx"></script>
+  <script type="text/babel" src="./Dashboard.jsx"></script>
+  <script type="text/babel" src="./Tasks.jsx"></script>
+  <script type="text/babel" src="./Gamification.jsx"></script>
+  <script type="text/babel" src="./Analytics.jsx"></script>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    const USER    = { name: 'María Ruiz', avatarEmoji: '🐼', avatarColor: '#7c3aed', mood: '😊' };
+    const PARTNER = { name: 'Carlos Vidal', avatarEmoji: '🦊', avatarColor: '#f59e0b', mood: '😌' };
+
+    const INITIAL_PENDING = [
+      { id: 't1', emoji: '🍳', title: 'Preparar cena',    meta: 'Hoy · 20:00',   points: 12, status: 'pending', assignedTo: 'tú' },
+      { id: 't2', emoji: '🧹', title: 'Aspirar el salón', meta: 'Hoy · cuándo puedas', points: 8, status: 'pending', assignedTo: 'tú' },
+      { id: 't3', emoji: '🐕', title: 'Sacar a Luna',     meta: 'Hoy · 22:00',   points: 5, status: 'pending', assignedTo: 'Carlos' },
+    ];
+
+    const CATALOG = [
+      { id: 'c1', emoji: '🛒', title: 'Compra semanal',   estimate: '~45 min',  points: 15 },
+      { id: 'c2', emoji: '🧺', title: 'Colada',           estimate: '~10 min + espera', points: 6 },
+      { id: 'c3', emoji: '🚿', title: 'Limpiar baño',     estimate: '~25 min',  points: 10 },
+      { id: 'c4', emoji: '🗑️', title: 'Sacar la basura',  estimate: '~3 min',   points: 2 },
+      { id: 'c5', emoji: '🍽️', title: 'Fregar los platos', estimate: '~15 min', points: 7 },
+    ];
+
+    const MOVEMENTS = [
+      { id: 'm1', who: 'Carlos', action: 'completó 🐕 sacar a Luna',   when: 'hace 1 h',   delta:  5, avatarEmoji: '🦊', avatarColor: '#f59e0b' },
+      { id: 'm2', who: 'Tú',     action: 'completaste 🛒 compra',       when: 'hace 2 h',   delta: 15, avatarEmoji: '🐼', avatarColor: '#7c3aed' },
+      { id: 'm3', who: 'Carlos', action: 'propuso nueva regla · cocina', when: 'ayer',      delta:  0, avatarEmoji: '🦊', avatarColor: '#f59e0b' },
+      { id: 'm4', who: 'Tú',     action: 'completaste 🧹 limpieza',      when: 'ayer',      delta: 10, avatarEmoji: '🐼', avatarColor: '#7c3aed' },
+    ];
+
+    const WEEK_DAYS = [
+      { label: 'L', you: 10, partner:  8 },
+      { label: 'M', you:  5, partner: 12 },
+      { label: 'X', you:  8, partner:  5 },
+      { label: 'J', you: 15, partner:  6 },
+      { label: 'V', you: 12, partner: 10 },
+      { label: 'S', you:  0, partner:  8 },
+      { label: 'D', you:  5, partner:  0, today: true },
+    ];
+
+    const UPCOMING = [
+      { id: 'e1', day: '22', month: 'abr', emoji: '🎂', title: 'Cumple de Sofía', time: '18:00', assignee: 'Los dos',    status: 'Confirmado', tone: 'success' },
+      { id: 'e2', day: '23', month: 'abr', emoji: '🍕', title: 'Cena con Marta',   time: '21:00', assignee: 'Los dos',    status: 'Confirmado', tone: 'success' },
+      { id: 'e3', day: '24', month: 'abr', emoji: '🩺', title: 'Pediatra',          time: '10:30', assignee: 'Carlos',    status: 'Por negociar', tone: 'warn' },
+      { id: 'e4', day: '27', month: 'abr', emoji: '🎭', title: 'Teatro',            time: '20:00', assignee: 'Tú',        status: 'Pendiente',    tone: 'purple' },
+    ];
+
+    const BADGES = [
+      { id: 'b1', emoji: '🏆', title: 'Primera semana',     description: 'Completa 7 días seguidos', earned: true,  earnedAt: 'hace 2 sem' },
+      { id: 'b2', emoji: '🔥', title: 'Imparable',           description: 'Racha de 10 días',         earned: true,  earnedAt: 'hoy' },
+      { id: 'b3', emoji: '⚖️', title: 'Equidad total',      description: '4 semanas equilibradas',   earned: true,  earnedAt: 'esta sem' },
+      { id: 'b4', emoji: '💎', title: 'Diamante',            description: 'Llega a 1000 MP',          earned: false, progress: 320, total: 1000 },
+      { id: 'b5', emoji: '🌟', title: 'Compañero estrella',  description: '50 tareas con tu pareja', earned: false, progress: 32, total: 50 },
+      { id: 'b6', emoji: '👑', title: 'Rey/Reina del hogar', description: 'Sube a Nivel 5',           earned: false, progress: 3, total: 5 },
+    ];
+
+    function AppShell() {
+      const [screen, setScreen]   = useState('dashboard');
+      const [pending, setPending] = useState(INITIAL_PENDING);
+      const [showSheet, setShowSheet] = useState(false);
+      const [showFabMenu, setShowFabMenu] = useState(false);
+      const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+      const [isPremium, setIsPremium] = useState(false);
+      const [toast, setToast] = useState(null);
+      const [balance, setBalance] = useState(15.5);
+
+      const completeTask = id => {
+        const t = pending.find(p => p.id === id);
+        if (!t || t.status === 'done') return;
+        setPending(prev => prev.map(p => p.id === id ? { ...p, status: 'done' } : p));
+        setBalance(b => +(b + t.points).toFixed(1));
+        setToast(`+${t.points} MP · ${t.emoji} ${t.title}`);
+        setTimeout(() => setToast(null), 2500);
+      };
+
+      const createTask = task => {
+        const id = 'n' + Date.now();
+        setPending(prev => [{ id, emoji: task.emoji, title: task.title, meta: 'Hoy · cuándo puedas', points: task.points, status: 'pending', assignedTo: 'tú' }, ...prev]);
+      };
+
+      React.useEffect(() => {
+        document.getElementById('appscroll').scrollTo({ top: 0, behavior: 'instant' });
+      }, [screen]);
+
+      return (
+        <div data-screen-label={`${screen}`} style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
+          <AppHeader user={USER} partnerMood={PARTNER.mood} partnerName={PARTNER.name.split(' ')[0]}
+                     onTheme={() => {}} onBell={() => {}} onMenu={() => setShowHeaderMenu(true)} />
+
+          <HeaderMenu
+            open={showHeaderMenu}
+            onClose={() => setShowHeaderMenu(false)}
+            onNavigate={id => {
+              if (id === 'achievements') setScreen('achievements');
+              else { setToast(`${id} · próximamente`); setTimeout(() => setToast(null), 1800); }
+            }}
+            onLogout={() => { setToast('👋 Sesión cerrada (demo)'); setTimeout(() => setToast(null), 1800); }}
+          />
+
+          {screen === 'dashboard' && (
+            <div style={{ paddingTop: 10 }}>
+              <DailyPhrase />
+              <BalanceLevelHero
+                youName="María" youBalance={balance}
+                partnerName="Carlos" partnerBalance={-balance}
+                level={3} current={320 + Math.round((balance - 15.5))} needed={500}
+              />
+              <StreakStrip dailyStreak={12} weeklyStreak={4} dailyMult={1.5} weeklyBonus={0.25} />
+              <PendingTasksList tasks={pending.filter(p => p.status !== 'done').slice(0, 3)} onComplete={completeTask} />
+              <RecentMovements items={MOVEMENTS} />
+              <div style={{ height: 20 }} />
+            </div>
+          )}
+
+          {screen === 'tasks' && (
+            <div style={{ paddingTop: 4 }}>
+              <div className="page-title"><h2>Tareas</h2><Pill tone="amber">Hoy {pending.filter(p => p.status !== 'done').length}</Pill></div>
+              <CategoryFilter selected={null} onSelect={() => {}} />
+              <div style={{ margin: '0 16px 12px' }}>
+                <Label style={{ marginBottom: 8 }}>Pendientes</Label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {pending.map(t => <TaskItem key={t.id} task={t} onComplete={completeTask} />)}
+                </div>
+              </div>
+              <div style={{ margin: '0 16px 12px' }}>
+                <Label style={{ marginBottom: 8 }}>📚 Catálogo</Label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {CATALOG.map(item => (
+                    <TaskCatalogRow key={item.id} item={item} onAdd={i => {
+                      createTask({ title: i.title, emoji: i.emoji, points: i.points });
+                      setToast(`Añadido: ${i.emoji} ${i.title}`); setTimeout(() => setToast(null), 1800);
+                    }} />
+                  ))}
+                </div>
+              </div>
+              <div style={{ height: 20 }} />
+            </div>
+          )}
+
+          {screen === 'calendar' && (
+            <div style={{ paddingTop: 4 }}>
+              <div className="page-title"><h2>Calendario</h2><Pill tone="purple">Abril</Pill></div>
+              <WeekStrip days={WEEK_DAYS} />
+              <CalendarList events={UPCOMING} />
+              <div style={{ height: 20 }} />
+            </div>
+          )}
+
+          {screen === 'achievements' && (
+            <div style={{ paddingTop: 4 }}>
+              <div className="page-title"><h2>Logros</h2><Pill tone="amber">3/6</Pill></div>
+              <Card style={{ margin: '0 16px 12px', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', border: 'none', boxShadow: '0 4px 24px rgba(79,70,229,0.3)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: 12, color: 'rgba(199,210,254,0.85)' }}>Nivel actual</div>
+                    <div style={{ fontSize: 32, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>Nivel 3 👑</div>
+                    <div style={{ fontSize: 11, color: 'rgba(199,210,254,0.8)', marginTop: 2 }}>Compañeros en ritmo</div>
+                  </div>
+                  <div style={{ fontSize: 44 }}>🌟</div>
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <ProgressBar value={320} max={500} tone="amber" />
+                  <div style={{ fontSize: 10, color: 'rgba(199,210,254,0.75)', marginTop: 6 }}>320 / 500 MP · 180 para Nivel 4</div>
+                </div>
+              </Card>
+              <AchievementsGrid badges={BADGES} />
+              <button
+                onClick={() => setScreen('analytics')}
+                style={{
+                  margin: '12px 16px 0', width: 'calc(100% - 32px)',
+                  padding: '12px 14px',
+                  background: 'rgba(168,85,247,0.12)',
+                  border: '1px solid rgba(168,85,247,0.3)',
+                  color: '#a855f7', borderRadius: 12,
+                  fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
+              >
+                📊 Ver analítica completa →
+              </button>
+              <div style={{ height: 20 }} />
+            </div>
+          )}
+
+          {screen === 'analytics' && (
+            <AnalyticsScreen
+              isPremium={isPremium}
+              onGoPremium={() => { setIsPremium(true); setToast('👑 ¡Premium activado! (demo)'); setTimeout(() => setToast(null), 2000); }}
+            />
+          )}
+
+          <BottomNav current={screen} onNavigate={setScreen} onFab={() => setShowFabMenu(true)} />
+
+          <FabActionMenu
+            open={showFabMenu}
+            onClose={() => setShowFabMenu(false)}
+            onPick={id => {
+              if (id === 'todo') {
+                setShowSheet(true);
+              } else if (id === 'activity') {
+                setScreen('calendar');
+                setToast('📅 Navegando a Calendario…');
+                setTimeout(() => setToast(null), 1800);
+              } else if (id === 'shop') {
+                setToast('🛒 Añadir a la compra (próximamente)');
+                setTimeout(() => setToast(null), 1800);
+              }
+            }}
+          />
+
+          <AddTaskSheet open={showSheet} onClose={() => setShowSheet(false)} onCreate={t => { createTask(t); setToast(`Creada: ${t.emoji} ${t.title}`); setTimeout(() => setToast(null), 1800); }} />
+
+          {toast && (
+            <div style={{
+              position: 'fixed', bottom: 90, left: '50%', transform: 'translateX(-50%)',
+              background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff',
+              padding: '10px 18px', borderRadius: 9999, fontSize: 13, fontWeight: 700,
+              boxShadow: '0 4px 20px rgba(245,158,11,0.5)', zIndex: 60,
+              maxWidth: 360, textAlign: 'center',
+            }}>{toast}</div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<AppShell />);
+  </script>
+</body>
+</html>

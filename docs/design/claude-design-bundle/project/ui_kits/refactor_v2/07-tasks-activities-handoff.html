@@ -1,0 +1,1131 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>07 · Tasks & Activities handoff — Matripuntos v2.1</title>
+  <link rel="stylesheet" href="shared.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .ds-canvas-stage { background: #06030f !important; }
+    .ds-canvas-section-title { color: #c4b5fd !important; }
+    .ds-canvas-section-subtitle { color: #6b7280 !important; }
+    .ds-canvas-artboard-label { color: #9ca3af !important; font-weight: 600 !important; }
+
+    /* Page header */
+    .pg-h { padding: 16px; display: flex; justify-content: space-between; align-items: center; }
+    .pg-h h1 { font-size: 22px; font-weight: 800; margin: 0; color: var(--text-primary); letter-spacing: -0.01em; }
+
+    .btn-pri {
+      background: var(--grad-cta); color: white; border: 0;
+      font-size: 12px; font-weight: 700; padding: 8px 12px;
+      border-radius: 10px; cursor: pointer;
+      box-shadow: 0 6px 14px rgba(245,158,11,0.3);
+      display: inline-flex; gap: 5px; align-items: center;
+    }
+    .btn-sec {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--brd-subtle);
+      font-size: 12px; font-weight: 700; padding: 8px 12px;
+      border-radius: 10px; cursor: pointer;
+      display: inline-flex; gap: 5px; align-items: center;
+    }
+    .pg-h .actions { display: flex; gap: 6px; }
+
+    /* Tabs */
+    .tabs {
+      margin: 0 16px 12px;
+      display: flex; gap: 4px; padding: 3px;
+      background: rgba(26,16,53,0.6); border: 1px solid var(--brd-subtle);
+      border-radius: 10px;
+    }
+    .tabs button {
+      flex: 1; padding: 7px 10px; border: 0;
+      border-radius: 7px; cursor: pointer;
+      font-size: 11px; font-weight: 700;
+      background: transparent; color: var(--text-tertiary);
+    }
+    .tabs button.active { background: var(--grad-primary); color: white; }
+
+    /* Catalog row */
+    .cat-row {
+      margin: 0 16px 8px; padding: 10px 12px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 12px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .cat-emoji {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: rgba(168,85,247,0.15);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .cat-emoji.amber { background: rgba(245,158,11,0.15); }
+    .cat-body { flex: 1; min-width: 0; }
+    .cat-name { font-size: 13px; font-weight: 700; color: var(--text-primary); margin: 0; line-height: 1.2; }
+    .cat-meta { font-size: 11px; color: var(--text-tertiary); margin: 2px 0 0; }
+    .cat-meta .cat-tag { background: rgba(168,85,247,0.10); color: var(--brand-purple); padding: 1px 6px; border-radius: 4px; font-weight: 600; font-size: 10px; }
+    .cat-pts { color: var(--brand-amber); font-weight: 800; font-size: 13px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    .cat-pts.pending { color: var(--text-tertiary); position: relative; }
+    .cat-pts.pending::after {
+      content: 'pendiente';
+      position: absolute; top: -10px; right: 0;
+      font-size: 8px; color: var(--brand-amber);
+      background: rgba(245,158,11,0.15);
+      padding: 1px 5px; border-radius: 3px;
+      font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* Bottom sheet shell */
+    .sheet {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: var(--surface-elevated);
+      border-top-left-radius: 18px; border-top-right-radius: 18px;
+      border-top: 1px solid var(--brd-subtle);
+      box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+      padding: 14px 16px 24px;
+      max-height: 85%;
+      overflow-y: auto;
+    }
+    .sheet-handle {
+      width: 36px; height: 4px; background: var(--brd-subtle);
+      border-radius: 2px; margin: 0 auto 12px;
+    }
+    .sheet h2 {
+      margin: 0 0 4px; font-size: 16px; font-weight: 800;
+      color: var(--text-primary); letter-spacing: -0.005em;
+    }
+    .sheet h2 .x {
+      float: right; cursor: pointer; color: var(--text-tertiary);
+      font-weight: 300; font-size: 22px; line-height: 1;
+    }
+    .sheet-sub { font-size: 12px; color: var(--text-tertiary); margin: 0 0 14px; }
+
+    /* Search input */
+    .srch {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px;
+      background: var(--surface-base); border: 1px solid var(--brd-subtle);
+      border-radius: 10px;
+      margin-bottom: 12px;
+    }
+    .srch input {
+      flex: 1; background: transparent; border: 0;
+      color: var(--text-primary); font-size: 13px;
+      font-family: inherit;
+    }
+    .srch input::placeholder { color: var(--text-tertiary); }
+    .srch span { color: var(--text-tertiary); }
+
+    /* Category chips */
+    .chips {
+      display: flex; gap: 5px; overflow-x: auto;
+      margin-bottom: 12px; padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .chips::-webkit-scrollbar { display: none; }
+    .chips .chip {
+      flex-shrink: 0;
+      font-size: 10px; font-weight: 700;
+      padding: 5px 10px; border-radius: 999px;
+      background: rgba(26,16,53,0.6); border: 1px solid var(--brd-subtle);
+      color: var(--text-tertiary); cursor: pointer;
+      white-space: nowrap;
+    }
+    .chips .chip.active {
+      background: rgba(168,85,247,0.20);
+      border-color: rgba(168,85,247,0.40);
+      color: var(--brand-purple);
+    }
+
+    /* Form fields */
+    .field { margin-bottom: 10px; }
+    .field label {
+      display: block; font-size: 10px; font-weight: 700;
+      color: var(--text-tertiary); text-transform: uppercase;
+      letter-spacing: 0.06em; margin-bottom: 5px;
+    }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 10px 12px;
+      background: var(--surface-base); border: 1px solid var(--brd-subtle);
+      border-radius: 8px;
+      color: var(--text-primary); font-size: 13px; font-family: inherit;
+      box-sizing: border-box;
+    }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .stepper {
+      display: flex; align-items: center;
+      background: var(--surface-base); border: 1px solid var(--brd-subtle);
+      border-radius: 8px; padding: 2px;
+    }
+    .stepper button {
+      width: 32px; height: 32px; border: 0;
+      background: transparent; color: var(--text-secondary);
+      cursor: pointer; font-size: 14px; border-radius: 6px;
+    }
+    .stepper input {
+      flex: 1; min-width: 0; padding: 0;
+      background: transparent; border: 0;
+      color: var(--text-primary); font-weight: 700; font-size: 14px;
+      text-align: center; font-variant-numeric: tabular-nums;
+    }
+
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px; border-radius: 8px;
+      background: var(--surface-base); border: 1px solid var(--brd-subtle);
+      margin-bottom: 8px;
+    }
+    .toggle-row .lbl { font-size: 12px; color: var(--text-primary); font-weight: 600; }
+    .toggle-row .lbl small { display: block; color: var(--text-tertiary); font-size: 10px; margin-top: 2px; }
+    .toggle {
+      width: 36px; height: 20px;
+      background: var(--brd-subtle); border-radius: 999px;
+      position: relative; flex-shrink: 0;
+    }
+    .toggle.on { background: var(--success); }
+    .toggle::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 16px; height: 16px;
+      background: white; border-radius: 50%;
+    }
+    .toggle.on::after { left: 18px; }
+
+    /* Banner consenso */
+    .banner-consenso {
+      padding: 10px 12px; margin-bottom: 12px;
+      background: rgba(245,158,11,0.10);
+      border: 1px solid rgba(245,158,11,0.3);
+      border-radius: 10px;
+      font-size: 11px; color: var(--brand-amber); line-height: 1.5;
+    }
+    .banner-consenso b { color: var(--text-primary); }
+
+    /* CTA bar */
+    .cta-bar {
+      display: flex; gap: 8px; margin-top: 14px;
+    }
+    .cta-bar button {
+      flex: 1; padding: 12px; border-radius: 10px;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      border: 1px solid var(--brd-subtle);
+      background: transparent; color: var(--text-secondary);
+    }
+    .cta-bar button.primary {
+      flex: 2; border: 0; color: white;
+      background: var(--grad-cta);
+      box-shadow: 0 6px 14px rgba(245,158,11,0.3);
+    }
+
+    /* Spec card (right side, beside each phone) */
+    .spec {
+      width: 360px;
+      padding: 20px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 14px;
+      font-size: 12px; color: var(--text-secondary); line-height: 1.55;
+    }
+    .spec h4 { margin: 0 0 4px; color: var(--text-primary); font-size: 14px; font-weight: 800; letter-spacing: -0.005em; }
+    .spec .ruta { font-family: ui-monospace, monospace; font-size: 10px; color: var(--brand-purple); background: rgba(168,85,247,0.08); padding: 2px 6px; border-radius: 4px; margin-bottom: 12px; display: inline-block; }
+    .spec h5 { margin: 14px 0 4px; color: var(--brand-amber); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+    .spec ul { margin: 0; padding-left: 16px; }
+    .spec ul li { margin-bottom: 3px; }
+    .spec b { color: var(--text-primary); font-weight: 700; }
+    .spec code { font-family: ui-monospace, monospace; font-size: 10px; background: rgba(168,85,247,0.08); padding: 1px 4px; border-radius: 3px; color: var(--brand-purple); }
+    .spec .pill {
+      display: inline-block; padding: 2px 7px; border-radius: 4px;
+      background: rgba(34,197,94,0.12); color: var(--success);
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.04em; margin-right: 4px;
+    }
+    .spec .pill.amber { background: rgba(245,158,11,0.12); color: var(--brand-amber); }
+    .spec .pill.purple { background: rgba(168,85,247,0.12); color: var(--brand-purple); }
+
+    /* Decisions panel */
+    .decision-panel {
+      width: 380px; padding: 20px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 14px;
+    }
+    .decision-panel h3 { font-size: 14px; color: var(--text-primary); margin: 0 0 10px; font-weight: 800; }
+    .decision-panel p { font-size: 12px; color: var(--text-secondary); line-height: 1.55; margin: 0 0 8px; }
+    .decision-panel ul { margin: 0 0 0; padding-left: 18px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+    .decision-panel ul li { margin-bottom: 4px; }
+    .decision-panel ul b { color: var(--text-primary); }
+
+    /* Storyboard */
+    .story {
+      width: 980px; padding: 24px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 14px;
+    }
+    .story h3 { margin: 0 0 4px; font-size: 16px; color: var(--text-primary); font-weight: 800; }
+    .story-sub { margin: 0 0 16px; font-size: 12px; color: var(--text-tertiary); }
+    .story-flow { display: flex; align-items: stretch; gap: 12px; }
+    .story-step {
+      flex: 1; padding: 12px;
+      background: var(--surface-base); border: 1px solid var(--brd-subtle);
+      border-radius: 10px;
+      font-size: 11px; color: var(--text-secondary); line-height: 1.5;
+    }
+    .story-step b { display: block; color: var(--text-primary); font-size: 12px; margin-bottom: 4px; font-weight: 700; }
+    .story-step small { display: block; color: var(--brand-amber); font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; margin-bottom: 4px; }
+    .story-arrow { display: flex; align-items: center; color: var(--text-tertiary); font-size: 16px; }
+  </style>
+</head>
+<body>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <div id="root"></div>
+  <script type="text/babel">
+    function Phone({ children, label, withSheet }) {
+      return (
+        <div className="phone phone-tall" style={{ position: 'relative' }}>
+          {label && <div className="spec-label">{label}</div>}
+          <div className="statusbar">
+            <span>9:41</span>
+            <span style={{ fontSize: 11 }}>●●● 📶 🔋</span>
+          </div>
+          <div className="phone-screen" style={{ position: 'relative', overflow: 'hidden' }}>
+            {children}
+            {withSheet && <div style={{ position: 'absolute', inset: 0, background: 'rgba(6,3,15,0.55)' }} />}
+            {withSheet}
+          </div>
+          <div className="bottomnav">
+            <div className="bottomnav-item"><span>🏠</span><span>Inicio</span></div>
+            <div className="bottomnav-item"><span>✓</span><span>Tareas</span></div>
+            <div className="bottomnav-item active"><span>🎯</span><span>Actividades</span></div>
+            <div className="bottomnav-item"><span>📊</span><span>Analítica</span></div>
+            <div className="bottomnav-item"><span>⚙</span><span>Más</span></div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ============================================================ */
+    /* SCREEN 1 · Tasks header con 2 botones                          */
+    /* ============================================================ */
+    function TasksHeader() {
+      return (
+        <Phone label="01 · Tasks header (2 botones)">
+          <div className="pg-h">
+            <h1>Tareas</h1>
+          </div>
+          <div style={{ padding: '0 16px 12px', display: 'flex', gap: 8 }}>
+            <button className="btn-pri" style={{ flex: 2 }}>＋ Añadir tarea</button>
+            <button className="btn-sec" style={{ flex: 1 }}>＋ Crear nueva</button>
+          </div>
+          <div style={{ padding: '0 16px 8px', fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
+            <b style={{ color: 'var(--text-secondary)' }}>Añadir tarea</b> → elige del catálogo (las globales + las de la pareja).<br/>
+            <b style={{ color: 'var(--text-secondary)' }}>Crear nueva</b> → form en blanco, entra al catálogo de pareja.
+          </div>
+          <div style={{ padding: '12px 16px 4px', fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>Hoy</div>
+          <div className="cat-row">
+            <div className="cat-emoji">🍳</div>
+            <div className="cat-body">
+              <p className="cat-name">Preparar cena</p>
+              <p className="cat-meta">tú · 20:00</p>
+            </div>
+            <span className="cat-pts">+2.5</span>
+          </div>
+          <div className="cat-row">
+            <div className="cat-emoji">🧺</div>
+            <div className="cat-body">
+              <p className="cat-name">Tender lavadora</p>
+              <p className="cat-meta">Edu</p>
+            </div>
+            <span className="cat-pts">+1.5</span>
+          </div>
+        </Phone>
+      );
+    }
+
+    /* ============================================================ */
+    /* SCREEN 2 · AddTaskFromCatalogSheet                             */
+    /* ============================================================ */
+    function AddTaskFromCatalog() {
+      const sheet = (
+        <div className="sheet">
+          <div className="sheet-handle"></div>
+          <h2>Añadir tarea<span className="x">×</span></h2>
+          <p className="sheet-sub">Elige una del catálogo o crea una nueva</p>
+          <div className="srch"><span>🔍</span><input placeholder="Buscar 'cocinar', 'baño'..." defaultValue="" /></div>
+          <div className="chips">
+            <span className="chip active">Todas</span>
+            <span className="chip">🧹 Limpieza</span>
+            <span className="chip">🍳 Cocina</span>
+            <span className="chip">🛒 Compras</span>
+            <span className="chip">🐶 Mascotas</span>
+            <span className="chip">💰 Admin</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {[
+              { e: '🍳', n: 'Cocinar', m: 'Cocina · global', p: '2.5' },
+              { e: '🧹', n: 'Limpiar baño', m: 'Limpieza · pareja', p: '2.5' },
+              { e: '🧺', n: 'Tender lavadora', m: 'Limpieza · global', p: '1' },
+              { e: '🛒', n: 'Compra semanal', m: 'Compras · global', p: '3' },
+              { e: '🐶', n: 'Sacar al perro', m: 'Mascotas · global', p: '1' },
+            ].map(it => (
+              <div key={it.n} style={{ padding: '10px 12px', background: 'var(--surface-card)', border: '1px solid var(--brd-subtle)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 32, height: 32, background: 'rgba(168,85,247,0.15)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{it.e}</span>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{it.n}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--text-tertiary)' }}>{it.m}</p>
+                </div>
+                <span style={{ color: 'var(--success)', fontWeight: 800, fontSize: 13 }}>+{it.p}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+      return (
+        <Phone label="02 · AddTaskFromCatalogSheet" withSheet={sheet}>
+          <div className="pg-h"><h1>Tareas</h1></div>
+        </Phone>
+      );
+    }
+
+    /* ============================================================ */
+    /* SCREEN 2b · ConfigureTask después de elegir                    */
+    /* ============================================================ */
+    function ConfigureTask() {
+      const sheet = (
+        <div className="sheet">
+          <div className="sheet-handle"></div>
+          <h2>Configurar · Limpiar baño<span className="x">×</span></h2>
+          <p className="sheet-sub">Elegida del catálogo. Ajusta para esta vez.</p>
+          <div className="field">
+            <label>Puntos</label>
+            <div className="stepper">
+              <button>−</button>
+              <input defaultValue="2.5" />
+              <button>+</button>
+            </div>
+          </div>
+          <div className="field-row">
+            <div className="field">
+              <label>Asignado</label>
+              <select defaultValue="me"><option value="me">Tú</option><option>Edu</option><option>Ambos</option></select>
+            </div>
+            <div className="field">
+              <label>Fecha</label>
+              <input defaultValue="hoy" />
+            </div>
+          </div>
+          <div className="field">
+            <label>Frecuencia</label>
+            <select defaultValue="once"><option value="once">Una vez</option><option>Diaria</option><option>Semanal</option><option>Mensual</option></select>
+          </div>
+          <div className="cta-bar">
+            <button>Volver</button>
+            <button className="primary">Añadir</button>
+          </div>
+        </div>
+      );
+      return (
+        <Phone label="02b · Configurar (tras seleccionar)" withSheet={sheet}>
+          <div className="pg-h"><h1>Tareas</h1></div>
+        </Phone>
+      );
+    }
+
+    /* ============================================================ */
+    /* SCREEN 3 · CreateTaskNewSheet                                  */
+    /* ============================================================ */
+    function CreateTaskNew() {
+      const sheet = (
+        <div className="sheet">
+          <div className="sheet-handle"></div>
+          <h2>Crear nueva tarea<span className="x">×</span></h2>
+          <p className="sheet-sub">Se guarda en el catálogo de pareja para reusarla luego</p>
+          <div className="field">
+            <label>Nombre</label>
+            <input placeholder="Ej. Aspirar el coche" />
+          </div>
+          <div className="field-row">
+            <div className="field">
+              <label>Emoji</label>
+              <input defaultValue="🚗" style={{ textAlign: 'center', fontSize: 18 }} />
+            </div>
+            <div className="field">
+              <label>Categoría</label>
+              <select><option>Limpieza</option><option>Cocina</option><option>Compras</option><option>Mascotas</option><option>Admin</option><option>Personal</option></select>
+            </div>
+          </div>
+          <div className="field">
+            <label>Puntos</label>
+            <div className="stepper">
+              <button>−</button>
+              <input defaultValue="2" />
+              <button>+</button>
+            </div>
+          </div>
+          <div className="field-row">
+            <div className="field">
+              <label>Asignado</label>
+              <select><option>Tú</option><option>Edu</option><option>Ambos</option></select>
+            </div>
+            <div className="field">
+              <label>Fecha</label>
+              <input defaultValue="hoy" />
+            </div>
+          </div>
+          <div className="toggle-row">
+            <div className="lbl">Guardar en catálogo<small>Para reusarla en próximas tareas</small></div>
+            <div className="toggle on"></div>
+          </div>
+          <div className="cta-bar">
+            <button>Cancelar</button>
+            <button className="primary">Crear</button>
+          </div>
+        </div>
+      );
+      return (
+        <Phone label="03 · CreateTaskNewSheet" withSheet={sheet}>
+          <div className="pg-h"><h1>Tareas</h1></div>
+        </Phone>
+      );
+    }
+
+    /* ============================================================ */
+    /* SCREEN 4 · Activities Tab Catálogo                             */
+    /* ============================================================ */
+    function ActivitiesCatalogTab() {
+      return (
+        <Phone label="04 · Activities · Tab Catálogo">
+          <div className="pg-h">
+            <h1>Actividades</h1>
+            <button className="btn-pri">＋ Plantilla</button>
+          </div>
+          <div className="tabs">
+            <button>Wizard</button>
+            <button className="active">Catálogo</button>
+            <button>Histórico</button>
+          </div>
+          <div className="chips" style={{ margin: '0 16px 12px', paddingBottom: 4 }}>
+            <span className="chip active">Todas (8)</span>
+            <span className="chip">💼 Trabajo</span>
+            <span className="chip">🏥 Salud</span>
+            <span className="chip">🎬 Ocio</span>
+            <span className="chip">🍽️ Social</span>
+            <span className="chip">💍 Alto impacto</span>
+            <span className="chip">✈️ Viaje</span>
+            <span className="chip">🤲 Cuidado</span>
+            <span className="chip">🧘 Personal</span>
+          </div>
+          <div className="cat-row">
+            <div className="cat-emoji amber">🍽️</div>
+            <div className="cat-body">
+              <p className="cat-name">Cena restaurante</p>
+              <p className="cat-meta"><span className="cat-tag">social</span> · cenas, comidas</p>
+            </div>
+            <span className="cat-pts">−6 a 12</span>
+          </div>
+          <div className="cat-row">
+            <div className="cat-emoji amber">💍</div>
+            <div className="cat-body">
+              <p className="cat-name">Boda</p>
+              <p className="cat-meta"><span className="cat-tag">alto impacto</span></p>
+            </div>
+            <span className="cat-pts">−22</span>
+          </div>
+          <div className="cat-row" style={{ borderColor: 'rgba(245,158,11,0.4)' }}>
+            <div className="cat-emoji amber">🧖</div>
+            <div className="cat-body">
+              <p className="cat-name">Spa fin de semana</p>
+              <p className="cat-meta"><span className="cat-tag">personal</span> · creada por ti</p>
+            </div>
+            <span className="cat-pts pending">−15</span>
+          </div>
+          <div className="cat-row">
+            <div className="cat-emoji amber">🎂</div>
+            <div className="cat-body">
+              <p className="cat-name">Cumple familia</p>
+              <p className="cat-meta"><span className="cat-tag">social</span></p>
+            </div>
+            <span className="cat-pts">−6</span>
+          </div>
+          <div className="cat-row">
+            <div className="cat-emoji amber">✈️</div>
+            <div className="cat-body">
+              <p className="cat-name">Vuelo internacional</p>
+              <p className="cat-meta"><span className="cat-tag">viaje</span></p>
+            </div>
+            <span className="cat-pts">−35</span>
+          </div>
+        </Phone>
+      );
+    }
+
+    /* ============================================================ */
+    /* SCREEN 5 · AddActivityTemplateSheet                            */
+    /* ============================================================ */
+    function AddActivityTemplate() {
+      const sheet = (
+        <div className="sheet">
+          <div className="sheet-handle"></div>
+          <h2>Nueva plantilla<span className="x">×</span></h2>
+          <p className="sheet-sub">Se añade al catálogo para reusar en eventos futuros</p>
+          <div className="banner-consenso">
+            <b>⚖️ Puntos pendientes de Edu.</b><br/>
+            Resto de campos se aplican al instante. Mientras tanto, si usas esta plantilla en un evento, el coste cae al default por categoría.
+          </div>
+          <div className="field">
+            <label>Nombre</label>
+            <input defaultValue="Spa fin de semana" />
+          </div>
+          <div className="field-row">
+            <div className="field">
+              <label>Emoji</label>
+              <input defaultValue="🧖" style={{ textAlign: 'center', fontSize: 18 }} />
+            </div>
+            <div className="field">
+              <label>Categoría</label>
+              <select defaultValue="personal"><option value="personal">Personal</option><option>Trabajo</option><option>Salud</option><option>Ocio</option><option>Social</option><option>Alto impacto</option><option>Viaje</option><option>Cuidado</option></select>
+            </div>
+          </div>
+          <div className="field">
+            <label>Subcategoría</label>
+            <input defaultValue="Bienestar / wellness" />
+          </div>
+          <div className="field">
+            <label>Coste sugerido (puntos)</label>
+            <div className="stepper">
+              <button>−</button>
+              <input defaultValue="15" />
+              <button>+</button>
+            </div>
+            <p style={{ margin: '6px 0 0', fontSize: 10, color: 'var(--text-tertiary)' }}>Edu verá tu sugerencia. Hasta que acepte, los eventos usarán el default de la categoría.</p>
+          </div>
+          <div className="cta-bar">
+            <button>Cancelar</button>
+            <button className="primary">Crear · enviar a Edu</button>
+          </div>
+        </div>
+      );
+      return (
+        <Phone label="05 · AddActivityTemplateSheet" withSheet={sheet}>
+          <div className="pg-h"><h1>Actividades</h1></div>
+        </Phone>
+      );
+    }
+
+    /* ============================================================ */
+    /* SCREEN 6 · ProposalsPanel                                      */
+    /* ============================================================ */
+    function ProposalsPanel() {
+      return (
+        <Phone label="06 · ProposalsPanel">
+          <div className="pg-h">
+            <h1>Propuestas</h1>
+          </div>
+          <div style={{ padding: '0 16px 8px', fontSize: 12, color: 'var(--text-tertiary)' }}>3 esperando tu OK · 1 enviada por ti</div>
+          <div style={{ padding: '12px 16px 4px', fontSize: 11, fontWeight: 700, color: 'var(--brand-amber)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>De Blanca → tú</div>
+          <div style={{ margin: '0 16px 8px', padding: '12px 14px', background: 'var(--surface-card)', border: '1px solid var(--brd-subtle)', borderRadius: 12 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>🧖 Spa fin de semana · −15 MP</p>
+            <p style={{ margin: '4px 0 8px', fontSize: 11, color: 'var(--text-tertiary)' }}>Plantilla nueva · personal/wellness</p>
+            <p style={{ margin: '0 0 10px', fontSize: 11, color: 'var(--text-secondary)', fontStyle: 'italic' }}>"Para los findes que necesitamos desconectar — me parece justo que cueste como una cena fuerte"</p>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button className="btn-sec" style={{ flex: 1, fontSize: 11, padding: '7px 10px' }}>Negociar</button>
+              <button className="btn-sec" style={{ flex: 1, fontSize: 11, padding: '7px 10px', borderColor: 'var(--danger)', color: 'var(--danger)' }}>Rechazar</button>
+              <button className="btn-pri" style={{ flex: 1.2, fontSize: 11, padding: '7px 10px' }}>Aceptar</button>
+            </div>
+          </div>
+          <div style={{ margin: '0 16px 8px', padding: '12px 14px', background: 'var(--surface-card)', border: '1px solid var(--brd-subtle)', borderRadius: 12 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Regla · Limpiar baño 1.5 → 2.5 MP</p>
+            <p style={{ margin: '4px 0 8px', fontSize: 11, color: 'var(--text-tertiary)' }}>Edición de regla · +67%</p>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button className="btn-sec" style={{ flex: 1, fontSize: 11, padding: '7px 10px' }}>Negociar</button>
+              <button className="btn-sec" style={{ flex: 1, fontSize: 11, padding: '7px 10px' }}>Rechazar</button>
+              <button className="btn-pri" style={{ flex: 1.2, fontSize: 11, padding: '7px 10px' }}>Aceptar</button>
+            </div>
+          </div>
+          <div style={{ padding: '14px 16px 4px', fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tuyas pendientes</div>
+          <div style={{ margin: '0 16px 8px', padding: '12px 14px', background: 'var(--surface-card)', border: '1px solid var(--brd-subtle)', borderRadius: 12, opacity: 0.85 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>🎢 Parque atracciones · −10 MP</p>
+            <p style={{ margin: '4px 0 8px', fontSize: 11, color: 'var(--text-tertiary)' }}>Esperando a Edu · enviada hace 2h</p>
+            <button className="btn-sec" style={{ fontSize: 11, padding: '6px 10px' }}>Cancelar propuesta</button>
+          </div>
+        </Phone>
+      );
+    }
+
+    /* ============================================================ */
+    /* SCREEN 7 · Wizard nueva actividad (sin botón Catálogo)        */
+    /* ============================================================ */
+    function ActivityWizard() {
+      return (
+        <Phone label="07 · Wizard sin botón catálogo">
+          <div className="pg-h">
+            <h1>Nueva actividad</h1>
+            <button className="btn-sec" style={{ width: 36, height: 36, padding: 0, justifyContent: 'center' }}>×</button>
+          </div>
+          <div style={{ padding: '0 16px', fontSize: 11, color: 'var(--text-tertiary)' }}>Paso 2 / 4</div>
+          <div style={{ margin: '8px 16px 16px', height: 4, background: 'var(--surface-card)', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ width: '50%', height: '100%', background: 'var(--grad-cta)' }}></div>
+          </div>
+          <div style={{ padding: '0 16px' }}>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>¿Qué tipo de actividad?</h2>
+            <p style={{ margin: '4px 0 16px', fontSize: 12, color: 'var(--text-tertiary)' }}>Elige una categoría — las plantillas se ven cuando guardes</p>
+          </div>
+          <div style={{ padding: '0 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {[
+              { e: '💼', n: 'Trabajo' },
+              { e: '🏥', n: 'Salud' },
+              { e: '🎬', n: 'Ocio' },
+              { e: '🍽️', n: 'Social', sel: true },
+              { e: '💍', n: 'Alto impacto' },
+              { e: '✈️', n: 'Viaje' },
+              { e: '🤲', n: 'Cuidado' },
+              { e: '🧘', n: 'Personal' },
+            ].map(it => (
+              <div key={it.n} style={{
+                padding: 14, borderRadius: 12,
+                background: it.sel ? 'rgba(245,158,11,0.15)' : 'var(--surface-card)',
+                border: it.sel ? '1px solid var(--brand-amber)' : '1px solid var(--brd-subtle)',
+                textAlign: 'center', cursor: 'pointer',
+              }}>
+                <div style={{ fontSize: 24 }}>{it.e}</div>
+                <div style={{ marginTop: 4, fontSize: 12, fontWeight: 700, color: it.sel ? 'var(--brand-amber)' : 'var(--text-primary)' }}>{it.n}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ position: 'absolute', bottom: 76, left: 16, right: 16, display: 'flex', gap: 8 }}>
+            <button className="btn-sec" style={{ flex: 1 }}>Atrás</button>
+            <button className="btn-pri" style={{ flex: 2 }}>Siguiente →</button>
+          </div>
+        </Phone>
+      );
+    }
+
+    /* ============================================================ */
+    /* SCREEN 8 · Estados visuales consenso                           */
+    /* ============================================================ */
+    function ConsensusStates() {
+      return (
+        <Phone label="08 · Estados de consenso · puntos">
+          <div className="pg-h"><h1>Estados visuales</h1></div>
+          <div style={{ padding: '0 16px 12px', fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
+            La diferencia entre puntos <b style={{ color: 'var(--success)' }}>acordados</b> y <b style={{ color: 'var(--brand-amber)' }}>pendientes</b> debe ser legible de un vistazo.
+          </div>
+
+          <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Acordada</div>
+          <div className="cat-row">
+            <div className="cat-emoji amber">🍽️</div>
+            <div className="cat-body">
+              <p className="cat-name">Cena restaurante</p>
+              <p className="cat-meta"><span className="cat-tag">social</span> · acordada el 12 mar</p>
+            </div>
+            <span className="cat-pts" style={{ color: 'var(--success)' }}>−12 ✓</span>
+          </div>
+
+          <div style={{ padding: '12px 16px 4px', fontSize: 10, fontWeight: 700, color: 'var(--brand-amber)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Pendiente del partner</div>
+          <div className="cat-row" style={{ borderColor: 'rgba(245,158,11,0.4)' }}>
+            <div className="cat-emoji amber">🧖</div>
+            <div className="cat-body">
+              <p className="cat-name">Spa fin de semana</p>
+              <p className="cat-meta">tu propuesta · enviada hace 2h</p>
+            </div>
+            <span className="cat-pts pending">−15</span>
+          </div>
+
+          <div style={{ padding: '12px 16px 4px', fontSize: 10, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>En uso (con default por pendiente)</div>
+          <div className="cat-row">
+            <div className="cat-emoji amber">🧖</div>
+            <div className="cat-body">
+              <p className="cat-name">Spa · 22 jun</p>
+              <p className="cat-meta">usa <b style={{ color: 'var(--text-secondary)' }}>−10 default categoría</b> hasta acuerdo</p>
+            </div>
+            <span className="cat-pts" style={{ color: 'var(--text-secondary)' }}>−10*</span>
+          </div>
+
+          <div style={{ padding: '12px 16px 4px', fontSize: 10, fontWeight: 700, color: 'var(--danger)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Rechazada · vuelve al default</div>
+          <div className="cat-row" style={{ opacity: 0.7 }}>
+            <div className="cat-emoji amber">🎢</div>
+            <div className="cat-body">
+              <p className="cat-name">Parque atracciones</p>
+              <p className="cat-meta">Edu rechazó · usa default categoría</p>
+            </div>
+            <span className="cat-pts" style={{ color: 'var(--text-tertiary)' }}>−6</span>
+          </div>
+
+          <div style={{ margin: '14px 16px', padding: 12, background: 'rgba(168,85,247,0.08)', border: '1px solid var(--brd-subtle)', borderRadius: 10, fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            <b style={{ color: 'var(--brand-purple)' }}>Regla visual:</b> el <code style={{ background: 'rgba(245,158,11,0.15)', padding: '1px 4px', borderRadius: 3, fontSize: 10, color: 'var(--brand-amber)' }}>badge "pendiente"</code> arriba a la derecha del valor; valor en gris hasta acuerdo.
+          </div>
+        </Phone>
+      );
+    }
+
+    /* ============================================================ */
+    /* SPEC CARDS                                                     */
+    /* ============================================================ */
+    function Spec({ name, ruta, type, trigger, states, children, api }) {
+      return (
+        <div className="spec">
+          <h4>{name}</h4>
+          <span className="ruta">{ruta}</span>
+          <h5>Tipo</h5>
+          <div>{type}</div>
+          {trigger && (<><h5>Trigger</h5><div>{trigger}</div></>)}
+          {states && (<><h5>Estados cubiertos</h5><div>{states}</div></>)}
+          {children}
+          {api && (<><h5>API</h5><ul>{api.map((a, i) => <li key={i}><code>{a}</code></li>)}</ul></>)}
+        </div>
+      );
+    }
+
+    /* ============================================================ */
+    function Decisions() {
+      return (
+        <div className="decision-panel">
+          <h3>Decisiones tomadas</h3>
+          <ul>
+            <li><b>2 botones diferenciados</b> en Tasks (primario "Añadir tarea" + secundario "Crear nueva"). Jerarquía visual: el camino feliz es elegir del catálogo.</li>
+            <li><b>8 categorías cerradas</b> de actividades (constante <code>ACTIVITY_CATEGORIES</code>). Subcategorías libres dentro.</li>
+            <li><b>Plantillas con consenso de puntos</b>. Resto de campos se aplican al instante. Editar puntos también requiere consenso (no solo crear).</li>
+            <li><b>Default por categoría</b> cuando una plantilla está pendiente o rechazada — para no bloquear el uso del calendario.</li>
+            <li><b>Componente compartido <code>&lt;CatalogSheet&gt;</code></b> entre tasks y activities (mismo UX, distintos campos).</li>
+            <li><b>Tarea creada → guardar en catálogo opt-in</b> (toggle ON por defecto, pero desmarcable para evitar ruido).</li>
+            <li><b>Toasts:</b> banners inline existentes, no flotantes.</li>
+            <li><b>Sheets:</b> slide-up en mobile, fade en desktop, ESC + click fuera + ✕ cierran.</li>
+            <li><b>Tokens nuevos</b> propuestos: <code>--badge-pending-bg: rgba(245,158,11,0.15)</code>, <code>--badge-pending-fg: #f59e0b</code> (alias semánticos sobre amber).</li>
+          </ul>
+          <h3 style={{ marginTop: 16 }}>Decisiones que te dejo a ti</h3>
+          <ul>
+            <li><b>Histórico de propuestas:</b> ¿guardamos rechazadas/canceladas para audit, o solo las activas? Recomendación: audit infinito en backend, UI muestra últimas 30 días.</li>
+            <li><b>Reasignación de tarea:</b> si Edu reasigna a Blanca una tarea recurrente que ya creaste, ¿requiere consenso? Mi voto: no — couple-scoped sin consenso (la tarea es de los dos).</li>
+            <li><b>"Plantilla privada":</b> ¿permitir plantillas que solo ve quien las crea? Mi voto: no en v2.1, complica el modelo. Si surge demanda, v2.2.</li>
+            <li><b>TTL de propuestas:</b> ¿caducan a los X días? Sugiero 14 días → vuelven al default y se notifica.</li>
+            <li><b>Búsqueda en catálogo:</b> fuzzy o prefix-only. Recomendación: prefix con tolerancia a tildes.</li>
+          </ul>
+        </div>
+      );
+    }
+
+    function Storyboard() {
+      return (
+        <div className="story">
+          <h3>Storyboard · "Blanca añade una tarea reusable y crea plantilla nueva"</h3>
+          <p className="story-sub">Los dos flujos clave de un solo vistazo. Cada paso = pantalla mockeada.</p>
+          <div className="story-flow">
+            <div className="story-step"><small>Paso 1</small><b>Tap "+ Añadir tarea"</b>Tasks header. Se abre AddTaskFromCatalogSheet.</div>
+            <div className="story-arrow">→</div>
+            <div className="story-step"><small>Paso 2</small><b>Elige "Limpiar baño"</b>Del catálogo (filtra por chip "Limpieza").</div>
+            <div className="story-arrow">→</div>
+            <div className="story-step"><small>Paso 3</small><b>Configura</b>Ajusta puntos/asignado/fecha. Sin consenso, es tarea.</div>
+            <div className="story-arrow">→</div>
+            <div className="story-step"><small>Paso 4</small><b>Tap "Añadir"</b>Sheet cierra. Tarea aparece en "Hoy".</div>
+          </div>
+          <div style={{ height: 16 }}></div>
+          <div className="story-flow">
+            <div className="story-step"><small>Paso 1</small><b>Activities → Tab Catálogo</b>Tap "+ Plantilla".</div>
+            <div className="story-arrow">→</div>
+            <div className="story-step"><small>Paso 2</small><b>AddActivityTemplateSheet</b>Banner consenso visible. Rellena nombre + categoría + puntos.</div>
+            <div className="story-arrow">→</div>
+            <div className="story-step"><small>Paso 3</small><b>"Crear · enviar a Edu"</b>Plantilla aparece en catálogo con badge "Puntos pendientes" + valor en gris.</div>
+            <div className="story-arrow">→</div>
+            <div className="story-step"><small>Paso 4</small><b>Edu acepta en ProposalsPanel</b>Badge desaparece. Próximos eventos usan el valor acordado.</div>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      return (
+        <DesignCanvas
+          title="07 · Tasks & Activities · handoff de implementación"
+          subtitle="Modelo final tras adenda 2026-05-03 · 8 pantallas + specs + storyboard."
+        >
+          <DCSection id="tasks" title="Tareas — los 2 botones">
+            <DCArtboard id="t-header" label="01 · Tasks header" width={400} height={780}>
+              <TasksHeader />
+            </DCArtboard>
+            <DCArtboard id="t-spec1" label="01 · Spec" width={380} height={780}>
+              <div style={{ padding: 20 }}>
+                <Spec
+                  name="TasksHeader"
+                  ruta="src/frontend/src/components/v2/tasks/TasksHeader.tsx"
+                  type="inline-card (parte de TasksScreen)"
+                  trigger="Render por defecto al entrar a /home/tasks"
+                  states="normal"
+                  api={[
+                    "GET /api/tasks?scope=couple → query react-query 'tasks-couple'",
+                  ]}
+                >
+                  <h5>Botones</h5>
+                  <ul>
+                    <li><b>Primario</b> "+ Añadir tarea" → abre <code>AddTaskFromCatalogSheet</code>. Disabled si no hay conexión.</li>
+                    <li><b>Secundario</b> "+ Crear nueva" → abre <code>CreateTaskNewSheet</code>.</li>
+                  </ul>
+                  <h5>Iconos lucide</h5>
+                  <div><code>Plus</code> en ambos.</div>
+                </Spec>
+              </div>
+            </DCArtboard>
+
+            <DCArtboard id="t-add" label="02 · AddTaskFromCatalogSheet" width={400} height={780}>
+              <AddTaskFromCatalog />
+            </DCArtboard>
+            <DCArtboard id="t-add-spec" label="02 · Spec" width={380} height={780}>
+              <div style={{ padding: 20 }}>
+                <Spec
+                  name="AddTaskFromCatalogSheet"
+                  ruta="src/frontend/src/components/v2/tasks/AddTaskFromCatalogSheet.tsx"
+                  type="bottom-sheet"
+                  trigger='Click en "+ Añadir tarea" en TasksHeader'
+                  states="loading / empty (catálogo vacío) / normal / filtrando / error"
+                >
+                  <h5>Componentes interiores</h5>
+                  <ul>
+                    <li><code>SearchInput</code> · debounced 200ms</li>
+                    <li><code>CategoryFilter</code> · chips horizontales</li>
+                    <li><code>TemplateList</code> · row tappable</li>
+                  </ul>
+                  <h5>Datos</h5>
+                  <ul>
+                    <li><code>GET /api/tasks/catalog?scope=both</code> → globales + de pareja, mergeadas.</li>
+                  </ul>
+                  <h5>Al elegir plantilla</h5>
+                  <ul>
+                    <li>Sheet hace push a step "configure" (mismo sheet, content swap).</li>
+                    <li>Pre-rellena puntos/categoría/emoji desde la plantilla.</li>
+                  </ul>
+                  <h5>Estados especiales</h5>
+                  <div><span className="pill purple">empty</span><span className="pill amber">loading</span><span className="pill">error</span></div>
+                </Spec>
+              </div>
+            </DCArtboard>
+
+            <DCArtboard id="t-cfg" label="02b · Configure (paso 2)" width={400} height={780}>
+              <ConfigureTask />
+            </DCArtboard>
+            <DCArtboard id="t-cfg-spec" label="02b · Spec" width={380} height={680}>
+              <div style={{ padding: 20 }}>
+                <Spec
+                  name="ConfigureTaskFromTemplate"
+                  ruta="dentro de AddTaskFromCatalogSheet.tsx (paso 2)"
+                  type="bottom-sheet · paso 2"
+                  trigger="Selección de plantilla en paso 1"
+                >
+                  <h5>Campos</h5>
+                  <ul>
+                    <li><b>puntos</b>: number, required, min 0.5, step 0.5, default = template.points</li>
+                    <li><b>asignado</b>: select [tú/Edu/ambos], required, default 'me'</li>
+                    <li><b>fecha</b>: date, required, default 'hoy'</li>
+                    <li><b>frecuencia</b>: select [una vez/diaria/semanal/mensual], default 'una vez'</li>
+                  </ul>
+                  <h5>Submit</h5>
+                  <ul>
+                    <li><code>POST /api/tasks · body: {`{templateId, points, assignee, date, frequency}`}</code></li>
+                    <li>Success → cierra sheet + invalida 'tasks-couple' + banner inline "Tarea añadida".</li>
+                    <li>Error → banner inline rojo, no cierra.</li>
+                  </ul>
+                </Spec>
+              </div>
+            </DCArtboard>
+
+            <DCArtboard id="t-new" label="03 · CreateTaskNewSheet" width={400} height={780}>
+              <CreateTaskNew />
+            </DCArtboard>
+            <DCArtboard id="t-new-spec" label="03 · Spec" width={380} height={780}>
+              <div style={{ padding: 20 }}>
+                <Spec
+                  name="CreateTaskNewSheet"
+                  ruta="src/frontend/src/components/v2/tasks/CreateTaskNewSheet.tsx"
+                  type="bottom-sheet"
+                  trigger='Click en "+ Crear nueva" en TasksHeader'
+                  states="normal / submitting / error"
+                >
+                  <h5>Campos</h5>
+                  <ul>
+                    <li><b>nombre</b>: text, required, max 60</li>
+                    <li><b>emoji</b>: text 1 char, required, default 📋</li>
+                    <li><b>categoría</b>: select cerrado [Limpieza/Cocina/Compras/Mascotas/Admin/Personal]</li>
+                    <li><b>puntos</b>: number, required, min 0.5, step 0.5</li>
+                    <li><b>asignado/fecha</b>: ídem que configure</li>
+                    <li><b>guardarEnCatalogo</b>: boolean, default <code>true</code> (UX anti-ruido)</li>
+                  </ul>
+                  <h5>Submit</h5>
+                  <ul>
+                    <li><code>POST /api/tasks · body con `saveToCatalog: bool`</code></li>
+                    <li>Backend crea task + (opcional) entry en catálogo de pareja.</li>
+                    <li>Invalida <code>tasks-couple</code> + <code>tasks-catalog</code>.</li>
+                  </ul>
+                </Spec>
+              </div>
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection id="activities" title="Actividades — Tab Catálogo + consenso">
+            <DCArtboard id="a-cat" label="04 · Tab Catálogo" width={400} height={780}>
+              <ActivitiesCatalogTab />
+            </DCArtboard>
+            <DCArtboard id="a-cat-spec" label="04 · Spec" width={380} height={780}>
+              <div style={{ padding: 20 }}>
+                <Spec
+                  name="ActivitiesCatalogTab"
+                  ruta="src/frontend/src/components/v2/activities/CatalogTab.tsx"
+                  type="full-page tab"
+                  trigger='Selección de tab "Catálogo" en /home/activities'
+                  states="loading / empty / normal / filtrando / error"
+                >
+                  <h5>Datos</h5>
+                  <ul>
+                    <li><code>GET /api/activities/catalog</code></li>
+                    <li>Constante <code>ACTIVITY_CATEGORIES</code> = 8 fijas, no editable por user.</li>
+                  </ul>
+                  <h5>Row de plantilla</h5>
+                  <ul>
+                    <li>Si <code>pointsStatus === 'agreed'</code> → valor en amber.</li>
+                    <li>Si <code>'pending'</code> → valor en gris + badge "pendiente" arriba derecha.</li>
+                    <li>Click → <code>EditActivityTemplateSheet</code>. Si edita puntos → vuelve a 'pending'.</li>
+                  </ul>
+                  <h5>FAB / botón</h5>
+                  <ul>
+                    <li>"+ Plantilla" → abre <code>AddActivityTemplateSheet</code>.</li>
+                  </ul>
+                </Spec>
+              </div>
+            </DCArtboard>
+
+            <DCArtboard id="a-add" label="05 · AddActivityTemplateSheet" width={400} height={780}>
+              <AddActivityTemplate />
+            </DCArtboard>
+            <DCArtboard id="a-add-spec" label="05 · Spec" width={380} height={780}>
+              <div style={{ padding: 20 }}>
+                <Spec
+                  name="AddActivityTemplateSheet"
+                  ruta="src/frontend/src/components/v2/activities/AddTemplateSheet.tsx"
+                  type="bottom-sheet"
+                  trigger='Click en "+ Plantilla" en CatalogTab'
+                  states="normal / submitting / error"
+                >
+                  <h5>Banner consenso (siempre visible)</h5>
+                  <div>"Puntos pendientes de Edu". Resto se aplica al instante.</div>
+                  <h5>Campos</h5>
+                  <ul>
+                    <li><b>nombre</b>: text, required</li>
+                    <li><b>emoji</b>: text 1 char, required</li>
+                    <li><b>categoría</b>: select cerrado de 8</li>
+                    <li><b>subcategoría</b>: text libre, opcional</li>
+                    <li><b>puntosSugeridos</b>: number, required → estado <code>'pending'</code></li>
+                  </ul>
+                  <h5>Submit</h5>
+                  <ul>
+                    <li><code>POST /api/activities/catalog</code></li>
+                    <li>Backend crea plantilla + crea propuesta linkada.</li>
+                    <li>Notifica al partner.</li>
+                  </ul>
+                </Spec>
+              </div>
+            </DCArtboard>
+
+            <DCArtboard id="a-prop" label="06 · ProposalsPanel" width={400} height={780}>
+              <ProposalsPanel />
+            </DCArtboard>
+            <DCArtboard id="a-prop-spec" label="06 · Spec" width={380} height={780}>
+              <div style={{ padding: 20 }}>
+                <Spec
+                  name="ProposalsPanel"
+                  ruta="src/frontend/src/screens/v2/Proposals.tsx"
+                  type="full-page"
+                  trigger='Tap en badge "tienes N propuestas" en Dashboard / Settings'
+                  states="empty / normal / loading"
+                >
+                  <h5>Secciones</h5>
+                  <ul>
+                    <li><b>De partner → tú</b> (esperan tu OK)</li>
+                    <li><b>Tuyas pendientes</b> (esperan al partner)</li>
+                  </ul>
+                  <h5>Acciones por card</h5>
+                  <ul>
+                    <li><b>Aceptar</b> → <code>POST /api/proposals/:id/accept</code> → invalida activities + tasks + analytics</li>
+                    <li><b>Rechazar</b> → confirm dialog → <code>POST /api/proposals/:id/reject</code></li>
+                    <li><b>Negociar</b> → abre <code>NegotiateSheet</code> (variante de Add con valor pre-rellenado)</li>
+                    <li><b>Cancelar (las tuyas)</b> → <code>DELETE /api/proposals/:id</code></li>
+                  </ul>
+                  <h5>Filtros</h5>
+                  <div>Tipo de propuesta: plantilla / regla / ambas.</div>
+                </Spec>
+              </div>
+            </DCArtboard>
+
+            <DCArtboard id="a-wiz" label="07 · Wizard sin botón catálogo" width={400} height={780}>
+              <ActivityWizard />
+            </DCArtboard>
+            <DCArtboard id="a-wiz-spec" label="07 · Spec" width={380} height={680}>
+              <div style={{ padding: 20 }}>
+                <Spec
+                  name="RequestActivityWizard"
+                  ruta="src/frontend/src/screens/v2/RequestActivity.tsx"
+                  type="full-page · 4 pasos"
+                  trigger="FAB speed-dial · acción 'Actividad' / botón inline en /home/activities"
+                  states="step1-4 / submitting / error"
+                >
+                  <h5>Cambio respecto v2.0.6</h5>
+                  <ul>
+                    <li><b>Quitar botón "🔎 Catálogo"</b> introducido en v2.0.6. El catálogo vive en su propio tab.</li>
+                  </ul>
+                  <h5>Pasos</h5>
+                  <ul>
+                    <li>1 · Cuándo (fecha + hora)</li>
+                    <li>2 · Tipo (categoría — 8 cards 2 col)</li>
+                    <li>3 · Detalle (nombre, descripción, puntos sugeridos)</li>
+                    <li>4 · Confirmar + enviar a partner</li>
+                  </ul>
+                  <h5>Submit final</h5>
+                  <div><code>POST /api/activities · body: full event</code></div>
+                </Spec>
+              </div>
+            </DCArtboard>
+
+            <DCArtboard id="a-states" label="08 · Estados de consenso" width={400} height={780}>
+              <ConsensusStates />
+            </DCArtboard>
+            <DCArtboard id="a-states-spec" label="08 · Spec" width={380} height={680}>
+              <div style={{ padding: 20 }}>
+                <Spec
+                  name="Estados visuales del valor de puntos"
+                  ruta="utility · src/frontend/src/components/v2/PointsBadge.tsx"
+                  type="inline component"
+                  trigger="Render dentro de cualquier row con plantilla/evento"
+                >
+                  <h5>4 estados</h5>
+                  <ul>
+                    <li><b>agreed</b> → amber, sin badge.</li>
+                    <li><b>pending (proposal viva)</b> → gris + badge "pendiente" amber.</li>
+                    <li><b>en uso con default</b> → gris + asterisco · tooltip "usa default categoría".</li>
+                    <li><b>rejected</b> → opacity 0.7 · valor cae a default.</li>
+                  </ul>
+                  <h5>Tokens nuevos sugeridos</h5>
+                  <ul>
+                    <li><code>--badge-pending-bg: rgba(245,158,11,0.15)</code></li>
+                    <li><code>--badge-pending-fg: #f59e0b</code></li>
+                  </ul>
+                  <h5>Tooltip</h5>
+                  <div>"Edu aún no ha aceptado este valor. Mientras tanto se usa el default de la categoría (X MP)."</div>
+                </Spec>
+              </div>
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection id="meta" title="Decisiones & storyboard">
+            <DCArtboard id="dec" label="Decisiones tomadas / dejadas" width={420} height={760}>
+              <div style={{ padding: 20 }}><Decisions /></div>
+            </DCArtboard>
+            <DCArtboard id="story" label="Storyboard end-to-end" width={1020} height={460}>
+              <div style={{ padding: 20 }}><Storyboard /></div>
+            </DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

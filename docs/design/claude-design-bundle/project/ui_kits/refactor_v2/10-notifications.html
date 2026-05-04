@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>10 · Notificaciones — Matripuntos v2.1</title>
+  <link rel="stylesheet" href="shared.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .ds-canvas-stage { background: #06030f !important; }
+    .ds-canvas-section-title { color: #c4b5fd !important; }
+    .ds-canvas-section-subtitle { color: #6b7280 !important; }
+    .ds-canvas-artboard-label { color: #9ca3af !important; font-weight: 600 !important; }
+
+    /* Lock screen mock */
+    .lock-bg {
+      background: radial-gradient(circle at 30% 20%, #1e1b4b 0%, #0a0a0f 60%);
+      position: absolute; inset: 0; padding: 60px 14px 0;
+    }
+    .lock-time { text-align: center; color: white; font-size: 64px; font-weight: 200; letter-spacing: -0.04em; line-height: 1; }
+    .lock-date { text-align: center; color: rgba(255,255,255,0.6); font-size: 13px; font-weight: 600; margin-bottom: 28px; }
+    .lock-stack { display: flex; flex-direction: column; gap: 6px; }
+    .lock-noti {
+      padding: 12px 14px; border-radius: 16px;
+      background: rgba(40,30,60,0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.06);
+      font-family: -apple-system, sans-serif;
+    }
+    .lock-noti .top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .lock-noti .ico {
+      width: 22px; height: 22px; border-radius: 6px;
+      background: linear-gradient(135deg, #f59e0b, #a855f7);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+    }
+    .lock-noti .app { font-size: 11px; color: rgba(255,255,255,0.7); font-weight: 700; flex: 1; text-transform: uppercase; letter-spacing: 0.04em; }
+    .lock-noti .tm { font-size: 11px; color: rgba(255,255,255,0.5); }
+    .lock-noti .t { font-size: 13px; color: white; font-weight: 700; margin-bottom: 2px; }
+    .lock-noti .b { font-size: 13px; color: rgba(255,255,255,0.85); line-height: 1.35; }
+
+    .h-pad { padding: 16px; }
+    .h-title { font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0 0 4px; letter-spacing: -0.01em; }
+    .h-sub { font-size: 12px; color: var(--text-tertiary); margin: 0 0 12px; line-height: 1.5; }
+
+    /* Settings · timing */
+    .toggle-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px; background: var(--surface-card);
+      border: 1px solid var(--brd-subtle); border-radius: 12px;
+      margin-bottom: 6px;
+    }
+    .toggle-row .icn { font-size: 18px; }
+    .toggle-row .info { flex: 1; }
+    .toggle-row .info .nm { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+    .toggle-row .info .sb { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; line-height: 1.4; }
+    .toggle-row .sw {
+      width: 36px; height: 20px; background: var(--brand-amber); border-radius: 999px;
+      position: relative; cursor: pointer;
+    }
+    .toggle-row .sw.off { background: var(--surface-card2); }
+    .toggle-row .sw::after {
+      content: ''; position: absolute; top: 2px; right: 2px;
+      width: 16px; height: 16px; background: white; border-radius: 50%;
+    }
+    .toggle-row .sw.off::after { right: auto; left: 2px; }
+
+    .quiet-card {
+      margin: 0 0 12px;
+      padding: 14px; border-radius: 12px;
+      background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(168,85,247,0.08));
+      border: 1px solid rgba(99,102,241,0.35);
+    }
+    .quiet-card .h { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .quiet-card .h .e { font-size: 18px; }
+    .quiet-card .h h4 { margin: 0; font-size: 13px; font-weight: 800; color: var(--text-primary); flex: 1; }
+    .quiet-card .h .v { font-size: 12px; color: var(--brand-purple); font-weight: 700; }
+    .quiet-card p { margin: 0; font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+
+    .cat-group { margin-bottom: 16px; padding: 0 16px; }
+    .cat-group h4 {
+      font-size: 10px; color: var(--text-tertiary); text-transform: uppercase;
+      letter-spacing: 0.06em; font-weight: 800; margin: 0 0 8px;
+    }
+
+    .panel { width: 380px; padding: 22px; background: var(--surface-card); border: 1px solid var(--brd-subtle); border-radius: 14px; }
+    .panel h3 { margin: 0 0 8px; font-size: 14px; font-weight: 800; color: var(--text-primary); }
+    .panel p { margin: 0 0 10px; font-size: 12px; color: var(--text-secondary); line-height: 1.55; }
+    .panel ul { margin: 0; padding-left: 18px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+    .panel ul b { color: var(--text-primary); }
+    .panel h4 { margin: 14px 0 6px; color: var(--brand-amber); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    .copy-row {
+      padding: 10px 12px; background: var(--surface-card);
+      border: 1px solid var(--brd-subtle); border-radius: 10px;
+      margin-bottom: 6px;
+    }
+    .copy-row .l { font-size: 9px; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+    .copy-row .v { font-size: 11px; color: var(--text-primary); line-height: 1.4; font-weight: 600; }
+    .copy-row.bad { border-color: rgba(239,68,68,0.4); }
+    .copy-row.bad .l { color: #ef4444; }
+    .copy-row.good { border-color: rgba(34,197,94,0.4); }
+    .copy-row.good .l { color: #22c55e; }
+  </style>
+</head>
+<body>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <div id="root"></div>
+  <script type="text/babel">
+    function Phone({ children, label }) {
+      return (
+        <div className="phone phone-tall" style={{ position: 'relative' }}>
+          {label && <div className="spec-label">{label}</div>}
+          <div className="statusbar"><span>9:41</span><span style={{ fontSize: 11 }}>●●● 📶 🔋</span></div>
+          <div className="phone-screen" style={{ position: 'relative' }}>{children}</div>
+        </div>
+      );
+    }
+
+    function Lock({ items, label, sub }) {
+      return (
+        <Phone label={label}>
+          <div className="lock-bg">
+            <div className="lock-time">9:41</div>
+            <div className="lock-date">{sub}</div>
+            <div className="lock-stack">
+              {items.map((n, i) => (
+                <div key={i} className="lock-noti">
+                  <div className="top">
+                    <div className="ico">M</div>
+                    <div className="app">Matripuntos</div>
+                    <div className="tm">{n.tm}</div>
+                  </div>
+                  <div className="t">{n.t}</div>
+                  <div className="b">{n.b}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Phone>
+      );
+    }
+
+    function Critical() {
+      return (
+        <Lock
+          label="01 · Críticas — siempre llegan"
+          sub="martes · 10 abril"
+          items={[
+            { tm: 'ahora', t: 'Blanca te ha pedido algo', b: '"¿Puedes recoger a Lola del cole? Voy con retraso."' },
+            { tm: 'hace 2m', t: 'Negociación de Blanca', b: 'Ha contraofrecido 2.5 MP por la cena · necesita tu OK' },
+            { tm: 'hace 5m', t: 'Recordatorio · Cita médica', b: 'En 30 min · Pediatra Lola · c/ Goya 12' },
+          ]}
+        />
+      );
+    }
+
+    function Daily() {
+      return (
+        <Lock
+          label="02 · Diarias — máx 1/día"
+          sub="miércoles · 11 abril"
+          items={[
+            { tm: '20:30', t: 'Resumen del día', b: 'Tú +4.5 · Blanca +2 · Has subido a Aprendiz L2 🎉' },
+          ]}
+        />
+      );
+    }
+
+    function Quiet() {
+      return (
+        <Lock
+          label="03 · Modo silencio"
+          sub="domingo · 14 abril · 22:30"
+          items={[
+            { tm: 'ahora', t: 'Blanca: "¿puedes mañana?"', b: 'Sin sonido · te llegará por la mañana' },
+          ]}
+        />
+      );
+    }
+
+    function Bad() {
+      return (
+        <Lock
+          label="04 · Lo que NO hacemos"
+          sub="domingo · 22:30 (mal)"
+          items={[
+            { tm: 'ahora', t: '🏆 ¡Has ganado 2.5 MP!', b: 'Sigue así campeón 💪' },
+            { tm: 'hace 3m', t: 'Blanca lleva 5 puntos más que tú', b: 'Ponte las pilas 🔥' },
+            { tm: 'hace 5m', t: '¿Te has olvidado de algo?', b: 'Llevas 2 días sin actividad' },
+            { tm: 'hace 7m', t: 'Tu racha está en peligro', b: 'No la pierdas, te queda 1h' },
+          ]}
+        />
+      );
+    }
+
+    function Settings() {
+      return (
+        <Phone label="05 · Ajustes · timing">
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title">Notificaciones</h1>
+            <p className="h-sub">Por defecto: lo crítico siempre, el resto en bloques.</p>
+          </div>
+          <div className="cat-group">
+            <h4>Resumen diario</h4>
+            <div className="quiet-card">
+              <div className="h"><div className="e">📊</div><h4>Una sola noti al día</h4><div className="v">20:30</div></div>
+              <p>Tú + tu pareja, totales del día, nivel y siguiente meta. Editable hora.</p>
+            </div>
+          </div>
+          <div className="cat-group">
+            <h4>Modo silencio</h4>
+            <div className="quiet-card">
+              <div className="h"><div className="e">🌙</div><h4>22:00 — 09:00</h4><div className="v">activo</div></div>
+              <p>Solo críticas pasan. Resto se acumula en resumen.</p>
+            </div>
+          </div>
+          <div className="cat-group">
+            <h4>Categorías</h4>
+            <div className="toggle-row">
+              <div className="icn">📩</div>
+              <div className="info"><div className="nm">Peticiones recibidas</div><div className="sb">Cuando tu pareja te pide algo</div></div>
+              <div className="sw"></div>
+            </div>
+            <div className="toggle-row">
+              <div className="icn">🤝</div>
+              <div className="info"><div className="nm">Negociación</div><div className="sb">Contraofertas que necesitan tu OK</div></div>
+              <div className="sw"></div>
+            </div>
+            <div className="toggle-row">
+              <div className="icn">📅</div>
+              <div className="info"><div className="nm">Calendario · 30 min antes</div><div className="sb">Citas comunes</div></div>
+              <div className="sw"></div>
+            </div>
+            <div className="toggle-row">
+              <div className="icn">🏆</div>
+              <div className="info"><div className="nm">Logros y niveles</div><div className="sb">Solo en el resumen diario</div></div>
+              <div className="sw off"></div>
+            </div>
+            <div className="toggle-row">
+              <div className="icn">🔥</div>
+              <div className="info"><div className="nm">Rachas y "te falta poco"</div><div className="sb">Off por defecto · gamification leve</div></div>
+              <div className="sw off"></div>
+            </div>
+          </div>
+        </Phone>
+      );
+    }
+
+    function Decisions() {
+      return (
+        <div className="panel">
+          <h3>Filosofía de notificaciones</h3>
+          <p><b>Una app de pareja en el móvil compite con SMS, WhatsApp y la pareja física.</b> Si notifica como un juego, se desinstala en 3 días.</p>
+
+          <h4>Tres tiers</h4>
+          <ul>
+            <li><b>Críticas (siempre llegan):</b> petición recibida, negociación pendiente, recordatorio cita.</li>
+            <li><b>Resumen diario (1/día, 20:30):</b> totales, nivel, logros, racha.</li>
+            <li><b>Silencio total:</b> "te falta poco", "tu pareja te ha superado", "vuelve". Off por defecto.</li>
+          </ul>
+
+          <h4>Reglas</h4>
+          <ul>
+            <li>Quiet hours 22–9 por defecto (editable).</li>
+            <li>Nunca dos notis seguidas — si llegan en &lt;5 min, agrupamos.</li>
+            <li>Nunca lenguaje competitivo en el lock screen ("Blanca te gana", "ponte las pilas").</li>
+            <li>Nunca emojis con afecto fingido en notis automáticas (💪 🔥 🎯 → fuera).</li>
+          </ul>
+
+          <h4>Copy · do/don't</h4>
+          <div className="copy-row good">
+            <div className="l">✓ HACER</div>
+            <div className="v">"Blanca te ha pedido algo: ¿puedes recoger a Lola?"</div>
+          </div>
+          <div className="copy-row good">
+            <div className="l">✓ HACER</div>
+            <div className="v">"Resumen del día — Tú +4.5 · Blanca +2"</div>
+          </div>
+          <div className="copy-row bad">
+            <div className="l">✗ NO HACER</div>
+            <div className="v">"🔥 ¡Tu racha está en peligro!"</div>
+          </div>
+          <div className="copy-row bad">
+            <div className="l">✗ NO HACER</div>
+            <div className="v">"Blanca lleva 5 puntos más, ponte las pilas 💪"</div>
+          </div>
+
+          <h4>Para ti (founder)</h4>
+          <ul>
+            <li><b>Email digest semanal:</b> ¿lo hacemos? Yo voto sí — 1 email los domingos con la semana.</li>
+            <li><b>Push de "tu pareja editó una regla":</b> ¿siempre o solo si afecta saldo?</li>
+            <li><b>Silenciar a un partner:</b> hard mode, pero cuando hay pelea ayuda. Pendiente.</li>
+          </ul>
+        </div>
+      );
+    }
+
+    function App() {
+      return (
+        <DesignCanvas
+          title="10 · Notificaciones · timing y tono"
+          subtitle="3 tiers · críticas / resumen / silencio. Nunca compite con tu pareja."
+        >
+          <DCSection id="lock" title="Lock screen — 4 estados">
+            <DCArtboard id="crit" label="01 · Críticas" width={400} height={780}><Critical /></DCArtboard>
+            <DCArtboard id="daily" label="02 · Resumen diario" width={400} height={780}><Daily /></DCArtboard>
+            <DCArtboard id="quiet" label="03 · Modo silencio" width={400} height={780}><Quiet /></DCArtboard>
+            <DCArtboard id="bad" label="04 · Lo que NO hacemos" width={400} height={780}><Bad /></DCArtboard>
+          </DCSection>
+          <DCSection id="config" title="Ajustes y filosofía">
+            <DCArtboard id="set" label="05 · Ajustes timing" width={400} height={780}><Settings /></DCArtboard>
+            <DCArtboard id="dec" label="Filosofía & copy" width={420} height={780}><div style={{ padding: 20 }}><Decisions /></div></DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

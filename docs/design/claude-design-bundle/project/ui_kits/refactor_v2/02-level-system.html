@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>02 · Sistema de niveles — Matripuntos v2.1</title>
+  <link rel="stylesheet" href="shared.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    .ds-canvas-stage { background: #06030f !important; }
+    .ds-canvas-section-title { color: #c4b5fd !important; }
+    .ds-canvas-section-subtitle { color: #6b7280 !important; }
+    .ds-canvas-artboard-label { color: #9ca3af !important; font-weight: 600 !important; }
+    .ds-canvas-artboard-frame { background: var(--grad-page) !important; border-radius: 28px !important; }
+
+    /* ─── Level curve diagram ─── */
+    .curve {
+      width: 880px; padding: 28px 32px; background: var(--grad-page);
+      border-radius: 20px; border: 1px solid var(--brd-subtle);
+    }
+    .curve h2 { font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0 0 4px; letter-spacing: -0.01em; }
+    .curve-sub { font-size: 12px; color: var(--text-tertiary); margin: 0 0 24px; }
+    .curve-row {
+      display: grid;
+      grid-template-columns: 32px 80px 1fr 100px 1fr;
+      gap: 14px;
+      align-items: center;
+      padding: 11px 12px;
+      border-radius: 10px;
+      transition: background 200ms;
+    }
+    .curve-row:nth-child(odd) { background: rgba(168,85,247,0.04); }
+    .curve-num {
+      font-size: 11px; font-weight: 800; color: var(--text-tertiary);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.04em;
+    }
+    .curve-emoji {
+      font-size: 28px; text-align: center;
+      filter: drop-shadow(0 2px 6px rgba(168,85,247,0.3));
+    }
+    .curve-name {
+      font-size: 16px; font-weight: 700; color: var(--text-primary);
+      letter-spacing: -0.005em;
+    }
+    .curve-xp {
+      font-size: 12px; font-weight: 700; color: var(--brand-amber);
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+    .curve-perk {
+      font-size: 11px; color: var(--text-secondary);
+      line-height: 1.4;
+    }
+    .curve-row.cur {
+      background: linear-gradient(90deg, rgba(168,85,247,0.18), rgba(168,85,247,0.05));
+      border: 1px solid rgba(168,85,247,0.3);
+    }
+    .curve-row.cur .curve-name { color: white; }
+    .curve-cur-tag {
+      font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--brand-purple);
+      margin-left: 8px;
+    }
+
+    /* Mapping section */
+    .mapping {
+      width: 600px; padding: 24px 28px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 16px;
+    }
+    .mapping h3 { font-size: 14px; font-weight: 800; color: var(--text-primary); margin: 0 0 14px; }
+    .map-row {
+      display: grid; grid-template-columns: 1fr 24px 1fr;
+      align-items: center; gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--brd-subtle);
+      font-size: 13px;
+    }
+    .map-row:last-child { border-bottom: 0; }
+    .map-from { color: var(--text-tertiary); }
+    .map-from .strike { text-decoration: line-through; }
+    .map-arrow { text-align: center; color: var(--brand-amber); font-weight: 700; }
+    .map-to { color: var(--text-primary); font-weight: 600; }
+
+    /* Level hero variants showcase */
+    .hero-level {
+      width: 320px;
+      padding: 16px;
+      border-radius: 14px;
+      background: var(--grad-hero);
+      box-shadow: 0 12px 30px -10px rgba(79,70,229,0.5);
+      position: relative; overflow: hidden;
+    }
+    .hero-level::before {
+      content: ''; position: absolute; right: -20px; top: -20px;
+      width: 120px; height: 120px;
+      background: radial-gradient(circle, rgba(245,158,11,0.18), transparent 70%);
+      pointer-events: none;
+    }
+    .h-eyebrow {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+      color: rgba(199,210,254,0.85); text-transform: uppercase; margin: 0;
+    }
+    .h-balance { font-size: 36px; font-weight: 800; color: white; line-height: 1; margin: 6px 0 4px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+    .h-balance .mp { font-size: 14px; font-weight: 500; opacity: 0.7; margin-left: 4px; }
+    .h-explain { font-size: 13px; color: rgba(255,255,255,0.95); margin: 0; font-weight: 500; }
+    .h-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .h-mini { text-align: right; font-size: 11px; }
+    .h-mini-name { color: rgba(199,210,254,0.7); font-weight: 600; font-size: 10px; }
+    .h-mini-val { color: white; font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
+    .h-level-row { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.18); }
+    .h-level-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .h-badge { width: 32px; height: 32px; border-radius: 10px; background: rgba(255,255,255,0.15); display: inline-flex; align-items: center; justify-content: center; font-size: 18px; }
+    .h-info { flex: 1; min-width: 0; }
+    .h-name { font-size: 13px; font-weight: 700; color: white; margin: 0; line-height: 1.2; }
+    .h-name .lvlnum { color: rgba(199,210,254,0.7); font-weight: 600; margin-right: 4px; }
+    .h-perk { font-size: 10px; color: rgba(199,210,254,0.85); margin: 1px 0 0; line-height: 1.3; }
+    .h-pct { font-size: 11px; color: white; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .h-pct .needed { color: rgba(199,210,254,0.7); font-weight: 500; margin-left: 3px; }
+    .progressbar { position: relative; height: 6px; background: rgba(0,0,0,0.25); border-radius: 999px; overflow: hidden; }
+    .progressbar-fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #fbbf24, #f59e0b); border-radius: 999px; }
+
+    /* Migration banner */
+    .migration {
+      width: 600px; padding: 20px 24px;
+      background: linear-gradient(135deg, rgba(245,158,11,0.10), rgba(168,85,247,0.10));
+      border: 1px solid rgba(245,158,11,0.30);
+      border-radius: 14px;
+    }
+    .migration h3 { font-size: 14px; font-weight: 800; color: var(--brand-amber); margin: 0 0 8px; letter-spacing: 0.02em; }
+    .migration p { font-size: 13px; color: var(--text-secondary); margin: 0; line-height: 1.5; }
+    .migration p strong { color: var(--text-primary); }
+    .migration .duration { font-size: 11px; color: var(--text-tertiary); margin-top: 8px; }
+
+    /* Notes */
+    .notes-block {
+      max-width: 320px; padding: 16px; display: flex; flex-direction: column; gap: 10px;
+    }
+  </style>
+</head>
+<body>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const LEVELS = [
+      { lv: 1,  name: 'Encuentro',    emoji: '🌱', xp: 0,      perk: 'Bienvenidos · empezáis a sumar' },
+      { lv: 2,  name: 'Confianza',    emoji: '🌿', xp: 100,    perk: 'Frase legendaria desbloqueada' },
+      { lv: 3,  name: 'Compañía',     emoji: '🤝', xp: 300,    perk: 'Marco púrpura para vuestros avatares' },
+      { lv: 4,  name: 'Complicidad',  emoji: '💫', xp: 700,    perk: 'Achievement bonus +20% por una semana' },
+      { lv: 5,  name: 'Refugio',      emoji: '🏡', xp: 1500,   perk: 'Tema "Cálido" desbloqueado en el dashboard' },
+      { lv: 6,  name: 'Raíces',       emoji: '🌳', xp: 3000,   perk: 'Nuevo set de moods compartidos' },
+      { lv: 7,  name: 'Tribu',        emoji: '🔥', xp: 6000,   perk: 'Replay anual “vuestro año” disponible' },
+      { lv: 8,  name: 'Legado',       emoji: '💎', xp: 12000,  perk: 'Frame dorado · achievement épico' },
+      { lv: 9,  name: 'Eterno',       emoji: '♾️', xp: 24000,  perk: 'Tema "Eterno" + frase rotativa propia' },
+      { lv: 10, name: 'Mito',         emoji: '⭐', xp: 100000, perk: 'Aspiracional · sólo para los de verdad' },
+    ];
+    const CURRENT_LV = 2;
+
+    function CurveTable() {
+      return (
+        <div className="curve">
+          <h2>Curva de niveles · Opción C (recomendada)</h2>
+          <p className="curve-sub">10 niveles temáticos · 1 perk visible por nivel · sustituye Vecinos (sistema A) y Brote (sistema B)</p>
+          {LEVELS.map(L => (
+            <div key={L.lv} className={`curve-row ${L.lv === CURRENT_LV ? 'cur' : ''}`}>
+              <div className="curve-num">Lv {L.lv}</div>
+              <div className="curve-emoji">{L.emoji}</div>
+              <div className="curve-name">
+                {L.name}
+                {L.lv === CURRENT_LV && <span className="curve-cur-tag">· tu nivel actual</span>}
+              </div>
+              <div className="curve-xp">{L.xp.toLocaleString('es-ES')} XP</div>
+              <div className="curve-perk">{L.perk}</div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    function MappingTable() {
+      const map = [
+        { from: 'nido (B)',     to: '🌱 Encuentro' },
+        { from: 'brote (B)',    to: '🌿 Confianza' },
+        { from: 'hogar (B)',    to: '🏡 Refugio' },
+        { from: 'raices (B)',   to: '🌳 Raíces' },
+        { from: 'diamante (B)', to: '💎 Legado' },
+        { from: 'leyenda (B)',  to: '♾️ Eterno' },
+        { from: 'eterno (B)',   to: '⭐ Mito' },
+        { from: 'Vecinos…Vida (sistema A)', to: '✕ Borrado · nunca llegó al usuario' },
+      ];
+      return (
+        <div className="mapping">
+          <h3>Migración de datos · sistema viejo → nuevo</h3>
+          {map.map((m, i) => (
+            <div className="map-row" key={i}>
+              <span className="map-from"><span className="strike">{m.from}</span></span>
+              <span className="map-arrow">→</span>
+              <span className="map-to">{m.to}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    function MigrationBanner() {
+      return (
+        <div className="migration">
+          <h3>📣 Comunicación al usuario</h3>
+          <p>
+            Banner one‑time durante <strong>30 días</strong> tras el deploy:
+            <br/>
+            <em style={{ color: '#fef3c7' }}>"Hemos renombrado los niveles para que se entiendan mejor. Mismo XP, mismos achievements, nombres más claros."</em>
+          </p>
+          <p className="duration">Mostrar en el dashboard, dismissible, persistente por usuario.</p>
+        </div>
+      );
+    }
+
+    /* Level Hero examples — al subir nivel: animación */
+    function LevelHero({ lv, emoji, name, current, needed, perk }) {
+      const pct = Math.min(100, (current / needed) * 100);
+      return (
+        <div className="hero-level">
+          <div className="h-row">
+            <div>
+              <p className="h-eyebrow">Balance · esta semana</p>
+              <p className="h-balance">+13.5<span className="mp">MP</span></p>
+              <p className="h-explain">🎉 Blanca va 13.5 por delante</p>
+            </div>
+            <div className="h-mini">
+              <div style={{ marginBottom: 6 }}>
+                <div className="h-mini-name">Blanca</div>
+                <div className="h-mini-val">+17.5</div>
+              </div>
+              <div>
+                <div className="h-mini-name">Edu</div>
+                <div className="h-mini-val">+4.0</div>
+              </div>
+            </div>
+          </div>
+          <div className="h-level-row">
+            <div className="h-level-meta">
+              <div className="h-badge">{emoji}</div>
+              <div className="h-info">
+                <p className="h-name"><span className="lvlnum">Lv {lv}</span>{name}</p>
+                <p className="h-perk">Próximo: {perk}</p>
+              </div>
+              <div className="h-pct">
+                {Math.round(pct)}%<span className="needed"> ({current.toLocaleString('es-ES')}/{needed.toLocaleString('es-ES')})</span>
+              </div>
+            </div>
+            <div className="progressbar">
+              <div className="progressbar-fill" style={{ width: `${pct}%` }}></div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      return (
+        <DesignCanvas
+          title="02 · Sistema de niveles unificado"
+          subtitle="Spec C aprobada (recomendación). Borrar Vecinos (A), reescribir Brote (B), un solo LevelHero en producción."
+        >
+          <DCSection id="curve" title="Curva de 10 niveles" subtitle="Encuentro → Mito · perks visibles uno a uno">
+            <DCArtboard id="curve-table" label="Tabla canónica" width={920} height={620}>
+              <CurveTable />
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection id="hero" title="LevelHero único · todos los niveles" subtitle="El componente del dashboard. Antes había dos (BalanceLevelHero + LevelHero) — ahora uno solo">
+            <DCArtboard id="hero-1" label="Lv 1 · Encuentro · 42 XP" width={360} height={300}>
+              <div style={{ padding: 20 }}>
+                <LevelHero lv={1} emoji="🌱" name="Encuentro" current={42} needed={100} perk="Frase legendaria al subir" />
+              </div>
+            </DCArtboard>
+            <DCArtboard id="hero-2" label="Lv 2 · Confianza · estado actual" width={360} height={300}>
+              <div style={{ padding: 20 }}>
+                <LevelHero lv={2} emoji="🌿" name="Confianza" current={736} needed={2000} perk="Marco púrpura · avatares" />
+              </div>
+            </DCArtboard>
+            <DCArtboard id="hero-5" label="Lv 5 · Refugio" width={360} height={300}>
+              <div style={{ padding: 20 }}>
+                <LevelHero lv={5} emoji="🏡" name="Refugio" current={2300} needed={3000} perk="Set de moods compartidos" />
+              </div>
+            </DCArtboard>
+            <DCArtboard id="hero-8" label="Lv 8 · Legado" width={360} height={300}>
+              <div style={{ padding: 20 }}>
+                <LevelHero lv={8} emoji="💎" name="Legado" current={18500} needed={24000} perk="Tema Eterno · frase propia" />
+              </div>
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection id="migration" title="Migración" subtitle="Cómo movemos a las parejas existentes sin perder progreso">
+            <DCArtboard id="map" label="Mapeo 1:1 backend" width={640} height={420}>
+              <MappingTable />
+            </DCArtboard>
+            <DCArtboard id="comm" label="Mensaje al usuario" width={640} height={200}>
+              <MigrationBanner />
+            </DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

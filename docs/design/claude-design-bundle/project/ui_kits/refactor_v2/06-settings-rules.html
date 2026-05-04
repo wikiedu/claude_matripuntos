@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>06 · Settings · reglas de puntos — Matripuntos v2.1</title>
+  <link rel="stylesheet" href="shared.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .ds-canvas-stage { background: #06030f !important; }
+    .ds-canvas-section-title { color: #c4b5fd !important; }
+    .ds-canvas-section-subtitle { color: #6b7280 !important; }
+    .ds-canvas-artboard-label { color: #9ca3af !important; font-weight: 600 !important; }
+
+    /* Settings list patterns */
+    .settings-h {
+      padding: 16px;
+      display: flex; gap: 10px; align-items: center;
+      border-bottom: 1px solid var(--brd-subtle);
+    }
+    .settings-h .back { background: transparent; border: 0; color: var(--text-secondary); font-size: 18px; cursor: pointer; padding: 4px; }
+    .settings-h h1 { margin: 0; font-size: 18px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.01em; }
+
+    .sec {
+      padding: 16px 16px 4px;
+    }
+    .sec h2 {
+      margin: 0 0 6px; font-size: 11px; font-weight: 700;
+      color: var(--text-tertiary);
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .sec p {
+      margin: 0 0 10px; font-size: 11px;
+      color: var(--text-tertiary); line-height: 1.4;
+    }
+
+    .rule-card {
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 12px; padding: 12px;
+      margin-bottom: 8px;
+    }
+    .rule-h {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px;
+    }
+    .rule-name {
+      display: flex; align-items: center; gap: 8px;
+      flex: 1; min-width: 0;
+    }
+    .rule-emoji {
+      width: 28px; height: 28px;
+      background: rgba(168,85,247,0.15); border-radius: 7px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .rule-emoji.amber { background: rgba(245,158,11,0.15); }
+    .rule-name span { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .rule-pts {
+      background: rgba(34,197,94,0.15); color: var(--success);
+      font-size: 12px; font-weight: 800;
+      padding: 3px 8px; border-radius: 6px;
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+    .rule-pts.cost { background: rgba(245,158,11,0.15); color: var(--brand-amber); }
+    .rule-meta {
+      margin-top: 8px; padding-top: 8px;
+      border-top: 1px dashed var(--brd-subtle);
+      font-size: 11px; color: var(--text-tertiary);
+      display: flex; justify-content: space-between; gap: 10px;
+    }
+    .rule-meta b { color: var(--text-secondary); font-weight: 600; }
+
+    .rule-edit {
+      display: grid; grid-template-columns: 1fr 90px;
+      gap: 8px; align-items: center;
+      margin-top: 10px;
+    }
+    .rule-edit label { font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
+    .rule-edit input {
+      background: var(--surface-elevated); border: 1px solid var(--brd-subtle);
+      color: var(--text-primary); font-size: 13px; font-weight: 700;
+      padding: 8px 10px; border-radius: 7px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .rule-stepper {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--surface-elevated); border: 1px solid var(--brd-subtle);
+      border-radius: 7px; padding: 2px;
+    }
+    .rule-stepper button {
+      width: 28px; height: 28px; border: 0;
+      background: transparent; color: var(--text-secondary);
+      cursor: pointer; font-size: 14px; border-radius: 5px;
+    }
+    .rule-stepper button:hover { background: var(--surface-card); color: var(--text-primary); }
+    .rule-stepper input {
+      flex: 1; min-width: 0; padding: 0;
+      background: transparent; border: 0;
+      color: var(--text-primary); font-weight: 700; font-size: 13px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Toggle */
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 12px; margin-bottom: 8px;
+      gap: 10px;
+    }
+    .toggle-row .lbl { font-size: 12px; color: var(--text-primary); font-weight: 600; flex: 1; }
+    .toggle-row .lbl small { display: block; color: var(--text-tertiary); font-size: 10px; font-weight: 500; margin-top: 2px; }
+    .toggle {
+      width: 38px; height: 22px;
+      background: var(--brd-subtle);
+      border-radius: 999px; position: relative;
+      cursor: pointer; flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .toggle.on { background: var(--success); }
+    .toggle::after {
+      content: '';
+      position: absolute; top: 2px; left: 2px;
+      width: 18px; height: 18px;
+      background: white; border-radius: 50%;
+      transition: left 0.2s;
+    }
+    .toggle.on::after { left: 18px; }
+
+    /* Add new rule */
+    .add-rule {
+      width: 100%;
+      padding: 12px;
+      background: transparent;
+      border: 1px dashed var(--brd-purple);
+      border-radius: 12px;
+      color: var(--brand-purple);
+      font-size: 12px; font-weight: 700;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+
+    /* Decisions panel */
+    .panel {
+      width: 380px; padding: 20px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 14px;
+    }
+    .panel h3 { font-size: 14px; color: var(--text-primary); margin: 0 0 8px; font-weight: 800; }
+    .panel p { font-size: 12px; color: var(--text-secondary); line-height: 1.55; margin: 0 0 10px; }
+    .panel .opt {
+      padding: 10px 12px; border-radius: 8px; border: 1px solid var(--brd-subtle);
+      margin-bottom: 8px; font-size: 12px; color: var(--text-secondary);
+    }
+    .panel .opt strong { display: block; color: var(--text-primary); font-size: 13px; margin-bottom: 4px; font-weight: 700; }
+    .panel .opt.chosen { border-color: var(--success); background: rgba(34,197,94,0.06); }
+    .panel em { color: var(--success); font-style: normal; font-weight: 700; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; display: block; margin-bottom: 4px; }
+
+    /* Audit log */
+    .audit { padding: 0 16px 16px; }
+    .audit-row {
+      padding: 10px 12px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 10px; margin-bottom: 6px;
+      font-size: 11px; color: var(--text-secondary);
+    }
+    .audit-row b { color: var(--text-primary); font-weight: 700; }
+    .audit-row .arrow { color: var(--brand-amber); font-weight: 700; }
+    .audit-row .who { color: var(--text-tertiary); font-size: 10px; display: block; margin-top: 2px; }
+
+    .conflict {
+      margin: 12px 16px;
+      padding: 12px;
+      background: rgba(245,158,11,0.08);
+      border: 1px solid rgba(245,158,11,0.3);
+      border-radius: 10px;
+      font-size: 11px; color: var(--brand-amber); line-height: 1.5;
+    }
+    .conflict b { color: var(--text-primary); }
+    .conflict-actions { display: flex; gap: 6px; margin-top: 8px; }
+    .conflict-actions button {
+      flex: 1; padding: 6px 10px; border: 1px solid var(--brand-amber);
+      background: transparent; color: var(--brand-amber);
+      border-radius: 6px; font-size: 11px; font-weight: 700;
+      cursor: pointer;
+    }
+    .conflict-actions button.primary { background: var(--brand-amber); color: white; }
+  </style>
+</head>
+<body>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <div id="root"></div>
+  <script type="text/babel">
+    function Phone({ children, label }) {
+      return (
+        <div className="phone phone-tall">
+          {label && <div className="spec-label">{label}</div>}
+          <div className="statusbar">
+            <span>9:41</span>
+            <span style={{ fontSize: 11 }}>●●● 📶 🔋</span>
+          </div>
+          <div className="phone-screen">{children}</div>
+        </div>
+      );
+    }
+
+    function Header({ title }) {
+      return (
+        <div className="settings-h">
+          <button className="back">‹</button>
+          <h1>{title}</h1>
+        </div>
+      );
+    }
+
+    function Rule({ emoji, name, pts, cost, meta, edit, amber }) {
+      return (
+        <div className="rule-card">
+          <div className="rule-h">
+            <div className="rule-name">
+              <span className={`rule-emoji ${amber ? 'amber' : ''}`}>{emoji}</span>
+              <span>{name}</span>
+            </div>
+            <span className={`rule-pts ${cost ? 'cost' : ''}`}>{cost ? '−' : '+'}{pts} MP</span>
+          </div>
+          {meta && <div className="rule-meta"><b>{meta.k}</b><span>{meta.v}</span></div>}
+          {edit && (
+            <div className="rule-edit">
+              <label>Puntos</label>
+              <div className="rule-stepper">
+                <button>−</button>
+                <input defaultValue={edit} />
+                <button>+</button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function Toggle({ label, sub, on }) {
+      return (
+        <div className="toggle-row">
+          <div className="lbl">{label}<small>{sub}</small></div>
+          <div className={`toggle ${on ? 'on' : ''}`}></div>
+        </div>
+      );
+    }
+
+    /* ----- BEFORE ----- */
+    function SettingsBefore() {
+      return (
+        <Phone label="ANTES · sin granularidad">
+          <Header title="Reglas de puntos" />
+          <div style={{ padding: 16, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            <p style={{ margin: 0 }}>Hoy los puntos están <b style={{ color: 'var(--text-primary)' }}>hardcoded</b> en el backend:</p>
+            <ul style={{ margin: '8px 0 0 0', padding: '0 0 0 18px', color: 'var(--text-tertiary)' }}>
+              <li>Cocinar = 2.5 MP</li>
+              <li>Limpiar baño = 1.5 MP</li>
+              <li>Boda = -22 MP</li>
+              <li>Cumple = -6 MP</li>
+            </ul>
+            <p style={{ marginTop: 14, color: 'var(--danger)' }}>Si una pareja no comparte estos valores, el sistema les chirría. <b>No hay ajuste.</b></p>
+            <p style={{ marginTop: 14, padding: 12, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, color: 'var(--text-secondary)' }}>
+              Reportes de usuarios: "para nosotros cocinar es trivial pero limpiar el baño es trauma" · "una boda de mis primos no me cuesta lo mismo que una de tu familia"
+            </p>
+          </div>
+        </Phone>
+      );
+    }
+
+    /* ----- AFTER · listing rules ----- */
+    function SettingsAfterList() {
+      return (
+        <Phone label="DESPUÉS · catálogo editable">
+          <Header title="Reglas de puntos" />
+          <div className="conflict">
+            <b>⚖️ Las reglas son compartidas.</b> Cualquier cambio que hagas se propondrá a Edu y necesita su <b>OK</b> antes de aplicarse.
+          </div>
+          <div className="sec">
+            <h2>Tareas (suman MP)</h2>
+            <Rule emoji="🍳" name="Cocinar" pts="2.5" meta={{ k: 'última edición', v: 'hace 12 días' }} />
+            <Rule emoji="🧹" name="Limpiar baño" pts="1.5" />
+            <Rule emoji="🧺" name="Lavadora · tender" pts="1" />
+            <Rule emoji="🛒" name="Compra semanal" pts="3" />
+            <Rule emoji="🐶" name="Veterinario" pts="2" />
+          </div>
+          <div className="sec">
+            <h2>Actividades (cuestan MP)</h2>
+            <Rule emoji="🍽️" name="Cena restaurante" pts="6-12" cost amber meta={{ k: 'rango', v: 'depende del precio' }} />
+            <Rule emoji="💍" name="Boda" pts="22" cost amber />
+            <Rule emoji="🎂" name="Cumple familia" pts="6" cost amber />
+            <Rule emoji="✈️" name="Viaje fin de semana" pts="35" cost amber />
+            <button className="add-rule">＋ Añadir nueva regla</button>
+          </div>
+          <div className="sec">
+            <h2>Bonus & multiplicadores</h2>
+            <Toggle label="Multiplicador fin de semana" sub="Tareas en sáb/dom valen ×1.5" on />
+            <Toggle label="Bono mood bajo" sub="Si Edu marca 😞, sus tareas suman doble" on />
+            <Toggle label="Streak semanal" sub="7 días seguidos = +5 MP" />
+          </div>
+          <div style={{ height: 24 }} />
+        </Phone>
+      );
+    }
+
+    /* ----- AFTER · edit modal ----- */
+    function SettingsAfterEdit() {
+      return (
+        <Phone label="DESPUÉS · editando regla">
+          <Header title="Editar · Limpiar baño" />
+          <div className="sec">
+            <Rule emoji="🧹" name="Limpiar baño" pts="2.5" edit="2.5" />
+            <p style={{ marginTop: 14, fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
+              Antes: <b style={{ color: 'var(--text-primary)' }}>1.5 MP</b> · Tu propuesta: <b style={{ color: 'var(--success)' }}>2.5 MP</b> (+67%)
+            </p>
+          </div>
+          <div className="sec">
+            <h2>¿Por qué este cambio?</h2>
+            <textarea placeholder="Edu lee tu razón antes de aprobar. Ej: 'me da muchísima más pereza que cocinar, debería valer más'"
+              style={{
+                width: '100%', minHeight: 80, padding: 10,
+                background: 'var(--surface-card)', border: '1px solid var(--brd-subtle)',
+                borderRadius: 10, color: 'var(--text-primary)',
+                fontSize: 12, fontFamily: 'inherit', resize: 'none',
+                boxSizing: 'border-box',
+              }}
+              defaultValue="Me da muchísima más pereza que cocinar. Es la tarea que más posponemos y siempre acabo haciéndola yo. Compensar."
+            />
+          </div>
+          <div className="sec">
+            <h2>Cuándo aplica</h2>
+            <Toggle label="Solo para futuras tareas" sub="Las del histórico no cambian" on />
+            <Toggle label="Recalcular semana actual" sub="Aplica al lunes en curso" />
+          </div>
+          <div style={{ padding: 16, display: 'flex', gap: 8 }}>
+            <button style={{
+              flex: 1, padding: '12px', borderRadius: 10,
+              background: 'transparent', border: '1px solid var(--brd-subtle)',
+              color: 'var(--text-secondary)', fontWeight: 700, fontSize: 13,
+              cursor: 'pointer',
+            }}>Cancelar</button>
+            <button style={{
+              flex: 2, padding: '12px', borderRadius: 10, border: 0,
+              background: 'var(--grad-cta)', color: 'white',
+              fontWeight: 700, fontSize: 13, cursor: 'pointer',
+              boxShadow: '0 6px 14px rgba(245,158,11,0.3)',
+            }}>Enviar a Edu para aprobar</button>
+          </div>
+        </Phone>
+      );
+    }
+
+    /* ----- AFTER · partner approval ----- */
+    function SettingsAfterApprove() {
+      return (
+        <Phone label="DESPUÉS · vista de Edu (otra cuenta)">
+          <Header title="Reglas de puntos" />
+          <div className="conflict">
+            <b>📩 Blanca propone un cambio</b><br/>
+            Subir <b>Limpiar baño</b> de 1.5 a 2.5 MP (+67%)<br/>
+            <i style={{ color: 'var(--text-tertiary)', fontStyle: 'normal' }}>"Me da muchísima más pereza que cocinar..."</i>
+            <div className="conflict-actions">
+              <button>Negociar</button>
+              <button>Rechazar</button>
+              <button className="primary">Aceptar</button>
+            </div>
+          </div>
+          <div className="sec">
+            <h2>Cambios recientes (audit log)</h2>
+            <div className="audit">
+              <div className="audit-row">
+                <b>Cocinar</b> 2 → <span className="arrow">2.5 MP</span>
+                <span className="who">Edu propuso · Blanca aceptó · hace 12 días</span>
+              </div>
+              <div className="audit-row">
+                <b>Cumple familia</b> -8 → <span className="arrow">−6 MP</span>
+                <span className="who">Blanca propuso · Edu aceptó · hace 1 mes</span>
+              </div>
+              <div className="audit-row">
+                <b>Multiplicador finde</b> off → <span className="arrow">on (×1.5)</span>
+                <span className="who">Edu propuso · Blanca aceptó · hace 2 meses</span>
+              </div>
+            </div>
+          </div>
+        </Phone>
+      );
+    }
+
+    function ConsentModel() {
+      return (
+        <div className="panel">
+          <h3>Modelo de consentimiento</h3>
+          <p>Las reglas afectan a los dos. ¿Quién puede cambiarlas y cómo?</p>
+          <div className="opt">
+            <strong>A · Cualquiera edita</strong>
+            Quien tenga la app abierta cambia el valor. Notificación al otro.
+            <span style={{ display: 'block', marginTop: 4, color: 'var(--text-tertiary)' }}>👍 Sin fricción · 👎 Una pareja podría "trampear" subiéndose puntos a sí misma.</span>
+          </div>
+          <div className="opt chosen">
+            <em>✓ Recomendada</em>
+            <strong>B · Propone + aprueba</strong>
+            Quien edita propone. El otro aprueba/negocia/rechaza. Hasta que no haya OK, sigue el valor anterior.
+            <span style={{ display: 'block', marginTop: 4, color: 'var(--text-tertiary)' }}>👍 Honesto, equitativo · 👎 1 paso extra (worth it).</span>
+          </div>
+          <div className="opt">
+            <strong>C · Bloqueado · solo "ajuste justo" del sistema</strong>
+            Backend recalcula con ML basado en uso. Pareja no toca.
+            <span style={{ display: 'block', marginTop: 4, color: 'var(--text-tertiary)' }}>👍 Cero conflicto · 👎 Mata la conversación que es el corazón del producto.</span>
+          </div>
+        </div>
+      );
+    }
+
+    function ScopeRules() {
+      return (
+        <div className="panel">
+          <h3>Granularidad · qué se puede ajustar</h3>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            <p style={{ margin: '0 0 8px' }}><b style={{ color: 'var(--text-primary)' }}>Sí editable</b></p>
+            <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--text-secondary)' }}>
+              <li>Valor de tareas estándar (cocinar, limpiar...)</li>
+              <li>Valor de actividades estándar (cenas, bodas...)</li>
+              <li>Crear reglas custom propias de la pareja</li>
+              <li>Toggles de bonus (finde, mood, streak)</li>
+            </ul>
+            <p style={{ margin: '14px 0 8px' }}><b style={{ color: 'var(--text-primary)' }}>NO editable</b></p>
+            <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--text-secondary)' }}>
+              <li>Curva de niveles (es del sistema)</li>
+              <li>Logros disponibles</li>
+              <li>Saldo histórico (audit log inmutable)</li>
+            </ul>
+            <p style={{ margin: '14px 0 0', padding: 10, background: 'rgba(168,85,247,0.08)', border: '1px solid var(--brd-subtle)', borderRadius: 8, fontSize: 11 }}>
+              <b style={{ color: 'var(--brand-purple)' }}>Principio:</b> editable lo que es <i style={{ color: 'var(--text-primary)', fontStyle: 'normal', fontWeight: 700 }}>conversación de la pareja</i>. Rígido lo que es <i style={{ color: 'var(--text-primary)', fontStyle: 'normal', fontWeight: 700 }}>contrato del producto</i>.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      return (
+        <DesignCanvas
+          title="06 · Settings · reglas de puntos editables"
+          subtitle="Hoy: hardcoded. Después: catálogo editable con consentimiento mutuo + audit log."
+        >
+          <DCSection id="screens" title="Flujo de edición">
+            <DCArtboard id="before" label="ANTES · hardcoded" width={380} height={780}>
+              <SettingsBefore />
+            </DCArtboard>
+            <DCArtboard id="list" label="DESPUÉS · catálogo" width={380} height={780}>
+              <SettingsAfterList />
+            </DCArtboard>
+            <DCArtboard id="edit" label="DESPUÉS · editar regla" width={380} height={780}>
+              <SettingsAfterEdit />
+            </DCArtboard>
+            <DCArtboard id="approve" label="DESPUÉS · vista del partner" width={380} height={780}>
+              <SettingsAfterApprove />
+            </DCArtboard>
+          </DCSection>
+          <DCSection id="logic" title="Modelo & alcance">
+            <DCArtboard id="consent" label="Quién puede cambiar" width={420} height={420}>
+              <div style={{ padding: 20 }}><ConsentModel /></div>
+            </DCArtboard>
+            <DCArtboard id="scope" label="Qué se puede cambiar" width={420} height={460}>
+              <div style={{ padding: 20 }}><ScopeRules /></div>
+            </DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

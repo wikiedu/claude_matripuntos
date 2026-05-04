@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>04 · Activities — Matripuntos v2.1</title>
+  <link rel="stylesheet" href="shared.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .ds-canvas-stage { background: #06030f !important; }
+    .ds-canvas-section-title { color: #c4b5fd !important; }
+    .ds-canvas-section-subtitle { color: #6b7280 !important; }
+    .ds-canvas-artboard-label { color: #9ca3af !important; font-weight: 600 !important; }
+
+    .pg-header {
+      padding: 16px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .pg-title { font-size: 22px; font-weight: 800; color: var(--text-primary); margin: 0; letter-spacing: -0.01em; }
+    .pg-actions { display: flex; gap: 8px; }
+    .btn-primary {
+      background: var(--grad-cta); color: white; font-size: 12px; font-weight: 700;
+      padding: 8px 14px; border: 0; border-radius: 10px; cursor: pointer;
+      box-shadow: 0 6px 14px rgba(245,158,11,0.3);
+      display: inline-flex; gap: 5px; align-items: center;
+    }
+    .btn-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      color: var(--text-secondary); display: inline-flex; align-items: center; justify-content: center;
+      font-size: 14px; cursor: pointer;
+    }
+
+    /* Filter strip */
+    .filters {
+      padding: 0 16px 12px;
+      display: flex; gap: 6px; overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .filters::-webkit-scrollbar { display: none; }
+    .chip {
+      flex-shrink: 0;
+      font-size: 11px; font-weight: 600;
+      padding: 6px 12px; border-radius: 999px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      color: var(--text-secondary);
+      cursor: pointer; white-space: nowrap;
+    }
+    .chip.active {
+      background: rgba(168,85,247,0.20);
+      border-color: rgba(168,85,247,0.40);
+      color: var(--brand-purple);
+      font-weight: 700;
+    }
+
+    /* Section h */
+    .pgsec-h {
+      padding: 14px 16px 6px;
+      display: flex; justify-content: space-between; align-items: baseline;
+    }
+    .pgsec-h h3 { font-size: 13px; font-weight: 800; color: var(--text-primary); margin: 0; letter-spacing: -0.005em; }
+    .pgsec-h-meta { font-size: 11px; color: var(--text-tertiary); }
+
+    /* Activity row */
+    .act-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+    .act-row {
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 12px; padding: 10px 12px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .act-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: rgba(245,158,11,0.15);
+      display: inline-flex; align-items: center; justify-content: center; font-size: 18px;
+      flex-shrink: 0;
+    }
+    .act-body { flex: 1; min-width: 0; }
+    .act-name { font-size: 13px; font-weight: 600; color: var(--text-primary); margin: 0; line-height: 1.2; }
+    .act-meta { font-size: 11px; color: var(--text-tertiary); margin: 2px 0 0; line-height: 1.2; display: flex; gap: 6px; align-items: center; }
+    .act-meta .pts { color: var(--brand-amber); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .act-meta .who { background: rgba(168,85,247,0.10); color: var(--brand-purple); font-weight: 600; font-size: 10px; padding: 1px 6px; border-radius: 4px; }
+    .act-when {
+      font-size: 10px; color: var(--text-tertiary); white-space: nowrap;
+      text-align: right;
+    }
+
+    /* Catálogo block */
+    .cat-h { padding: 16px 16px 6px; display: flex; justify-content: space-between; align-items: baseline; }
+    .cat-h h3 { margin: 0; font-size: 13px; font-weight: 800; color: var(--text-primary); }
+    .cat-h-link { font-size: 11px; color: var(--brand-purple); font-weight: 700; }
+    .cat-grid {
+      padding: 0 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .cat-card {
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 12px; padding: 10px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .cat-emoji { font-size: 22px; line-height: 1; }
+    .cat-name { font-size: 12px; font-weight: 700; color: var(--text-primary); margin: 0; line-height: 1.2; }
+    .cat-pts { font-size: 10px; color: var(--brand-amber); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .cat-cat { font-size: 9px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; }
+
+    /* Before screen */
+    .before-empty {
+      padding: 80px 32px; text-align: center;
+    }
+    .before-empty h3 { font-size: 14px; color: var(--text-secondary); margin: 0 0 6px; }
+    .before-empty p { font-size: 11px; color: var(--text-tertiary); margin: 0; line-height: 1.5; }
+
+    /* Comparison */
+    .compare-block {
+      max-width: 320px; padding: 16px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .cmp-row { font-size: 12px; color: var(--text-secondary); display: flex; gap: 10px; align-items: flex-start; line-height: 1.4; }
+    .cmp-row .check { color: var(--success); font-weight: 800; flex-shrink: 0; }
+    .cmp-row .x { color: var(--danger); font-weight: 800; flex-shrink: 0; }
+    .cmp-row strong { color: var(--text-primary); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <div id="root"></div>
+  <script type="text/babel">
+    function Phone({ children, label }) {
+      return (
+        <div className="phone phone-tall">
+          {label && <div className="spec-label">{label}</div>}
+          <div className="statusbar">
+            <span>9:41</span>
+            <span style={{ fontSize: 11 }}>●●● 📶 🔋</span>
+          </div>
+          <div className="phone-screen">{children}</div>
+          <div className="bottomnav">
+            <div className="bottomnav-item"><span>🏠</span><span>Inicio</span></div>
+            <div className="bottomnav-item"><span>✓</span><span>Tareas</span></div>
+            <div className="bottomnav-fab">+</div>
+            <div className="bottomnav-item active"><span>📅</span><span>Actividades</span></div>
+            <div className="bottomnav-item"><span>📊</span><span>Analítica</span></div>
+          </div>
+        </div>
+      );
+    }
+
+    function PageHeader({ title, primary }) {
+      return (
+        <div className="pg-header">
+          <h1 className="pg-title">{title}</h1>
+          <div className="pg-actions">
+            <button className="btn-icon" aria-label="Refrescar">↻</button>
+            <button className="btn-primary">+ {primary}</button>
+          </div>
+        </div>
+      );
+    }
+
+    function FilterStrip({ activities }) {
+      const cats = activities ?
+        ['Todas','🍽️ Restaurantes','🎭 Cultura','✈️ Viajes','💍 Bodas','🎂 Cumples','💝 Regalos'] :
+        ['Todas','🧹 Limpieza','🍳 Cocina','🛒 Compras','🐶 Mascotas','💰 Admin'];
+      return (
+        <div className="filters">
+          {cats.map((c, i) => (
+            <span key={c} className={`chip ${i === 0 ? 'active' : ''}`}>{c}</span>
+          ))}
+        </div>
+      );
+    }
+
+    function SectionHeader({ title, meta }) {
+      return (
+        <div className="pgsec-h">
+          <h3>{title}</h3>
+          <span className="pgsec-h-meta">{meta}</span>
+        </div>
+      );
+    }
+
+    function Row({ emoji, name, pts, who, when, sign='−' }) {
+      return (
+        <div className="act-row">
+          <div className="act-icon">{emoji}</div>
+          <div className="act-body">
+            <p className="act-name">{name}</p>
+            <p className="act-meta">
+              <span className="pts">{sign}{pts} MP</span>
+              {who && <span className="who">{who}</span>}
+            </p>
+          </div>
+          <span className="act-when">{when}</span>
+        </div>
+      );
+    }
+
+    function CatalogTile({ emoji, name, pts, cat }) {
+      return (
+        <div className="cat-card">
+          <span className="cat-emoji">{emoji}</span>
+          <p className="cat-name">{name}</p>
+          <span className="cat-pts">−{pts} MP</span>
+          <span className="cat-cat">{cat}</span>
+        </div>
+      );
+    }
+
+    function ActivitiesBefore() {
+      return (
+        <Phone label="ANTES · v2.0.5">
+          <div className="pg-header">
+            <h1 className="pg-title">Actividades</h1>
+            <div className="pg-actions">
+              <button className="btn-primary">+ Nueva</button>
+            </div>
+          </div>
+          <div className="before-empty">
+            <div style={{ fontSize: 40, marginBottom: 12 }}>📅</div>
+            <h3>Aquí abrirá un wizard.</h3>
+            <p>No hay lista. No hay catálogo navegable. No se pueden ver las que ya creaste.</p>
+            <p style={{ marginTop: 16, color: 'var(--danger)', fontSize: 11 }}>⚠ Inconsistencia con Tareas</p>
+          </div>
+        </Phone>
+      );
+    }
+
+    function ActivitiesAfter() {
+      return (
+        <Phone label="DESPUÉS · v2.1">
+          <PageHeader title="Actividades" primary="Nueva" />
+          <FilterStrip activities />
+          <SectionHeader title="Hoy" meta="2 actividades" />
+          <div className="act-list">
+            <Row emoji="🍽️" name="Cena en La Tasquita" pts="12" who="Edu" when="20:30" />
+            <Row emoji="🎬" name="Película · cine Verdi" pts="8" when="22:30" />
+          </div>
+          <SectionHeader title="Esta semana" meta="3 más" />
+          <div className="act-list">
+            <Row emoji="🎂" name="Cumple de Marta" pts="6" who="ambos" when="Vie" />
+            <Row emoji="💍" name="Boda primos" pts="22" who="ambos" when="Sáb" />
+            <Row emoji="✈️" name="Vuelo Roma" pts="35" who="Blanca" when="Dom" />
+          </div>
+          <SectionHeader title="Próximas (mes)" meta="ver 7 más →" />
+          <div className="act-list">
+            <Row emoji="🎂" name="Cumple Jorge" pts="6" who="Blanca" when="14 jun" />
+            <Row emoji="🏝️" name="Fin de semana playa" pts="42" who="ambos" when="22 jun" />
+          </div>
+          <div className="cat-h">
+            <h3>Catálogo</h3>
+            <a className="cat-h-link">Ver todas (52) →</a>
+          </div>
+          <div className="cat-grid">
+            <CatalogTile emoji="🍽️" name="Cena restaurante" pts="6-12" cat="Habitual" />
+            <CatalogTile emoji="🎭" name="Teatro" pts="8" cat="Cultura" />
+            <CatalogTile emoji="💍" name="Boda" pts="20-25" cat="Alto impacto" />
+            <CatalogTile emoji="🎂" name="Cumple" pts="4-6" cat="Familia" />
+          </div>
+          <div style={{ height: 80 }} />
+        </Phone>
+      );
+    }
+
+    function TasksReference() {
+      return (
+        <Phone label="REFERENCIA · Tasks (ya pulida)">
+          <PageHeader title="Tareas" primary="Nueva" />
+          <FilterStrip />
+          <SectionHeader title="Hoy" meta="3 pendientes" />
+          <div className="act-list">
+            <Row emoji="🍳" name="Preparar cena" pts="2.5" who="tú" when="20:00" sign="+" />
+            <Row emoji="🧺" name="Tender lavadora" pts="1.5" who="Edu" when="—" sign="+" />
+            <Row emoji="🛒" name="Compra semanal" pts="3" who="ambos" when="—" sign="+" />
+          </div>
+          <SectionHeader title="Esta semana" meta="6 más" />
+          <div className="act-list">
+            <Row emoji="🐶" name="Veterinario" pts="2" who="Edu" when="Mié" sign="+" />
+            <Row emoji="💰" name="Banco hipoteca" pts="2.5" who="Blanca" when="Jue" sign="+" />
+          </div>
+          <SectionHeader title="Mis pendientes de verificar" meta="2" />
+          <div className="act-list">
+            <Row emoji="🧹" name="Limpiar baño" pts="1.5" who="Edu hizo" when="Verifica →" sign="+" />
+          </div>
+          <div style={{ height: 80 }} />
+        </Phone>
+      );
+    }
+
+    function CompareNotes() {
+      return (
+        <div className="compare-block">
+          <h3 style={{ color: 'var(--text-primary)', fontSize: 13, margin: 0, fontWeight: 800 }}>Patrón compartido</h3>
+          <div className="cmp-row"><span className="check">✓</span><span><strong>Header</strong> con título + "Nueva" primario + refresh.</span></div>
+          <div className="cmp-row"><span className="check">✓</span><span><strong>Filtros</strong> chips horizontales por categoría.</span></div>
+          <div className="cmp-row"><span className="check">✓</span><span><strong>Hoy / Esta semana / Próximas</strong> mismos cortes que Tasks.</span></div>
+          <div className="cmp-row"><span className="check">✓</span><span><strong>Catálogo</strong> tiles 2 col al final, link "ver todas".</span></div>
+          <hr style={{ border: 0, borderTop: '1px solid var(--brd-subtle)' }} />
+          <h3 style={{ color: 'var(--text-primary)', fontSize: 13, margin: 0, fontWeight: 800 }}>Diferencias justificadas</h3>
+          <div className="cmp-row"><span style={{ color: 'var(--brand-amber)', fontWeight: 800 }}>•</span><span>Las actividades <strong>restan</strong> puntos · usar <code>−</code> en lugar de <code>+</code>.</span></div>
+          <div className="cmp-row"><span style={{ color: 'var(--brand-amber)', fontWeight: 800 }}>•</span><span>No hay sección "verificar" (las activities se aceptan/negocian, no se logean).</span></div>
+          <div className="cmp-row"><span style={{ color: 'var(--brand-amber)', fontWeight: 800 }}>•</span><span>"Quien" muestra <strong>quién paga el coste</strong> (Edu / ambos / Blanca).</span></div>
+        </div>
+      );
+    }
+
+    function AdendaNote() {
+      return (
+        <div style={{ width: 380, padding: 20, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 14 }}>
+          <h3 style={{ margin: 0, color: 'var(--brand-amber)', fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>⚠ Adenda · 2026-05-03</h3>
+          <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+            Este canvas captura la <b style={{ color: 'var(--text-primary)' }}>idea original</b> de Activities en espejo a Tasks (lista temporal + catálogo abajo).
+          </p>
+          <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+            Tras decisión del founder: el modelo final es <b style={{ color: 'var(--text-primary)' }}>Wizard + Tab Catálogo separado</b>, con 8 categorías cerradas y consenso de puntos. Ver canvas <b style={{ color: 'var(--brand-amber)' }}>07 · Tasks &amp; Activities handoff</b> para el modelo definitivo.
+          </p>
+        </div>
+      );
+    }
+
+    function App() {
+      return (
+        <DesignCanvas
+          title="04 · Activities asimilado al patrón Tasks (idea original)"
+          subtitle="Idea inicial · superada por la adenda del 2026-05-03 → ver canvas 07."
+        >
+          <DCSection id="compare" title="Antes vs después">
+            <DCArtboard id="before" label="ANTES · solo wizard" width={400} height={780}>
+              <ActivitiesBefore />
+            </DCArtboard>
+            <DCArtboard id="after" label="DESPUÉS · misma estructura que Tasks" width={400} height={780}>
+              <ActivitiesAfter />
+            </DCArtboard>
+            <DCArtboard id="ref" label="Referencia · Tasks (no se toca)" width={400} height={780}>
+              <TasksReference />
+            </DCArtboard>
+            <DCArtboard id="notes" label="Decisiones del patrón" width={360} height={520}>
+              <CompareNotes />
+            </DCArtboard>
+            <DCArtboard id="adenda" label="⚠ Superado por canvas 07" width={420} height={300}>
+              <div style={{ padding: 20 }}><AdendaNote /></div>
+            </DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

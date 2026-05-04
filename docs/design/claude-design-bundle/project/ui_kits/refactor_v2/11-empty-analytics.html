@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>11 · Empty states & Analytics — Matripuntos v2.1</title>
+  <link rel="stylesheet" href="shared.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .ds-canvas-stage { background: #06030f !important; }
+    .ds-canvas-section-title { color: #c4b5fd !important; }
+    .ds-canvas-section-subtitle { color: #6b7280 !important; }
+    .ds-canvas-artboard-label { color: #9ca3af !important; font-weight: 600 !important; }
+
+    .h-pad { padding: 16px; }
+    .h-title { font-size: 20px; font-weight: 800; color: var(--text-primary); margin: 0 0 4px; letter-spacing: -0.01em; }
+    .h-sub { font-size: 12px; color: var(--text-tertiary); margin: 0 0 12px; line-height: 1.5; }
+
+    .empty-hero {
+      padding: 36px 20px 20px;
+      text-align: center;
+    }
+    .empty-hero .em { font-size: 56px; margin-bottom: 14px; line-height: 1; }
+    .empty-hero h2 { margin: 0 0 8px; font-size: 19px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.01em; }
+    .empty-hero p { margin: 0 auto; font-size: 13px; color: var(--text-secondary); line-height: 1.5; max-width: 280px; }
+
+    .quick-action {
+      margin: 16px;
+      padding: 16px;
+      background: linear-gradient(135deg, rgba(245,158,11,0.16), rgba(245,158,11,0.06));
+      border: 1px solid rgba(245,158,11,0.35);
+      border-radius: 14px;
+    }
+    .quick-action h4 { margin: 0 0 6px; font-size: 12px; color: var(--brand-amber); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+    .quick-action p { margin: 0 0 10px; font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+
+    .btn-pri-full {
+      width: 100%; padding: 12px; border: 0; border-radius: 10px;
+      background: var(--grad-cta); color: white; font-weight: 800; font-size: 13px;
+      cursor: pointer; box-shadow: 0 6px 14px rgba(245,158,11,0.3);
+    }
+    .btn-sec-full {
+      width: 100%; padding: 12px; border: 1px solid var(--brd-subtle); border-radius: 10px;
+      background: var(--surface-card); color: var(--text-primary); font-weight: 700; font-size: 13px;
+      cursor: pointer; margin-top: 8px;
+    }
+
+    /* Analytics charts */
+    .stat-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+      padding: 0 16px;
+    }
+    .stat-cell {
+      padding: 14px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 12px;
+    }
+    .stat-cell .lbl { font-size: 10px; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+    .stat-cell .val { font-size: 22px; font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+    .stat-cell .delta { font-size: 10px; font-weight: 700; margin-top: 2px; }
+
+    .chart-card {
+      margin: 12px 16px; padding: 14px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 12px;
+    }
+    .chart-card h4 { margin: 0 0 4px; font-size: 12px; color: var(--text-primary); font-weight: 800; }
+    .chart-card .sub { font-size: 10px; color: var(--text-tertiary); margin-bottom: 12px; }
+
+    .bars { display: flex; align-items: flex-end; gap: 4px; height: 90px; }
+    .bars .b {
+      flex: 1; display: flex; flex-direction: column; gap: 2px;
+      align-items: stretch; justify-content: flex-end;
+    }
+    .bars .b .you { background: var(--brand-amber); border-radius: 3px 3px 0 0; }
+    .bars .b .her { background: var(--brand-purple); border-radius: 3px 3px 0 0; }
+    .bars .lbl { font-size: 9px; color: var(--text-tertiary); text-align: center; margin-top: 4px; font-weight: 600; }
+
+    .donut-row { display: flex; align-items: center; gap: 14px; }
+    .donut {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: conic-gradient(var(--brand-amber) 0% 58%, var(--brand-purple) 58% 100%);
+      position: relative;
+    }
+    .donut::after {
+      content: ''; position: absolute; inset: 14px; background: var(--surface-card); border-radius: 50%;
+    }
+    .donut .ctr {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; z-index: 1;
+      font-size: 10px; color: var(--text-tertiary); font-weight: 600;
+    }
+    .donut .ctr b { font-size: 16px; color: var(--text-primary); font-weight: 800; }
+
+    .legend-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+    .legend-row .dot { width: 10px; height: 10px; border-radius: 3px; }
+    .legend-row b { color: var(--text-primary); font-weight: 700; margin-left: auto; font-variant-numeric: tabular-nums; }
+
+    .insight-card {
+      margin: 12px 16px; padding: 14px;
+      background: linear-gradient(135deg, rgba(168,85,247,0.15), rgba(99,102,241,0.06));
+      border: 1px solid rgba(168,85,247,0.35);
+      border-radius: 12px;
+    }
+    .insight-card .h { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+    .insight-card .h .e { font-size: 18px; }
+    .insight-card .h h4 { margin: 0; font-size: 12px; font-weight: 800; color: var(--text-primary); }
+    .insight-card p { margin: 0; font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
+    .insight-card p b { color: var(--text-primary); }
+
+    .tab-row {
+      display: flex; gap: 6px; padding: 0 16px 12px;
+      border-bottom: 1px solid var(--brd-subtle); margin-bottom: 12px;
+    }
+    .tab-row .tab {
+      flex: 1; padding: 8px; text-align: center; font-size: 11px; font-weight: 700;
+      color: var(--text-tertiary); border-radius: 8px; cursor: pointer;
+    }
+    .tab-row .tab.active { background: var(--surface-card); color: var(--text-primary); border: 1px solid var(--brd-subtle); }
+
+    .panel { width: 380px; padding: 22px; background: var(--surface-card); border: 1px solid var(--brd-subtle); border-radius: 14px; }
+    .panel h3 { margin: 0 0 8px; font-size: 14px; font-weight: 800; color: var(--text-primary); }
+    .panel p { margin: 0 0 10px; font-size: 12px; color: var(--text-secondary); line-height: 1.55; }
+    .panel ul { margin: 0; padding-left: 18px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+    .panel ul b { color: var(--text-primary); }
+    .panel h4 { margin: 14px 0 6px; color: var(--brand-amber); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+  </style>
+</head>
+<body>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <div id="root"></div>
+  <script type="text/babel">
+    function Phone({ children, label }) {
+      return (
+        <div className="phone phone-tall" style={{ position: 'relative' }}>
+          {label && <div className="spec-label">{label}</div>}
+          <div className="statusbar"><span>9:41</span><span style={{ fontSize: 11 }}>●●● 📶 🔋</span></div>
+          <div className="phone-screen" style={{ position: 'relative' }}>{children}</div>
+        </div>
+      );
+    }
+
+    /* EMPTY STATES */
+    function EmptyDashboard() {
+      return (
+        <Phone label="01 · Dashboard · día 1">
+          <div className="empty-hero">
+            <div className="em">🌱</div>
+            <h2>Estás empezando</h2>
+            <p>Aún no hay datos. Haced una semana normal y aquí veréis cómo se reparte.</p>
+          </div>
+          <div className="quick-action">
+            <h4>1 · APUNTA TU PRIMERA TAREA</h4>
+            <p>Algo que vayas a hacer hoy. Tarda 10 segundos.</p>
+            <button className="btn-pri-full">+ Apuntar tarea</button>
+            <button className="btn-sec-full">Ver guía rápida</button>
+          </div>
+          <div style={{ padding: '0 16px', marginTop: 12 }}>
+            <div style={{
+              padding: 12, borderRadius: 10,
+              background: 'rgba(99,102,241,0.08)',
+              border: '1px solid rgba(99,102,241,0.25)',
+              fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5,
+            }}>
+              <b style={{ color: 'var(--brand-purple)' }}>💡 Consejo</b>: el primer día NO ajustéis reglas. Usad las que vienen y ajustad la semana 2.
+            </div>
+          </div>
+        </Phone>
+      );
+    }
+
+    function EmptyHistory() {
+      return (
+        <Phone label="02 · Historial vacío">
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title">Historial</h1>
+            <p className="h-sub">Lo que habéis hecho · empezando hoy</p>
+          </div>
+          <div className="empty-hero" style={{ paddingTop: 80 }}>
+            <div className="em">📭</div>
+            <h2>Cero registros aún</h2>
+            <p>Cuando completes una tarea, aparecerá aquí con su fecha y MP.</p>
+          </div>
+          <div style={{ padding: '0 16px' }}>
+            <button className="btn-sec-full">+ Añadir tarea ya hecha</button>
+            <p style={{ fontSize: 10, color: 'var(--text-tertiary)', textAlign: 'center', marginTop: 10, lineHeight: 1.4 }}>
+              ¿Hicisteis algo ayer? Podéis registrarlo retro · sirve para semana 1.
+            </p>
+          </div>
+        </Phone>
+      );
+    }
+
+    function EmptyAchievements() {
+      return (
+        <Phone label="03 · Logros · todos bloqueados">
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title">Logros</h1>
+            <p className="h-sub">Vais por 0/24 · que es lo normal</p>
+          </div>
+          <div style={{ padding: '12px 16px' }}>
+            <div style={{
+              padding: 14, borderRadius: 12,
+              background: 'linear-gradient(135deg, rgba(245,158,11,0.18), rgba(168,85,247,0.08))',
+              border: '1px solid rgba(245,158,11,0.4)',
+              marginBottom: 12,
+            }}>
+              <div style={{ fontSize: 11, color: 'var(--brand-amber)', fontWeight: 800, marginBottom: 4 }}>SIGUIENTE · A 1 PASO</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>🌱 Primer día</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, lineHeight: 1.4 }}>
+                Apuntad la primera tarea juntos · se desbloquea solo al hacerlo.
+              </div>
+            </div>
+          </div>
+          <div style={{ padding: '0 16px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            {['🤝','🔥','💯','🌟','📊','🎯','🏆','💎','✨'].map((e, i) => (
+              <div key={i} style={{
+                aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'var(--surface-card)', border: '1px solid var(--brd-subtle)',
+                borderRadius: 12, fontSize: 24, opacity: 0.3, filter: 'grayscale(1)',
+              }}>{e}</div>
+            ))}
+          </div>
+          <p style={{ padding: 16, fontSize: 11, color: 'var(--text-tertiary)', textAlign: 'center', lineHeight: 1.4 }}>
+            Los logros llegan solos · no los persigáis. Si los persigues, dejan de ser logros.
+          </p>
+        </Phone>
+      );
+    }
+
+    function EmptyAnalytics() {
+      return (
+        <Phone label="04 · Analytics · &lt; 7 días">
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title">Vuestros datos</h1>
+            <p className="h-sub">Aún no hay suficientes para sacar conclusiones</p>
+          </div>
+          <div className="empty-hero" style={{ paddingTop: 60 }}>
+            <div className="em">📊</div>
+            <h2>3 días registrados</h2>
+            <p>Los gráficos se desbloquean en <b style={{ color: 'var(--brand-amber)' }}>4 días más</b> · necesitamos 1 semana para que tengan sentido.</p>
+          </div>
+          <div style={{ padding: '12px 16px' }}>
+            <div style={{ height: 8, background: 'var(--surface-card)', borderRadius: 4, overflow: 'hidden', marginBottom: 6 }}>
+              <div style={{ height: '100%', width: '43%', background: 'var(--grad-cta)' }}></div>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textAlign: 'center', fontWeight: 700 }}>3/7 días</div>
+          </div>
+          <div className="quick-action" style={{ marginTop: 16 }}>
+            <h4>MIENTRAS · ¿QUÉ HABÉIS HECHO HOY?</h4>
+            <p>Mejor que mirar gráficos vacíos.</p>
+            <button className="btn-pri-full">+ Tarea de hoy</button>
+          </div>
+        </Phone>
+      );
+    }
+
+    /* ANALYTICS · v2 — só rica con datos */
+    function Analytics() {
+      return (
+        <Phone label="05 · Analytics · 4 semanas">
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title">Vuestros datos</h1>
+            <p className="h-sub">Últimas 4 semanas · sin juzgar, solo lo que pasa</p>
+          </div>
+          <div className="tab-row">
+            <div className="tab">7d</div>
+            <div className="tab active">4 sem</div>
+            <div className="tab">3 m</div>
+            <div className="tab">Todo</div>
+          </div>
+          <div className="stat-grid">
+            <div className="stat-cell">
+              <div className="lbl">Tareas tú</div>
+              <div className="val">42</div>
+              <div className="delta" style={{ color: '#22c55e' }}>+8 vs mes prev</div>
+            </div>
+            <div className="stat-cell">
+              <div className="lbl">Tareas Blanca</div>
+              <div className="val">58</div>
+              <div className="delta" style={{ color: 'var(--text-tertiary)' }}>−2</div>
+            </div>
+          </div>
+          <div className="chart-card">
+            <h4>Reparto semanal · MP</h4>
+            <div className="sub">Tú · ámbar / Blanca · violeta</div>
+            <div className="bars">
+              {[
+                { y: 32, h: 48 }, { y: 28, h: 38 }, { y: 36, h: 32 }, { y: 42, h: 30 },
+              ].map((d, i) => (
+                <div key={i} className="b" style={{ flexDirection: 'column' }}>
+                  <div className="her" style={{ height: d.h }}></div>
+                  <div className="you" style={{ height: d.y }}></div>
+                  <div className="lbl">S{i+1}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="chart-card">
+            <h4>Por categoría</h4>
+            <div className="sub">Dónde se va el tiempo · sin juicio</div>
+            <div className="donut-row" style={{ marginTop: 8 }}>
+              <div className="donut">
+                <div className="ctr"><b>58%</b><span>tú</span></div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div className="legend-row"><div className="dot" style={{ background: '#f59e0b' }}></div>Cocina<b>32%</b></div>
+                <div className="legend-row"><div className="dot" style={{ background: '#a855f7' }}></div>Limpieza<b>26%</b></div>
+                <div className="legend-row"><div className="dot" style={{ background: '#6366f1' }}></div>Niños<b>22%</b></div>
+                <div className="legend-row"><div className="dot" style={{ background: '#22c55e' }}></div>Compras<b>20%</b></div>
+              </div>
+            </div>
+          </div>
+          <div className="insight-card">
+            <div className="h"><div className="e">💡</div><h4>Patrón detectado</h4></div>
+            <p>Las tardes de <b>jueves</b> son las más cargadas para los dos. Quizá hablarlo · o mover algo a martes.</p>
+          </div>
+          <div className="insight-card" style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(245,158,11,0.04))', borderColor: 'rgba(245,158,11,0.3)' }}>
+            <div className="h"><div className="e">📈</div><h4>Lo que mejora</h4></div>
+            <p>El reparto de <b>cocina</b> ha pasado de 80/20 a 55/45 en 3 semanas. Eso es lo bueno.</p>
+          </div>
+        </Phone>
+      );
+    }
+
+    function Decisions() {
+      return (
+        <div className="panel">
+          <h3>Filosofía de empty states & analytics</h3>
+          <p><b>Los datos sin contexto son un arma.</b> Si los enseñamos antes de tener suficientes, la pareja entra en modo competición. Si los enseñamos sin insights, son ruido.</p>
+
+          <h4>Empty state · principios</h4>
+          <ul>
+            <li><b>No "pantalla vacía con icono triste"</b> · cada vacío empuja hacia 1 acción concreta y baja.</li>
+            <li><b>Tono honesto</b> · "esto es lo normal" baja la ansiedad de "estoy haciéndolo mal".</li>
+            <li><b>Acción primaria + secundaria</b> · siempre "empezar" + "guía".</li>
+          </ul>
+
+          <h4>Analytics · cuándo se desbloquea</h4>
+          <ul>
+            <li><b>&lt; 7 días</b> · solo barra de progreso "queda X". Cero gráficos.</li>
+            <li><b>7–28 días</b> · barras semanales + categorías. Sin insights aún.</li>
+            <li><b>28+ días</b> · insights de patrón ("los jueves son intensos"). Tendencia mes a mes.</li>
+          </ul>
+
+          <h4>Reglas de tono · analytics</h4>
+          <ul>
+            <li>Nunca "ganas/pierdes". Siempre "reparto / cómo se distribuye".</li>
+            <li>Insights son <b>observaciones</b>, no veredictos: "los jueves son los más cargados" ≠ "Edu hace menos los jueves".</li>
+            <li>"Lo que mejora" siempre antes de "lo que falla". El sistema celebra micromejoras.</li>
+            <li>Cero rankings, leaderboards o "quién hace más". El nivel ya es individual por diseño.</li>
+          </ul>
+
+          <h4>Para ti (founder)</h4>
+          <ul>
+            <li><b>Export a CSV?</b> Nicho pero crítico para el segmento Notion-power-user que llevará la app a sus amigas.</li>
+            <li><b>Mensual digest por email · jueves 19h.</b> Sospecho mejor lectura que push.</li>
+            <li><b>"Comparar con otras parejas":</b> NO. Camino directo al infierno comparativo.</li>
+          </ul>
+        </div>
+      );
+    }
+
+    function App() {
+      return (
+        <DesignCanvas
+          title="11 · Empty states & Analytics"
+          subtitle="Los días 1–7 importan más que los datos · cuando hay datos, son observaciones, no veredictos."
+        >
+          <DCSection id="empty" title="Cuatro vacíos · día 1">
+            <DCArtboard id="dash" label="01 · Dashboard vacío" width={400} height={780}><EmptyDashboard /></DCArtboard>
+            <DCArtboard id="hist" label="02 · Historial vacío" width={400} height={780}><EmptyHistory /></DCArtboard>
+            <DCArtboard id="ach" label="03 · Logros bloqueados" width={400} height={780}><EmptyAchievements /></DCArtboard>
+            <DCArtboard id="ana0" label="04 · Analytics &lt; 7 días" width={400} height={780}><EmptyAnalytics /></DCArtboard>
+          </DCSection>
+          <DCSection id="full" title="Analytics · con datos">
+            <DCArtboard id="ana" label="05 · Analytics · 4 sem" width={400} height={780}><Analytics /></DCArtboard>
+            <DCArtboard id="dec" label="Decisiones & tono" width={420} height={780}><div style={{ padding: 20 }}><Decisions /></div></DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

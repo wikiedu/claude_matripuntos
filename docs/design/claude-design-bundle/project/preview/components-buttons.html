@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css"><style>
+.row { display: flex; flex-direction: column; gap: 14px; }
+.set { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.btn { padding: 9px 16px; border-radius: 10px; font: inherit; font-size: 13px; font-weight: 600; border: none; cursor: pointer; }
+.primary { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; box-shadow: 0 2px 8px rgba(245,158,11,.3); }
+.purple  { background: linear-gradient(135deg, #a855f7, #7c3aed); color: #fff; }
+.secondary { background: rgba(26,16,53,.85); color: #e2e8f0; border: 1px solid rgba(168,85,247,.3); }
+.ghost { background: transparent; color: #9ca3af; }
+.danger { background: #ef4444; color: #fff; }
+.fab { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; font-size: 22px; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(245,158,11,.4); }
+.disabled { opacity: .5; cursor: not-allowed; }
+.lbl { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; min-width: 90px; }
+</style></head><body>
+<div class="row">
+  <div class="set"><span class="lbl">Primary</span><button class="btn primary">Completar tarea</button><button class="btn primary">+ Nueva</button><button class="btn primary disabled">Guardando…</button></div>
+  <div class="set"><span class="lbl">Secondary</span><button class="btn secondary">Cancelar</button><button class="btn secondary">Ver catálogo</button></div>
+  <div class="set"><span class="lbl">Purple</span><button class="btn purple">Propuesta</button></div>
+  <div class="set"><span class="lbl">Danger</span><button class="btn danger">Eliminar</button></div>
+  <div class="set"><span class="lbl">FAB</span><button class="fab">+</button></div>
+</div>
+</body></html>

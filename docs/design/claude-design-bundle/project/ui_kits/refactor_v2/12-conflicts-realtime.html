@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>12 · Conflictos en tiempo real — Matripuntos v2.1</title>
+  <link rel="stylesheet" href="shared.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .ds-canvas-stage { background: #06030f !important; }
+    .ds-canvas-section-title { color: #c4b5fd !important; }
+    .ds-canvas-section-subtitle { color: #6b7280 !important; }
+    .ds-canvas-artboard-label { color: #9ca3af !important; font-weight: 600 !important; }
+
+    .h-pad { padding: 16px; }
+    .h-title { font-size: 20px; font-weight: 800; color: var(--text-primary); margin: 0 0 4px; letter-spacing: -0.01em; }
+    .h-sub { font-size: 12px; color: var(--text-tertiary); margin: 0 0 12px; line-height: 1.5; }
+
+    /* Conflict banner */
+    .conflict-card {
+      margin: 12px 16px; padding: 16px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(245,158,11,0.20), rgba(168,85,247,0.10));
+      border: 1px solid rgba(245,158,11,0.4);
+    }
+    .conflict-card .h { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .conflict-card .h .e { font-size: 22px; }
+    .conflict-card .h h3 { margin: 0; font-size: 14px; font-weight: 800; color: var(--text-primary); flex: 1; }
+    .conflict-card .h .pill { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 7px; border-radius: 4px; background: rgba(245,158,11,0.3); color: var(--brand-amber); }
+    .conflict-card p { margin: 0 0 12px; font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+    .conflict-versions {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;
+    }
+    .conflict-versions .v {
+      padding: 12px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 10px;
+    }
+    .conflict-versions .v .who { font-size: 9px; color: var(--text-tertiary); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .conflict-versions .v .what { font-size: 12px; color: var(--text-primary); font-weight: 700; line-height: 1.3; margin-bottom: 4px; }
+    .conflict-versions .v .when { font-size: 10px; color: var(--text-tertiary); }
+    .conflict-versions .v.you { border-color: rgba(245,158,11,0.4); }
+    .conflict-versions .v.her { border-color: rgba(168,85,247,0.4); }
+
+    .ghost-event {
+      position: relative;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: repeating-linear-gradient(45deg, rgba(168,85,247,0.08) 0 8px, rgba(168,85,247,0.16) 8px 16px);
+      border: 1px dashed rgba(168,85,247,0.5);
+      font-size: 11px; color: var(--text-secondary); line-height: 1.3;
+      margin-bottom: 6px;
+    }
+    .ghost-event .who { font-size: 9px; color: var(--brand-purple); font-weight: 800; text-transform: uppercase; }
+
+    /* Live presence */
+    .presence-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; margin: 0 16px 12px;
+      background: linear-gradient(135deg, rgba(34,197,94,0.10), rgba(34,197,94,0.04));
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 10px;
+    }
+    .presence-bar .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px #22c55e; animation: pulse 1.6s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .presence-bar .t { font-size: 12px; color: var(--text-secondary); flex: 1; }
+    .presence-bar .t b { color: var(--text-primary); }
+
+    .typing-bubble {
+      display: inline-flex; gap: 2px; align-items: center; padding: 4px 8px;
+      background: var(--surface-card); border-radius: 10px;
+      font-size: 10px; color: var(--text-tertiary);
+    }
+    .typing-bubble span { width: 4px; height: 4px; border-radius: 50%; background: var(--brand-purple); animation: typing 1.2s infinite; }
+    .typing-bubble span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-bubble span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-3px); opacity: 1; } }
+
+    .toast-stack {
+      position: absolute; top: 60px; left: 16px; right: 16px;
+      display: flex; flex-direction: column; gap: 6px; z-index: 10;
+    }
+    .toast {
+      padding: 10px 12px;
+      background: rgba(20,15,30,0.92);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--brd-subtle);
+      border-radius: 10px;
+      display: flex; align-items: center; gap: 10px;
+      font-size: 12px; color: var(--text-primary);
+    }
+    .toast .e { font-size: 18px; }
+    .toast .t { flex: 1; line-height: 1.3; }
+    .toast .t b { color: var(--brand-amber); }
+    .toast.her .t b { color: var(--brand-purple); }
+
+    .btn-pri-full {
+      width: 100%; padding: 12px; border: 0; border-radius: 10px;
+      background: var(--grad-cta); color: white; font-weight: 800; font-size: 13px;
+      cursor: pointer; box-shadow: 0 6px 14px rgba(245,158,11,0.3);
+    }
+    .btn-sec-full {
+      width: 100%; padding: 11px; border: 1px solid var(--brd-subtle); border-radius: 10px;
+      background: var(--surface-card); color: var(--text-primary); font-weight: 700; font-size: 12px;
+      cursor: pointer;
+    }
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+
+    .panel { width: 380px; padding: 22px; background: var(--surface-card); border: 1px solid var(--brd-subtle); border-radius: 14px; }
+    .panel h3 { margin: 0 0 8px; font-size: 14px; font-weight: 800; color: var(--text-primary); }
+    .panel p { margin: 0 0 10px; font-size: 12px; color: var(--text-secondary); line-height: 1.55; }
+    .panel ul { margin: 0; padding-left: 18px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+    .panel ul b { color: var(--text-primary); }
+    .panel h4 { margin: 14px 0 6px; color: var(--brand-amber); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+  </style>
+</head>
+<body>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <div id="root"></div>
+  <script type="text/babel">
+    function Phone({ children, label }) {
+      return (
+        <div className="phone phone-tall" style={{ position: 'relative' }}>
+          {label && <div className="spec-label">{label}</div>}
+          <div className="statusbar"><span>9:41</span><span style={{ fontSize: 11 }}>●●● 📶 🔋</span></div>
+          <div className="phone-screen" style={{ position: 'relative', overflow: 'hidden' }}>{children}</div>
+        </div>
+      );
+    }
+
+    /* 01 · Doble registro */
+    function DoubleLog() {
+      return (
+        <Phone label="01 · Habéis registrado lo mismo">
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title">Posible duplicado</h1>
+            <p className="h-sub">Los dos habéis apuntado "Compra"</p>
+          </div>
+          <div className="conflict-card">
+            <div className="h">
+              <div className="e">🛒</div>
+              <h3>¿Lo hicisteis los dos?</h3>
+              <div className="pill">22:14</div>
+            </div>
+            <p>Habéis registrado <b>Compra</b> con 4 minutos de diferencia. Quizá fuisteis juntos · o uno de los dos lo registró por error.</p>
+            <div className="conflict-versions">
+              <div className="v you">
+                <div className="who">Tú · 22:14</div>
+                <div className="what">Compra grande</div>
+                <div className="when">Mercadona · 45 min</div>
+              </div>
+              <div className="v her">
+                <div className="who">Blanca · 22:18</div>
+                <div className="what">Compra semanal</div>
+                <div className="when">+3 MP · sin nota</div>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <button className="btn-sec-full">Lo hicimos juntos · dividir 50/50</button>
+              <button className="btn-sec-full">Solo lo hizo uno · descartar el otro</button>
+            </div>
+            <button className="btn-pri-full" style={{ marginTop: 8 }}>Mantener los dos (separados)</button>
+          </div>
+          <p style={{ padding: '0 16px', fontSize: 10, color: 'var(--text-tertiary)', textAlign: 'center', lineHeight: 1.4 }}>
+            Si no respondéis en 24h, los mantenemos los dos · sin duplicar puntos.
+          </p>
+        </Phone>
+      );
+    }
+
+    /* 02 · Calendar collision */
+    function CalendarCollision() {
+      return (
+        <Phone label="02 · Solapamiento en calendario">
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title">Jueves 11</h1>
+            <p className="h-sub">Hay un choque a las 18:30</p>
+          </div>
+          <div className="conflict-card" style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.16), rgba(245,158,11,0.06))', borderColor: 'rgba(239,68,68,0.4)' }}>
+            <div className="h">
+              <div className="e">⚠️</div>
+              <h3>Choque de planes</h3>
+              <div className="pill" style={{ background: 'rgba(239,68,68,0.3)', color: '#fca5a5' }}>18:30</div>
+            </div>
+            <div className="conflict-versions" style={{ marginBottom: 10 }}>
+              <div className="v you">
+                <div className="who">Tú · creado ahora</div>
+                <div className="what">Recoger a Lola del cole</div>
+                <div className="when">18:30 — 19:00</div>
+              </div>
+              <div className="v her">
+                <div className="who">Blanca · creado ayer</div>
+                <div className="what">Pediatra Mateo</div>
+                <div className="when">18:00 — 19:30</div>
+              </div>
+            </div>
+            <p>Blanca no puede hacer las dos · el pediatra está en Goya, el cole en Argüelles.</p>
+            <div className="btn-row">
+              <button className="btn-sec-full">Lo hago yo</button>
+              <button className="btn-sec-full">Mover una</button>
+            </div>
+            <button className="btn-pri-full" style={{ marginTop: 8 }}>Pedir a Blanca que decida</button>
+          </div>
+        </Phone>
+      );
+    }
+
+    /* 03 · Live presence + ghost event */
+    function LiveEditing() {
+      return (
+        <Phone label="03 · Editando los dos a la vez">
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title">Calendario · sábado</h1>
+            <p className="h-sub">Blanca está aquí también</p>
+          </div>
+          <div className="presence-bar">
+            <div className="dot"></div>
+            <div className="t"><b>Blanca</b> está editando ahora · <span className="typing-bubble" style={{ display: 'inline-flex', verticalAlign: 'middle', marginLeft: 4 }}><span></span><span></span><span></span></span></div>
+          </div>
+          <div style={{ padding: '0 16px' }}>
+            <div style={{
+              padding: 10, background: 'var(--surface-card)',
+              border: '1px solid var(--brd-subtle)', borderRadius: 8,
+              fontSize: 11, color: 'var(--text-secondary)', marginBottom: 6,
+              borderLeft: '3px solid #f59e0b',
+            }}>
+              <div style={{ fontSize: 10, color: 'var(--brand-amber)', fontWeight: 700, marginBottom: 2 }}>10:00 — 11:30</div>
+              <div style={{ color: 'var(--text-primary)', fontWeight: 700 }}>Brunch con Marta y Javi</div>
+              <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>tú · confirmado</div>
+            </div>
+            <div className="ghost-event">
+              <div className="who">Blanca está creando…</div>
+              <div style={{ color: 'var(--text-primary)', fontWeight: 700, marginTop: 2 }}>Cumple de Sara</div>
+              <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>17:00 — escribiendo</div>
+            </div>
+            <div style={{
+              padding: 10, background: 'var(--surface-card)',
+              border: '1px solid var(--brd-subtle)', borderRadius: 8,
+              fontSize: 11, color: 'var(--text-secondary)', marginTop: 6,
+              borderLeft: '3px solid #a855f7',
+            }}>
+              <div style={{ fontSize: 10, color: 'var(--brand-purple)', fontWeight: 700, marginBottom: 2 }}>20:00 — 22:30</div>
+              <div style={{ color: 'var(--text-primary)', fontWeight: 700 }}>Cena en casa de Mariola</div>
+              <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>los dos · confirmado</div>
+            </div>
+          </div>
+          <div style={{ padding: 16, marginTop: 12 }}>
+            <div style={{
+              padding: 12, background: 'rgba(168,85,247,0.08)',
+              border: '1px solid rgba(168,85,247,0.25)', borderRadius: 10,
+              fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5,
+            }}>
+              <b style={{ color: 'var(--brand-purple)' }}>Live presence</b><br/>
+              Cuando los dos editáis a la vez, mostramos lo que está escribiendo el otro como evento "fantasma" · evita que los dos creéis el mismo plan.
+            </div>
+          </div>
+        </Phone>
+      );
+    }
+
+    /* 04 · Real-time toasts */
+    function Toasts() {
+      return (
+        <Phone label="04 · Notificaciones in-app live">
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title">Dashboard</h1>
+            <p className="h-sub">Eventos del día · 3 mensajes nuevos</p>
+          </div>
+          <div className="toast-stack">
+            <div className="toast her">
+              <div className="e">✏️</div>
+              <div className="t"><b>Blanca</b> ha cambiado "limpiar baño" de 1.5 a 2 MP</div>
+            </div>
+            <div className="toast">
+              <div className="e">✓</div>
+              <div className="t"><b>Blanca</b> ha completado la cena (+2.5)</div>
+            </div>
+            <div className="toast her">
+              <div className="e">📩</div>
+              <div className="t"><b>Blanca</b> te ha pedido algo · ver inbox</div>
+            </div>
+          </div>
+          <div style={{ padding: '120px 16px 0' }}>
+            <div style={{
+              padding: 14, background: 'var(--surface-card)',
+              border: '1px solid var(--brd-subtle)', borderRadius: 12,
+            }}>
+              <h4 style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--text-primary)', fontWeight: 800 }}>Sobre estas notis</h4>
+              <p style={{ margin: 0, fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                Cuando estás dentro de la app, los cambios de tu pareja aparecen como toasts breves en lugar de como push. Apilados, no spam.
+                <br/><br/>
+                <b style={{ color: 'var(--text-primary)' }}>Reglas:</b> máx 3 visibles · auto-cierran a los 6s · si llegan &gt;3 en &lt;5s, se agrupan ("Blanca hizo 3 cambios").
+              </p>
+            </div>
+          </div>
+        </Phone>
+      );
+    }
+
+    function Decisions() {
+      return (
+        <div className="panel">
+          <h3>Conflictos en tiempo real · 4 patrones</h3>
+          <p>Una app de pareja sufre <b>colisiones de datos</b> que las apps individuales no tienen. Hay que diseñarlas explícitamente — no son edge cases, son el corazón.</p>
+
+          <h4>Los 4 conflictos</h4>
+          <ul>
+            <li><b>Doble registro</b> · los dos apuntan la misma tarea. Resolución no destructiva (mantener ambos por defecto).</li>
+            <li><b>Choque calendario</b> · dos planes solapados. La app no decide · ofrece talking points.</li>
+            <li><b>Edición simultánea</b> · live presence + evento fantasma. Evita el conflicto antes de que pase.</li>
+            <li><b>Cambios cruzados</b> · toasts apilados in-app + agrupación cuando explota.</li>
+          </ul>
+
+          <h4>Reglas comunes</h4>
+          <ul>
+            <li><b>Nunca elegir por la pareja.</b> El sistema propone, ellos deciden.</li>
+            <li><b>Default no destructivo.</b> Si ignoran, no se pierde nada.</li>
+            <li><b>"Pedir a X que decida"</b> es una opción de primer nivel, no una secundaria.</li>
+            <li><b>Visualizar al otro</b> reduce la sorpresa. Live presence + ghost events.</li>
+          </ul>
+
+          <h4>Stack técnico (sugerencia)</h4>
+          <ul>
+            <li>WebSockets / SSE para presence + ghost events.</li>
+            <li>CRDT no necesario · ventana de edición es corta y los conflictos los resolvemos en UI.</li>
+            <li>Detector de duplicados: misma categoría + ±10 min + ambos partners → trigger conflict card.</li>
+          </ul>
+
+          <h4>Para ti (founder)</h4>
+          <ul>
+            <li><b>"Modo silencio del otro"</b> cuando hay pelea: ¿lo añadimos? Yo voto sí.</li>
+            <li><b>Audit log de cambios:</b> "Blanca cambió esta regla el 3 abril". Útil cuando la conversación escala.</li>
+            <li><b>¿Mostrar al usuario que está editando antes de avisar?</b> O sea: "Blanca está abriendo este evento" sin esperar a que escriba. Más íntimo, más invasivo.</li>
+          </ul>
+        </div>
+      );
+    }
+
+    function App() {
+      return (
+        <DesignCanvas
+          title="12 · Conflictos en tiempo real"
+          subtitle="Doble registro · choque · edición simultánea · cambios cruzados. Diseño explícito, no edge cases."
+        >
+          <DCSection id="conflict" title="Cuatro escenarios">
+            <DCArtboard id="dup" label="01 · Doble registro" width={400} height={780}><DoubleLog /></DCArtboard>
+            <DCArtboard id="cal" label="02 · Choque calendario" width={400} height={780}><CalendarCollision /></DCArtboard>
+            <DCArtboard id="live" label="03 · Edición simultánea" width={400} height={780}><LiveEditing /></DCArtboard>
+            <DCArtboard id="toast" label="04 · Toasts in-app" width={400} height={780}><Toasts /></DCArtboard>
+            <DCArtboard id="dec" label="Patrones & reglas" width={420} height={780}><div style={{ padding: 20 }}><Decisions /></div></DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

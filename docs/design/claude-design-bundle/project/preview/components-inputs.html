@@ -1,0 +1,33 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css"><style>
+.col { display: flex; flex-direction: column; gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.lbl { font-size: 10px; color: #9ca3af; text-transform: uppercase; letter-spacing: .05em; }
+.input { background: rgba(255,255,255,.06); border: 1px solid rgba(168,85,247,.15); border-radius: 8px; padding: 9px 12px; color: #e2e8f0; font: inherit; font-size: 13px; outline: none; }
+.input:focus { border-color: rgba(245,158,11,.5); }
+.input.focus { border-color: rgba(245,158,11,.5); box-shadow: 0 0 0 2px rgba(245,158,11,.1); }
+.placeholder { color: #6b7280; }
+.hint { font-size: 11px; color: #6b7280; }
+.err { color: #f87171; }
+.combo { display: flex; gap: 8px; align-items: center; }
+.cat-chip { padding: 6px 10px; border-radius: 9999px; background: rgba(255,255,255,.06); border: 1px solid rgba(168,85,247,.15); font-size: 12px; color: #e2e8f0; cursor: pointer; }
+.cat-chip.on { background: rgba(245,158,11,.15); border-color: rgba(245,158,11,.4); color: #f59e0b; }
+</style></head><body>
+<div class="col">
+  <div class="field">
+    <span class="lbl">Nombre de la tarea</span>
+    <input class="input" value="Preparar cena" />
+  </div>
+  <div class="field">
+    <span class="lbl">Descripción</span>
+    <div class="input placeholder">¿Qué necesitáis?</div>
+  </div>
+  <div class="field">
+    <span class="lbl">Categoría</span>
+    <div class="combo">
+      <span class="cat-chip on">🍳 Cocina</span>
+      <span class="cat-chip">🧹 Limpieza</span>
+      <span class="cat-chip">🛒 Compras</span>
+    </div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,17 @@
+/* Shared base for all preview cards */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: linear-gradient(160deg, #0d0a1a, #0f0a1e, #12103a);
+  color: #e2e8f0;
+  padding: 20px;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+.mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
+.row { display: flex; gap: 12px; align-items: center; }
+.col { display: flex; flex-direction: column; gap: 12px; }
+.wrap { display: flex; flex-wrap: wrap; gap: 12px; }

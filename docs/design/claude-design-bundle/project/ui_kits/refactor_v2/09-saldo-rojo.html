@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>09 · Saldo rojo crónico — Matripuntos v2.1</title>
+  <link rel="stylesheet" href="shared.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .ds-canvas-stage { background: #06030f !important; }
+    .ds-canvas-section-title { color: #c4b5fd !important; }
+    .ds-canvas-section-subtitle { color: #6b7280 !important; }
+    .ds-canvas-artboard-label { color: #9ca3af !important; font-weight: 600 !important; }
+
+    .h-pad { padding: 16px; }
+    .h-title { font-size: 20px; font-weight: 800; color: var(--text-primary); margin: 0 0 4px; letter-spacing: -0.01em; }
+    .h-sub { font-size: 12px; color: var(--text-tertiary); margin: 0 0 14px; line-height: 1.5; }
+
+    /* Streak card · day 4 */
+    .alert-card {
+      margin: 12px 16px; padding: 16px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(239,68,68,0.18), rgba(245,158,11,0.10));
+      border: 1px solid rgba(239,68,68,0.4);
+    }
+    .alert-card.soft {
+      background: linear-gradient(135deg, rgba(245,158,11,0.18), rgba(245,158,11,0.05));
+      border-color: rgba(245,158,11,0.4);
+    }
+    .alert-card.crit {
+      background: linear-gradient(135deg, rgba(239,68,68,0.28), rgba(168,85,247,0.10));
+      border-color: rgba(239,68,68,0.6);
+    }
+    .alert-card .icon { font-size: 24px; margin-bottom: 8px; }
+    .alert-card h3 { margin: 0 0 6px; font-size: 14px; font-weight: 800; color: var(--text-primary); }
+    .alert-card p { margin: 0; font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+    .streak-bar { display: flex; gap: 4px; margin: 10px 0 4px; }
+    .streak-bar > div {
+      flex: 1; height: 24px; border-radius: 4px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 700; color: var(--text-tertiary);
+    }
+    .streak-bar > div.red { background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.5); color: #fca5a5; }
+    .streak-bar > div.crit-red { background: rgba(239,68,68,0.4); border-color: rgba(239,68,68,0.8); color: white; }
+
+    .balance-display {
+      padding: 22px 16px; text-align: center;
+      background: var(--surface-card);
+      margin: 12px 16px; border-radius: 14px;
+      border: 1px solid var(--brd-subtle);
+    }
+    .balance-display .num { font-size: 48px; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+    .balance-display .num.red { color: #ef4444; }
+    .balance-display .lbl { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; font-weight: 600; }
+    .balance-display .delta { font-size: 11px; font-weight: 700; margin-top: 6px; }
+
+    .action-list { margin: 0 16px; }
+    .action-list .a {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px; background: var(--surface-card);
+      border: 1px solid var(--brd-subtle); border-radius: 12px;
+      margin-bottom: 8px; cursor: pointer;
+    }
+    .action-list .a .e { font-size: 22px; }
+    .action-list .a .t { flex: 1; }
+    .action-list .a .t .n { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+    .action-list .a .t .s { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
+    .action-list .a .v { font-size: 13px; font-weight: 800; color: var(--brand-amber); }
+
+    .cta-stack { padding: 16px; display: flex; flex-direction: column; gap: 8px; position: absolute; bottom: 0; left: 0; right: 0; }
+    .btn-pri-full {
+      width: 100%; padding: 14px; border: 0; border-radius: 12px;
+      background: var(--grad-cta); color: white; font-weight: 800; font-size: 14px;
+      cursor: pointer; box-shadow: 0 8px 18px rgba(245,158,11,0.3);
+    }
+    .btn-sec-full {
+      width: 100%; padding: 12px; border: 1px solid var(--brd-subtle); border-radius: 12px;
+      background: var(--surface-card); color: var(--text-primary); font-weight: 700; font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-link { background: transparent; border: 0; color: var(--text-tertiary); font-size: 12px; padding: 8px; cursor: pointer; font-weight: 600; }
+
+    .panel { width: 380px; padding: 22px; background: var(--surface-card); border: 1px solid var(--brd-subtle); border-radius: 14px; }
+    .panel h3 { margin: 0 0 8px; font-size: 14px; font-weight: 800; color: var(--text-primary); }
+    .panel p { margin: 0 0 10px; font-size: 12px; color: var(--text-secondary); line-height: 1.55; }
+    .panel ul { margin: 0; padding-left: 18px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+    .panel ul b { color: var(--text-primary); }
+    .panel h4 { margin: 14px 0 6px; color: var(--brand-amber); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    .threshold-table {
+      margin: 0; padding: 0; list-style: none;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle); border-radius: 12px;
+      overflow: hidden;
+    }
+    .threshold-table li { padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--brd-subtle); font-size: 12px; }
+    .threshold-table li:last-child { border: 0; }
+    .threshold-table b { font-weight: 700; }
+    .day { font-size: 10px; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+    .pill { padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+    .pill.amber { background: rgba(245,158,11,0.2); color: var(--brand-amber); }
+    .pill.red { background: rgba(239,68,68,0.2); color: #ef4444; }
+    .pill.crit { background: rgba(239,68,68,0.5); color: white; }
+  </style>
+</head>
+<body>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <div id="root"></div>
+  <script type="text/babel">
+    function Phone({ children, label }) {
+      return (
+        <div className="phone phone-tall" style={{ position: 'relative' }}>
+          {label && <div className="spec-label">{label}</div>}
+          <div className="statusbar"><span>9:41</span><span style={{ fontSize: 11 }}>●●● 📶 🔋</span></div>
+          <div className="phone-screen" style={{ position: 'relative' }}>{children}</div>
+        </div>
+      );
+    }
+
+    function Day3() {
+      return (
+        <Phone label="01 · Día 3 en rojo · suave">
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title">Tu saldo</h1>
+            <p className="h-sub">Llevas 3 días en rojo · sin alarma todavía</p>
+          </div>
+          <div className="balance-display">
+            <div className="num red">−4.5</div>
+            <div className="lbl">MATRIPUNTOS</div>
+            <div className="delta" style={{ color: 'var(--text-tertiary)' }}>vs Blanca · diff −9 MP</div>
+            <div className="streak-bar">
+              <div className="red">L</div><div className="red">M</div><div className="red">X</div>
+              <div>J</div><div>V</div><div>S</div><div>D</div>
+            </div>
+          </div>
+          <div className="alert-card soft">
+            <div className="icon">💡</div>
+            <h3>Has tenido tres días flojos</h3>
+            <p>Sin drama — pasa. Si quieres recuperar, aquí van 3 cosas rápidas que valen MP ahora.</p>
+          </div>
+          <div className="action-list" style={{ marginTop: 12 }}>
+            <div className="a"><div className="e">🍳</div><div className="t"><div className="n">Hacer la cena</div><div className="s">~25 min</div></div><div className="v">+2.5</div></div>
+            <div className="a"><div className="e">🧺</div><div className="t"><div className="n">Tender la lavadora</div><div className="s">~5 min</div></div><div className="v">+1.0</div></div>
+            <div className="a"><div className="e">🛒</div><div className="t"><div className="n">Compra rápida</div><div className="s">~30 min</div></div><div className="v">+3.0</div></div>
+          </div>
+          <div className="cta-stack">
+            <button className="btn-link">Ya recuperaré · sin presión</button>
+          </div>
+        </Phone>
+      );
+    }
+
+    function Day7() {
+      return (
+        <Phone label="02 · Día 7 · alerta amarilla">
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title">Llevas una semana</h1>
+            <p className="h-sub">Es un buen momento para hablarlo</p>
+          </div>
+          <div className="balance-display">
+            <div className="num red">−12</div>
+            <div className="lbl">MATRIPUNTOS</div>
+            <div className="delta" style={{ color: '#ef4444' }}>diff con Blanca · −24 MP</div>
+            <div className="streak-bar">
+              <div className="red">L</div><div className="red">M</div><div className="red">X</div>
+              <div className="red">J</div><div className="red">V</div><div className="red">S</div><div className="red">D</div>
+            </div>
+          </div>
+          <div className="alert-card">
+            <div className="icon">🟠</div>
+            <h3>El reparto está descompensado</h3>
+            <p>No es para alarmarse — pero sí para hablarlo antes de que escale. ¿Hay algo que esté pasando?</p>
+          </div>
+          <div style={{ padding: '12px 16px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {[
+              { e: '😴', t: 'Mucho curro', s: 'Esta semana voy hasta arriba' },
+              { e: '🤒', t: 'No me encuentro bien', s: 'Mood/salud · 1 sem' },
+              { e: '🤷', t: 'No sé', s: 'Quiero pensarlo' },
+              { e: '💬', t: 'Hablémoslo', s: 'Iniciar conversación' },
+            ].map(it => (
+              <div key={it.t} style={{
+                padding: 12, borderRadius: 12,
+                background: 'var(--surface-card)',
+                border: '1px solid var(--brd-subtle)',
+              }}>
+                <div style={{ fontSize: 20 }}>{it.e}</div>
+                <div style={{ marginTop: 4, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{it.t}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>{it.s}</div>
+              </div>
+            ))}
+          </div>
+          <div className="cta-stack">
+            <button className="btn-pri-full">Compartir con Blanca</button>
+          </div>
+        </Phone>
+      );
+    }
+
+    function Day14() {
+      return (
+        <Phone label="03 · Día 14 · pausa sugerida">
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title" style={{ color: '#fca5a5' }}>14 días en rojo</h1>
+            <p className="h-sub">Quizá los puntos no sean lo que más te ayuda ahora.</p>
+          </div>
+          <div className="alert-card crit">
+            <div className="icon">⏸️</div>
+            <h3>¿Quieres pausar el conteo?</h3>
+            <p>El sistema funciona cuando los dos jugáis. Si uno está en mal momento, los puntos solo añaden ruido. Podemos pausar 1 o 2 semanas — el saldo se congela, no se borra.</p>
+          </div>
+          <div style={{ padding: '12px 16px 0' }}>
+            <div style={{
+              padding: 14, background: 'var(--surface-card)',
+              border: '1px solid var(--brd-subtle)', borderRadius: 12,
+              fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.55,
+            }}>
+              <b style={{ color: 'var(--text-primary)' }}>¿Qué pasa al pausar?</b>
+              <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                <li>Saldo y nivel se congelan</li>
+                <li>Calendario y peticiones siguen activos</li>
+                <li>Sin recordatorios de puntos</li>
+                <li>Reactivación con un clic cuando queráis</li>
+              </ul>
+            </div>
+          </div>
+          <div className="cta-stack">
+            <button className="btn-pri-full">Pausar 1 semana</button>
+            <button className="btn-sec-full">Pausar 2 semanas</button>
+            <button className="btn-link">Seguir como estoy</button>
+          </div>
+        </Phone>
+      );
+    }
+
+    function PartnerView() {
+      return (
+        <Phone label="04 · Lo que ve Blanca · día 7">
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title">Edu lleva 7 días flojos</h1>
+            <p className="h-sub">No le dispares por puntos — pregúntale qué tal.</p>
+          </div>
+          <div className="alert-card">
+            <div className="icon">🤔</div>
+            <h3>Antes de pedirle algo nuevo</h3>
+            <p>Edu lleva una semana con saldo bajo. Antes de mandar más peticiones, considera hablarlo. Te dejamos un par de aperturas posibles:</p>
+          </div>
+          <div style={{ padding: '12px 16px 0' }}>
+            {[
+              '"¿Qué tal todo? Te noto liado."',
+              '"¿Hay algo que pueda quitarte de encima esta semana?"',
+              '"Esto de los puntos · ¿lo dejamos una semana?"',
+            ].map(t => (
+              <div key={t} style={{
+                padding: 12, marginBottom: 8, borderRadius: 10,
+                background: 'var(--surface-card)', border: '1px solid var(--brd-subtle)',
+                fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer',
+              }}>{t}</div>
+            ))}
+          </div>
+          <div style={{ padding: '8px 16px', fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
+            <b style={{ color: 'var(--brand-amber)' }}>⚠️ Importante:</b> No mostramos a Blanca el detalle del saldo de Edu cuando está mal. Solo "lleva días flojos". Privacidad emocional.
+          </div>
+          <div className="cta-stack">
+            <button className="btn-sec-full">Hablar con Edu</button>
+            <button className="btn-link">Ya lo gestiono yo</button>
+          </div>
+        </Phone>
+      );
+    }
+
+    function Thresholds() {
+      return (
+        <div className="panel">
+          <h3>Umbrales y disparadores</h3>
+          <p>El saldo rojo no se trata como un fallo — se trata como una señal de que <b>algo está pasando fuera de la app</b>.</p>
+          <ul className="threshold-table">
+            <li><span className="day">Día 0–2</span><span className="pill amber">Silencio</span></li>
+            <li><span className="day">Día 3</span><span className="pill amber">Sugerencia suave</span></li>
+            <li><span className="day">Día 7</span><span className="pill red">Alerta amarilla</span></li>
+            <li><span className="day">Día 14</span><span className="pill crit">Pausa sugerida</span></li>
+            <li><span className="day">Día 21+</span><span className="pill crit">Pausa forzada</span></li>
+          </ul>
+          <h4>Reglas de diseño</h4>
+          <ul>
+            <li><b>Nunca culpamos.</b> "Llevas días flojos" ≠ "estás fallando".</li>
+            <li><b>Privacidad asimétrica.</b> Tu partner ve "días flojos", no el número exacto del saldo en negativo.</li>
+            <li><b>El sistema sugiere pausa antes que el usuario.</b> Si los puntos hacen daño, los apagamos.</li>
+            <li><b>El saldo se congela, no se borra.</b> Pausar no es derrota.</li>
+          </ul>
+          <h4>Para ti (founder)</h4>
+          <ul>
+            <li><b>¿Qué cuenta como "día rojo"?</b> Saldo neto del día &lt; 0, o saldo acumulado &lt; −5? Sugiero <b>acumulado</b> — más estable.</li>
+            <li><b>Mood + saldo:</b> si el mood lleva 5 días bajo + saldo rojo, escalamos directo a pausa.</li>
+            <li><b>Reactivación:</b> tras pausa, ¿pedimos un check-in conjunto antes de reactivar?</li>
+          </ul>
+        </div>
+      );
+    }
+
+    function App() {
+      return (
+        <DesignCanvas
+          title="09 · Saldo en rojo crónico"
+          subtitle="Día 3 · 7 · 14 · 21 — escalado emocional, no punitivo. Pausa &gt; sermón."
+        >
+          <DCSection id="states" title="Escalado por días">
+            <DCArtboard id="d3" label="01 · Día 3 — suave" width={400} height={780}><Day3 /></DCArtboard>
+            <DCArtboard id="d7" label="02 · Día 7 — alerta" width={400} height={780}><Day7 /></DCArtboard>
+            <DCArtboard id="d14" label="03 · Día 14 — pausa" width={400} height={780}><Day14 /></DCArtboard>
+            <DCArtboard id="partner" label="04 · Lo que ve Blanca" width={400} height={780}><PartnerView /></DCArtboard>
+            <DCArtboard id="dec" label="Umbrales & decisiones" width={420} height={780}><div style={{ padding: 20 }}><Thresholds /></div></DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

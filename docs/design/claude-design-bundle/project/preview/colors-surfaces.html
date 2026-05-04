@@ -1,0 +1,17 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css"><style>
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.sw { border-radius: 12px; padding: 16px; height: 120px; display: flex; flex-direction: column; justify-content: space-between; position: relative; }
+.sw .nm { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+.sw .hex { font-size: 11px; font-family: ui-monospace, monospace; color: #9ca3af; }
+.sw.bg { background: linear-gradient(160deg, #0d0a1a, #0f0a1e, #12103a); border: 1px solid rgba(168,85,247,.15); }
+.sw.card { background: rgba(26,16,53,0.85); border: 1px solid rgba(168,85,247,.15); backdrop-filter: blur(10px); }
+.sw.card-hl { background: rgba(26,16,53,0.85); border: 1px solid rgba(245,158,11,.3); }
+.sw.overlay { background: rgba(0,0,0,.5); border: 1px dashed #6b7280; }
+</style></head><body>
+<div class="grid">
+  <div class="sw bg"><div class="nm">App background</div><div class="hex">linear-gradient(160°, #0d0a1a → #12103a)</div></div>
+  <div class="sw card"><div class="nm">Card surface</div><div class="hex">rgba(26,16,53,.85) · 1px purple/15</div></div>
+  <div class="sw card-hl"><div class="nm">Card highlighted</div><div class="hex">same · 1px amber/30 border</div></div>
+  <div class="sw overlay"><div class="nm">Modal overlay</div><div class="hex">rgba(0,0,0,.5)</div></div>
+</div>
+</body></html>

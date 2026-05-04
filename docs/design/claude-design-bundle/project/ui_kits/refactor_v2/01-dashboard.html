@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>01 · Dashboard refactor — Matripuntos v2.1</title>
+  <link rel="stylesheet" href="shared.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Source+Serif+4:ital,wght@1,400&display=swap" rel="stylesheet">
+  <style>
+    .ds-canvas-stage { background: #06030f !important; }
+    .ds-canvas-section-title { color: #c4b5fd !important; }
+    .ds-canvas-section-subtitle { color: #6b7280 !important; }
+    .ds-canvas-artboard-label { color: #9ca3af !important; font-weight: 600 !important; }
+    .ds-canvas-artboard-frame { background: var(--grad-page) !important; border-radius: 28px !important; }
+
+    /* Compact dashboard layout */
+    .dash-content { padding: 0 0 80px; }
+
+    /* Header refactor */
+    .header-v2 {
+      padding: 8px 16px 8px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .greet-block { min-width: 0; flex: 1; }
+    .greet-line { font-size: 12px; color: var(--text-tertiary); margin: 0 0 2px; font-weight: 500; }
+    .greet-name { font-size: 22px; font-weight: 800; color: var(--text-primary); margin: 0; line-height: 1.1; letter-spacing: -0.01em; }
+    .header-actions { display: flex; gap: 6px; align-items: center; }
+    .avatar-mini {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, #f59e0b, #a855f7);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+
+    /* Hero level — UNIFIED (replaces both old level banners) */
+    .hero-level {
+      margin: 4px 16px 14px;
+      padding: 16px 16px 14px;
+      border-radius: 14px;
+      background: var(--grad-hero);
+      box-shadow: 0 12px 30px -10px rgba(79,70,229,0.5);
+      position: relative; overflow: hidden;
+    }
+    .hero-level::before {
+      content: ''; position: absolute; right: -20px; top: -20px;
+      width: 120px; height: 120px;
+      background: radial-gradient(circle, rgba(245,158,11,0.18), transparent 70%);
+      pointer-events: none;
+    }
+    .hero-balance-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .hero-eyebrow {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+      color: rgba(199,210,254,0.85); text-transform: uppercase; margin: 0;
+    }
+    .hero-balance {
+      font-size: 38px; font-weight: 800; color: white; line-height: 1;
+      margin: 6px 0 4px; letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+    }
+    .hero-balance .mp { font-size: 14px; font-weight: 500; opacity: 0.7; margin-left: 4px; }
+    .hero-explain { font-size: 13px; color: rgba(255,255,255,0.95); margin: 0; font-weight: 500; }
+    .hero-mini-cols { text-align: right; font-size: 11px; }
+    .hero-mini-col { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; margin-bottom: 6px; }
+    .hero-mini-name { color: rgba(199,210,254,0.7); font-weight: 600; font-size: 10px; }
+    .hero-mini-val { color: white; font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
+
+    .hero-level-row {
+      margin-top: 14px; padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.18);
+    }
+    .level-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .level-badge {
+      width: 32px; height: 32px; border-radius: 10px;
+      background: rgba(255,255,255,0.15);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .level-info { flex: 1; min-width: 0; }
+    .level-name {
+      font-size: 13px; font-weight: 700; color: white; margin: 0;
+      line-height: 1.2;
+    }
+    .level-name .lvl-num { color: rgba(199,210,254,0.7); font-weight: 600; margin-right: 4px; }
+    .level-perk { font-size: 10px; color: rgba(199,210,254,0.85); margin: 1px 0 0; line-height: 1.3; }
+    .level-pct {
+      font-size: 11px; color: white; font-weight: 700; font-variant-numeric: tabular-nums;
+    }
+    .level-pct .needed { color: rgba(199,210,254,0.7); font-weight: 500; margin-left: 3px; }
+    .progress {
+      position: relative; height: 6px; background: rgba(0,0,0,0.25); border-radius: 999px; overflow: hidden;
+    }
+    .progress-fill {
+      position: absolute; inset: 0 auto 0 0;
+      background: linear-gradient(90deg, #fbbf24, #f59e0b);
+      border-radius: 999px;
+    }
+
+    /* Daily phrase — secondary */
+    .phrase {
+      margin: 0 16px 12px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: rgba(168,85,247,0.08);
+      border: 1px solid rgba(168,85,247,0.15);
+    }
+    .phrase p {
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-style: italic;
+      font-size: 13px;
+      line-height: 1.45;
+      color: #c4b5fd;
+      margin: 0;
+      text-align: center;
+    }
+
+    /* Mood — unified card replacing nudge + pair card */
+    .mood-card {
+      margin: 0 16px 12px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: var(--surface-card);
+      border: 1px solid var(--brd-subtle);
+    }
+    .mood-state-empty {
+      background: linear-gradient(135deg, rgba(245,158,11,0.10), rgba(168,85,247,0.10));
+      border-color: rgba(245,158,11,0.25);
+    }
+    .mood-row { display: flex; align-items: center; gap: 12px; }
+    .mood-cta-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .mood-cta-text { flex: 1; }
+    .mood-cta-title { font-size: 13px; font-weight: 700; color: var(--text-primary); margin: 0; line-height: 1.2; }
+    .mood-cta-sub { font-size: 11px; color: var(--text-tertiary); margin: 2px 0 0; line-height: 1.3; }
+    .mood-arrow { color: var(--brand-amber); font-weight: 700; font-size: 16px; }
+
+    /* Mood filled */
+    .mood-filled { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .mood-side {
+      display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;
+    }
+    .mood-emoji { font-size: 22px; line-height: 1; }
+    .mood-meta-name { font-size: 10px; color: var(--text-tertiary); margin: 0; line-height: 1; }
+    .mood-meta-label { font-size: 12px; font-weight: 600; color: var(--text-primary); margin: 1px 0 0; line-height: 1; }
+    .mood-divider { width: 1px; height: 24px; background: var(--brd-subtle); }
+    .mood-side.partner-locked .mood-meta-label { color: var(--text-tertiary); }
+    .mood-edit-btn {
+      font-size: 10px; color: var(--brand-purple); background: transparent;
+      border: 1px solid var(--brd-purple); border-radius: 999px;
+      padding: 3px 8px; cursor: pointer;
+    }
+
+    /* Today section */
+    .section-h {
+      margin: 14px 16px 8px;
+      display: flex; justify-content: space-between; align-items: baseline;
+    }
+    .section-h h3 { font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 0; }
+    .section-h-count { font-size: 11px; color: var(--text-tertiary); }
+
+    .today-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+    .task-row {
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 12px; padding: 10px 12px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .task-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: rgba(168,85,247,0.15); display: inline-flex;
+      align-items: center; justify-content: center; font-size: 18px;
+      flex-shrink: 0;
+    }
+    .task-body { flex: 1; min-width: 0; }
+    .task-name { font-size: 13px; font-weight: 600; color: var(--text-primary); margin: 0; line-height: 1.2; }
+    .task-meta { font-size: 11px; color: var(--text-tertiary); margin: 2px 0 0; }
+    .task-meta .pts { color: var(--brand-amber); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .task-action {
+      padding: 8px 12px; font-size: 12px; font-weight: 700; color: white;
+      background: var(--grad-cta); border: 0; border-radius: 8px; cursor: pointer;
+      box-shadow: 0 4px 10px rgba(245,158,11,0.3);
+    }
+    .task-action.partner { background: transparent; border: 1px solid var(--brd-subtle); color: var(--text-tertiary); box-shadow: none; }
+
+    /* Streak strip — accessory, terciario */
+    .streak-strip {
+      margin: 14px 16px 0;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: rgba(168,85,247,0.06);
+      border: 1px solid rgba(168,85,247,0.12);
+      display: flex; align-items: center; justify-content: space-around;
+      font-size: 11px; font-weight: 600; color: var(--text-secondary);
+    }
+    .streak-strip span.amber { color: var(--brand-amber); }
+
+    /* Replay card with date */
+    .replay {
+      margin: 12px 16px 0;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(245,158,11,0.18), rgba(168,85,247,0.18));
+      border: 1px solid rgba(245,158,11,0.25);
+      position: relative;
+    }
+    .replay-date {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+      color: rgba(245,158,11,0.95); margin: 0 0 4px;
+    }
+    .replay-title { font-size: 13px; font-weight: 700; color: var(--text-primary); margin: 0; line-height: 1.3; }
+    .replay-sub { font-size: 11px; color: var(--text-secondary); margin: 4px 0 0; line-height: 1.4; }
+    .replay-close {
+      position: absolute; top: 8px; right: 8px;
+      background: transparent; border: 0; color: var(--text-tertiary);
+      font-size: 14px; cursor: pointer; line-height: 1;
+    }
+
+    /* Anniversary chip — at bottom now */
+    .annv-chip {
+      margin: 14px 16px 0;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 11px;
+    }
+    .annv-left { display: flex; align-items: center; gap: 8px; }
+    .annv-heart { color: var(--brand-purple); }
+    .annv-label { color: var(--text-tertiary); }
+    .annv-label strong { color: var(--text-primary); font-weight: 700; }
+    .annv-d { font-size: 10px; color: var(--brand-purple); font-weight: 600; }
+
+    /* Old layout (BEFORE) styles — to render the "before" comparison */
+    .before-card {
+      margin: 0 16px 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: var(--surface-card);
+      border: 1px solid var(--brd-subtle);
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .before-banner-vecinos {
+      margin: 0 16px 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(245,158,11,0.10);
+      border: 1px solid rgba(245,158,11,0.25);
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .before-banner-vecinos strong { color: var(--brand-amber); }
+    .conflict-flag {
+      position: absolute; top: 38px; left: 50%; transform: translateX(-50%);
+      background: rgba(239,68,68,0.95); color: white;
+      font-size: 9px; font-weight: 700; padding: 4px 10px;
+      border-radius: 999px; white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(239,68,68,0.4); z-index: 5;
+      letter-spacing: 0.04em;
+    }
+
+    /* Annotations between phones */
+    .annot-stack { display: flex; flex-direction: column; gap: 8px; padding: 16px 0; max-width: 280px; }
+    .annot-pill {
+      font-size: 11px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: rgba(34,197,94,0.10);
+      border: 1px solid rgba(34,197,94,0.25);
+      color: #86efac;
+    }
+    .annot-pill.warn { background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.25); color: #fbbf24; }
+    .annot-pill.bad { background: rgba(239,68,68,0.10); border-color: rgba(239,68,68,0.25); color: #fca5a5; }
+
+    /* Hierarchy legend */
+    .hier-legend {
+      display: flex; flex-direction: column; gap: 8px;
+      padding: 16px; min-width: 280px;
+    }
+    .hier-row { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+    .hier-tier {
+      width: 56px; flex-shrink: 0;
+      font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 3px 8px; border-radius: 4px; text-align: center;
+    }
+    .hier-tier.h1 { background: rgba(245,158,11,0.15); color: var(--brand-amber); }
+    .hier-tier.h2 { background: rgba(168,85,247,0.15); color: var(--brand-purple); }
+    .hier-tier.h3 { background: rgba(156,163,175,0.10); color: var(--text-secondary); }
+    .hier-name { color: var(--text-primary); font-weight: 600; }
+    .hier-when { color: var(--text-tertiary); font-size: 11px; margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    // ─────────────── Reusable phone shell ──────────────
+    function Phone({ children, label }) {
+      return (
+        <div className="phone phone-tall">
+          {label && <div className="spec-label">{label}</div>}
+          <div className="statusbar">
+            <span>9:41</span>
+            <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <span style={{ fontSize: 11 }}>●●●</span>
+              <span style={{ fontSize: 11 }}>📶</span>
+              <span style={{ fontSize: 11 }}>🔋</span>
+            </span>
+          </div>
+          <div className="phone-screen">{children}</div>
+          <div className="bottomnav">
+            <div className="bottomnav-item active"><span>🏠</span><span>Inicio</span></div>
+            <div className="bottomnav-item"><span>✓</span><span>Tareas</span></div>
+            <div className="bottomnav-fab">+</div>
+            <div className="bottomnav-item"><span>📅</span><span>Calendario</span></div>
+            <div className="bottomnav-item"><span>📊</span><span>Analítica</span></div>
+          </div>
+        </div>
+      );
+    }
+
+    function Header({ greet, name }) {
+      return (
+        <div className="header-v2">
+          <div className="avatar-mini">🐼</div>
+          <div className="greet-block">
+            <p className="greet-line">{greet}</p>
+            <p className="greet-name">{name}</p>
+          </div>
+          <div className="header-actions">
+            <button className="icon-btn" aria-label="Notificaciones">🔔</button>
+            <button className="icon-btn" aria-label="Más">⋯</button>
+          </div>
+        </div>
+      );
+    }
+
+    // ─────────────── BEFORE: dashboard hoy ─────────────
+    function DashboardBefore() {
+      return (
+        <Phone label="HOY · v2.0.5">
+          <div className="dash-content">
+            <Header greet="Buenas noches 🌙" name="Blanca" />
+            <p style={{ fontSize: 11, color: 'var(--text-tertiary)', margin: '0 16px 8px' }}>
+              Edu está 💪 Con energía hoy
+            </p>
+
+            <div className="before-banner-vecinos" style={{ position: 'relative' }}>
+              <strong>Vecinos · Lv 1</strong> · 100 XP para Lv 2
+              <div className="progress" style={{ marginTop: 6, height: 4 }}>
+                <div className="progress-fill" style={{ width: '12%' }}></div>
+              </div>
+            </div>
+
+            <div className="before-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <strong style={{ color: 'var(--text-primary)' }}>Vuestro mejor día reciente</strong>
+                <span style={{ color: 'var(--text-tertiary)' }}>✕</span>
+              </div>
+              3 actividades · 37 pts ese día
+              <div style={{ fontSize: 10, color: 'var(--danger)', marginTop: 3 }}>⚠ ¿Qué día?</div>
+            </div>
+
+            <div className="before-card" style={{ background: 'rgba(245,158,11,0.10)', borderColor: 'rgba(245,158,11,0.25)' }}>
+              ¿Cómo estás hoy? Comparte tu mood... ✕
+              <div style={{ fontSize: 10, color: 'var(--danger)', marginTop: 3 }}>⚠ Pero el mood YA está abajo</div>
+            </div>
+
+            <div className="before-card">
+              😐 Tu estado → · 💪 Con energía
+            </div>
+
+            <div className="before-card">
+              <span style={{ fontStyle: 'italic', color: '#c4b5fd' }}>"Mirad el saldo de cariño..."</span>
+            </div>
+
+            <div className="before-card">
+              ♥ Añade vuestra fecha de aniversario
+            </div>
+
+            <div className="before-card" style={{ position: 'relative' }}>
+              <div style={{ fontSize: 9, color: 'var(--text-tertiary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>BALANCE DE LA SEMANA</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: 'white', marginTop: 4 }}>+13.5 <span style={{ fontSize: 11, opacity: 0.7 }}>MP</span></div>
+              <div style={{ fontSize: 11, color: 'white', marginTop: 4 }}>🎉 Vas 13.5 MP por delante</div>
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.1)', fontSize: 11 }}>
+                👑 <strong>Nivel 2 · Brote</strong> · 736/2000
+              </div>
+            </div>
+            <div className="conflict-flag" style={{ top: 'auto', bottom: 195 }}>⚠ DOS sistemas de niveles a la vez</div>
+
+            <div className="before-card" style={{ display: 'flex', justifyContent: 'space-around', fontSize: 11, padding: '8px 12px' }}>
+              <span>🔥 1 días</span><span>·</span>
+              <span>×1.0</span><span>·</span>
+              <span>📦 0/1</span>
+            </div>
+
+            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', textAlign: 'center', padding: 8 }}>
+              ↓ scroll para llegar a "Hoy"
+            </div>
+          </div>
+        </Phone>
+      );
+    }
+
+    // ─────────────── AFTER: state A — sin mood ─────────────
+    function HeroLevel({ name, emoji, current, needed, perk }) {
+      const pct = Math.min(100, (current / needed) * 100);
+      return (
+        <div className="hero-level">
+          <div className="hero-balance-row">
+            <div>
+              <p className="hero-eyebrow">Balance · esta semana</p>
+              <p className="hero-balance">+13.5<span className="mp">MP</span></p>
+              <p className="hero-explain">🎉 Blanca va 13.5 por delante</p>
+            </div>
+            <div className="hero-mini-cols">
+              <div className="hero-mini-col">
+                <span className="hero-mini-name">Blanca</span>
+                <span className="hero-mini-val">+17.5</span>
+              </div>
+              <div className="hero-mini-col">
+                <span className="hero-mini-name">Edu</span>
+                <span className="hero-mini-val">+4.0</span>
+              </div>
+            </div>
+          </div>
+          <div className="hero-level-row">
+            <div className="level-meta">
+              <div className="level-badge">{emoji}</div>
+              <div className="level-info">
+                <p className="level-name"><span className="lvl-num">Lv {2}</span>{name}</p>
+                <p className="level-perk">Próximo: {perk}</p>
+              </div>
+              <div className="level-pct">
+                {Math.round(pct)}%<span className="needed"> ({current}/{needed})</span>
+              </div>
+            </div>
+            <div className="progress">
+              <div className="progress-fill" style={{ width: `${pct}%` }}></div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function MoodEmpty({ onTap }) {
+      return (
+        <div className="mood-card mood-state-empty" onClick={onTap} style={{ cursor: 'pointer' }}>
+          <div className="mood-row">
+            <div className="mood-cta-icon">🫥</div>
+            <div className="mood-cta-text">
+              <p className="mood-cta-title">¿Cómo estás hoy?</p>
+              <p className="mood-cta-sub">Comparte tu mood con Edu</p>
+            </div>
+            <span className="mood-arrow">→</span>
+          </div>
+        </div>
+      );
+    }
+
+    function MoodFilled({ partnerSet }) {
+      return (
+        <div className="mood-card">
+          <div className="mood-filled">
+            <div className="mood-side">
+              <span className="mood-emoji">😊</span>
+              <div>
+                <p className="mood-meta-name">Tú</p>
+                <p className="mood-meta-label">Bien</p>
+              </div>
+            </div>
+            <div className="mood-divider"></div>
+            <div className={`mood-side partner-locked ${partnerSet ? '' : 'partner-locked'}`}>
+              {partnerSet ? (
+                <>
+                  <span className="mood-emoji">💪</span>
+                  <div>
+                    <p className="mood-meta-name">Edu</p>
+                    <p className="mood-meta-label">Con energía</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className="mood-emoji" style={{ opacity: 0.4 }}>🫥</span>
+                  <div>
+                    <p className="mood-meta-name">Edu</p>
+                    <p className="mood-meta-label" style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>aún no</p>
+                  </div>
+                </>
+              )}
+            </div>
+            <button className="mood-edit-btn">cambiar</button>
+          </div>
+        </div>
+      );
+    }
+
+    function PhraseCard() {
+      return (
+        <div className="phrase">
+          <p>"Mirad el saldo de cariño igual que el de tareas — los dos cuentan."</p>
+        </div>
+      );
+    }
+
+    function TodaySection() {
+      return (
+        <>
+          <div className="section-h">
+            <h3>Hoy</h3>
+            <span className="section-h-count">3 pendientes</span>
+          </div>
+          <div className="today-list">
+            <div className="task-row">
+              <div className="task-icon">🍳</div>
+              <div className="task-body">
+                <p className="task-name">Preparar la cena</p>
+                <p className="task-meta"><span className="pts">+2.5 MP</span> · tú</p>
+              </div>
+              <button className="task-action">✓ Hecha</button>
+            </div>
+            <div className="task-row">
+              <div className="task-icon">🧺</div>
+              <div className="task-body">
+                <p className="task-name">Tender la lavadora</p>
+                <p className="task-meta"><span className="pts">+1.5 MP</span> · Edu</p>
+              </div>
+              <button className="task-action partner">Esperando…</button>
+            </div>
+          </div>
+        </>
+      );
+    }
+
+    function StreakStrip() {
+      return (
+        <div className="streak-strip">
+          <span><span className="amber">🔥 7</span> días</span>
+          <span>·</span>
+          <span>×1.5</span>
+          <span>·</span>
+          <span>🧊 1/1</span>
+        </div>
+      );
+    }
+
+    function ReplayCard() {
+      return (
+        <div className="replay">
+          <button className="replay-close" aria-label="Cerrar">✕</button>
+          <p className="replay-date">Lunes 28 abr · hace 5 días</p>
+          <p className="replay-title">Vuestro mejor día de la semana</p>
+          <p className="replay-sub">3 actividades · 37 pts juntos. Buen ritmo 💛</p>
+        </div>
+      );
+    }
+
+    function AnniversaryChip() {
+      return (
+        <div className="annv-chip">
+          <div className="annv-left">
+            <span className="annv-heart">♥</span>
+            <span className="annv-label">Lleváis juntos <strong>3 años, 2 meses</strong></span>
+          </div>
+          <span className="annv-d">28d · aniversario</span>
+        </div>
+      );
+    }
+
+    // ─────────────── Variantes ───────────────────
+    function DashAfterNoMood() {
+      return (
+        <Phone label="A · Sin mood">
+          <div className="dash-content">
+            <Header greet="Buenas noches 🌙" name="Blanca" />
+            <HeroLevel name="Confianza" emoji="🌿" current={736} needed={2000} perk="Frase legendaria desbloqueada" />
+            <MoodEmpty />
+            <PhraseCard />
+            <TodaySection />
+            <StreakStrip />
+            <AnniversaryChip />
+          </div>
+        </Phone>
+      );
+    }
+
+    function DashAfterWithMood() {
+      return (
+        <Phone label="B · Mood compartido">
+          <div className="dash-content">
+            <Header greet="Buenas noches 🌙" name="Blanca" />
+            <HeroLevel name="Confianza" emoji="🌿" current={736} needed={2000} perk="Frase legendaria desbloqueada" />
+            <MoodFilled partnerSet />
+            <PhraseCard />
+            <TodaySection />
+            <StreakStrip />
+            <AnniversaryChip />
+          </div>
+        </Phone>
+      );
+    }
+
+    function DashAfterMoodHalf() {
+      return (
+        <Phone label="C · Yo sí, partner no">
+          <div className="dash-content">
+            <Header greet="Buenas tardes ☀️" name="Blanca" />
+            <HeroLevel name="Confianza" emoji="🌿" current={736} needed={2000} perk="Frase legendaria desbloqueada" />
+            <MoodFilled partnerSet={false} />
+            <PhraseCard />
+            <TodaySection />
+            <StreakStrip />
+            <AnniversaryChip />
+          </div>
+        </Phone>
+      );
+    }
+
+    function DashAfterReplay() {
+      return (
+        <Phone label="D · Con replay (≤7d)">
+          <div className="dash-content">
+            <Header greet="Buenos días ☕" name="Blanca" />
+            <HeroLevel name="Confianza" emoji="🌿" current={736} needed={2000} perk="Frase legendaria desbloqueada" />
+            <MoodFilled partnerSet />
+            <ReplayCard />
+            <PhraseCard />
+            <TodaySection />
+            <StreakStrip />
+            <AnniversaryChip />
+          </div>
+        </Phone>
+      );
+    }
+
+    function DashAfterNoExtras() {
+      return (
+        <Phone label="E · Mínimo · sin extras">
+          <div className="dash-content">
+            <Header greet="Buenas tardes ☀️" name="Blanca" />
+            <HeroLevel name="Encuentro" emoji="🌱" current={42} needed={100} perk="Avatares con marco al subir nivel" />
+            <MoodFilled partnerSet />
+            <PhraseCard />
+            <TodaySection />
+          </div>
+        </Phone>
+      );
+    }
+
+    // ─────────── Hierarchy legend ───────────
+    function HierarchyLegend() {
+      return (
+        <div className="hier-legend">
+          <h4 style={{ color: 'var(--text-primary)', fontSize: 12, margin: 0, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+            Jerarquía propuesta
+          </h4>
+          <div className="hier-row">
+            <span className="hier-tier h1">Hero</span>
+            <div>
+              <div className="hier-name">Balance + Nivel pareja (1 card)</div>
+              <div className="hier-when">Siempre visible · sin scroll</div>
+            </div>
+          </div>
+          <div className="hier-row">
+            <span className="hier-tier h2">Soporte</span>
+            <div>
+              <div className="hier-name">Mood compartido</div>
+              <div className="hier-when">Siempre · 2 estados (vacío / lleno)</div>
+            </div>
+          </div>
+          <div className="hier-row">
+            <span className="hier-tier h2">Soporte</span>
+            <div>
+              <div className="hier-name">Frase del día</div>
+              <div className="hier-when">Siempre · italic serif decorativa</div>
+            </div>
+          </div>
+          <div className="hier-row">
+            <span className="hier-tier h2">Soporte</span>
+            <div>
+              <div className="hier-name">Hoy (tareas)</div>
+              <div className="hier-when">Siempre · top 3 + "ver todas"</div>
+            </div>
+          </div>
+          <div className="hier-row">
+            <span className="hier-tier h3">Accesorio</span>
+            <div>
+              <div className="hier-name">Streak strip</div>
+              <div className="hier-when">Solo si racha &gt; 0 días</div>
+            </div>
+          </div>
+          <div className="hier-row">
+            <span className="hier-tier h3">Accesorio</span>
+            <div>
+              <div className="hier-name">Replay best-day</div>
+              <div className="hier-when">≤ 7 días desde el día · con FECHA · cerrable</div>
+            </div>
+          </div>
+          <div className="hier-row">
+            <span className="hier-tier h3">Accesorio</span>
+            <div>
+              <div className="hier-name">Anniversary chip</div>
+              <div className="hier-when">Solo si fecha fijada · al final</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─────────── App composition ───────────
+    function App() {
+      return (
+        <DesignCanvas
+          title="01 · Dashboard refactor"
+          subtitle="Antes (8 cards apiladas, 2 niveles en conflicto) → después (3 niveles claros). Tokens v2 reales (Tailwind config)."
+        >
+          <DCSection id="diagnosis" title="Diagnóstico" subtitle="El dashboard actual y la jerarquía que propongo">
+            <DCArtboard id="before" label="ANTES · Hoy en producción" width={400} height={780}>
+              <DashboardBefore />
+            </DCArtboard>
+            <DCArtboard id="hierarchy" label="Jerarquía propuesta" width={340} height={520}>
+              <HierarchyLegend />
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection id="states" title="Después · 5 estados" subtitle="Mismo layout, contenido condicional según los datos del usuario">
+            <DCArtboard id="after-A" label="A · Sin mood hoy" width={400} height={780}>
+              <DashAfterNoMood />
+            </DCArtboard>
+            <DCArtboard id="after-B" label="B · Mood ambos" width={400} height={780}>
+              <DashAfterWithMood />
+            </DCArtboard>
+            <DCArtboard id="after-C" label="C · Solo yo mood" width={400} height={780}>
+              <DashAfterMoodHalf />
+            </DCArtboard>
+            <DCArtboard id="after-D" label="D · Replay activo" width={400} height={780}>
+              <DashAfterReplay />
+            </DCArtboard>
+            <DCArtboard id="after-E" label="E · Lvl 1 · sin extras" width={400} height={780}>
+              <DashAfterNoExtras />
+            </DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

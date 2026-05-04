@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>08 · Onboarding del partner — Matripuntos v2.1</title>
+  <link rel="stylesheet" href="shared.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .ds-canvas-stage { background: #06030f !important; }
+    .ds-canvas-section-title { color: #c4b5fd !important; }
+    .ds-canvas-section-subtitle { color: #6b7280 !important; }
+    .ds-canvas-artboard-label { color: #9ca3af !important; font-weight: 600 !important; }
+
+    .h-pad { padding: 16px; }
+    .h-title { font-size: 22px; font-weight: 800; color: var(--text-primary); margin: 0 0 4px; letter-spacing: -0.01em; }
+    .h-sub { font-size: 13px; color: var(--text-tertiary); margin: 0 0 16px; line-height: 1.5; }
+    .progress { height: 4px; background: var(--surface-card); border-radius: 2px; margin: 0 16px 16px; overflow: hidden; }
+    .progress > div { height: 100%; background: var(--grad-cta); }
+    .step-num { font-size: 11px; color: var(--text-tertiary); padding: 0 16px 4px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+
+    .invite-card {
+      margin: 16px;
+      padding: 28px 20px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(168,85,247,0.20), rgba(245,158,11,0.10));
+      border: 1px solid rgba(168,85,247,0.35);
+      text-align: center;
+    }
+    .invite-card .av { display: flex; justify-content: center; gap: 4px; margin-bottom: 14px; }
+    .invite-card .a {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--grad-cta); display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 800; color: white;
+      border: 3px solid var(--surface-base);
+    }
+    .invite-card .a.b { background: var(--grad-primary); margin-left: -12px; }
+    .invite-card h2 { margin: 0 0 6px; font-size: 18px; color: var(--text-primary); font-weight: 800; }
+    .invite-card p { margin: 0 0 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+    .summary-card {
+      margin: 12px 16px;
+      padding: 16px;
+      background: var(--surface-card); border: 1px solid var(--brd-subtle);
+      border-radius: 12px;
+    }
+    .summary-card h3 { margin: 0 0 10px; font-size: 12px; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+    .stat-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; color: var(--text-secondary); border-bottom: 1px dashed var(--brd-subtle); }
+    .stat-row:last-child { border: 0; }
+    .stat-row b { color: var(--text-primary); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .stat-row .amber { color: var(--brand-amber); }
+
+    .rules-preview {
+      margin: 12px 16px;
+      padding: 14px 16px;
+      background: rgba(245,158,11,0.08);
+      border: 1px solid rgba(245,158,11,0.3);
+      border-radius: 12px;
+      font-size: 12px; line-height: 1.5;
+      color: var(--text-secondary);
+    }
+    .rules-preview b { color: var(--text-primary); }
+    .rules-preview ul { margin: 8px 0 0; padding-left: 18px; }
+    .rules-preview li { margin-bottom: 2px; }
+
+    .cta-stack { padding: 16px; display: flex; flex-direction: column; gap: 8px; position: absolute; bottom: 0; left: 0; right: 0; }
+    .btn-pri-full {
+      width: 100%; padding: 14px; border: 0; border-radius: 12px;
+      background: var(--grad-cta); color: white; font-weight: 800; font-size: 14px;
+      cursor: pointer; box-shadow: 0 8px 18px rgba(245,158,11,0.3);
+    }
+    .btn-link {
+      background: transparent; border: 0; color: var(--text-tertiary);
+      font-size: 12px; padding: 8px; cursor: pointer; font-weight: 600;
+    }
+
+    /* Side panel */
+    .panel { width: 380px; padding: 22px; background: var(--surface-card); border: 1px solid var(--brd-subtle); border-radius: 14px; }
+    .panel h3 { margin: 0 0 8px; font-size: 14px; font-weight: 800; color: var(--text-primary); }
+    .panel p { margin: 0 0 10px; font-size: 12px; color: var(--text-secondary); line-height: 1.55; }
+    .panel ul { margin: 0; padding-left: 18px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+    .panel ul b { color: var(--text-primary); }
+    .panel h4 { margin: 14px 0 6px; color: var(--brand-amber); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+  </style>
+</head>
+<body>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <div id="root"></div>
+  <script type="text/babel">
+    function Phone({ children, label }) {
+      return (
+        <div className="phone phone-tall" style={{ position: 'relative' }}>
+          {label && <div className="spec-label">{label}</div>}
+          <div className="statusbar"><span>9:41</span><span style={{ fontSize: 11 }}>●●● 📶 🔋</span></div>
+          <div className="phone-screen" style={{ position: 'relative' }}>{children}</div>
+        </div>
+      );
+    }
+
+    function Welcome() {
+      return (
+        <Phone label="01 · Welcome (link de Blanca)">
+          <div className="step-num" style={{ paddingTop: 32 }}>Paso 1 de 4</div>
+          <div className="progress"><div style={{ width: '25%' }}></div></div>
+          <div className="invite-card">
+            <div className="av">
+              <div className="a">B</div>
+              <div className="a b">E</div>
+            </div>
+            <h2>Blanca te invita a Matripuntos</h2>
+            <p>Lleva 12 días usando la app.</p>
+            <p style={{ color: 'var(--text-tertiary)', fontSize: 11, marginTop: 8 }}>"Tengo curiosidad por ver si esto nos ayuda con el reparto 🙏"</p>
+          </div>
+          <div className="h-pad" style={{ paddingTop: 0 }}>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
+              Es una app de pareja para repartir tareas y planes con un sistema de puntos.
+              <br/><br/>
+              <b style={{ color: 'var(--text-primary)' }}>2 minutos</b> y estás dentro.
+            </p>
+          </div>
+          <div className="cta-stack">
+            <button className="btn-pri-full">Empezar</button>
+            <button className="btn-link">¿Qué es esto exactamente? →</button>
+          </div>
+        </Phone>
+      );
+    }
+
+    function CatchUp() {
+      return (
+        <Phone label="02 · Catch-up · qué lleva Blanca">
+          <div className="step-num" style={{ paddingTop: 16 }}>Paso 2 de 4</div>
+          <div className="progress"><div style={{ width: '50%' }}></div></div>
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title">Esto lleva Blanca</h1>
+            <p className="h-sub">Sin presión — empezáis a contar puntos cuando tú entres.</p>
+          </div>
+          <div className="summary-card">
+            <h3>Su estado</h3>
+            <div className="stat-row"><span>Nivel</span><b>Aprendiz · L2</b></div>
+            <div className="stat-row"><span>Saldo</span><b className="amber">+18 MP</b></div>
+            <div className="stat-row"><span>Mood hoy</span><b>😊 Bien</b></div>
+            <div className="stat-row"><span>Tareas esta semana</span><b>12 completadas</b></div>
+          </div>
+          <div className="rules-preview">
+            <b>📋 Reglas que ha configurado</b>
+            <ul>
+              <li>Cocinar = 2.5 MP · Limpiar baño = 1.5 MP</li>
+              <li>Multiplicador finde activado (×1.5)</li>
+              <li>5 plantillas de actividad</li>
+            </ul>
+            <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--brand-amber)' }}>
+              <b>Podrás cambiar todo desde Ajustes</b> — los cambios pasan por aprobación de Blanca.
+            </p>
+          </div>
+          <div className="cta-stack">
+            <button className="btn-pri-full">Entiendo, sigamos →</button>
+          </div>
+        </Phone>
+      );
+    }
+
+    function FirstAction() {
+      return (
+        <Phone label="03 · Tu primera acción">
+          <div className="step-num" style={{ paddingTop: 16 }}>Paso 3 de 4</div>
+          <div className="progress"><div style={{ width: '75%' }}></div></div>
+          <div className="h-pad" style={{ paddingBottom: 0 }}>
+            <h1 className="h-title">Tu primera tarea</h1>
+            <p className="h-sub">Elige una tarea que sueles hacer hoy. Te da +MP y Blanca lo ve en directo.</p>
+          </div>
+          <div style={{ padding: '0 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {[
+              { e: '🍳', n: 'Cocinar', p: 2.5 },
+              { e: '🛒', n: 'Compra', p: 3 },
+              { e: '🧺', n: 'Lavadora', p: 1 },
+              { e: '🐶', n: 'Sacar perro', p: 1 },
+              { e: '🧹', n: 'Limpieza', p: 2 },
+              { e: '➕', n: 'Otra', p: '?' },
+            ].map(it => (
+              <div key={it.n} style={{
+                padding: 14, borderRadius: 12,
+                background: 'var(--surface-card)',
+                border: '1px solid var(--brd-subtle)',
+                textAlign: 'center', cursor: 'pointer',
+              }}>
+                <div style={{ fontSize: 28 }}>{it.e}</div>
+                <div style={{ marginTop: 4, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{it.n}</div>
+                <div style={{ fontSize: 10, color: 'var(--brand-amber)', fontWeight: 700, marginTop: 2 }}>+{it.p} MP</div>
+              </div>
+            ))}
+          </div>
+          <p style={{ padding: '14px 16px', fontSize: 11, color: 'var(--text-tertiary)', textAlign: 'center', margin: 0, lineHeight: 1.5 }}>
+            O puedes saltar este paso y empezar mañana.
+          </p>
+          <div className="cta-stack">
+            <button className="btn-pri-full">Confirmar tarea</button>
+            <button className="btn-link">Saltar →</button>
+          </div>
+        </Phone>
+      );
+    }
+
+    function Done() {
+      return (
+        <Phone label="04 · Listo · entrar al dashboard">
+          <div className="step-num" style={{ paddingTop: 16 }}>Paso 4 de 4</div>
+          <div className="progress"><div style={{ width: '100%' }}></div></div>
+          <div style={{ padding: 32, textAlign: 'center' }}>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
+            <h1 className="h-title" style={{ textAlign: 'center', fontSize: 24 }}>¡Estáis dentro!</h1>
+            <p className="h-sub" style={{ textAlign: 'center' }}>Blanca acaba de recibir un push: "Edu se ha unido".</p>
+          </div>
+          <div className="summary-card">
+            <h3>Tu primera semana</h3>
+            <div className="stat-row"><span>Tu nivel</span><b>Aprendiz · L1</b></div>
+            <div className="stat-row"><span>Tu saldo</span><b className="amber">+2.5 MP</b></div>
+            <div className="stat-row"><span>Próximo nivel</span><b>en 7.5 MP más</b></div>
+          </div>
+          <div className="rules-preview" style={{ background: 'rgba(168,85,247,0.08)', borderColor: 'rgba(168,85,247,0.3)' }}>
+            <b style={{ color: 'var(--brand-purple)' }}>💡 Tip · primera semana</b>
+            <p style={{ margin: '6px 0 0', fontSize: 11, lineHeight: 1.5 }}>
+              No intentéis ajustar reglas el primer día — usadlas tal como Blanca las dejó. A los 7 días os enseñaremos las que más os chirrían.
+            </p>
+          </div>
+          <div className="cta-stack">
+            <button className="btn-pri-full">Ir al dashboard →</button>
+          </div>
+        </Phone>
+      );
+    }
+
+    function Decisions() {
+      return (
+        <div className="panel">
+          <h3>Decisiones de este onboarding</h3>
+          <h4>Diferencias vs onboarding original</h4>
+          <ul>
+            <li><b>Sin configurar nada nuevo</b> — Edu hereda reglas, plantillas y multiplicadores de Blanca. Reduce 6 pasos a 4.</li>
+            <li><b>"Catch-up" en paso 2</b> — la pieza clave. Edu ve qué lleva Blanca sin sentir que llega tarde a una fiesta.</li>
+            <li><b>"Tu primera tarea"</b> en paso 3 — acción concreta inmediata. La activación se mide aquí, no en el último botón.</li>
+            <li><b>Push a Blanca al terminar</b> — momento social que cierra el loop ("Edu se ha unido").</li>
+          </ul>
+          <h4>Decisiones tomadas</h4>
+          <ul>
+            <li>Mensaje del invitador en welcome (campo opcional al invitar).</li>
+            <li>Toast/banner a Blanca de "Edu está dentro" + push.</li>
+            <li>"Tip primera semana" siembra que reglas son negociables, pero no animes a tocarlas el día 1.</li>
+          </ul>
+          <h4>Para ti (founder)</h4>
+          <ul>
+            <li><b>¿Y si Edu rechaza unirse?</b> Diseño solo el camino feliz, hace falta un "no me convence" → mostramos pantalla de explicación + Blanca recibe notification.</li>
+            <li><b>Mood inicial:</b> ¿pedimos a Edu su mood en el onboarding o esperamos al primer dashboard?</li>
+            <li><b>Re-invitación:</b> si Edu no abre el link en 48h, ¿auto-recordatorio o se queda en mano de Blanca?</li>
+          </ul>
+        </div>
+      );
+    }
+
+    function App() {
+      return (
+        <DesignCanvas
+          title="08 · Onboarding del partner cuando llega segundo"
+          subtitle="Edu abre el link de Blanca · 4 pasos · hereda config, no re-configura."
+        >
+          <DCSection id="flow" title="Flujo del partner">
+            <DCArtboard id="welcome" label="01 · Welcome" width={400} height={780}><Welcome /></DCArtboard>
+            <DCArtboard id="catchup" label="02 · Catch-up (clave)" width={400} height={780}><CatchUp /></DCArtboard>
+            <DCArtboard id="first" label="03 · Tu primera acción" width={400} height={780}><FirstAction /></DCArtboard>
+            <DCArtboard id="done" label="04 · Listo" width={400} height={780}><Done /></DCArtboard>
+            <DCArtboard id="dec" label="Decisiones & specs" width={420} height={780}><div style={{ padding: 20 }}><Decisions /></div></DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

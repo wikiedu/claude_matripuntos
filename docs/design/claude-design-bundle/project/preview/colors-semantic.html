@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css"><style>
+.row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+.chip { border-radius: 10px; padding: 14px 12px; text-align: center; font-weight: 600; font-size: 12px; }
+.chip .hex { font-size: 10px; font-family: ui-monospace, monospace; opacity: .7; margin-top: 4px; font-weight: 400; }
+.pair { display: flex; flex-direction: column; gap: 6px; }
+.solid.success { background: #22c55e; color: #052e12; }
+.solid.warning { background: #facc15; color: #3b2b03; }
+.solid.danger { background: #ef4444; color: #fff; }
+.solid.info { background: #60a5fa; color: #0b1e3a; }
+.soft.success { background: rgba(34,197,94,.12); color: #22c55e; border: 1px solid rgba(34,197,94,.3); }
+.soft.warning { background: rgba(250,204,21,.1); color: #facc15; border: 1px solid rgba(250,204,21,.3); }
+.soft.danger { background: rgba(239,68,68,.1); color: #f87171; border: 1px solid rgba(239,68,68,.3); }
+.soft.info { background: rgba(96,165,250,.1); color: #60a5fa; border: 1px solid rgba(96,165,250,.25); }
+</style></head><body>
+<div class="row">
+  <div class="pair"><div class="chip solid success">Success<div class="hex">#22c55e</div></div><div class="chip soft success">Soft</div></div>
+  <div class="pair"><div class="chip solid warning">Warning<div class="hex">#facc15</div></div><div class="chip soft warning">Soft</div></div>
+  <div class="pair"><div class="chip solid danger">Danger<div class="hex">#ef4444</div></div><div class="chip soft danger">Soft</div></div>
+  <div class="pair"><div class="chip solid info">Info<div class="hex">#60a5fa</div></div><div class="chip soft info">Soft</div></div>
+</div>
+</body></html>
