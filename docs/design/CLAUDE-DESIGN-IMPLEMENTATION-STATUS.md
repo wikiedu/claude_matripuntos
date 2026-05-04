@@ -17,9 +17,9 @@
 | 03 · Mood UX | Card unificada (sin doble banner) | **v2.2.0** | Estados A/B explícitos, MoodNudge+MoodPairCard reemplazados |
 | 04 · Activities (legacy) | — | — | Reemplazado por canvas 07 |
 | 05 · Calendar FAB | Botones + actividad / + tarea | v2.0.7 | Versión simple sin speed-dial todavía |
-| 06 · Settings rules | Editor con consensus | v2.0.7 + v2.1.1 | Falta exponer multipliers del signup (factor hijos, franjas, duración) — pendiente v2.2.x |
+| 06 · Settings rules | Editor con consensus + multipliers reales | **v2.2.1** | RealRulesSection con tareas + factor hijos/franja/duración + audit log. Consensus aplica al backend. |
 | 07 · Tasks/Activities | Add vs Create + consensus puntos | v2.1.1 | Implementación completa |
-| 13 · Microinteracciones | +X MP flotante al completar | **v2.2.0** | PointsBurst hook, anclado a botón |
+| 13 · Microinteracciones | +X MP flotante + progress bar mount | **v2.2.0 / v2.2.2** | PointsBurst hook + progress bar 0→pct (600ms ease-out) |
 
 ---
 
@@ -28,7 +28,7 @@
 | Canvas | Tema | Estado | Próximo paso |
 |---|---|---|---|
 | 05 · Calendar FAB | El handoff propone un speed-dial flotante con multi-acción (evento vs actividad vs tarea). Hoy hay 2 botones ghost+primary en el header. | **Pendiente decidir** si vamos a speed-dial flotante o mantenemos botones header. |
-| 06 · Settings rules | Hoy lista 4 reglas hardcoded (DEFAULT_RULES en backend). El handoff propone UI completa con multipliers del signup expuestos (hijos, franjas, duración, impacto) y consensus. | Crear `MultipliersConfigSection` en Settings con valores reales de `Configuration.multipliersConfig` + propuestas vía ConfigurationProposal. **Esto es la "v2.1.x Reglas reales" del backlog.** |
+| 06 · Settings rules | ~~Hoy lista 4 reglas hardcoded~~ **v2.2.1**: implementado `RealRulesSection` con multipliers reales (hijos/franja/duración) + tareas + audit log. Consensus aplica al backend. | (cerrado) |
 
 ---
 

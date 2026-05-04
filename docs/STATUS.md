@@ -1,7 +1,7 @@
 # STATUS — Matripuntos
 
 **Última actualización:** 2026-05-04
-**Versión actual desplegada en producción:** `v2.2.0` · Dashboard refactor (Claude Design canvas 01/03/13)
+**Versión actual desplegada en producción:** `v2.2.2` · Progress bar mount animation (canvas 13)
 **Branch principal:** `main`
 **URL prod:** https://matripuntos.com (frontend FTP) · backend Render · Supabase Postgres
 
@@ -61,7 +61,13 @@
 - `ProposalsPanel` + sección "Propuestas pendientes" en Settings.
 - `/api/activity-templates` + `/api/config-proposals` (flags `CATALOG_ENABLED` y `CONFIG_PROPOSALS_ENABLED`, default ON).
 
-### v2.2.0 Dashboard refactor — **acaba de deployear 2026-05-04**
+### v2.2.1 Reglas reales — **acaba de deployear 2026-05-04**
+- Cierra el banner "estado provisional" que llevaba desde v2.0.7. Las propuestas en Settings → Reglas **sí aplican** al cálculo real de puntos.
+- Backend: `configurationProposalService.accept()` detecta `tasks.<cat>` y `multipliers.<grupo>.<key>` y muta `Configuration.tasksConfig`/`multipliersConfig` en la misma transacción que el changelog.
+- Frontend: `RealRulesSection` reemplaza al editor legacy con DEFAULT_RULES hardcoded. Lee `Configuration` real y muestra Tareas (puntos base por categoría) + Factor hijos / franja / duración. Cada item con botón ✏️.
+- Audit log de últimos 5 cambios aplicados visible al final de la sección.
+
+### v2.2.0 Dashboard refactor
 - **Hero unificado** balance + nivel pareja con eyebrow conversacional, glow radial, perk próximo, barra amber. Una sola card grande, no dos banners.
 - **MoodCard unificada** sustituye `MoodNudge` + `MoodPairCard`. Estados A (sin mood: CTA gradient amber/purple) y B (filled: yo + partner con divisor).
 - **PointsBurst** — microinteracción "+X MP" flotante al completar tarea (1400ms cubic-bezier ease-out, anclado al botón).
@@ -244,9 +250,12 @@
 | v2.0.8 Actividades full-CRUD | ✅ Producción 2026-05-03 (noche) | Tab Catálogo + add/edit/delete templates |
 | v2.1.0 Gamificación unificada | ✅ Producción 2026-05-03 (noche) | 10 niveles Encuentro→Mito, eliminado el dual-banner |
 | v2.1.1 Tareas/Actividades flow | ✅ Producción 2026-05-03 (noche tardía) | Añadir vs Crear + consenso puntos en plantillas |
-| v2.2.0 Dashboard refactor | ✅ Producción 2026-05-04 | Hero unificado + MoodCard + PointsBurst (Claude Design canvas 01/03/13) |
-| v2.2.x Reglas reales | 🔴 Pendiente | Conectar config proposals con persistencia + multipliers signup expuestos (canvas 06) |
+| v2.2.0 Dashboard refactor | ✅ Producción 2026-05-04 | Hero unificado + MoodCard + PointsBurst (canvas 01/03/13) |
+| v2.2.1 Reglas reales | ✅ Producción 2026-05-04 | Consensus aplica a Configuration (canvas 06) |
+| v2.2.2 Progress bar microanimation | ✅ Producción 2026-05-04 | Hero progress 0→pct mount animation (canvas 13) |
 | v2.2.x Push notifications | 🔴 Pendiente | Inventario backend + 3 tiers + lockscreen (canvas 10) |
+| v2.2.x Onboarding partner | 🔴 Pendiente | Edu hereda config + catch-up 4 pasos (canvas 08) |
+| v2.2.x Más microinteracciones | 🔴 Pendiente | level-up confetti + balance counter + streak flame + undo swipe (canvas 13 restantes) |
 | v2.2 Multiidiomas | 🧠 Brainstorm pendiente | i18n ES/EN/CA/PT |
 | v3.0 Premium | 📝 Spec aprobado | Stripe + AI + RN |
 | v2.1 Conectados | 📝 Spec aprobado | Push real + Google sync + email |
