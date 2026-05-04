@@ -13,6 +13,7 @@ import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
 import { toLocalDateString, formatLocalDate, formatLocalWeekDay } from '../utils/dateUtils'
 import { WeeklyTaskView } from '../components/WeeklyTaskView'
+import { WeekStrip } from '../components/v2/tasks/WeekStrip'
 // v2.3.0 — Pill retirado del header tras refactor canvas 15.
 import { Button } from '../components/v2/primitives/Button'
 import {
@@ -725,16 +726,17 @@ export default function Tasks() {
           <span>Cargando tareas…</span>
         </div>
       ) : view === 'week' ? (
-        // ── SEMANA VIEW ──
-        <div>
-          <div className="flex items-center justify-between px-2 py-2 mb-2">
+        // ── SEMANA VIEW (canvas 15 S03) ──
+        <div className="-mx-4">{/* anular el wrapper px-4 para que WeekStrip ocupe todo el ancho */}
+          <div className="flex items-center justify-between px-6 py-2 mb-2">
             <button
               onClick={() => { const d = new Date(weekStart); d.setDate(d.getDate() - 7); setWeekStart(d) }}
-              className="text-text-secondary hover:text-text-primary px-2 py-1 rounded-md"
+              className="text-text-secondary hover:text-text-primary px-2 py-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber"
+              aria-label="Semana anterior"
             >
               ‹
             </button>
-            <span className="text-xs text-text-secondary">
+            <span className="text-xs font-bold text-text-secondary">
               {weekStart.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} –{' '}
               {new Date(weekStart.getTime() + 6 * 86400000).toLocaleDateString('es-ES', {
                 day: 'numeric', month: 'short', year: 'numeric',
@@ -742,12 +744,41 @@ export default function Tasks() {
             </span>
             <button
               onClick={() => { const d = new Date(weekStart); d.setDate(d.getDate() + 7); setWeekStart(d) }}
-              className="text-text-secondary hover:text-text-primary px-2 py-1 rounded-md"
+              className="text-text-secondary hover:text-text-primary px-2 py-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber"
+              aria-label="Semana siguiente"
             >
               ›
             </button>
           </div>
-          <WeeklyTaskView weekStart={weekStart} />
+
+          {/* v2.3.3 — WeekStrip 7 días (canvas 15) */}
+          {(() => {
+            const todayIso = new Date().toISOString().slice(0, 10)
+            const dayLetters = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+            const days = Array.from({ length: 7 }, (_, i) => {
+              const d = new Date(weekStart)
+              d.setDate(d.getDate() + i)
+              const iso = d.toISOString().slice(0, 10)
+              const tasksOnDay = filteredTasks.filter((t) => {
+                if (!t.scheduledFor) return false
+                return new Date(t.scheduledFor).toISOString().slice(0, 10) === iso
+              })
+              const pip: 'amber' | 'spend' | 'both' | null =
+                tasksOnDay.length > 0 ? 'amber' : null
+              return {
+                dn: dayLetters[i],
+                dd: d.getDate(),
+                iso,
+                today: iso === todayIso,
+                pip,
+              }
+            })
+            return <WeekStrip days={days} />
+          })()}
+
+          <div className="px-4">
+            <WeeklyTaskView weekStart={weekStart} />
+          </div>
         </div>
       ) : (
         // ── LISTA VIEW ──
