@@ -1,7 +1,9 @@
 # STATUS — Matripuntos
 
 **Última actualización:** 2026-05-04
-**Versión actual desplegada en producción:** `v2.2.9` · Level-up modal + balance counter + flame flicker (canvas 13)
+**Versión actual desplegada en producción:** `v2.2.11` · Presence indicator (canvas 12 mínimo)
+
+> **Handoff Claude Design completado al 100%** (12 canvases cerrados, 2 con extensiones diferidas — sin pendientes bloqueantes).
 **Branch principal:** `main`
 **URL prod:** https://matripuntos.com (frontend FTP) · backend Render · Supabase Postgres
 
@@ -61,7 +63,17 @@
 - `ProposalsPanel` + sección "Propuestas pendientes" en Settings.
 - `/api/activity-templates` + `/api/config-proposals` (flags `CATALOG_ENABLED` y `CONFIG_PROPOSALS_ENABLED`, default ON).
 
-### v2.2.9 Microinteracciones extras — **acaba de deployear 2026-05-04**
+### v2.2.11 Presence indicator — **acaba de deployear 2026-05-04**
+- AppHeader muestra el partner con dot verde "en línea ahora" cuando hace <2min, gris "hace X min" hasta 7d. Coexiste con su mood (antes el mood ocultaba la presence).
+- AuthedLayout polea `loadUserData()` cada 60s solo cuando la pestaña está visible.
+- Cierra canvas 12 en su forma mínima sin websockets.
+
+### v2.2.10 Empty states restantes — **2026-05-04**
+- AnalyticsTeaser cuando la pareja tiene <7 días desde createdAt.
+- Banner "🌱 Primer día" en /achievements cuando 0 logros desbloqueados.
+- Cierra canvas 11 al 100%.
+
+### v2.2.9 Microinteracciones extras — **2026-05-04**
 - **LevelUpModal**: cuando el couple sube de nivel, modal con confeti + emoji nivel + CTA "Genial". Detección via localStorage. Auto-dismiss 5s.
 - **AnimatedNumber**: el balance del hero anima de su valor previo al nuevo (700ms cubic ease-out) cada vez que cambia. Mount inicial directo.
 - **Flame flicker**: el 🔥 del streak parpadea sutilmente cada 2.4s (scale + opacity).
@@ -303,6 +315,8 @@
 | v2.2.7 Empty state hero | ✅ Producción 2026-05-04 | Día 1 motivador (canvas 11 estado 1/4) |
 | v2.2.8 Vacation mode | ✅ Producción 2026-05-04 | Couple.pausedUntil + banner + respeto en streaks/digest (canvas 14) |
 | v2.2.9 Microinteracciones extras | ✅ Producción 2026-05-04 | Level-up modal con confeti + balance counter tween + flame flicker (canvas 13) |
+| v2.2.10 Empty states restantes | ✅ Producción 2026-05-04 | AnalyticsTeaser + banner achievements (cierra canvas 11) |
+| v2.2.11 Presence indicator | ✅ Producción 2026-05-04 | Dot verde + polling 60s (cierra canvas 12 mínimo) |
 | v2.2.x Más microinteracciones | 🔴 Pendiente | level-up confetti + balance counter + streak flame + undo swipe (canvas 13 restantes) |
 | v2.2 Multiidiomas | 🧠 Brainstorm pendiente | i18n ES/EN/CA/PT |
 | v3.0 Premium | 📝 Spec aprobado | Stripe + AI + RN |

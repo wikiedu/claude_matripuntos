@@ -2,7 +2,8 @@
 
 **Bundle bajado:** 2026-05-04
 **Ubicación raw del bundle:** `docs/design/claude-design-bundle/`
-**Versión actual implementada:** v2.2.0
+**Versión actual implementada:** v2.2.11
+**Estado: 14 / 14 canvases con implementación productiva** (12 cerrados completos, 2 con extensiones de bajo impacto diferidas).
 
 > Claude Design entregó **14 canvases** (HTML mockup + spec). Este documento mapea cada canvas con su estado real de implementación en código.
 
@@ -39,8 +40,8 @@
 | ~~08 · Onboarding partner~~ ✅ **v2.2.3**: `PartnerCatchUp.tsx` + `/api/auth/partner-summary`. Cuando Edu llega segundo a una pareja activa, ve 4 pasos de catch-up (Welcome → resumen partner → primera tarea → Done). Hereda config completa. | (cerrado) |
 | ~~09 · Saldo en rojo crónico~~ ✅ **v2.2.6**: `redBalanceService` + `RedBalanceCard` con 3 umbrales (3/7/14 días) y privacidad asimétrica. | (cerrado) |
 | ~~10 · Push notifications~~ ✅ **v2.2.4** + **v2.2.5**: preferences (3 tiers + quiet hours + 6 categorías) + scheduler diario que agrega y manda 1 push consolidada. | (cerrado) |
-| ~~11 · Empty states & analytics~~ ✅ **v2.2.7** (parcial): Dashboard día 1 sustituye hero numérico por `EmptyStateHero` con CTA. Estados restantes (history, achievements, analytics <7 días) → backlog bajo. | (parcial) |
-| 12 · Conflictos tiempo real | Doble registro / choque calendar / live presence / toasts last-write-wins. | 🟡 MEDIO (bug caro de detectar) | 2 sesiones | Cuando crezca el uso concurrente real. |
+| ~~11 · Empty states & analytics~~ ✅ **v2.2.7 + v2.2.10**: 4/4 estados cubiertos (dashboard día 1 + analytics teaser <7 días + achievements 0 unlocked). | (cerrado) |
+| ~~12 · Conflictos tiempo real~~ ✅ **v2.2.11** mínimo: presence indicator (dot verde + polling 60s). Extensiones (toasts last-write-wins, choque calendar) → cuando crezca el uso concurrente. | (mínimo cerrado) |
 | 13 · Microinteracciones | ✅ **4 de 7** (points-rise + progress mount + level-up confetti + balance counter + flame flicker). Restantes: success haptic, ripple, undo swipe (bajo impacto). | 🟢 BAJO (sensación) | — | (parcial cerrado) |
 | ~~14 · Modo vacaciones~~ ✅ **v2.2.8** MVP: `Couple.pausedUntil` + endpoints + banner + streaks/digest respetan pausa. Activación manual; detección automática diferida. | (cerrado MVP) |
 
