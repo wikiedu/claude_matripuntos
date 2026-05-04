@@ -44,6 +44,7 @@ import { useStreak, useChallenge, useReplays, isGamificationV2Enabled } from '..
 import { ProfileCompletionBanner } from '../components/v2/dashboard/ProfileCompletionBanner'
 import { BalanceLevelHero } from '../components/v2/dashboard/BalanceLevelHero'
 import { EmptyStateHero } from '../components/v2/dashboard/EmptyStateHero'
+import { LevelUpModal } from '../components/v2/dashboard/LevelUpModal'
 import { StreakStrip } from '../components/v2/dashboard/StreakStrip'
 import { ActivitiesBanner } from '../components/v2/dashboard/ActivitiesBanner'
 import { VerifyTasksBanner } from '../components/v2/dashboard/VerifyTasksBanner'
@@ -254,6 +255,10 @@ export default function Dashboard() {
           3. Mood card unificada (sustituye Nudge + PairCard)
           4. Anniversary chip (discreto)
           → luego sigue: streaks, tareas hoy, etc. */}
+      {/* v2.2.9 — modal level-up con confeti (canvas 13). Auto-detect via
+          localStorage. Solo se muestra al subir, no en mount inicial. */}
+      <LevelUpModal currentLevel={levelOrdinal} />
+
       {/* v2.2.7 — empty state cuando aún no se ha registrado nada (canvas 11). */}
       {(currentXp === 0 && Number(you.balance) === 0 && Number(partner?.balance ?? 0) === 0) ? (
         <EmptyStateHero partnerName={partner?.name ?? 'tu pareja'} />

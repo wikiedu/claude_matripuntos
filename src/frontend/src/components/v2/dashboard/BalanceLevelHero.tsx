@@ -6,8 +6,10 @@
 //   - Barra interior con gradiente amber→orange en vez de blanco plano.
 // v2.2.2 — Microinteracción canvas 13: la barra anima de 0% al valor real al
 // montar (600ms cubic-bezier ease-out). Da sensación de "carga gratificante".
+// v2.2.9 — el número del balance también se anima (tween 700ms) cuando cambia.
 
 import { useState, useEffect } from 'react'
+import { AnimatedNumber } from './AnimatedNumber'
 
 const LEVEL_EMOJI: Record<number, string> = {
   1: '🌱', 2: '🌿', 3: '🤝', 4: '💫', 5: '🏡',
@@ -75,7 +77,7 @@ export function BalanceLevelHero({
             Balance · esta semana
           </p>
           <p className="m-0 mt-1.5 text-[38px] font-extrabold text-white leading-none tabular-nums tracking-tight">
-            {diff >= 0 ? '+' : ''}{diff.toFixed(1)}
+            <AnimatedNumber value={diff} decimals={1} />
             <span className="text-sm font-medium opacity-70 ml-1">MP</span>
           </p>
           <p className="m-0 mt-1 text-[13px] font-medium text-white/95">{explain}</p>
