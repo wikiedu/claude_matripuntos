@@ -271,6 +271,22 @@ cron.schedule('0 8 * * 1', () => {
   sendWeeklyDigests().catch(err => console.error('digest cron error:', err))
 })
 
+// v2.2.5 — Daily push digest per user (Claude Design canvas 10).
+// Corre cada minuto y manda push a usuarios cuyo `digestHour` coincide con la
+// hora actual en su `timezone`. La query es barata; el envío real solo ocurre
+// para los matched. Si no hay actividad ni unread del día, omite.
+cron.schedule('* * * * *', async () => {
+  try {
+    const m = await import('./services/notificationDigestService.js')
+    await m.runDigestForCurrentMinute()
+  } catch (err) {
+    // Solo log si NO es el "import vacío" del entorno tests
+    if (process.env.NODE_ENV !== 'test') {
+      console.error('[digest cron]', err)
+    }
+  }
+})
+
 // Freezer reset — every Monday at 00:00 UTC
 cron.schedule('0 0 * * 1', () => {
   resetFreezersOnMonday().catch(err => console.error('resetFreezers cron error:', err))
