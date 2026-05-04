@@ -69,13 +69,15 @@ export default function Activities() {
       <MPTabs active="activities" />
       <div className="px-4 pt-2.5 pb-1.5 flex items-center justify-between">
         <h1 className="m-0 text-[22px] font-black tracking-tight text-text-primary">Actividades</h1>
-        <button
-          type="button"
-          onClick={() => setShowAddSheet(true)}
-          className="text-[11px] font-bold text-white bg-gradient-to-br from-brand-purple to-[#7c3aed] rounded-full px-3 py-1.5 inline-flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple shadow-[0_6px_14px_rgba(168,85,247,0.30)]"
-        >
-          <Plus className="w-3.5 h-3.5" /> Nueva actividad
-        </button>
+        {tab !== 'catalog' && (
+          <button
+            type="button"
+            onClick={() => setShowAddSheet(true)}
+            className="text-[11px] font-bold text-white bg-gradient-to-br from-brand-purple to-[#7c3aed] rounded-full px-3 py-1.5 inline-flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple shadow-[0_6px_14px_rgba(168,85,247,0.30)]"
+          >
+            <Plus className="w-3.5 h-3.5" /> Nueva actividad
+          </button>
+        )}
       </div>
       {/* Segment Activas / Historial / Catálogo según handoff: simétrico al
           HeaderStrip de Tareas pero adaptado al modelo de actividades. */}

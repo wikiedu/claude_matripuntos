@@ -79,7 +79,7 @@ export function ActivityCatalogManager() {
             onClick={() => { setEditing(null); setShowAdd(true) }}
             className="px-3 py-2 rounded-md bg-brand-purple text-white text-sm font-semibold hover:bg-brand-purple/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple flex items-center gap-1.5"
           >
-            <Plus className="w-4 h-4" /> Nueva actividad
+            <Plus className="w-4 h-4" /> Nueva plantilla
           </button>
         </div>
       </div>
@@ -113,13 +113,13 @@ export function ActivityCatalogManager() {
 
       {!isLoading && cats.length === 0 && (
         <div className="rounded-md bg-surface-card border border-brd-subtle p-6 text-center">
-          <p className="text-sm text-text-secondary mb-2">Aún no hay actividades en este filtro.</p>
+          <p className="text-sm text-text-secondary mb-2">Aún no hay plantillas en este filtro.</p>
           <button
             type="button"
             onClick={() => { setEditing(null); setShowAdd(true) }}
             className="text-sm text-brand-purple hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple rounded"
           >
-            Crear la primera →
+            Crear la primera plantilla →
           </button>
         </div>
       )}
