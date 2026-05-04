@@ -34,4 +34,48 @@ router.post('/leave', criticalBucket, async (req: Request, res: Response) => {
   res.json({ ok: true, newCoupleId: updated?.coupleId })
 })
 
+// v2.2.8 — Modo pausa (Claude Design canvas 14). Mientras pausedUntil > now:
+// streaks no se incrementan, digest no se manda, dashboard muestra banner.
+// El saldo se congela tal cual.
+router.post('/pause', async (req: Request, res: Response) => {
+  const coupleId = (req as any).user?.coupleId
+  if (!coupleId) return res.status(401).json({ error: 'Authentication required' })
+  const days = Number(req.body?.days)
+  if (!Number.isFinite(days) || days < 1 || days > 90) {
+    return res.status(400).json({ error: 'days debe estar entre 1 y 90' })
+  }
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.slice(0, 200) : null
+  const until = new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+  await prisma.couple.update({
+    where: { id: coupleId },
+    data: { pausedUntil: until, pausedReason: reason },
+  })
+  res.json({ ok: true, pausedUntil: until, pausedReason: reason })
+})
+
+router.post('/resume', async (req: Request, res: Response) => {
+  const coupleId = (req as any).user?.coupleId
+  if (!coupleId) return res.status(401).json({ error: 'Authentication required' })
+  await prisma.couple.update({
+    where: { id: coupleId },
+    data: { pausedUntil: null, pausedReason: null },
+  })
+  res.json({ ok: true })
+})
+
+router.get('/pause-status', async (req: Request, res: Response) => {
+  const coupleId = (req as any).user?.coupleId
+  if (!coupleId) return res.status(401).json({ error: 'Authentication required' })
+  const couple = await prisma.couple.findUnique({
+    where: { id: coupleId },
+    select: { pausedUntil: true, pausedReason: true },
+  })
+  const isPaused = couple?.pausedUntil && couple.pausedUntil > new Date()
+  res.json({
+    isPaused,
+    pausedUntil: couple?.pausedUntil ?? null,
+    pausedReason: couple?.pausedReason ?? null,
+  })
+})
+
 export default router

@@ -109,6 +109,9 @@ export async function updateDailyStreak(coupleId: string): Promise<void> {
   const couple = await prisma.couple.findUnique({ where: { id: coupleId } })
   if (!couple) return
 
+  // v2.2.8 — modo pausa: si la pareja está en pausa, no se mueve la racha.
+  if (couple.pausedUntil && couple.pausedUntil > new Date()) return
+
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const yesterday = new Date(today)

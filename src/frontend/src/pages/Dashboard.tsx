@@ -8,6 +8,7 @@ import { useTodos } from '../hooks/useTodos'
 import { DailyPhrase } from '../components/v2/dashboard/DailyPhrase'
 import { AnniversaryCard } from '../components/v2/anniversary/AnniversaryCard'
 import { RedBalanceCard } from '../components/v2/dashboard/RedBalanceCard'
+import { PauseBanner } from '../components/v2/dashboard/PauseBanner'
 // v2.2.0 — MoodPairCard + MoodNudge sustituidos por MoodCard unificado
 // (handoff Claude Design canvas 03).
 import { MoodCard } from '../components/v2/dashboard/MoodCard'
@@ -243,6 +244,10 @@ export default function Dashboard() {
           ))}
         </div>
       )}
+      {/* v2.2.8 — banner pausa (Claude Design canvas 14). Solo visible si la
+          pareja está en modo vacation; oculto en el resto de casos. */}
+      <PauseBanner />
+
       {/* v2.2.0 — Jerarquía nueva (canvas 01 Claude Design):
           1. Hero (Balance + Nivel pareja, lo principal)
           2. Frase del día (calidez)

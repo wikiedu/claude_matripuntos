@@ -125,6 +125,13 @@ async function buildDigestPayload(user: DigestUser): Promise<
   })
   if (!couple?.coupleId) return null
 
+  // v2.2.8 — si la pareja está en pausa (vacation mode), no mandamos digest.
+  const cp = await prisma.couple.findUnique({
+    where: { id: couple.coupleId },
+    select: { pausedUntil: true },
+  })
+  if (cp?.pausedUntil && cp.pausedUntil > new Date()) return null
+
   // Notifs unread del user en el último día
   const unread = await prisma.notification.count({
     where: {
