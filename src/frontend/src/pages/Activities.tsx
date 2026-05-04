@@ -12,6 +12,7 @@ import { HistoryFilters, HistoryFilterValues } from '../components/v2/activities
 import { Pill } from '../components/v2/primitives/Pill'
 import { ActivityCatalogManager } from '../components/v2/catalog/ActivityCatalogManager'
 import { Plus } from 'lucide-react'
+import { MPTabs } from '../components/v2/tasks/MPTabs'
 
 type Tab = 'active' | 'history' | 'catalog'
 
@@ -61,28 +62,42 @@ export default function Activities() {
   const filteredHistory = useMemo(() => filterHistory(history, filters, user?.id ?? ''), [history, filters, user])
 
   return (
-    <main className="pb-4">
-      <div className="mx-4 mt-2 mb-3 flex gap-2">
-        <TabBtn active={tab === 'active'} onClick={() => setTab('active')}>
-          Activas {pending.length + waiting.length > 0 && <Pill tone="danger">{pending.length + waiting.length}</Pill>}
-        </TabBtn>
-        <TabBtn active={tab === 'history'} onClick={() => setTab('history')}>Historial</TabBtn>
-        <TabBtn active={tab === 'catalog'} onClick={() => setTab('catalog')}>Catálogo</TabBtn>
+    <main className="pb-4 pt-1">
+      {/* v2.3.0 — Refactor canvas 15: top tabs +MP/-MP simétricos con Tareas. */}
+      <MPTabs active="activities" />
+      <div className="px-4 pt-2.5 pb-1.5 flex items-center justify-between">
+        <h1 className="m-0 text-[22px] font-black tracking-tight text-text-primary">Actividades</h1>
+        <button
+          type="button"
+          onClick={() => nav('/request-activity')}
+          className="text-[11px] font-bold text-white bg-gradient-to-br from-brand-purple to-[#7c3aed] rounded-full px-3 py-1.5 inline-flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple shadow-[0_6px_14px_rgba(168,85,247,0.30)]"
+        >
+          <Plus className="w-3.5 h-3.5" /> Nueva actividad
+        </button>
       </div>
-
-      {/* v2.0.8 — botón rápido de "Nueva actividad" siempre visible. Lleva al
-          wizard de crear evento, no al catálogo (que se gestiona en su tab). */}
-      {tab !== 'catalog' && (
-        <div className="mx-4 mb-3 flex justify-end">
-          <button
-            type="button"
-            onClick={() => nav('/request-activity')}
-            className="px-3 py-2 rounded-md bg-brand-purple text-white text-sm font-semibold hover:bg-brand-purple/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" /> Nueva actividad
-          </button>
+      {/* Segment Activas / Historial / Catálogo según handoff: simétrico al
+          HeaderStrip de Tareas pero adaptado al modelo de actividades. */}
+      <div className="px-4 pb-3">
+        <div className="flex gap-0 p-0.5 rounded-[10px] bg-surface-card/80 border border-brd-subtle">
+          {([
+            { v: 'active' as const,  label: `Activas${pending.length + waiting.length > 0 ? ` · ${pending.length + waiting.length}` : ''}` },
+            { v: 'history' as const, label: 'Historial' },
+            { v: 'catalog' as const, label: 'Catálogo' },
+          ]).map((opt) => (
+            <button
+              key={opt.v}
+              type="button"
+              onClick={() => setTab(opt.v)}
+              className={`flex-1 px-2 py-1.5 rounded-md text-[11px] font-bold whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple ${
+                tab === opt.v ? 'bg-brand-purple/20 text-text-primary' : 'text-text-tertiary'
+              }`}
+              aria-pressed={tab === opt.v}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
 
       {tab === 'active' && (
         <ActiveView
@@ -120,20 +135,7 @@ export default function Activities() {
   )
 }
 
-function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={[
-        'flex-1 py-2 rounded-lg text-xs font-bold',
-        active ? 'bg-brand-purple text-white' : 'bg-surface-elevated text-text-secondary',
-      ].join(' ')}
-    >
-      {children}
-    </button>
-  )
-}
+// v2.3.0 — TabBtn legacy retirado; ahora usamos el segment inline del HeaderStrip pattern.
 
 function toVM(ev: ActivityEvent): {
   id: string; title: string; whenLabel: string; pointsCalculated: number; round: number
