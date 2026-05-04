@@ -13,7 +13,7 @@ import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
 import { toLocalDateString, formatLocalDate, formatLocalWeekDay } from '../utils/dateUtils'
 import { WeeklyTaskView } from '../components/WeeklyTaskView'
-import { Pill } from '../components/v2/primitives/Pill'
+// v2.3.0 — Pill retirado del header tras refactor canvas 15.
 import { Button } from '../components/v2/primitives/Button'
 import {
   CategoryFilterStrip,
@@ -26,6 +26,10 @@ import { TaskCatalogRow } from '../components/v2/tasks/TaskCatalogRow'
 import { AddTaskSheet } from '../components/v2/tasks/AddTaskSheet'
 import { AddTaskFromCatalogSheet } from '../components/v2/tasks/AddTaskFromCatalogSheet'
 import { usePointsBurst } from '../components/v2/dashboard/PointsBurst'
+import { MPTabs } from '../components/v2/tasks/MPTabs'
+import { HeaderStrip, type FilterValue } from '../components/v2/tasks/HeaderStrip'
+import { VerifyBanner } from '../components/v2/tasks/VerifyBanner'
+// Pill ya no se usa tras v2.3.0 — quitamos import.
 import { RecurringTaskManager } from '../components/v2/tasks/RecurringTaskManager'
 import { ConfirmDialog } from '../components/v2/primitives/ConfirmDialog'
 import { TaskProofUploader } from '../components/v2/proof/TaskProofUploader'
@@ -340,7 +344,26 @@ export default function Tasks() {
   const [deleting, setDeleting] = useState(false)
 
   // View state
-  const [view, setView] = useState<'list' | 'week'>('list')
+  const [view, setView] = useState<'list' | 'week'>(() => {
+    try { return (localStorage.getItem('mp.tasks.view') as any) || 'list' } catch { return 'list' }
+  })
+  const setViewPersisted = (v: 'list' | 'week') => {
+    setView(v)
+    try { localStorage.setItem('mp.tasks.view', v) } catch { /* ignore */ }
+  }
+  // v2.3.0 — segment único Mías/Todas/Recurrentes (Claude Design canvas 15).
+  // Mapea a `tab` legacy: mine→mis_tareas, all→mis_tareas con personFilter='all',
+  // recurring→recurrentes.
+  const [filter, setFilter] = useState<FilterValue>(() => {
+    try { return (localStorage.getItem('mp.tasks.filter') as FilterValue) || 'mine' } catch { return 'mine' }
+  })
+  const setFilterPersisted = (f: FilterValue) => {
+    setFilter(f)
+    try { localStorage.setItem('mp.tasks.filter', f) } catch {}
+    if (f === 'recurring') setTab('recurrentes')
+    else setTab('mis_tareas')
+    setPersonFilter(f === 'all' ? 'all' : 'mine')
+  }
   const [cat, setCat] = useState<string>('all')
   const [personFilter, setPersonFilter] = useState<'all' | 'mine' | 'partner'>('all')
   const [weekStart, setWeekStart] = useState<Date>(() => {
@@ -595,7 +618,7 @@ export default function Tasks() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <main className="px-4 pt-3 pb-6">
+    <main className="pt-1 pb-6">
       {/* v2.2.0 — portal de microinteracción +X MP (canvas 13 Claude Design) */}
       {burst.node}
 
@@ -641,64 +664,44 @@ export default function Tasks() {
         onClose={() => !deleting && setDeletingTask(null)}
       />
 
-      {/* Page title + right pill */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <h1 className="text-lg font-extrabold text-text-primary truncate">Tareas</h1>
-          <Pill tone="purple">Esta semana</Pill>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={loadData}
-            className="p-2 rounded-md bg-surface-card border border-brd-subtle text-text-secondary hover:text-text-primary transition"
-            title="Actualizar"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          {/* v2.1.1: botón primario = añadir del catálogo (lo más usado).
-              Secundario = crear tarea nueva en blanco. */}
-          <Button size="sm" onClick={() => setShowCatalogSheet(true)}>
-            <span className="inline-flex items-center gap-1">
-              <Plus className="w-4 h-4" />
-              Añadir tarea
-            </span>
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => setShowAddSheet(true)}>
-            <span className="inline-flex items-center gap-1">
-              <Plus className="w-4 h-4" />
-              Crear nueva
-            </span>
-          </Button>
-        </div>
+      {/* v2.3.0 — Refactor canvas 15: top tabs +MP/-MP + pg-h + HeaderStrip
+          único + VerifyBanner condicional. Sustituye 4 niveles de UI por 2. */}
+      <MPTabs active="tasks" />
+      <div className="px-4 pt-2.5 pb-1.5 flex items-center justify-between">
+        <h1 className="m-0 text-[22px] font-black tracking-tight text-text-primary">Tareas</h1>
+        <button
+          type="button"
+          onClick={loadData}
+          aria-label="Actualizar"
+          className="text-[11px] font-bold text-text-tertiary bg-surface-card border border-brd-subtle rounded-full px-2.5 py-1 hover:text-text-primary inline-flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple"
+        >
+          <RefreshCw className="w-3 h-3" /> Actualizar
+        </button>
       </div>
+      <HeaderStrip
+        mode="tasks"
+        filter={filter}
+        onFilterChange={setFilterPersisted}
+        view={view}
+        onViewToggle={() => setViewPersisted(view === 'list' ? 'week' : 'list')}
+        onAdd={() => setShowCatalogSheet(true)}
+      />
 
-      {/* View toggle */}
-      <div className="mb-3">
-        <Segment<'list' | 'week'>
-          value={view}
-          onChange={setView}
-          options={[
-            { value: 'list', label: 'Lista' },
-            { value: 'week', label: 'Semana' },
-          ]}
-        />
-      </div>
+      {/* v2.3.0 — banner condicional de verificación. Sustituye la inner tab
+          'Verificar' que estaba vacía 80% del tiempo. Si no hay nada, 0px. */}
+      <VerifyBanner
+        pendingLogs={partnerPendingLogs.map((l) => ({
+          id: l.id,
+          taskId: l.taskId,
+          taskName: l.taskName ?? '',
+          pointsFinal: l.pointsFinal,
+          completedBy: l.completedBy,
+        }))}
+        onVerify={(log) => handleVerify(log as any)}
+      />
 
-      {/* Tab navigation — only in Lista view */}
-      {view === 'list' && (
-        <div className="mb-4">
-          <Segment<'mis_tareas' | 'recurrentes' | 'verificar' | 'historial'>
-            value={tab}
-            onChange={setTab}
-            options={[
-              { value: 'mis_tareas', label: '✅ Mis Tareas' },
-              { value: 'recurrentes', label: '🔄 Recurrentes' },
-              { value: 'verificar', label: '👀 Verificar', badge: partnerPendingLogs.length },
-              { value: 'historial', label: '📋 Historial' },
-            ]}
-          />
-        </div>
-      )}
+      {/* Wrapper px-4 para el contenido legacy (lista/semana) */}
+      <div className="px-4">
 
       {/* Inline banners */}
       {error && (
@@ -1130,6 +1133,7 @@ export default function Tasks() {
           )}
         </>
       )}
+      </div> {/* /v2.3.0 wrapper px-4 */}
     </main>
   )
 }
