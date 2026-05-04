@@ -1,7 +1,7 @@
 # STATUS — Matripuntos
 
 **Última actualización:** 2026-05-04
-**Versión actual desplegada en producción:** `v2.2.2` · Progress bar mount animation (canvas 13)
+**Versión actual desplegada en producción:** `v2.2.4` · Notification preferences (canvas 10)
 **Branch principal:** `main`
 **URL prod:** https://matripuntos.com (frontend FTP) · backend Render · Supabase Postgres
 
@@ -61,7 +61,22 @@
 - `ProposalsPanel` + sección "Propuestas pendientes" en Settings.
 - `/api/activity-templates` + `/api/config-proposals` (flags `CATALOG_ENABLED` y `CONFIG_PROPOSALS_ENABLED`, default ON).
 
-### v2.2.1 Reglas reales — **acaba de deployear 2026-05-04**
+### v2.2.4 Notification preferences — **acaba de deployear 2026-05-04**
+- Modelo de 3 tiers (critical / digest / off) por categoría según handoff Claude Design canvas 10.
+- Quiet hours configurables (default 22:00-09:00). Digest hour configurable (default 20:30).
+- 6 categorías: peticiones / negociación / calendario / propuestas reglas (defaults critical), achievements (digest), rachas (off).
+- Backend: `notificationPreferencesService` con `shouldSendPush(prefs, category, now)` que respeta quiet hours (critical bypassa) y tiers.
+- `User.notificationPreferences` (campo JSON ya existente) usado para persistir.
+- Settings → Notificaciones rediseñada con Card resumen diario + Card silencio + 6 categorías con select de tier.
+- Pendiente v2.2.5: scheduler real del digest (acumular las "digest" y mandar una sola push diaria).
+
+### v2.2.3 Onboarding partner catch-up — **2026-05-04**
+- Cuando un user se une a una pareja **ya activa**, en lugar del wizard normal de 5 pasos ve un catch-up de 4 pasos.
+- Backend: `/api/auth/partner-summary` devuelve nivel pareja, saldo partner, tareas semana, racha, top reglas configuradas y multipliers activos. Si la pareja es nueva sin actividad, devuelve null → cae al flow normal.
+- Frontend: `PartnerCatchUp.tsx` con 4 pasos: Welcome (avatar partner + tú) → Catch-up (qué lleva el partner) → Primera tarea (grid 6 comunes, saltable) → Done (confeti + tip primera semana).
+- Hereda config — no re-configura nada. Reduce 6 pasos a 4. "No llegas tarde a una fiesta".
+
+### v2.2.1 Reglas reales — **2026-05-04**
 - Cierra el banner "estado provisional" que llevaba desde v2.0.7. Las propuestas en Settings → Reglas **sí aplican** al cálculo real de puntos.
 - Backend: `configurationProposalService.accept()` detecta `tasks.<cat>` y `multipliers.<grupo>.<key>` y muta `Configuration.tasksConfig`/`multipliersConfig` en la misma transacción que el changelog.
 - Frontend: `RealRulesSection` reemplaza al editor legacy con DEFAULT_RULES hardcoded. Lee `Configuration` real y muestra Tareas (puntos base por categoría) + Factor hijos / franja / duración. Cada item con botón ✏️.
@@ -253,8 +268,9 @@
 | v2.2.0 Dashboard refactor | ✅ Producción 2026-05-04 | Hero unificado + MoodCard + PointsBurst (canvas 01/03/13) |
 | v2.2.1 Reglas reales | ✅ Producción 2026-05-04 | Consensus aplica a Configuration (canvas 06) |
 | v2.2.2 Progress bar microanimation | ✅ Producción 2026-05-04 | Hero progress 0→pct mount animation (canvas 13) |
-| v2.2.x Push notifications | 🔴 Pendiente | Inventario backend + 3 tiers + lockscreen (canvas 10) |
-| v2.2.x Onboarding partner | 🔴 Pendiente | Edu hereda config + catch-up 4 pasos (canvas 08) |
+| v2.2.3 Onboarding partner | ✅ Producción 2026-05-04 | Catch-up 4 pasos cuando llega segundo (canvas 08) |
+| v2.2.4 Notification preferences | ✅ Producción 2026-05-04 | 3 tiers + quiet hours + 6 categorías (canvas 10) |
+| v2.2.5 Digest scheduler | 🔴 Pendiente | Acumular notifs digest y mandar 1 push/día a HH:MM |
 | v2.2.x Más microinteracciones | 🔴 Pendiente | level-up confetti + balance counter + streak flame + undo swipe (canvas 13 restantes) |
 | v2.2 Multiidiomas | 🧠 Brainstorm pendiente | i18n ES/EN/CA/PT |
 | v3.0 Premium | 📝 Spec aprobado | Stripe + AI + RN |
