@@ -39,10 +39,10 @@
 | ~~08 · Onboarding partner~~ ✅ **v2.2.3**: `PartnerCatchUp.tsx` + `/api/auth/partner-summary`. Cuando Edu llega segundo a una pareja activa, ve 4 pasos de catch-up (Welcome → resumen partner → primera tarea → Done). Hereda config completa. | (cerrado) |
 | ~~09 · Saldo en rojo crónico~~ ✅ **v2.2.6**: `redBalanceService` + `RedBalanceCard` con 3 umbrales (3/7/14 días) y privacidad asimétrica. | (cerrado) |
 | ~~10 · Push notifications~~ ✅ **v2.2.4** + **v2.2.5**: preferences (3 tiers + quiet hours + 6 categorías) + scheduler diario que agrega y manda 1 push consolidada. | (cerrado) |
-| 11 · Empty states & analytics | Estados día-1/semana-1 con teasers visuales, insights sin juicio. Hoy un user nuevo ve gráficos vacíos. | 🟡 MEDIO | 1 sesión | Cuando se aborde v2.3.x analytics review. |
+| ~~11 · Empty states & analytics~~ ✅ **v2.2.7** (parcial): Dashboard día 1 sustituye hero numérico por `EmptyStateHero` con CTA. Estados restantes (history, achievements, analytics <7 días) → backlog bajo. | (parcial) |
 | 12 · Conflictos tiempo real | Doble registro / choque calendar / live presence / toasts last-write-wins. | 🟡 MEDIO (bug caro de detectar) | 2 sesiones | Cuando crezca el uso concurrente real. |
-| 13 · Microinteracciones | ✅ Implementado parcial (points-rise). El handoff incluye 6 animaciones más: balance counter, level-up confetti, streak flame flicker, progress fill, success haptic, ripple. | 🟢 BAJO (sensación) | 1 sesión | Implementación incremental — añadir 1-2 por sprint. |
-| 14 · Modo vacaciones | Botón Settings "Estamos de viaje 5 días" → pausa reset diario, multiplicador finde, nudges mood. | 🟢 BAJO (calidad de vida) | 1 sesión | Backlog premium — encaja con v3.0 Premium. |
+| 13 · Microinteracciones | ✅ Implementado parcial (points-rise + progress mount). 5 animaciones restantes: balance counter, level-up confetti, streak flame flicker, success haptic, ripple. | 🟢 BAJO (sensación) | 1 sesión | Implementación incremental — añadir 1-2 por sprint. |
+| ~~14 · Modo vacaciones~~ ✅ **v2.2.8** MVP: `Couple.pausedUntil` + endpoints + banner + streaks/digest respetan pausa. Activación manual; detección automática diferida. | (cerrado MVP) |
 
 ---
 

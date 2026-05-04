@@ -1,7 +1,7 @@
 # STATUS — Matripuntos
 
 **Última actualización:** 2026-05-04
-**Versión actual desplegada en producción:** `v2.2.6` · Red balance card (canvas 09)
+**Versión actual desplegada en producción:** `v2.2.8` · Vacation mode MVP (canvas 14)
 **Branch principal:** `main`
 **URL prod:** https://matripuntos.com (frontend FTP) · backend Render · Supabase Postgres
 
@@ -61,7 +61,17 @@
 - `ProposalsPanel` + sección "Propuestas pendientes" en Settings.
 - `/api/activity-templates` + `/api/config-proposals` (flags `CATALOG_ENABLED` y `CONFIG_PROPOSALS_ENABLED`, default ON).
 
-### v2.2.6 Saldo en rojo crónico — **acaba de deployear 2026-05-04**
+### v2.2.8 Vacation mode MVP — **acaba de deployear 2026-05-04**
+- `Couple.pausedUntil` + `pausedReason` (migración 20261115000000).
+- `/api/couple/pause { days, reason? }` + `/resume` + `/pause-status`.
+- `updateDailyStreak` y `notificationDigestService` respetan pausa.
+- `PauseBanner` en Dashboard: gradient indigo, fecha-hasta y botón "Reanudar ahora". Solo visible si `pausedUntil > now`.
+- MVP minimalista: el activación es manual desde Settings. Detección automática (calendar event "Vacaciones" o saldo rojo >14d) queda diferida.
+
+### v2.2.7 Empty state hero día 1 — **2026-05-04**
+- Cuando el couple no tiene actividad (xp=0 y balances=0), Dashboard sustituye `BalanceLevelHero` por `EmptyStateHero` con CTA "Apuntar tarea" + consejo "no ajustéis reglas el primer día".
+
+### v2.2.6 Saldo en rojo crónico — **2026-05-04**
 - Diferenciador conceptual: cuando un user lleva días con saldo negativo neto vs su pareja, la app sale del modo "contador" y entra en "asistente de pareja" (canvas 09).
 - Backend: `redBalanceService.computeRedBalance` detecta días consecutivos en rojo (últimos 14). 3 umbrales: soft (3 días) / warn (7) / crit (14+).
 - `/api/points/red-balance` devuelve `daysInRed`, `severity`, `myDailyDelta[14]`, `partnerName`.
@@ -284,6 +294,8 @@
 | v2.2.4 Notification preferences | ✅ Producción 2026-05-04 | 3 tiers + quiet hours + 6 categorías (canvas 10) |
 | v2.2.5 Digest scheduler | ✅ Producción 2026-05-04 | Cron diario que agrega y manda 1 push (cierra canvas 10) |
 | v2.2.6 Red balance card | ✅ Producción 2026-05-04 | Saldo en rojo crónico escalado (canvas 09) |
+| v2.2.7 Empty state hero | ✅ Producción 2026-05-04 | Día 1 motivador (canvas 11 estado 1/4) |
+| v2.2.8 Vacation mode | ✅ Producción 2026-05-04 | Couple.pausedUntil + banner + respeto en streaks/digest (canvas 14) |
 | v2.2.x Más microinteracciones | 🔴 Pendiente | level-up confetti + balance counter + streak flame + undo swipe (canvas 13 restantes) |
 | v2.2 Multiidiomas | 🧠 Brainstorm pendiente | i18n ES/EN/CA/PT |
 | v3.0 Premium | 📝 Spec aprobado | Stripe + AI + RN |
