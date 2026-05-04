@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ChevronRight, Copy, CheckCircle, Loader, Trash2, ExternalLink } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Copy, CheckCircle, Trash2, ExternalLink } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
@@ -9,9 +9,11 @@ import { Input } from '../components/v2/primitives/Input'
 import { Pill } from '../components/v2/primitives/Pill'
 import { Card } from '../components/v2/primitives/Card'
 import { PremiumInterestModal } from '../components/v2/premium/PremiumInterestModal'
-import { RuleProposalCard } from '../components/RuleProposalCard'
+// v2.2.1 — RuleProposalCard ya no se usa: el flujo legacy de /api/rules
+// (DEFAULT_RULES hardcoded) queda obsoleto frente al editor real de
+// /api/configuration que sí persiste.
 import { ProposalsPanel } from '../components/v2/consensus/ProposalsPanel'
-import { ProposeChangeDialog } from '../components/v2/consensus/ProposeChangeDialog'
+import { RealRulesSection } from '../components/v2/consensus/RealRulesSection'
 import { CoupleHealthCard } from '../components/v2/couple/CoupleHealthCard'
 import { AvatarPicker } from '../components/v2/primitives/AvatarPicker'
 import { MyMoodWeek } from '../components/v2/profile/MyMoodWeek'
@@ -595,88 +597,13 @@ function ConsensusSection({ onBack }: { onBack: () => void }) {
 }
 
 function RulesSection({ onBack }: { onBack: () => void }) {
-  const { user } = useAppStore()
-  const { data: rulesData, isLoading } = useQuery({
-    queryKey: ['rules'],
-    queryFn: () => apiClient.rules.getAll(),
-  })
-
-  const rules = rulesData?.rules ?? []
-  const pendingProposals = (rulesData?.proposals ?? []).filter((p: any) => p.status === 'pending')
-
-  // v2.0.6 — diálogo para proponer cambios de configuración consensuados (v2.0.4 endpoint)
-  const [proposeTarget, setProposeTarget] = useState<{ field: string; label: string; oldValue: string } | null>(null)
-
+  // v2.2.1 — sustituye el listado hardcoded de DEFAULT_RULES (banner WARN
+  // "estado provisional") por el editor real de Configuration.tasksConfig +
+  // multipliersConfig. Cada cambio pasa por consenso y SE APLICA al backend.
   return (
     <div>
       <SectionHeader title="Reglas de puntos" onBack={onBack} />
-
-      <Card className="mb-4">
-        <p className="text-xs text-text-secondary leading-relaxed">
-          Las reglas del sistema de puntos acordadas por la pareja. Cualquiera puede proponer un cambio — el otro debe aprobar.
-        </p>
-        <p className="text-[11px] text-warn/90 mt-2 leading-relaxed">
-          ⚠️ <strong>Estado provisional:</strong> las propuestas se registran y el partner las puede aceptar o rechazar, pero el cambio aceptado <strong>todavía no se aplica automáticamente al cálculo de puntos</strong>. Esa parte llega en la próxima versión (v2.1). Mientras tanto sirve como acuerdo formal entre vosotros.
-        </p>
-      </Card>
-
-      {isLoading && (
-        <div className="flex items-center gap-2 text-text-tertiary text-xs py-4">
-          <Loader className="w-4 h-4 animate-spin" /> Cargando…
-        </div>
-      )}
-
-      {!isLoading && (
-        <>
-          <div className="space-y-2 mb-4">
-            {rules.length === 0 && (
-              <Card><p className="text-xs text-text-tertiary text-center">No hay reglas acordadas aún.</p></Card>
-            )}
-            {rules.map((rule: any) => (
-              <div
-                key={rule.key}
-                className="flex gap-3 items-start rounded-md p-3 bg-surface-card border border-brd-subtle"
-              >
-                <div className="text-lg">📌</div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-text-primary">{rule.description}</div>
-                  <div className="text-[11px] text-brand-amber mt-0.5">{String(rule.value ?? 'automático')}</div>
-                  <Pill tone="success" className="mt-1">✓ Acordado</Pill>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setProposeTarget({
-                    field: rule.key,
-                    label: rule.description,
-                    oldValue: String(rule.value ?? ''),
-                  })}
-                  className="text-[11px] px-2 py-1 rounded-md bg-brand-purple/15 text-brand-purple hover:bg-brand-purple/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple flex-shrink-0"
-                >
-                  Proponer cambio
-                </button>
-              </div>
-            ))}
-          </div>
-
-          {proposeTarget && (
-            <ProposeChangeDialog
-              field={proposeTarget.field}
-              fieldLabel={proposeTarget.label}
-              oldValue={proposeTarget.oldValue}
-              onClose={() => setProposeTarget(null)}
-            />
-          )}
-
-          {pendingProposals.length > 0 && (
-            <div className="space-y-3 mb-4">
-              <p className="text-[10px] uppercase tracking-wide text-brand-amber font-bold">⏳ Propuestas pendientes</p>
-              {pendingProposals.map((p: any) => (
-                <RuleProposalCard key={p.id} proposal={p} currentUserId={user?.id ?? ''} />
-              ))}
-            </div>
-          )}
-        </>
-      )}
+      <RealRulesSection />
     </div>
   )
 }
