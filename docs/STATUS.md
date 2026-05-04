@@ -1,7 +1,7 @@
 # STATUS — Matripuntos
 
 **Última actualización:** 2026-05-04
-**Versión actual desplegada en producción:** `v2.3.3` · WeekStrip vista Semana
+**Versión actual desplegada en producción:** `v2.3.4` · Polish chips/sheet actividades/scroll-to-day
 
 > **Handoff Claude Design 14 canvases iniciales completado al 100%.**
 > **Canvas 15 (Tareas/Actividades rediseño)** desplegado en v2.3.0.
@@ -64,7 +64,12 @@
 - `ProposalsPanel` + sección "Propuestas pendientes" en Settings.
 - `/api/activity-templates` + `/api/config-proposals` (flags `CATALOG_ENABLED` y `CONFIG_PROPOSALS_ENABLED`, default ON).
 
-### v2.3.3 WeekStrip vista Semana — **acaba de deployear 2026-05-04**
+### v2.3.4 Polish — **acaba de deployear 2026-05-04**
+- **Chips de categoría** en `AddTaskFromCatalogSheet` (amber): filtra el listado del catálogo de tareas para no scrollear largo.
+- **AddActivitySheet** (nuevo): sheet unificado simétrico al de Tareas con dos pestañas — "📚 Del catálogo" (default, con search + chips de categoría purple + listado agrupado) y "✏️ Crear nueva" (explainer + botón al wizard `/request-activity`). El botón `+ Nueva actividad` ahora abre este sheet en lugar de navegar directo al wizard. Misma decisión de UX que en Tareas.
+- **Scroll-to-day**: `WeekStrip.onDayClick` hace `scrollIntoView` sobre `#day-{iso}` (anchor añadido a cada columna de `WeeklyTaskView`). Tap en un día de la tira → centra la columna correspondiente.
+
+### v2.3.3 WeekStrip vista Semana — **2026-05-04**
 - `WeekStrip` 7 columnas (L M X J V S D) con número del día y pip color (amber=tarea, purple=actividad, both=ambos). Hoy resaltado.
 - Cabecera con rango "4 may – 10 may" + navegación ‹ ›.
 
@@ -347,6 +352,7 @@
 | v2.3.1 Polish contenido | ✅ Producción 2026-05-04 | SectionH + AllDoneCard + ActivityActionCard rediseñada |
 | v2.3.2 Sheet bugfixes | ✅ Producción 2026-05-04 | Crear nueva en sheet + recurrencia + sheetLock para no interrumpir acciones |
 | v2.3.3 WeekStrip vista Semana | ✅ Producción 2026-05-04 | 7 columnas con pip color por día (canvas 15 S03) |
+| v2.3.4 Polish UX | ✅ Producción 2026-05-04 | Chips catálogo tareas + AddActivitySheet simétrico + scroll-to-day |
 | v2.2.x Más microinteracciones | 🔴 Pendiente | level-up confetti + balance counter + streak flame + undo swipe (canvas 13 restantes) |
 | v2.2 Multiidiomas | 🧠 Brainstorm pendiente | i18n ES/EN/CA/PT |
 | v3.0 Premium | 📝 Spec aprobado | Stripe + AI + RN |
