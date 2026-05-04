@@ -7,6 +7,7 @@ import { AdvancedAnalytics } from '../components/v2/analytics/AdvancedAnalytics'
 import { MovementsTab } from '../components/v2/analytics/MovementsTab'
 import { PremiumInterestModal } from '../components/v2/premium/PremiumInterestModal'
 import { AnalyticsProSection } from '../components/v2/analytics/AnalyticsProSection'
+import { AnalyticsTeaser } from '../components/v2/analytics/AnalyticsTeaser'
 
 type Tab = 'basic' | 'advanced' | 'movements'
 
@@ -27,6 +28,8 @@ export default function Analytics() {
         <h2 className="text-[22px] font-extrabold text-text-primary m-0">Analítica</h2>
         <Pill tone="purple">{month}</Pill>
       </div>
+      {/* v2.2.10 — teaser cuando aún no hay 7 días de datos (canvas 11). */}
+      <AnalyticsTeaser />
       {/* v2.0.3 — Analytics Pro insights cards + heatmap */}
       <AnalyticsProSection />
       <AnalyticsTabs tab={tab} onTab={setTab} isPremium={isPremium} />
