@@ -1,7 +1,7 @@
 # STATUS — Matripuntos
 
 **Última actualización:** 2026-05-04
-**Versión actual desplegada en producción:** `v2.3.0` · Refactor Tareas/Actividades canvas 15
+**Versión actual desplegada en producción:** `v2.3.1` · Polish contenido Tareas/Actividades
 
 > **Handoff Claude Design 14 canvases iniciales completado al 100%.**
 > **Canvas 15 (Tareas/Actividades rediseño)** desplegado en v2.3.0.
@@ -64,7 +64,13 @@
 - `ProposalsPanel` + sección "Propuestas pendientes" en Settings.
 - `/api/activity-templates` + `/api/config-proposals` (flags `CATALOG_ENABLED` y `CONFIG_PROPOSALS_ENABLED`, default ON).
 
-### v2.3.0 Refactor visual Tareas/Actividades — **acaba de deployear 2026-05-04**
+### v2.3.1 Polish contenido Tareas/Actividades — **acaba de deployear 2026-05-04**
+- Header secciones "🔥 Hoy" y "📅 Esta semana" con day stamp + count amber siguiendo SectionH del canvas 15.
+- `AllDoneCard` activo cuando todos los logs de hoy están done — muestra "+X MP entre los dos" con verde success y peek a mañana.
+- Link "Ver historial completo →" al final de Mis Tareas.
+- `ActivityActionCard` rediseñada según `act-card` canvas 15: emoji 36x36, price morado grande, status box explicativo, 3 botones con jerarquía (Aceptar verde / Negociar ghost / Rechazar danger).
+
+### v2.3.0 Refactor visual Tareas/Actividades — **2026-05-04**
 - Canvas 15 Claude Design (Tareas/Actividades rediseño v2.2). De 4 niveles de UI apilados a 2.
 - **MPTabs** top: Tareas con chip "+ MP" verde (suman) y Actividades con chip "− MP" morado (consumen). Diferencia económica visible al instante.
 - **HeaderStrip** único: segment Mías/Todas/Recurrentes + icono toggle Lista/Semana + botón "+" primario (gradient amber para Tareas, purple para Actividades).
@@ -329,6 +335,7 @@
 | v2.2.10 Empty states restantes | ✅ Producción 2026-05-04 | AnalyticsTeaser + banner achievements (cierra canvas 11) |
 | v2.2.11 Presence indicator | ✅ Producción 2026-05-04 | Dot verde + polling 60s (cierra canvas 12 mínimo) |
 | v2.3.0 Tareas/Actividades canvas 15 | ✅ Producción 2026-05-04 | MPTabs + HeaderStrip + VerifyBanner — 4 niveles de UI a 2 |
+| v2.3.1 Polish contenido | ✅ Producción 2026-05-04 | SectionH + AllDoneCard + ActivityActionCard rediseñada |
 | v2.2.x Más microinteracciones | 🔴 Pendiente | level-up confetti + balance counter + streak flame + undo swipe (canvas 13 restantes) |
 | v2.2 Multiidiomas | 🧠 Brainstorm pendiente | i18n ES/EN/CA/PT |
 | v3.0 Premium | 📝 Spec aprobado | Stripe + AI + RN |
