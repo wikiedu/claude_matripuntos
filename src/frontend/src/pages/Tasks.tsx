@@ -25,6 +25,7 @@ import { TaskItemMedium } from '../components/v2/tasks/TaskItemMedium'
 import { TaskCatalogRow } from '../components/v2/tasks/TaskCatalogRow'
 import { AddTaskSheet } from '../components/v2/tasks/AddTaskSheet'
 import { AddTaskFromCatalogSheet } from '../components/v2/tasks/AddTaskFromCatalogSheet'
+import { usePointsBurst } from '../components/v2/dashboard/PointsBurst'
 import { RecurringTaskManager } from '../components/v2/tasks/RecurringTaskManager'
 import { ConfirmDialog } from '../components/v2/primitives/ConfirmDialog'
 import { TaskProofUploader } from '../components/v2/proof/TaskProofUploader'
@@ -106,7 +107,7 @@ const TASK_CATALOG: { category: string; tasks: { name: string; pts: number; desc
 
 // ─── Log task modal ───────────────────────────────────────────────────────────
 function LogTaskModal({ task, onClose, onSuccess }: {
-  task: Task; onClose: () => void; onSuccess: () => void
+  task: Task; onClose: () => void; onSuccess: (points?: number) => void
 }) {
   const [modifier, setModifier] = useState<'none' | 'extra' | 'partial'>('none')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -125,7 +126,7 @@ function LogTaskModal({ task, onClose, onSuccess }: {
         pointsBase: base,
         modifier: modifier !== 'none' ? modifier : undefined,
       })
-      onSuccess()
+      onSuccess(finalPts)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al registrar')
     } finally {
@@ -495,8 +496,15 @@ export default function Tasks() {
   const visibleCatalog = TASK_CATALOG
     .filter((g) => cat === 'all' || g.category === cat)
 
+  // v2.2.0 — microinteracción +X MP al completar (canvas 13 Claude Design)
+  const burst = usePointsBurst()
+
   // ─── Handlers ──────────────────────────────────────────────────────────────
-  const handleLogSuccess = async () => {
+  const handleLogSuccess = async (loggedPoints?: number) => {
+    if (loggedPoints && loggedPoints > 0) {
+      // Anchor: el botón que el user pulsó. Si no lo tenemos, centrado.
+      burst.trigger(`+${loggedPoints} MP`, document.activeElement)
+    }
     setLoggingTask(null)
     setSuccess('✅ Tarea registrada. Tu pareja recibirá una notificación para verificarla.')
     setTimeout(() => setSuccess(null), 5000)
@@ -572,6 +580,9 @@ export default function Tasks() {
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <main className="px-4 pt-3 pb-6">
+      {/* v2.2.0 — portal de microinteracción +X MP (canvas 13 Claude Design) */}
+      {burst.node}
+
       {/* Modals */}
       {loggingTask && (
         <LogTaskModal task={loggingTask} onClose={() => setLoggingTask(null)} onSuccess={handleLogSuccess} />
