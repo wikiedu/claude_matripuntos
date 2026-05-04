@@ -48,6 +48,8 @@ export function AddTaskFromCatalogSheet({
   const [tab, setTab] = useState<'catalog' | 'create'>('catalog')
   const [step, setStep] = useState<'pick' | 'configure'>('pick')
   const [filter, setFilter] = useState('')
+  // v2.3.4 — filtro de categoría para no scrollear cuando hay muchas tareas.
+  const [catFilter, setCatFilter] = useState<string>('all')
   const [picked, setPicked] = useState<{ name: string; category: string; pts: number; existingId?: string } | null>(null)
 
   // Configure form
@@ -104,13 +106,24 @@ export function AddTaskFromCatalogSheet({
   }, [catalog, existingTasks])
 
   const visibleGroups = useMemo(() => {
-    const all = customGroup ? [customGroup, ...enrichedCatalog] : enrichedCatalog
+    let all = customGroup ? [customGroup, ...enrichedCatalog] : enrichedCatalog
+    // v2.3.4 — filtro por categoría
+    if (catFilter !== 'all') {
+      all = all.filter((g) => g.category === catFilter)
+    }
     if (!filter) return all
     const q = filter.toLowerCase()
     return all
       .map((g) => ({ ...g, tasks: g.tasks.filter((t) => t.name.toLowerCase().includes(q)) }))
       .filter((g) => g.tasks.length > 0)
-  }, [enrichedCatalog, customGroup, filter])
+  }, [enrichedCatalog, customGroup, filter, catFilter])
+
+  const allCategories = useMemo(() => {
+    const set = new Set<string>()
+    enrichedCatalog.forEach((g) => set.add(g.category))
+    if (customGroup) set.add(customGroup.category)
+    return Array.from(set)
+  }, [enrichedCatalog, customGroup])
 
   if (!open) return null
 
@@ -277,8 +290,37 @@ export function AddTaskFromCatalogSheet({
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Buscar tarea…"
-              className="w-full px-3 py-2 mb-3 text-sm bg-surface-base border border-brd-subtle rounded-md text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple"
+              className="w-full px-3 py-2 mb-2 text-sm bg-surface-base border border-brd-subtle rounded-md text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber"
             />
+
+            {/* v2.3.4 — chips horizontales scrollable de categorías */}
+            <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
+              <button
+                type="button"
+                onClick={() => setCatFilter('all')}
+                className={`flex-shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber ${
+                  catFilter === 'all'
+                    ? 'bg-brand-amber/20 text-brand-amber border border-brand-amber/40'
+                    : 'bg-surface-card text-text-tertiary border border-brd-subtle'
+                }`}
+              >
+                Todas
+              </button>
+              {allCategories.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCatFilter(c)}
+                  className={`flex-shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber ${
+                    catFilter === c
+                      ? 'bg-brand-amber/20 text-brand-amber border border-brand-amber/40'
+                      : 'bg-surface-card text-text-tertiary border border-brd-subtle'
+                  }`}
+                >
+                  {CATEGORY_EMOJI[c] ?? '•'} {c}
+                </button>
+              ))}
+            </div>
 
             <div className="space-y-3">
               {visibleGroups.length === 0 && (

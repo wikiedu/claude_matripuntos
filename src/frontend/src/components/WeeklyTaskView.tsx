@@ -47,8 +47,9 @@ export function WeeklyTaskView({ weekStart }: Props) {
         {days.map((day, i) => {
           const isToday = day.toDateString() === new Date().toDateString()
           const dayLogs = logsForDay(day)
+          const iso = day.toISOString().slice(0, 10)
           return (
-            <div key={i}>
+            <div key={i} id={`day-${iso}`} data-day-iso={iso} style={{ scrollMarginLeft: 16 }}>
               {/* Day header */}
               <div style={{
                 textAlign: 'center', marginBottom: 6,
