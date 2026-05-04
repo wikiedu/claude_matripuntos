@@ -1,4 +1,4 @@
-import { useState, ReactNode } from 'react'
+import { useState, useEffect, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AppHeader } from '../components/v2/layout/AppHeader'
@@ -16,9 +16,25 @@ export function AuthedLayout({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [fabOpen, setFabOpen] = useState(false)
   const [moodSheetOpen, setMoodSheetOpen] = useState(false)
-  const { user, couple, logout, setUser } = useAppStore()
+  const { user, couple, logout, setUser, loadUserData } = useAppStore()
   const nav = useNavigate()
   const queryClient = useQueryClient()
+
+  // v2.2.11 — refresca couple cada 60s para que partner.lastSeenAt se mantenga
+  // actualizado (canvas 12 mínimo: presence indicator). Solo cuando la pestaña
+  // está visible para no spammear cuando el user no está mirando la app.
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    const tick = () => {
+      if (cancelled) return
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        loadUserData?.().catch(() => {})
+      }
+    }
+    const id = window.setInterval(tick, 60_000)
+    return () => { cancelled = true; window.clearInterval(id) }
+  }, [user, loadUserData])
 
   // Unread notifications count (polled so the bell badge stays fresh).
   // The hook is always called (before the null-return) so rules-of-hooks are preserved.
