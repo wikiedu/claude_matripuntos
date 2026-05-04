@@ -62,19 +62,26 @@ export function AppHeader({
       <div className="min-w-0">
         <p className="text-xs font-medium text-text-secondary m-0">{greeting} {emoji}</p>
         <h1 className="text-[22px] font-extrabold text-text-primary tracking-tight m-0 mt-0.5">{userName.split(' ')[0]}</h1>
-        {partnerMood && partnerName ? (
-          <p className="text-[11px] text-text-secondary mt-0.5 m-0">{partnerName} está {partnerMood} hoy</p>
-        ) : (() => {
-          if (!partnerName) return null
+        {partnerName && (() => {
+          // v2.2.11 (canvas 12 mínimo): mostrar SIEMPRE la presencia cuando
+          // exista, combinada con el mood si lo hay. Antes el mood ocultaba
+          // la presencia, ahora coexisten en la misma línea con dot.
           const p = presenceLabel(partnerLastSeenAt)
-          if (!p) return null
+          if (!partnerMood && !p) return null
           return (
-            <p className="text-[11px] text-text-secondary mt-0.5 m-0 flex items-center gap-1">
-              <span
-                aria-hidden
-                className={`inline-block w-1.5 h-1.5 rounded-full ${p.online ? 'bg-success' : 'bg-text-tertiary'}`}
-              />
-              <span>{partnerName} · {p.label}</span>
+            <p className="text-[11px] text-text-secondary mt-0.5 m-0 flex items-center gap-1.5">
+              {p && (
+                <span
+                  aria-hidden
+                  className={`inline-block w-1.5 h-1.5 rounded-full ${p.online ? 'bg-success' : 'bg-text-tertiary'}`}
+                  style={p.online ? { boxShadow: '0 0 6px var(--success)' } : {}}
+                />
+              )}
+              <span>
+                {partnerName}
+                {partnerMood ? ` está ${partnerMood} hoy` : ''}
+                {p && (partnerMood ? ` · ${p.label}` : ` · ${p.label}`)}
+              </span>
             </p>
           )
         })()}
