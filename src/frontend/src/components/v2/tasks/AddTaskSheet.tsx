@@ -3,9 +3,10 @@
 // Step 2: puntual vs recurrente (+ TaskScheduleForm when recurrente)
 // Step 3: assignee — persisted as Task.defaultAssigneeId (null = cualquiera)
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Loader } from 'lucide-react'
 import { BottomSheet } from '../primitives/BottomSheet'
+import { acquireSheetLock, releaseSheetLock } from '../../../lib/sheetLock'
 import { Button } from '../primitives/Button'
 import { Input } from '../primitives/Input'
 import { apiClient } from '../../../services/apiClient'
@@ -40,6 +41,13 @@ export function AddTaskSheet({ open, onClose, onSaved }: Props) {
   const [assigneeId, setAssigneeId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+
+  // v2.3.2 — pausa polling externo mientras este sheet está abierto.
+  useEffect(() => {
+    if (!open) return
+    acquireSheetLock()
+    return () => releaseSheetLock()
+  }, [open])
 
   const categoryKeys = Object.keys(CATEGORY_EMOJI)
 

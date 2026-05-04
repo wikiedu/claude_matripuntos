@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react'
 import { apiClient } from '../../../services/apiClient'
 import type { ActivityTemplate } from '../../../hooks/useActivityCatalog'
+import { acquireSheetLock, releaseSheetLock } from '../../../lib/sheetLock'
 
 interface Props {
   open: boolean
@@ -61,6 +62,13 @@ export function AddActivityTemplateSheet({ open, initial, onClose, onSaved }: Pr
     }
     setError(null)
   }, [open, initial])
+
+  // v2.3.2 — pausa polling externo mientras este sheet está abierto.
+  useEffect(() => {
+    if (!open) return
+    acquireSheetLock()
+    return () => releaseSheetLock()
+  }, [open])
 
   if (!open) return null
 

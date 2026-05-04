@@ -20,17 +20,20 @@ export function AuthedLayout({ children }: { children: ReactNode }) {
   const nav = useNavigate()
   const queryClient = useQueryClient()
 
-  // v2.2.11 — refresca couple cada 60s para que partner.lastSeenAt se mantenga
-  // actualizado (canvas 12 mínimo: presence indicator). Solo cuando la pestaña
-  // está visible para no spammear cuando el user no está mirando la app.
+  // v2.2.11 — refresca couple cada 60s para presence indicator.
+  // v2.3.2 — además respeta sheetLock: si el usuario tiene un sheet/modal
+  // abierto, saltamos el tick para no resetear su flujo (bug reportado:
+  // 'cuando hago una acción se hace refresh y se me para lo que estoy haciendo').
   useEffect(() => {
     if (!user) return
     let cancelled = false
-    const tick = () => {
+    const tick = async () => {
       if (cancelled) return
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        loadUserData?.().catch(() => {})
-      }
+      if (typeof document === 'undefined') return
+      if (document.visibilityState !== 'visible') return
+      const { isSheetOpen } = await import('../lib/sheetLock')
+      if (isSheetOpen()) return
+      loadUserData?.().catch(() => {})
     }
     const id = window.setInterval(tick, 60_000)
     return () => { cancelled = true; window.clearInterval(id) }
