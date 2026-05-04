@@ -1,7 +1,7 @@
 # STATUS — Matripuntos
 
 **Última actualización:** 2026-05-04
-**Versión actual desplegada en producción:** `v2.3.1` · Polish contenido Tareas/Actividades
+**Versión actual desplegada en producción:** `v2.3.3` · WeekStrip vista Semana
 
 > **Handoff Claude Design 14 canvases iniciales completado al 100%.**
 > **Canvas 15 (Tareas/Actividades rediseño)** desplegado en v2.3.0.
@@ -64,7 +64,16 @@
 - `ProposalsPanel` + sección "Propuestas pendientes" en Settings.
 - `/api/activity-templates` + `/api/config-proposals` (flags `CATALOG_ENABLED` y `CONFIG_PROPOSALS_ENABLED`, default ON).
 
-### v2.3.1 Polish contenido Tareas/Actividades — **acaba de deployear 2026-05-04**
+### v2.3.3 WeekStrip vista Semana — **acaba de deployear 2026-05-04**
+- `WeekStrip` 7 columnas (L M X J V S D) con número del día y pip color (amber=tarea, purple=actividad, both=ambos). Hoy resaltado.
+- Cabecera con rango "4 may – 10 may" + navegación ‹ ›.
+
+### v2.3.2 Bugfixes críticos sheet — **2026-05-04**
+- **Crear nueva tarea desde sheet**: 2 pestañas internas en `AddTaskFromCatalogSheet` (canvas 15): "📚 Del catálogo" + "✏️ Crear nueva". El form crear nueva tiene checkbox "Guardar en catálogo de pareja para reusar" (default ON).
+- **Recurrencia recuperada**: tanto en flow catálogo como crear nueva, opción "Es recurrente" + selector de frecuencia (diaria/semanal/quincenal/mensual/cada 2 días).
+- **Sheet lock**: nuevo `lib/sheetLock.ts` con contador global. Cada sheet/wizard hace `acquireSheetLock` al abrir y `releaseSheetLock` al cerrar. AuthedLayout polea `loadUserData` cada 60s pero salta tick si `isSheetOpen()`. Aplicado a `AddTaskFromCatalogSheet`, `AddTaskSheet`, `AddActivityTemplateSheet`, `RequestActivity`. Cierra el bug "el refresh automático interrumpe acciones".
+
+### v2.3.1 Polish contenido Tareas/Actividades — **2026-05-04**
 - Header secciones "🔥 Hoy" y "📅 Esta semana" con day stamp + count amber siguiendo SectionH del canvas 15.
 - `AllDoneCard` activo cuando todos los logs de hoy están done — muestra "+X MP entre los dos" con verde success y peek a mañana.
 - Link "Ver historial completo →" al final de Mis Tareas.
@@ -336,6 +345,8 @@
 | v2.2.11 Presence indicator | ✅ Producción 2026-05-04 | Dot verde + polling 60s (cierra canvas 12 mínimo) |
 | v2.3.0 Tareas/Actividades canvas 15 | ✅ Producción 2026-05-04 | MPTabs + HeaderStrip + VerifyBanner — 4 niveles de UI a 2 |
 | v2.3.1 Polish contenido | ✅ Producción 2026-05-04 | SectionH + AllDoneCard + ActivityActionCard rediseñada |
+| v2.3.2 Sheet bugfixes | ✅ Producción 2026-05-04 | Crear nueva en sheet + recurrencia + sheetLock para no interrumpir acciones |
+| v2.3.3 WeekStrip vista Semana | ✅ Producción 2026-05-04 | 7 columnas con pip color por día (canvas 15 S03) |
 | v2.2.x Más microinteracciones | 🔴 Pendiente | level-up confetti + balance counter + streak flame + undo swipe (canvas 13 restantes) |
 | v2.2 Multiidiomas | 🧠 Brainstorm pendiente | i18n ES/EN/CA/PT |
 | v3.0 Premium | 📝 Spec aprobado | Stripe + AI + RN |
