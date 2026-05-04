@@ -29,6 +29,7 @@ import { usePointsBurst } from '../components/v2/dashboard/PointsBurst'
 import { MPTabs } from '../components/v2/tasks/MPTabs'
 import { HeaderStrip, type FilterValue } from '../components/v2/tasks/HeaderStrip'
 import { VerifyBanner } from '../components/v2/tasks/VerifyBanner'
+import { AllDoneCard } from '../components/v2/tasks/AllDoneCard'
 // Pill ya no se usa tras v2.3.0 — quitamos import.
 import { RecurringTaskManager } from '../components/v2/tasks/RecurringTaskManager'
 import { ConfirmDialog } from '../components/v2/primitives/ConfirmDialog'
@@ -784,14 +785,34 @@ export default function Tasks() {
                 </div>
               )}
 
-              {/* Section: Hoy */}
+              {/* Section: Hoy — header refinado canvas 15 (con day stamp + count amber) */}
+              {(() => {
+                const dayLabel = new Date().toLocaleDateString('es-ES', {
+                  weekday: 'short', day: 'numeric', month: 'short',
+                }).replace('.', '')
+                const allDoneToday = todayTasks.length > 0 && myTodayLogs.length >= todayTasks.length
+                const totalMpToday = myTodayLogs.reduce((s, l) => s + Number(l.pointsFinal || 0), 0)
+                const pendingThisWeek = weekNotTodayTasks.length
+                return (
+                  <section>
+                    <div className="flex items-baseline justify-between px-1 pt-3.5 pb-2">
+                      <h3 className="m-0 text-[13px] font-extrabold text-text-primary tracking-tight">
+                        🔥 Hoy
+                        <span className="ml-2 text-xs font-semibold text-text-tertiary">· {dayLabel}</span>
+                      </h3>
+                      <span className="text-[11px] font-bold text-text-tertiary tabular-nums tracking-wide">
+                        <b className="text-brand-amber font-extrabold">{myTodayLogs.length}</b>/{todayTasks.length}
+                      </span>
+                    </div>
+                    {allDoneToday && (
+                      <AllDoneCard totalMpToday={totalMpToday} pendingThisWeek={pendingThisWeek} />
+                    )}
+                  </section>
+                )
+              })()}
+
+              {/* Section: Hoy (contenido original mantenido) */}
               <section>
-                <h2 className="text-sm font-bold text-text-primary mb-2 flex items-center gap-2">
-                  <span>🔥 Hoy</span>
-                  <span className="text-xs font-normal text-text-tertiary">
-                    {myTodayLogs.length}/{todayTasks.length}
-                  </span>
-                </h2>
                 {todayTasks.length === 0 ? (
                   <div className="rounded-md bg-surface-card border border-brd-subtle p-6 text-center">
                     {filteredTasks.length === 0 ? (
@@ -812,9 +833,9 @@ export default function Tasks() {
                         : 'Las tareas de hoy están completadas o esperando a que tu pareja las verifique.'}
                     </p>
                     {filteredTasks.length === 0 && cat === 'all' && (
-                      <Button size="sm" onClick={() => setShowAddSheet(true)}>
+                      <Button size="sm" onClick={() => setShowCatalogSheet(true)}>
                         <span className="inline-flex items-center gap-1">
-                          <Plus className="w-4 h-4" /> Nueva tarea
+                          <Plus className="w-4 h-4" /> Añadir del catálogo
                         </span>
                       </Button>
                     )}
@@ -854,10 +875,15 @@ export default function Tasks() {
                 )}
               </section>
 
-              {/* Section: Esta semana */}
+              {/* Section: Esta semana — header refinado canvas 15 */}
               {weekNotTodayTasks.length > 0 && (
                 <section>
-                  <h2 className="text-sm font-bold text-text-primary mb-2">📅 Esta semana</h2>
+                  <div className="flex items-baseline justify-between px-1 pt-3.5 pb-2">
+                    <h3 className="m-0 text-[13px] font-extrabold text-text-primary tracking-tight">📅 Esta semana</h3>
+                    <span className="text-[11px] font-bold text-text-tertiary tabular-nums tracking-wide">
+                      <b className="text-brand-amber font-extrabold">0</b>/{weekNotTodayTasks.length}
+                    </span>
+                  </div>
                   <div className="space-y-1.5">
                     {weekNotTodayTasks.map((task) => (
                       <div key={task.id} className="relative group">
@@ -1048,6 +1074,18 @@ export default function Tasks() {
                     ))}
                   </div>
                 </div>
+              )}
+
+              {/* v2.3.1 — link historial al final (canvas 15). Visible siempre
+                  que haya logs en allLogs (si la pareja ya tiene actividad). */}
+              {allLogs.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setTab('historial')}
+                  className="block mx-auto mt-4 mb-2 text-xs font-bold text-text-tertiary hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple rounded px-2 py-1"
+                >
+                  Ver <span className="text-brand-purple">historial completo →</span>
+                </button>
               )}
             </div>
           )}
