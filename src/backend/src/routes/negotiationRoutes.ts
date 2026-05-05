@@ -442,6 +442,17 @@ router.post('/:negotiationId/force', authMiddleware, async (req: Request, res: R
       return
     }
 
+    // v2.4 audit 08 S0-5: solo el creador del evento puede forzar.
+    // Antes cualquier user del couple podía forzar el evento de su pareja,
+    // pagando de su propio saldo — semánticamente incorrecto y útil sólo
+    // como vector de abuso.
+    if (negotiation.event.createdBy !== req.userId) {
+      res.status(403).json({
+        error: 'Solo el creador del evento puede forzar la aceptación',
+      })
+      return
+    }
+
     // Check user has enough points
     const userBalance = await prisma.pointsTransaction.aggregate({
       where: {
@@ -465,35 +476,44 @@ router.post('/:negotiationId/force', authMiddleware, async (req: Request, res: R
       return
     }
 
-    // Atomic state transition: event must still be in a pre-resolved state.
-    // If another request accepted/rejected/forced concurrently, updateMany returns
-    // count=0 and we bail out — no duplicate forced_payment transaction is created.
-    const eventTransition = await prisma.event.updateMany({
-      where: {
-        id: negotiation.eventId,
-        status: { in: ['draft', 'pending'] },
-      },
-      data: {
-        status: 'forced',
-        pointsAgreed: negotiation.pointsProposed,
-      },
-    })
-    if (eventTransition.count === 0) {
-      res.status(409).json({ error: 'Event already resolved' })
-      return
-    }
+    // v2.4 audit 08 S0-5: el cambio de estado y la creación de la
+    // pointsTransaction viven en una sola $transaction. Antes el create
+    // estaba fuera y un crash a mitad dejaba evento `forced` SIN cargo —
+    // ledger roto.
+    try {
+      await prisma.$transaction(async (tx) => {
+        const eventTransition = await tx.event.updateMany({
+          where: {
+            id: negotiation.eventId,
+            status: { in: ['draft', 'pending'] },
+          },
+          data: {
+            status: 'forced',
+            pointsAgreed: negotiation.pointsProposed,
+          },
+        })
+        if (eventTransition.count === 0) {
+          throw new RespondError(409, 'Event already resolved')
+        }
 
-    // Create deduction transaction
-    await prisma.pointsTransaction.create({
-      data: {
-        coupleId: req.coupleId,
-        userId: req.userId,
-        type: 'forced_payment',
-        relatedEventId: negotiation.eventId,
-        amount: negotiation.pointsProposed.negated(),
-        description: `Forced agreement for: ${negotiation.event.type}`,
-      },
-    })
+        await tx.pointsTransaction.create({
+          data: {
+            coupleId: req.coupleId!,
+            userId: req.userId!,
+            type: 'forced_payment',
+            relatedEventId: negotiation.eventId,
+            amount: negotiation.pointsProposed.negated(),
+            description: `Forced agreement for: ${negotiation.event.type}`,
+          },
+        })
+      })
+    } catch (txErr) {
+      if (txErr instanceof RespondError) {
+        res.status(txErr.status).json({ error: txErr.message })
+        return
+      }
+      throw txErr
+    }
 
     res.json({
       message: 'Agreement forced',
