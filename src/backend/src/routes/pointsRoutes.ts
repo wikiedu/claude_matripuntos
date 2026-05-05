@@ -221,10 +221,14 @@ router.get('/balance', authMiddleware, async (req: Request, res: Response): Prom
     // no en User) para que el frontend pueda renderizar MoodPairCard del
     // partner sin endpoint extra. Antes solo devolvíamos {id,name,email} →
     // partner.currentMood quedaba undefined y mood no se compartía.
+    // v2.5.4 audit 03 S1-4 — incluimos `where: { deletedAt: null }` en
+    // users para que el balance no muestre datos del ghost user del
+    // partner soft-deleted.
     const couple = await prisma.couple.findUnique({
       where: { id: req.coupleId },
       include: {
         users: {
+          where: { deletedAt: null },
           select: {
             id: true,
             name: true,
@@ -425,8 +429,11 @@ router.post('/reset-request', authMiddleware, async (req: Request, res: Response
       return
     }
 
-    // Find the partner
-    const users = await prisma.user.findMany({ where: { coupleId: req.coupleId } })
+    // Find the partner. v2.5.4 audit 03 S1-4 — filtrar deletedAt para
+    // no encontrar al ghost del partner soft-deleted como destinatario.
+    const users = await prisma.user.findMany({
+      where: { coupleId: req.coupleId, deletedAt: null },
+    })
     const partner = users.find(u => u.id !== req.userId)
     if (!partner) {
       res.status(400).json({ error: 'No partner found in this couple' })

@@ -108,16 +108,23 @@ function HomeShell({ view, children }: {
 // App Routes Component
 function AppRoutes() {
   const { isAuthenticated, loadUserData } = useAppStore()
+  const navigate = useNavigate()
 
   useEffect(() => {
-    // Register a 401 handler so the apiClient can reset the Zustand store and
-    // purge React Query cache without importing the store directly (circular).
+    // Register a 401 handler so the apiClient can reset the Zustand store,
+    // purge React Query cache y navegar a /login sin full reload (audit 07).
+    // Skip nav si ya estamos en página pública para evitar loops.
     apiClient.setOnUnauthorized(() => {
       useAppStore.getState().reset()
       queryClient.clear()
+      const onAuthPage = /^\/(login|signup|onboarding|forgot-password|reset-password|privacy|terms|cookies)/
+        .test(window.location.pathname)
+      if (!onAuthPage) {
+        navigate('/login', { replace: true })
+      }
     })
     return () => apiClient.setOnUnauthorized(null)
-  }, [])
+  }, [navigate])
 
   useEffect(() => {
     // Check if user has a token and try to load their data

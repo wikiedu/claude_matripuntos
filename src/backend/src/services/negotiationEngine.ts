@@ -224,8 +224,15 @@ export class NegotiationEngine {
             if (!response.pointsProposed) {
               throw new Error('Points must be provided for counter proposal')
             }
-            result = await tx.event.update({
-              where: { id: eventId },
+            // v2.5.4 audit 12 S1-Q-4 — lock optimista: dos counter_propose
+            // simultáneos sobre el mismo evento eran race (last write wins).
+            // updateMany con status guard hace que solo el primero gane y
+            // el segundo reciba 409 'Event already resolved'.
+            const counterTransition = await tx.event.updateMany({
+              where: {
+                id: eventId,
+                status: { in: ['draft', 'pending', 'proposed'] },
+              },
               data: {
                 status: 'counter_proposal',
                 currentNegotiationRound: 2,
@@ -234,6 +241,10 @@ export class NegotiationEngine {
                 justification: response.message || null,
               },
             })
+            if (counterTransition.count === 0) {
+              throw new Error('Event already resolved')
+            }
+            result = await tx.event.findUniqueOrThrow({ where: { id: eventId } })
             await tx.negotiation.create({
               data: {
                 eventId,

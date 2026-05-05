@@ -62,9 +62,15 @@ describe('coupleLifecycleService.dissolveCouple', () => {
 
     await dissolveCouple('c1')
 
+    // v2.5.4 — además de dissolvedAt, ahora rotamos secretKey y limpiamos
+    // joinCode para que no sean reutilizables (audit 02 S1).
     expect(tx.couple.update).toHaveBeenCalledWith({
       where: { id: 'c1' },
-      data: { dissolvedAt: expect.any(Date) },
+      data: {
+        dissolvedAt: expect.any(Date),
+        secretKey: expect.stringMatching(/^dissolved-c1-/),
+        joinCode: null,
+      },
     })
     expect(tx.couple.create).toHaveBeenCalledTimes(2)
     expect(tx.user.update).toHaveBeenCalledWith({

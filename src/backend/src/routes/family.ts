@@ -342,8 +342,9 @@ async function notifyPartnerOnChildChange(
   childName: string,
 ) {
   try {
+    // v2.5.4 audit 03 S1-4 — filtrar deletedAt para no notificar al ghost.
     const partner = await prisma.user.findFirst({
-      where: { coupleId, id: { not: actorUserId } },
+      where: { coupleId, id: { not: actorUserId }, deletedAt: null },
       select: { id: true },
     })
     if (!partner) return
