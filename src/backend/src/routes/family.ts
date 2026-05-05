@@ -95,37 +95,35 @@ router.put('/children/:childId', async (req: Request, res: Response) => {
     const { childId } = req.params
     const data: Partial<ChildInput> = req.body
 
-    // Verify user is part of the couple
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    })
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' })
+    // v2.5.9 audit 01 S1-R-14 — usamos `req.coupleId` (validado por authMW)
+    // y `findFirst` con scope de couple en una sola query, evitando el
+    // patrón "findUnique → manual compare". Si el resource pertenece a
+    // otro couple, findFirst devuelve null directamente.
+    if (!req.coupleId) {
+      return res.status(401).json({ error: 'Authentication required' })
     }
 
-    // Verify child belongs to user's couple
-    const child = await prisma.child.findUnique({
-      where: { id: childId },
+    const child = await prisma.child.findFirst({
+      where: { id: childId, coupleId: req.coupleId },
     })
 
-    if (!child || child.coupleId !== user.coupleId) {
-      return res.status(403).json({ error: 'Unauthorized' })
+    if (!child) {
+      return res.status(404).json({ error: 'Child not found' })
     }
 
     // Update child
     const updatedChild = await prisma.child.update({
       where: { id: childId },
       data: {
-        ...(data.name && { name: data.name }),
-        ...(data.dateOfBirth && { dateOfBirth: new Date(data.dateOfBirth) }),
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.dateOfBirth !== undefined && { dateOfBirth: new Date(data.dateOfBirth) }),
         ...(typeof data.livesWithUser1 !== 'undefined' && { livesWithUser1: data.livesWithUser1 }),
         ...(typeof data.livesWithUser2 !== 'undefined' && { livesWithUser2: data.livesWithUser2 }),
         ...(typeof data.hasSpecialNeeds !== 'undefined' && { hasSpecialNeeds: data.hasSpecialNeeds }),
       },
     })
 
-    await notifyPartnerOnChildChange(user.id, user.coupleId, 'updated', updatedChild.name)
+    await notifyPartnerOnChildChange(userId, req.coupleId, 'updated', updatedChild.name)
 
     res.json({
       message: 'Child updated successfully',
@@ -146,29 +144,24 @@ router.delete('/children/:childId', async (req: Request, res: Response) => {
     const userId = (req as any).user.id
     const { childId } = req.params
 
-    // Verify user is part of the couple
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    })
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' })
+    // v2.5.9 audit 01 S1-R-14 — scope por req.coupleId.
+    if (!req.coupleId) {
+      return res.status(401).json({ error: 'Authentication required' })
     }
 
-    // Verify child belongs to user's couple
-    const child = await prisma.child.findUnique({
-      where: { id: childId },
+    const child = await prisma.child.findFirst({
+      where: { id: childId, coupleId: req.coupleId },
     })
 
-    if (!child || child.coupleId !== user.coupleId) {
-      return res.status(403).json({ error: 'Unauthorized' })
+    if (!child) {
+      return res.status(404).json({ error: 'Child not found' })
     }
 
     await prisma.child.delete({
       where: { id: childId },
     })
 
-    await notifyPartnerOnChildChange(user.id, user.coupleId, 'removed', child.name)
+    await notifyPartnerOnChildChange(userId, req.coupleId, 'removed', child.name)
 
     res.json({ message: 'Child deleted successfully' })
   } catch (error) {
@@ -257,31 +250,28 @@ router.put('/pets/:petId', async (req: Request, res: Response) => {
     const { petId } = req.params
     const data: Partial<PetInput> = req.body
 
-    // Verify user is part of the couple
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    })
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' })
+    // v2.5.9 audit 01 S1-R-14 — scope por req.coupleId.
+    if (!req.coupleId) {
+      return res.status(401).json({ error: 'Authentication required' })
     }
 
-    // Verify pet belongs to user's couple
-    const pet = await prisma.pet.findUnique({
-      where: { id: petId },
+    const pet = await prisma.pet.findFirst({
+      where: { id: petId, coupleId: req.coupleId },
     })
 
-    if (!pet || pet.coupleId !== user.coupleId) {
-      return res.status(403).json({ error: 'Unauthorized' })
+    if (!pet) {
+      return res.status(404).json({ error: 'Pet not found' })
     }
 
-    // Update pet
+    // v2.5.9 audit 01 S1-R-13 — `data.quantity && {…}` rechazaba 0, así que
+    // bajar de 1 mascota a 0 no funcionaba. Comparamos contra `undefined`
+    // para distinguir "no enviado" de "enviado vacío/cero".
     const updatedPet = await prisma.pet.update({
       where: { id: petId },
       data: {
-        ...(data.name && { name: data.name }),
-        ...(data.type && { type: data.type }),
-        ...(data.quantity && { quantity: data.quantity }),
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.type !== undefined && { type: data.type }),
+        ...(data.quantity !== undefined && { quantity: data.quantity }),
       },
     })
 
@@ -304,22 +294,17 @@ router.delete('/pets/:petId', async (req: Request, res: Response) => {
     const userId = (req as any).user.id
     const { petId } = req.params
 
-    // Verify user is part of the couple
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    })
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' })
+    // v2.5.9 audit 01 S1-R-14 — scope por req.coupleId.
+    if (!req.coupleId) {
+      return res.status(401).json({ error: 'Authentication required' })
     }
 
-    // Verify pet belongs to user's couple
-    const pet = await prisma.pet.findUnique({
-      where: { id: petId },
+    const pet = await prisma.pet.findFirst({
+      where: { id: petId, coupleId: req.coupleId },
     })
 
-    if (!pet || pet.coupleId !== user.coupleId) {
-      return res.status(403).json({ error: 'Unauthorized' })
+    if (!pet) {
+      return res.status(404).json({ error: 'Pet not found' })
     }
 
     await prisma.pet.delete({

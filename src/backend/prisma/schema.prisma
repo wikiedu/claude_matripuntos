@@ -201,6 +201,7 @@ model User {
   eventsCreated         Event[]                  @relation("createdBy")
   tasksCompleted        TaskLog[]                @relation("completedBy")
   tasksVerified         TaskLog[]                @relation("verifiedBy")
+  tasksDisputed         TaskLog[]                @relation("disputedBy")
   negotiationsProposed  Negotiation[]            @relation("proposedBy")
   negotiationsResponded Negotiation[]            @relation("respondedBy")
   pointsTransactions    PointsTransaction[]
@@ -369,6 +370,10 @@ model TaskLog {
 
   disputeReason         String?
   disputedAt            DateTime?
+  // v2.5.9 audit 01 S1-R-9 — antes el disputador se escribía en `verifiedBy`
+  // (semántica "quien aprobó"), confundiendo analytics y el cron de
+  // auto-accept. Con `disputedBy` separamos los dos roles.
+  disputedBy            String?
   pointsDisputed        Decimal?
 
   // v2.0.5 — image proof opcional (URL https). No se sube binario al backend; se
@@ -381,6 +386,7 @@ model TaskLog {
   task                  Task                     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   completedByUser       User?                    @relation("completedBy", fields: [completedBy], references: [id], onDelete: SetNull)
   verifiedByUser        User?                    @relation("verifiedBy", fields: [verifiedBy], references: [id], onDelete: SetNull)
+  disputedByUser        User?                    @relation("disputedBy", fields: [disputedBy], references: [id], onDelete: SetNull)
   pointsTransaction     PointsTransaction?
 
   createdAt             DateTime                 @default(now())
