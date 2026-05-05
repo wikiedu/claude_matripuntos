@@ -61,16 +61,16 @@ class ApiClient {
 
     if (!response.ok) {
       if (response.status === 401) {
-        // Token expired or invalid. Purge local auth state, clear the React
-        // Query cache via the registered callback, and redirect — unless we're
-        // already on a public auth page (avoids a redirect loop when login/signup
-        // themselves return 401 for bad credentials).
+        // v2.5.4 audit 07 — antes hacíamos `window.location.href = '/login'`
+        // que es un FULL RELOAD: pierde cualquier estado en memoria (forms
+        // en progreso, mood seleccionado sin guardar, etc). Ahora delegamos
+        // toda la responsabilidad al `onUnauthorized` callback registrado
+        // por App.tsx, que limpia store + cache y hace navigate via React
+        // Router (history.pushState, sin reload). Si la callback no está
+        // (caso edge: 401 muy temprano antes del bootstrap de App), no
+        // pasa nada — `clearToken` es suficiente para frenar más requests.
         this.clearToken()
         this.onUnauthorized?.()
-        const onAuthPage = /^\/(login|signup|onboarding)/.test(window.location.pathname)
-        if (!onAuthPage) {
-          window.location.href = '/login'
-        }
       }
       const error = await response.json().catch(() => ({ error: 'Request failed' }))
       // Si el backend devuelve un error genérico de Zod ("Validation error"),
