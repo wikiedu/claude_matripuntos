@@ -27,12 +27,12 @@ export function PremiumOverlay({ onOpenInterest, onClose }: Props) {
         )}
         <div className="text-4xl mb-1.5">✨</div>
         <div className="text-lg font-extrabold text-white tracking-tight">Desbloquea Analítica Avanzada</div>
-        <div className="text-xs text-[#c4b5fd] mt-1.5 leading-relaxed">
+        <div className="text-xs text-violet-300 mt-1.5 leading-relaxed">
           Heatmaps, tasas de cumplimiento, índice de equidad histórico y comparativas mensuales con insights.
         </div>
         <div className="flex flex-wrap gap-1.5 justify-center my-3.5">
           {['🗓️ Heatmap', '🎯 Cumplimiento', '⚖️ Equidad', '🏅 Top cat.', '💬 Insights'].map(x => (
-            <span key={x} className="text-[10px] font-semibold px-2 py-1 rounded-full bg-brand-amber/15 text-[#fbbf24] border border-brand-amber/30">
+            <span key={x} className="text-[10px] font-semibold px-2 py-1 rounded-full bg-brand-amber/15 text-amber-400 border border-brand-amber/30">
               {x}
             </span>
           ))}

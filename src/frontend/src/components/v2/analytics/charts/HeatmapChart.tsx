@@ -95,7 +95,7 @@ export function HeatmapChart({ grid, buckets, hint }: Props) {
           </div>
         )}
 
-        {hint && <div className="mt-2.5 text-[11px] text-[#c4b5fd]">⏰ {hint}</div>}
+        {hint && <div className="mt-2.5 text-[11px] text-violet-300">⏰ {hint}</div>}
       </Card>
     </div>
   )

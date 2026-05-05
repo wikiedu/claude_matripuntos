@@ -29,7 +29,7 @@ export function DailyPhrase() {
       data-category={phrase.category}
       className="mx-4 mb-3.5 px-4 py-3 rounded-xl bg-brand-purple/10 border border-brand-purple/15 transition-opacity duration-200"
     >
-      <p className="font-serif italic text-sm text-[#c4b5fd] leading-snug text-center">
+      <p className="font-serif italic text-sm text-violet-300 leading-snug text-center">
         "{phrase.text}"
       </p>
     </div>
