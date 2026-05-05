@@ -9,6 +9,7 @@ import { useAppStore } from '../store/useAppStore'
 import { Button } from '../components/v2/primitives/Button'
 import { Pill } from '../components/v2/primitives/Pill'
 import { Card } from '../components/v2/primitives/Card'
+import { ConfirmDialog } from '../components/v2/primitives/ConfirmDialog'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Negotiation {
@@ -159,19 +160,28 @@ export default function ActivityDetail() {
     }
   }
 
-  const handleForce = async () => {
+  // v2.5.2 audit 12 S1-Q-3 — fricción explícita antes de forzar.
+  // Antes era 1 click → pago inmediato del saldo del proposer. Riesgo
+  // de tap accidental en mobile. Ahora ConfirmDialog con preview de
+  // puntos y nota de irreversibilidad.
+  const [showForceConfirm, setShowForceConfirm] = useState(false)
+  const handleForce = () => setShowForceConfirm(true)
+
+  const performForce = async () => {
     const negs = event.negotiations || []
     const target = negs.filter((n) => n.responseType === 'awaiting').pop() || negs[negs.length - 1]
-    if (!target?.id) { setError('No se encontró la negociación activa.'); return }
+    if (!target?.id) { setError('No se encontró la negociación activa.'); setShowForceConfirm(false); return }
 
     setIsForcing(true)
     setError(null)
     try {
       await apiClient.negotiations.force(target.id)
       invalidateAfterAction()
+      setShowForceConfirm(false)
       handleBack()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al forzar la actividad')
+      setShowForceConfirm(false)
     } finally {
       setIsForcing(false)
     }
@@ -420,6 +430,18 @@ export default function ActivityDetail() {
           </Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={showForceConfirm}
+        title="Forzar aceptación"
+        message={`Vas a forzar el cierre de esta actividad. Pagarás ${pts} MP de tu saldo actual. Esta acción no se puede deshacer.`}
+        confirmLabel={`Pagar ${pts} MP y forzar`}
+        cancelLabel="Cancelar"
+        variant="danger"
+        busy={isForcing}
+        onConfirm={performForce}
+        onClose={() => setShowForceConfirm(false)}
+      />
     </main>
   )
 }
