@@ -487,6 +487,9 @@ model Compensation {
 
   @@index([eventId])
   @@index([status])
+  // v2.6.0 audit 03 S1-6 — query rápida cuando se borra un Task y la BD
+  // tiene que aplicar onDelete:SetNull en este FK.
+  @@index([linkedTaskId])
 }
 
 // Configurations - Per-couple settings
@@ -658,7 +661,11 @@ model Pet {
 // Invitation - Partner invitation system (V2)
 model Invitation {
   id                    String                   @id @default(cuid())
-  fromUserId            String
+  // v2.6.0 audit 03 S1-9 — fromUserId era NOT NULL + onDelete:Cascade,
+  // así que borrar al inviter borraba la invitation entera (incluso una
+  // ya aceptada). Mantener el registro histórico es importante para
+  // auditoría — pasamos a optional + SetNull.
+  fromUserId            String?
   toEmail               String?
   toUserId              String?
   token                 String                   @unique
@@ -668,8 +675,8 @@ model Invitation {
   expiresAt             DateTime
 
   // Relations
-  fromUser              User                     @relation("InvitationsSent", fields: [fromUserId], references: [id], onDelete: Cascade)
-  toUser                User?                    @relation("InvitationsReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+  fromUser              User?                    @relation("InvitationsSent", fields: [fromUserId], references: [id], onDelete: SetNull)
+  toUser                User?                    @relation("InvitationsReceived", fields: [toUserId], references: [id], onDelete: SetNull)
   couple                Couple?                  @relation(fields: [coupleId], references: [id], onDelete: SetNull)
 
   createdAt             DateTime                 @default(now())
@@ -949,6 +956,10 @@ model RefreshToken {
 
   @@index([userId])
   @@index([expiresAt])
+  // v2.6.0 audit 03 S1-10 — query "tokens activos" en /auth/refresh y
+  // /auth/logout-all-devices se beneficia del compound (userId,
+  // revokedAt is NULL) en plan "borra/rota todos los activos".
+  @@index([userId, revokedAt])
 }
 
 // v2.4 audit 04 S1-4 — Password reset flow.
@@ -1029,8 +1040,12 @@ model ConfigurationProposal {
   id           String   @id @default(cuid())
   coupleId     String
   couple       Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
-  proposedById String
-  proposedBy   User     @relation("ConfigProposer", fields: [proposedById], references: [id], onDelete: Cascade)
+  // v2.6.0 audit 03 S1-8 — proposedById/respondedById NOT NULL +
+  // Cascade aniquilaba la propuesta al borrar al user. Para mantener
+  // audit trail, los volvemos nullable + SetNull. La couple sigue
+  // siendo Cascade (si la couple se borra, todo desaparece).
+  proposedById String?
+  proposedBy   User?    @relation("ConfigProposer", fields: [proposedById], references: [id], onDelete: SetNull)
   field        String   // 'multipliersConfig.nightMult' | 'taskBasePoints.cocina' | 'reset_factory'
   oldValue     String   // JSON
   newValue     String   // JSON
@@ -1054,8 +1069,11 @@ model ConfigurationChangeLog {
   field       String
   oldValue    String   // JSON
   newValue    String   // JSON
-  appliedById String
-  appliedBy   User     @relation(fields: [appliedById], references: [id], onDelete: Cascade)
+  // v2.6.0 audit 03 S1-8 — appliedById Cascade borraba el change log al
+  // borrar al usuario que aplicó el cambio. Audit trail debe persistir
+  // → optional + SetNull.
+  appliedById String?
+  appliedBy   User?    @relation(fields: [appliedById], references: [id], onDelete: SetNull)
   proposalId  String?
   appliedAt   DateTime @default(now())
 
