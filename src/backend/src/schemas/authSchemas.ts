@@ -1,5 +1,9 @@
 import { z } from 'zod'
 
+// v2.4 audit 04 S0-2 — GDPR Art. 8: el flujo legacy de signup-couple
+// (ambos en uno) también exige confirmación de mayoría de edad por
+// AMBOS partners. signupUserSchema y acceptInviteSchema ya lo tenían
+// (v1.6.2) pero este endpoint (legacy /register + /signup couple) no.
 export const signupSchema = z.object({
   email1: z.string().email('Invalid email format'),
   password1: z.string().min(8, 'Password must be at least 8 characters'),
@@ -8,6 +12,12 @@ export const signupSchema = z.object({
   password2: z.string().min(8, 'Password must be at least 8 characters'),
   name2: z.string().min(2, 'Name must be at least 2 characters'),
   language: z.string().optional().default('es'),
+  ageConfirmed1: z.literal(true, {
+    errorMap: () => ({ message: 'Confirma que el primer usuario tiene 18 años o más' }),
+  }),
+  ageConfirmed2: z.literal(true, {
+    errorMap: () => ({ message: 'Confirma que el segundo usuario tiene 18 años o más' }),
+  }),
 })
 
 export const loginSchema = z.object({
