@@ -3,9 +3,9 @@
 // AddTaskSheet for task creation, dark-mode Log/Dispute modals.
 // Rendered naked inside AuthedLayout (AppHeader is provided globally).
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { isSheetOpen } from '../lib/sheetLock'
+import { isSheetOpen, acquireSheetLock, releaseSheetLock } from '../lib/sheetLock'
 import {
   Plus, CheckCircle, Loader, X, RefreshCw, AlertTriangle, CheckCheck, HelpCircle, Clock,
   Sparkles, History, ListChecks,
@@ -120,6 +120,17 @@ function LogTaskModal({ task, onClose, onSuccess }: {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // v2.5.6 audit 06 S1 — escape para cerrar + sheetLock auto + a11y.
+  useEffect(() => {
+    const onEsc = (e: KeyboardEvent) => e.key === 'Escape' && !isSubmitting && onClose()
+    window.addEventListener('keydown', onEsc)
+    acquireSheetLock()
+    return () => {
+      window.removeEventListener('keydown', onEsc)
+      releaseSheetLock()
+    }
+  }, [isSubmitting, onClose])
+
   const base = parseFloat(task.pointsBase) || 10
   const modMap = { none: 1.0, extra: 1.3, partial: 0.7 }
   const finalPts = Math.round(base * modMap[modifier])
@@ -142,10 +153,15 @@ function LogTaskModal({ task, onClose, onSuccess }: {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="log-task-modal-title"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+    >
       <div className="bg-surface-card border border-brd-purple rounded-xl shadow-xl max-w-md w-full p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-bold text-text-primary">Registrar tarea</h3>
+          <h3 id="log-task-modal-title" className="text-base font-bold text-text-primary">Registrar tarea</h3>
           <button onClick={onClose} className="p-1 hover:bg-surface-muted rounded-full text-text-secondary">
             <X className="w-5 h-5" />
           </button>
@@ -233,6 +249,17 @@ function DisputeModal({ log, onClose, onSuccess }: {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // v2.5.6 audit 06 S1 — escape + sheetLock auto + a11y.
+  useEffect(() => {
+    const onEsc = (e: KeyboardEvent) => e.key === 'Escape' && !isSubmitting && onClose()
+    window.addEventListener('keydown', onEsc)
+    acquireSheetLock()
+    return () => {
+      window.removeEventListener('keydown', onEsc)
+      releaseSheetLock()
+    }
+  }, [isSubmitting, onClose])
+
   const handleSubmit = async () => {
     setIsSubmitting(true)
     try {
@@ -245,9 +272,14 @@ function DisputeModal({ log, onClose, onSuccess }: {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dispute-modal-title"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+    >
       <div className="bg-surface-card border border-brd-purple rounded-xl shadow-xl max-w-sm w-full p-5">
-        <h3 className="text-base font-bold text-text-primary mb-1">⚠️ Disputar tarea</h3>
+        <h3 id="dispute-modal-title" className="text-base font-bold text-text-primary mb-1">⚠️ Disputar tarea</h3>
         <p className="text-sm text-text-secondary mb-4">
           Disputando <strong className="text-text-primary">{log.taskName}</strong> de{' '}
           <strong className="text-text-primary">{log.completedBy?.name}</strong> ({log.pointsFinal} pts)
