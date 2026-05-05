@@ -2,9 +2,10 @@
 // MonthGrid + WeekStripChart + EventCardV2 "Próximos" list, EventDetail bottom sheet.
 // Rendered naked inside AuthedLayout (AppHeader/BottomNav provided globally).
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { isSheetOpen } from '../lib/sheetLock'
 import { ChevronLeft, ChevronRight, Loader, Plus, X } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
@@ -92,9 +93,6 @@ export const Calendar: React.FC = () => {
     return d
   })
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [events, setEvents] = useState<AppEvent[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null)
 
   const year = currentDate.getFullYear()
@@ -107,23 +105,30 @@ export const Calendar: React.FC = () => {
     return other ? { name: other.name } : undefined
   }, [couple, user])
 
-  const loadEvents = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const res = (await apiClient.events.getAll()) as { events?: AppEvent[] }
-      setEvents(res.events ?? [])
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error cargando eventos')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  // v2.5.6 audit 05 S1 — Calendar migrado a React Query (mismo patrón
+  // que Tasks v2.5.0). Antes hacía useState + setLoading(true) + useEffect
+  // que recargaba en cada cambio de mes con spinner full-screen. Ahora
+  // useQuery con sheetLock-aware refetchInterval, y los cambios de mes
+  // sólo refiltran in-memory porque el endpoint devuelve TODOS los
+  // eventos del couple (no paginados por mes).
+  const queryClient = useQueryClient()
+  const eventsQuery = useQuery({
+    queryKey: ['events', 'all'],
+    queryFn: () => apiClient.events.getAll() as Promise<{ events?: AppEvent[] }>,
+    select: (d) => d?.events ?? [],
+    enabled: isAuthenticated,
+    staleTime: 10_000,
+    refetchInterval: () => (isSheetOpen() ? false : 30_000),
+    refetchIntervalInBackground: false,
+  })
+  const events: AppEvent[] = eventsQuery.data ?? []
+  const loading = eventsQuery.isLoading && !eventsQuery.data
+  const error = eventsQuery.error?.message ?? null
 
-  useEffect(() => {
-    if (!isAuthenticated) return
-    loadEvents()
-  }, [isAuthenticated, loadEvents, year, month])
+  // API estable para los pocos callers que invalidan tras mutación.
+  const loadEvents = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['events', 'all'] })
+  }, [queryClient])
 
   // Task logs — completed/verified tareas show up on their own day so the
   // calendar reflects actual lived activity, not just future events.
@@ -290,11 +295,12 @@ export const Calendar: React.FC = () => {
         </div>
       </div>
 
-      {/* Inline banners */}
+      {/* Inline banners — error viene de useQuery, se limpia con un refetch
+          (no setError local). */}
       {error && (
         <div className="mb-3 p-3 rounded-md bg-danger/10 border border-danger/30 text-danger text-sm flex items-start justify-between gap-2">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="flex-shrink-0">
+          <button onClick={() => loadEvents()} className="flex-shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
