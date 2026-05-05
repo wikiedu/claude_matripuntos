@@ -6,7 +6,12 @@ import { queryClient } from '../App'
 interface AppState {
   user: User | null
   couple: Couple | null
+  // v2.4 audit 07 S0: separamos bootstrap (`isLoading`) de polling background
+  // (`isRefreshing`). ProtectedRoute solo escucha `isLoading` — así
+  // `loadUserData(true)` en silent no provoca el flash "Cargando…" cada 60s
+  // que reportaba el usuario.
   isLoading: boolean
+  isRefreshing: boolean
   error: string | null
   isAuthenticated: boolean
 
@@ -26,7 +31,12 @@ interface AppState {
     password2: string
     name2: string
   }) => Promise<void>
-  loadUserData: () => Promise<void>
+  /**
+   * Refresca user/couple desde el backend.
+   * @param silent  true → background refresh: no toca isLoading (no pinta
+   *                spinner full-screen). Use desde polling/visibility listeners.
+   */
+  loadUserData: (silent?: boolean) => Promise<void>
   logout: () => void
 }
 
@@ -44,6 +54,7 @@ export const useAppStore = create<AppState>((set) => ({
   user: null,
   couple: null,
   isLoading: hasStoredToken,
+  isRefreshing: false,
   error: null,
   isAuthenticated: false,
 
@@ -118,8 +129,15 @@ export const useAppStore = create<AppState>((set) => ({
     }
   },
 
-  loadUserData: async () => {
-    set({ isLoading: true, error: null })
+  loadUserData: async (silent = false) => {
+    // En modo silent (polling background) no tocamos isLoading — solo
+    // isRefreshing. Esto evita que ProtectedRoute pinte la pantalla
+    // "Cargando…" cada 60s.
+    if (silent) {
+      set({ isRefreshing: true, error: null })
+    } else {
+      set({ isLoading: true, error: null })
+    }
     try {
       const userResponse = await apiClient.auth.getMe()
 
@@ -138,11 +156,19 @@ export const useAppStore = create<AppState>((set) => ({
         couple,
         isAuthenticated: true,
         isLoading: false,
+        isRefreshing: false,
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load user data'
-      set({ error: message, isLoading: false, isAuthenticated: false })
-      throw error
+      // En silent: no marcamos isAuthenticated=false porque podría ser un
+      // glitch transitorio de red; sí en bootstrap (donde queremos echar al
+      // login si el token está roto).
+      if (silent) {
+        set({ error: message, isRefreshing: false })
+      } else {
+        set({ error: message, isLoading: false, isAuthenticated: false })
+        throw error
+      }
     }
   },
 
