@@ -223,7 +223,15 @@ router.post('/insights/regenerate', readBucket, async (req: Request, res: Respon
     prisma.event.findMany({ where: { coupleId, dateStart: { gte: prev30From, lt: last30From } } }),
     prisma.taskLog.findMany({ where: { coupleId, date: { gte: last30From, lte: now } } }),
     prisma.taskLog.findMany({ where: { coupleId, date: { gte: prev30From, lt: last30From } } }),
-    prisma.pointsTransaction.findMany({ where: { coupleId } }),
+    // v2.5.5 audit 01 — LIMIT defensivo: couples con histórico largo
+    // (años) podrían cargar miles de transactions y reventar memoria del
+    // worker en Render. Solo necesitamos el rango previo 60d para
+    // analytics, así que filtramos.
+    prisma.pointsTransaction.findMany({
+      where: { coupleId, createdAt: { gte: prev30From } },
+      take: 5000,
+      orderBy: { createdAt: 'desc' },
+    }),
   ])
 
   const mapEvent = (e: any): RawEvent => ({

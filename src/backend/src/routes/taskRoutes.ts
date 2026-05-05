@@ -32,7 +32,15 @@ const createTaskSchema = z.object({
 // `modifier: 'extra' | 'partial'` (or omit), nothing else.
 
 const createTaskLogSchema = z.object({
-  date: z.string().min(1, 'Date is required'),
+  // v2.5.5 audit 08 S1-4 — date debe ser ISO parseable y no más de 30 días
+  // en el futuro. Antes aceptábamos cualquier string >0 chars; un payload
+  // con `date: "futuro lejano"` rompía analytics aggregation.
+  date: z.string().refine((s) => {
+    const d = new Date(s)
+    if (isNaN(d.getTime())) return false
+    const maxFuture = Date.now() + 30 * 24 * 60 * 60 * 1000
+    return d.getTime() <= maxFuture
+  }, { message: 'Fecha inválida o demasiado en el futuro' }),
   pointsBase: z.number().positive('Points must be positive').max(100),
   modifier: z.enum(['none', 'extra', 'partial', 'profunda', 'complicada', 'visita']).optional(),
   notes: z.string().max(500).trim().optional(),
@@ -43,7 +51,10 @@ const updateTaskLogSchema = z.object({
   verifiedBy: z.string().optional(),
   // v1.6.2 fix S1-7: límite contra DoS por payload gigante.
   disputeReason: z.string().max(2000).optional(),
-  pointsDisputed: z.number().optional(),
+  // v2.5.5 audit 08 S1-4: pointsDisputed debe ser >0 y ≤100 (mismo
+  // rango que pointsBase). Antes aceptaba negativos / NaN / huge values
+  // que rompían el cálculo del saldo.
+  pointsDisputed: z.number().positive('Points must be positive').max(100).optional(),
 })
 
 // Create task
