@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useJournalEntries, useTodayPrompt, useRetrospectives, type JournalEntry } from '../hooks/useJournal'
 import { apiClient } from '../services/apiClient'
 import { useAppStore } from '../store/useAppStore'
+import { ConfirmDialog } from '../components/v2/primitives/ConfirmDialog'
 
 const TYPE_EMOJI: Record<string, string> = {
   reflection: '💭',
@@ -32,6 +33,7 @@ export default function Journal() {
   const [usePrompt, setUsePrompt] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -65,12 +67,17 @@ export default function Journal() {
     } catch {}
   }
 
-  async function deleteEntry(id: string) {
-    if (!confirm('¿Borrar esta entrada?')) return
+  function deleteEntry(id: string) {
+    setConfirmDeleteId(id)
+  }
+
+  async function performDelete() {
+    if (!confirmDeleteId) return
     try {
-      await apiClient.request(`/journal/entries/${id}`, { method: 'DELETE' })
+      await apiClient.request(`/journal/entries/${confirmDeleteId}`, { method: 'DELETE' })
       queryClient.invalidateQueries({ queryKey: ['journal', 'entries'] })
     } catch {}
+    setConfirmDeleteId(null)
   }
 
   const entries = entriesQ.data?.entries ?? []
@@ -187,6 +194,16 @@ export default function Journal() {
           ))
         )}
       </section>
+
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        title="Borrar entrada"
+        message="¿Seguro que quieres borrar esta entrada? Esta acción no se puede deshacer."
+        confirmLabel="Borrar"
+        variant="danger"
+        onConfirm={performDelete}
+        onClose={() => setConfirmDeleteId(null)}
+      />
     </main>
   )
 }

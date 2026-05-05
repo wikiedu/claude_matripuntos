@@ -16,6 +16,7 @@ import { ProposalsPanel } from '../components/v2/consensus/ProposalsPanel'
 import { RealRulesSection } from '../components/v2/consensus/RealRulesSection'
 import { CoupleHealthCard } from '../components/v2/couple/CoupleHealthCard'
 import { AvatarPicker } from '../components/v2/primitives/AvatarPicker'
+import { AlertDialog } from '../components/v2/primitives/AlertDialog'
 import { MyMoodWeek } from '../components/v2/profile/MyMoodWeek'
 import { DeleteAccountWizard } from '../components/v2/wizards/DeleteAccountWizard'
 import { LeaveCoupleWizard } from '../components/v2/wizards/LeaveCoupleWizard'
@@ -734,6 +735,7 @@ function LanguageThemeSection({ onBack }: { onBack: () => void }) {
 
 function PrivacySection({ onBack }: { onBack: () => void }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
   const { logout } = useAppStore()
   const navigate = useNavigate()
   const { consent, setConsent } = useConsent()
@@ -783,7 +785,7 @@ function PrivacySection({ onBack }: { onBack: () => void }) {
               a.click()
               URL.revokeObjectURL(url)
             } catch (err: any) {
-              alert(err?.message ?? 'No pudimos exportar tus datos')
+              setExportError(err?.message ?? 'No pudimos exportar tus datos')
             }
           }}
         >
@@ -838,6 +840,14 @@ function PrivacySection({ onBack }: { onBack: () => void }) {
           logout()
           navigate('/login')
         }}
+      />
+
+      <AlertDialog
+        open={!!exportError}
+        title="No se pudo exportar"
+        message={exportError ?? ''}
+        variant="danger"
+        onClose={() => setExportError(null)}
       />
     </div>
   )

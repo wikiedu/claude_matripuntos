@@ -23,8 +23,11 @@ export function AuthedLayout({ children }: { children: ReactNode }) {
 
   // v2.2.11 — refresca couple cada 60s para presence indicator.
   // v2.3.2 — además respeta sheetLock: si el usuario tiene un sheet/modal
-  // abierto, saltamos el tick para no resetear su flujo (bug reportado:
-  // 'cuando hago una acción se hace refresh y se me para lo que estoy haciendo').
+  // abierto, saltamos el tick para no resetear su flujo.
+  // v2.4 audit 07 S0 — pasamos `silent=true` a loadUserData para que NO
+  // toque isLoading. Antes cada tick provocaba el flash "Cargando…" en
+  // ProtectedRoute (esa era la causa principal del "refresh extraño"
+  // reportado).
   useEffect(() => {
     if (!user) return
     let cancelled = false
@@ -33,7 +36,7 @@ export function AuthedLayout({ children }: { children: ReactNode }) {
       if (typeof document === 'undefined') return
       if (document.visibilityState !== 'visible') return
       if (isSheetOpen()) return
-      loadUserData?.().catch(() => {})
+      loadUserData?.(true).catch(() => {})
     }
     const id = window.setInterval(tick, 60_000)
     return () => { cancelled = true; window.clearInterval(id) }

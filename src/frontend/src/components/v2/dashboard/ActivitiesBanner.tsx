@@ -6,6 +6,7 @@ import { useActivities } from '../../../hooks/useActivities'
 import { useInvalidateActivity } from '../../../hooks/useInvalidateActivity'
 import { ActivityActionCard } from '../activities/ActivityActionCard'
 import { CounterOfferSheet } from '../activities/CounterOfferSheet'
+import { AlertDialog } from '../primitives/AlertDialog'
 
 const MAX_CARDS = 2
 
@@ -15,6 +16,7 @@ export function ActivitiesBanner() {
   const invalidate = useInvalidateActivity()
 
   const [counterFor, setCounterFor] = useState<string | null>(null)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const respond = useMutation({
     mutationFn: (v: {
@@ -29,7 +31,7 @@ export function ActivitiesBanner() {
       const msg = err instanceof Error && err.message
         ? err.message
         : 'No se pudo completar la acción. Inténtalo de nuevo.'
-      window.alert(msg)
+      setErrorMsg(msg)
       invalidate()
     },
   })
@@ -125,6 +127,14 @@ export function ActivitiesBanner() {
           })
           setCounterFor(null)
         }}
+      />
+
+      <AlertDialog
+        open={!!errorMsg}
+        title="No se pudo completar"
+        message={errorMsg ?? ''}
+        variant="danger"
+        onClose={() => setErrorMsg(null)}
       />
     </div>
   )
