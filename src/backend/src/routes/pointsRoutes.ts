@@ -480,20 +480,47 @@ router.post('/reset-confirm', authMiddleware, async (req: Request, res: Response
       return
     }
 
+    // v2.4 audit 01 S0-R-2: hardening del flujo:
+    //   - solo notificaciones recientes (<24h) son válidas para aprobar.
+    //   - exigimos `confirmText: "RESET"` en el body como doble confirmación.
+    //   - capturamos el count de transacciones borradas para auditoría.
+    //   - generamos notificaciones a AMBOS users tras el reset (visibility).
+    if (req.body?.confirmText !== 'RESET') {
+      res.status(400).json({
+        error: 'Doble confirmación requerida: envía { confirmText: "RESET" } en el body',
+      })
+      return
+    }
+
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
     const pending = await prisma.notification.findFirst({
       where: {
         coupleId: req.coupleId,
         userId: req.userId,
         type: 'reset_requested',
         isRead: false,
+        createdAt: { gte: cutoff },
       },
+      orderBy: { createdAt: 'desc' },
     })
     if (!pending) {
       res.status(403).json({
-        error: 'No pending reset request found for this user',
+        error:
+          'No pending reset request found for this user (o caducó tras 24h). ' +
+          'Pide a tu pareja que envíe la solicitud de nuevo.',
       })
       return
     }
+
+    // Count antes de borrar — irá en la notificación de auditoría.
+    const countBefore = await prisma.pointsTransaction.count({
+      where: { coupleId: req.coupleId },
+    })
+
+    const partnerUsers = await prisma.user.findMany({
+      where: { coupleId: req.coupleId, deletedAt: null },
+      select: { id: true, name: true },
+    })
 
     await prisma.$transaction([
       prisma.pointsTransaction.deleteMany({ where: { coupleId: req.coupleId } }),
@@ -501,11 +528,25 @@ router.post('/reset-confirm', authMiddleware, async (req: Request, res: Response
         where: { coupleId: req.coupleId, type: 'reset_requested', isRead: false },
         data: { isRead: true },
       }),
+      // Audit notif (cada user del couple ve constancia).
+      ...partnerUsers.map((u) =>
+        prisma.notification.create({
+          data: {
+            coupleId: req.coupleId!,
+            userId: u.id,
+            type: 'reset_completed',
+            title: 'Saldo reseteado',
+            message: `${countBefore} transacciones eliminadas. Saldo a cero.`,
+            isRead: false,
+          },
+        }),
+      ),
     ])
 
     res.status(200).json({
       message: 'Points balance reset confirmed. All transactions deleted.',
       status: 'completed',
+      transactionsDeleted: countBefore,
     })
   } catch (error) {
     console.error('[reset-confirm]', error)
