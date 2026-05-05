@@ -60,11 +60,22 @@ export async function calculateAndSaveXP(coupleId: string): Promise<number> {
   const couple = await prisma.couple.findUnique({ where: { id: coupleId } })
   if (!couple) throw new Error('Couple not found')
 
-  const ptResult = await prisma.pointsTransaction.aggregate({
-    where: { coupleId, amount: { gt: 0 } },
-    _sum: { amount: true }
+  // v2.5.3 audit 08 S1-3 — XP reflejaba sólo transacciones positivas, así
+  // que eventos `event_accepted`/`forced_payment` (que llegan con amount
+  // negativo porque el proposer paga) NO sumaban XP. La gamificación de
+  // niveles estaba parcialmente rota.
+  //
+  // Fix: sumar el valor absoluto de TODAS las transacciones excepto
+  // `donation` (redistribución entre users del couple → ya contada en la
+  // task/event que la generó; doble-contarla infla XP injustamente).
+  const ptResult = await prisma.pointsTransaction.findMany({
+    where: { coupleId, type: { not: 'donation' } },
+    select: { amount: true },
   })
-  const puntosHistoricos = ptResult._sum.amount?.toNumber() || 0
+  const puntosHistoricos = ptResult.reduce(
+    (sum, t) => sum + Math.abs(t.amount.toNumber()),
+    0,
+  )
 
   const unlocked = await prisma.coupleAchievement.findMany({
     where: { coupleId, unlockedAt: { not: null } },
