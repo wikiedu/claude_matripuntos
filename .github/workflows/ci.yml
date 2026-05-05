@@ -36,10 +36,59 @@ jobs:
         working-directory: src/backend
         run: >
           npx jest
-          --testPathPatterns='(pointsCalculator|taskLogPoints|joinCode|insightHeuristic|taskRoutesContract|healthShape|profileContract|moodHistoryContract|rateLimitContract|authContract|eventsContract|notificationsContract|pointsContract|accountContract|coupleContract|accountDeletionService|coupleLifecycleService|levelService|streakService|challengeService|achievementEngineV2|replayService|cryptoService|recurrenceService|holidaysService|birthdaysService|calendarV2Contract|journalPromptsService|journalRetrospectiveService|journalContract|refreshTokenService|analyticsAggregator|insightsGenerator)'
+          --testPathPatterns='(pointsCalculator|taskLogPoints|joinCode|insightHeuristic|taskRoutesContract|healthShape|profileContract|moodHistoryContract|rateLimitContract|authContract|eventsContract|notificationsContract|pointsContract|accountContract|coupleContract|accountDeletionService|coupleLifecycleService|levelService|streakService|challengeService|achievementEngineV2|replayService|cryptoService|recurrenceService|holidaysService|birthdaysService|calendarV2Contract|journalPromptsService|journalRetrospectiveService|journalContract|refreshTokenService|analyticsAggregator|insightsGenerator|digestServiceWeekEnd)'
         env:
           JWT_SECRET: ci-secret-not-for-production
           DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
+  backend-db:
+    name: Backend — DB-bound tests (Postgres)
+    runs-on: ubuntu-latest
+    needs: [backend]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      JWT_SECRET: ci-secret-not-for-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install workspaces
+        run: npm ci || npm install
+      - name: Prisma generate
+        working-directory: src/backend
+        run: npx prisma generate
+      - name: Apply schema (postgres efímera)
+        # Misma estrategia que el job e2e: db push para no atravesar el
+        # historial de migraciones (las primeras siguen siendo SQLite-only).
+        working-directory: src/backend
+        run: npx prisma db push --skip-generate --accept-data-loss
+      - name: Run DB-bound tests
+        # v2.6.5 audit 11 S0-T-1 — antes estos suites NO corrían en CI
+        # porque el job hermetic los excluye vía --testPathPatterns. Aquí
+        # los corremos contra una Postgres efímera, separados del job
+        # hermetic para que el ruido de DB no bloquee PRs por temas
+        # ortogonales.
+        working-directory: src/backend
+        run: >
+          npx jest
+          --testPathPatterns='(analyticsService|anniversaryService|gamificationService|achievementEngine\.test)'
 
   frontend:
     name: Frontend — typecheck + build
