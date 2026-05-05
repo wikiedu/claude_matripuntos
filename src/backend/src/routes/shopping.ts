@@ -16,10 +16,12 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
   try {
     const coupleId = req.coupleId!
 
-    // Ensure active list exists
+    // v2.7.1 audit 01 S2-R-17 — cap defensivo en items de la lista activa.
+    // history ya tiene take:4, pero si la lista activa de un couple
+    // creció a miles de items por uso prolongado, la query podría tardar.
     let active = await prisma.shoppingList.findFirst({
       where: { coupleId, isActive: true },
-      include: { items: { orderBy: { createdAt: 'asc' } } },
+      include: { items: { orderBy: { createdAt: 'asc' }, take: 500 } },
     })
     if (!active) {
       active = await prisma.shoppingList.create({

@@ -33,11 +33,24 @@ const rangeSchema = z.object({
 
 function parseRange(req: Request, defaultDays: number = 30): { from: Date; to: Date } {
   const parsed = rangeSchema.safeParse(req.query)
-  const to = parsed.success && parsed.data.to ? new Date(parsed.data.to) : new Date()
-  const from = parsed.success && parsed.data.from
+  const toCandidate = parsed.success && parsed.data.to ? new Date(parsed.data.to) : new Date()
+  const fromCandidate = parsed.success && parsed.data.from
     ? new Date(parsed.data.from)
-    : new Date(to.getTime() - defaultDays * 24 * 3600 * 1000)
-  return { from, to }
+    : new Date(toCandidate.getTime() - defaultDays * 24 * 3600 * 1000)
+
+  // v2.7.1 audit 01 S2-R-7, S2-R-8 — validar dates parseable y from <= to.
+  // Si vienen invalid o invertidos, usamos el default (sin error 400 para
+  // no romper clientes legacy que pasan params raros).
+  const toValid = !isNaN(toCandidate.getTime()) ? toCandidate : new Date()
+  const fromValid = !isNaN(fromCandidate.getTime()) ? fromCandidate : new Date(toValid.getTime() - defaultDays * 24 * 3600 * 1000)
+  if (fromValid.getTime() > toValid.getTime()) {
+    // Invertido — devolvemos default (último N días).
+    return {
+      from: new Date(toValid.getTime() - defaultDays * 24 * 3600 * 1000),
+      to: toValid,
+    }
+  }
+  return { from: fromValid, to: toValid }
 }
 
 async function loadCoupleUsers(coupleId: string): Promise<{ user1Id: string; user2Id: string }> {
@@ -298,6 +311,10 @@ router.post('/insights/:id/seen', readBucket, async (req: Request, res: Response
   const coupleId = (req as any).user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
+  // v2.7.1 audit 01 S2-R-20 — IDOR fix. Antes hacíamos `update` por id
+  // sin verificar pertenencia al couple. updateMany con WHERE compuesto
+  // (id + coupleId) hace que un id ajeno devuelva count=0 → 404, sin
+  // mutar nada en otra couple.
   const couple = await prisma.couple.findUnique({
     where: { id: coupleId },
     include: { users: { select: { id: true }, orderBy: { createdAt: 'asc' } } },
@@ -306,7 +323,11 @@ router.post('/insights/:id/seen', readBucket, async (req: Request, res: Response
 
   const isUser1 = couple.users[0]?.id === userId
   const update = isUser1 ? { seenByUser1: true } : { seenByUser2: true }
-  await prisma.analyticsInsight.update({ where: { id: req.params.id }, data: update })
+  const result = await prisma.analyticsInsight.updateMany({
+    where: { id: req.params.id, coupleId },
+    data: update,
+  })
+  if (result.count === 0) return res.status(404).json({ error: 'Insight not found' })
   res.json({ ok: true })
 })
 
