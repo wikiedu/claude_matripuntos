@@ -55,7 +55,7 @@ export function RankingTab({ unlocked, userName, partnerName }: Props) {
           <div className="text-3xl font-extrabold text-text-tertiary tabular-nums">—</div>
           <div className="text-[11px] text-text-secondary mt-0.5">datos próximamente</div>
           <div className="mt-3 pt-3 border-t border-brd-subtle">
-            <Pill tone="purple">v1.5</Pill>
+            <Pill tone="purple">próximamente</Pill>
           </div>
         </Card>
       </div>
@@ -75,7 +75,7 @@ export function RankingTab({ unlocked, userName, partnerName }: Props) {
       </Card>
 
       <p className="text-[11px] text-text-tertiary text-center px-2">
-        El ranking completo con tu pareja llega en v1.5.
+        El ranking completo con tu pareja llegará próximamente.
       </p>
     </div>
   )

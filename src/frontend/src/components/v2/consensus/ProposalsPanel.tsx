@@ -47,37 +47,40 @@ function ProposalCard({ p }: { p: ConfigProposal }) {
     }
   }
 
+  // v2.6.2 audit 06 S1-13 — repintado con tokens dark del v2 design system.
+  // Antes: bg-white, text-gray-*, bg-blue-* (light-mode). Ahora: surface-card,
+  // text-text-*, brand-* — coherente con el resto de la app.
   return (
-    <article className="border rounded-xl p-4 bg-white space-y-2">
+    <article className="rounded-xl p-4 bg-surface-card border border-brd-subtle space-y-2">
       <header className="flex items-center justify-between">
-        <h3 className="font-medium">{fieldLabel(p.field)}</h3>
-        <span className="text-xs text-gray-500">
+        <h3 className="font-medium text-text-primary">{fieldLabel(p.field)}</h3>
+        <span className="text-xs text-text-tertiary">
           {isMine ? 'Tu propuesta' : `Propuesta de ${p.proposedBy?.name ?? '...'}`}
         </span>
       </header>
 
-      <div className="text-sm flex items-center gap-2">
-        <span className="line-through text-gray-400">{p.oldValue}</span>
+      <div className="text-sm flex items-center gap-2 text-text-secondary">
+        <span className="line-through text-text-tertiary">{p.oldValue}</span>
         <span aria-hidden>→</span>
-        <span className="font-semibold text-blue-700">{p.newValue}</span>
+        <span className="font-semibold text-brand-amber">{p.newValue}</span>
       </div>
 
       {p.rationale && (
-        <p className="text-sm text-gray-600 italic">"{p.rationale}"</p>
+        <p className="text-sm text-text-secondary italic">"{p.rationale}"</p>
       )}
 
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-text-tertiary">
         Expira: {new Date(p.expiresAt).toLocaleDateString()}
       </p>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       <div className="flex gap-2 pt-2">
         {isMine ? (
           <button
             type="button"
             onClick={() => handle(() => cancel.mutateAsync(p.id))}
-            className="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="px-3 py-1.5 rounded-lg border border-brd-subtle bg-surface-muted text-text-primary text-sm hover:bg-surface-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber"
             disabled={cancel.isPending}
           >
             Cancelar
@@ -87,7 +90,7 @@ function ProposalCard({ p }: { p: ConfigProposal }) {
             <button
               type="button"
               onClick={() => handle(() => accept.mutateAsync(p.id))}
-              className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50"
+              className="px-3 py-1.5 rounded-lg bg-brand-amber text-bg-page text-sm font-semibold hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber disabled:opacity-50"
               disabled={accept.isPending}
             >
               Aceptar
@@ -95,7 +98,7 @@ function ProposalCard({ p }: { p: ConfigProposal }) {
             <button
               type="button"
               onClick={() => handle(() => reject.mutateAsync(p.id))}
-              className="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              className="px-3 py-1.5 rounded-lg border border-brd-subtle bg-surface-muted text-text-primary text-sm hover:bg-surface-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber"
               disabled={reject.isPending}
             >
               Rechazar
@@ -111,10 +114,10 @@ export function ProposalsPanel() {
   const { data, isLoading } = useActiveProposals()
   const proposals = data?.proposals ?? []
 
-  if (isLoading) return <p className="text-sm text-gray-500">Cargando propuestas...</p>
+  if (isLoading) return <p className="text-sm text-text-secondary">Cargando propuestas...</p>
   if (proposals.length === 0) {
     return (
-      <p className="text-sm text-gray-500 italic">
+      <p className="text-sm text-text-secondary italic">
         No hay propuestas pendientes. Cuando tu pareja proponga un cambio aparecerá aquí.
       </p>
     )
