@@ -7,7 +7,7 @@
 ## 1. PROYECTO
 App web gamificada para parejas: gestión equitativa de responsabilidades del hogar mediante puntos negociables. Repo: https://github.com/wikiedu/claude_matripuntos
 
-**Versión actual en producción:** v2.7.0 · Sprints 1-18 hardening del audit profundo 2026-05-05 (tag `v2.7.0`)
+**Versión actual en producción:** v2.7.4 · Sprints 1-22 hardening del audit profundo 2026-05-05 (tag `v2.7.4`)
 **Estado del proyecto:** ver `docs/STATUS.md` para snapshot completo (qué está en prod, qué está pendiente, qué decisiones quedan).
 **Auditoría base:** `docs/audits/2026-05-05-full-audit/00-MASTER-REPORT.md` (12 dominios, ~255 hallazgos).
 **Branch principal:** `main`
@@ -305,7 +305,11 @@ Formato: `vX.Y · Nombre`. Branches: `feature/vX.Y-nombre-kebab`. Tags git: `mvp
 | v2.6.3 | Sprint 15 — services hardening (negociación + ISO weeks) | ✅ Producción 2026-05-06 | `main` (tag `v2.6.3`) |
 | v2.6.4 | Sprint 16 — two-account flows (Q-1, Q-10, Q-5) | ✅ Producción 2026-05-06 | `main` (tag `v2.6.4`) |
 | v2.6.5 | Sprint 18 — DB-bound CI job + tests faltantes | ✅ Producción 2026-05-06 | `main` (tag `v2.6.5`) |
-| **v2.7.0** | **Sprint 17 — refresh token endpoints (audit 04 S1-6)** | ✅ Producción 2026-05-06 | `main` (tag `v2.7.0`) |
+| v2.7.0 | Sprint 17 — refresh token endpoints (audit 04 S1-6) | ✅ Producción 2026-05-06 | `main` (tag `v2.7.0`) |
+| v2.7.1 | Sprint 19 — backend routes S2 batch (audit 01) | ✅ Producción 2026-05-06 | `main` (tag `v2.7.1`) |
+| v2.7.2 | Sprint 20 — services + DB S2/S3 (audit 02) | ✅ Producción 2026-05-06 | `main` (tag `v2.7.2`) |
+| v2.7.3 | Sprint 21 — security + frontend S2 (audit 04, 06) | ✅ Producción 2026-05-06 | `main` (tag `v2.7.3`) |
+| **v2.7.4** | **Sprint 22 — UX + infra S2/S3 final (audit 09, 10)** | ✅ Producción 2026-05-06 | `main` (tag `v2.7.4`) |
 | **v2.0.6** | **Refinos catálogo** — picker en EventCreate, contraoferta, "proponer" inline | 🤔 Por decidir tras D30 | `feature/v2.0.6-refinos` |
 | **v2.1** | **Conectados** — Google sync + push real + ICS + referidos | 📝 Spec aprobado | `feature/v2.1-conectados` |
 | **v2.2** | **Multiidiomas** — i18n ES/EN/CA/PT | 🧠 Brainstorm pendiente | `feature/v2.2-multiidiomas` |

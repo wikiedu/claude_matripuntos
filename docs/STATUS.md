@@ -1,11 +1,13 @@
 # STATUS — Matripuntos
 
 **Última actualización:** 2026-05-06
-**Versión actual desplegada en producción:** `v2.7.0` · Sprints 1-18 hardening del audit profundo
+**Versión actual desplegada en producción:** `v2.7.4` · Sprints 1-22 hardening del audit profundo
 
 > **Auditoría 2026-05-05** completada: ~255 hallazgos en 12 dominios, ver
-> `docs/audits/2026-05-05-full-audit/`. Sprints 1-18 (v2.4.0 → v2.7.0) cierran
-> los **16 S0 críticos** y **~50 S1 alto impacto**. S2/S3 pendientes en backlog (no bloqueantes).
+> `docs/audits/2026-05-05-full-audit/`. Sprints 1-22 (v2.4.0 → v2.7.4) cierran
+> los **25 S0 críticos**, **~85 S1 alto impacto**, y **40+ S2/S3** entre los 12 dominios.
+> Lo que queda son items específicos de producto (decisiones, no bugs) o
+> mejoras profundas (consolidación de 3 sistemas de achievements, etc).
 
 > **Handoff Claude Design 14 canvases iniciales completado al 100%.**
 > **Canvas 15 (Tareas/Actividades rediseño)** desplegado en v2.3.0.
@@ -19,6 +21,43 @@
 ## 🟢 EN PRODUCCIÓN (deployable + público)
 
 > Lo que está hoy mismo accesible al usuario en matripuntos.com.
+
+### v2.7.4 Sprint 22 — UX + infra S2/S3 final — **2026-05-06**
+- **render.yaml versionado**: blueprint con healthCheckPath, autoDeploy, multi-env (audit 10 S2-I-1, S2-I-7)
+- **src/backend/.env.example**: consolidado de todas las env vars (audit 10 S2-I-2)
+- **server.ts validateEnv()**: fail-fast al boot si JWT_SECRET/DATABASE_URL faltan o JWT_SECRET <32 chars (audit 10 S1-I-5)
+- **Skeleton primitive** con SkeletonCard/SkeletonList: unifica los 4 patrones distintos de loading state, motion-reduce respeta prefers-reduced-motion (audit 09 S2-U-7, 06 S2-9)
+
+### v2.7.3 Sprint 21 — security + frontend S2 — **2026-05-06**
+- **emailService HTML**: escHtml() para userName/inviterName/link (audit 04 S2-1, XSS prevention)
+- **taskProof**: whitelist data:image/{jpeg,png,webp} — bloquea SVG XSS (audit 04 S2-2)
+- **CORS multi-origen** via FRONTEND_URLS CSV (audit 04 S2-7)
+- **CSP en index.html** con allowlist Render API + PostHog + Sentry (audit 04 S2-4)
+- **Tailwind tokens** page.deep, page.blur, accent.indigo-soft, accent.purple-soft (audit 06 S2-5)
+- **CategoryPieChart eliminado** (dead code, audit 06 S2-4)
+- **BottomNav focus-visible** (audit 06 S3-2)
+
+### v2.7.2 Sprint 20 — services + DB S2/S3 — **2026-05-06**
+- **pointsCalculator.getChildrenMultiplier**: respeta event.numChildren=0 estricto (audit 02 S2-3 / 08 S2-4)
+- **redBalanceService**: respeta couple.pausedUntil + dayKey local-TZ via Intl (audit 02 S2-7, S2-8)
+- **recurringTaskService MONTHLY**: clamp anchor-based fin-de-mes (audit 02 S2-9)
+- **emailService**: 3 retries exp backoff + jitter para 5xx/429 transient (audit 02 S2-16, S2-17)
+- **cryptoService.decrypt**: valida formato base64url por segmento (audit 02 S2-18)
+- **birthdaysService**: clamp 29-feb a 28-feb en años no bisiestos (audit 02 S3-5)
+
+### v2.7.1 Sprint 19 — backend routes S2 batch — **2026-05-06**
+- **categories**: zod strict + cap basePoints + duplicate insensitive (audit 01 S2-R-1, R-2)
+- **categories subcategory**: zod strict (audit 01 S2-R-3)
+- **family Children/Pets**: zod schemas estrictos + dateOfBirth pasada + cap 12 hijos (audit 01 S2-R-3, R-4)
+- **notifications**: filter por (userId + coupleId) defensa-en-profundidad (audit 01 S2-R-5)
+- **analyticsV2 parseRange**: validar from <= to + dates parseable (audit 01 S2-R-7, R-8)
+- **analyticsV2 /insights/:id/seen**: updateMany scope coupleId (audit 01 S2-R-20 IDOR)
+- **todos**: .strict() schemas (audit 01 S2-R-16)
+- **shopping**: take 500 en items activos (audit 01 S2-R-17)
+- **gamificationV2 /replay/:key/seen**: regex validate replayKey (audit 01 S2-R-21)
+- **taskRoutes /log**: cap pointsFinal a 500 tras multiplicadores (audit 01 S2-R-22)
+- **eventRoutes GET /:id**: drop creator.email PII (audit 01 S2-R-23)
+- **invitations /invite-partner**: zod email + lowercase canon (audit 01 S2-R-12)
 
 ### v2.7.0 Sprint 17 — refresh token endpoints — **2026-05-06**
 - **POST /auth/refresh**: rotación con reuse detection (audit 04 S1-6 / 01 S1-R-17). Token revocado entrante → revoca toda la chain del user.
