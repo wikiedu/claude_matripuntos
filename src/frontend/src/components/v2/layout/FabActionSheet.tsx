@@ -19,7 +19,7 @@ export function FabActionSheet({ open, onClose }: Props) {
   const toneColors: Record<string, string> = {
     amber:  'bg-brand-amber/15  border-brand-amber/30  text-brand-amber',
     purple: 'bg-brand-purple/15 border-brand-purple/30 text-brand-purple',
-    indigo: 'bg-brand-indigo/15 border-brand-indigo/30 text-[#a5b4fc]',
+    indigo: 'bg-brand-indigo/15 border-brand-indigo/30 text-indigo-300',
   }
 
   return (

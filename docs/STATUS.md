@@ -1,7 +1,7 @@
 # STATUS — Matripuntos
 
 **Última actualización:** 2026-05-05
-**Versión actual desplegada en producción:** `v2.4.3` · Sprint 1 hardening del audit profundo
+**Versión actual desplegada en producción:** `v2.5.0` · Sprint 2 hardening del audit profundo
 
 > **Auditoría 2026-05-05** completada: ~255 hallazgos en 12 dominios, ver
 > `docs/audits/2026-05-05-full-audit/`. Sprint 1 (v2.4.0 → v2.4.3) cierra
@@ -19,6 +19,12 @@
 ## 🟢 EN PRODUCCIÓN (deployable + público)
 
 > Lo que está hoy mismo accesible al usuario en matripuntos.com.
+
+### v2.5.0 Sprint 2 audit hardening — **2026-05-05**
+- **Tasks.tsx → React Query**: causa B del refresh extraño resuelta. Eliminado el polling triple (focus + visibility + setInterval), reemplazado por useQuery con `refetchInterval: () => isSheetOpen() ? false : 30_000`. `isLoading` solo en bootstrap, no en refetches background. (audit 05 S0)
+- **Achievements 3 servicios documentados**: tras análisis, `achievementEngine` (per-user write), `achievementCheckService` (read map UI), `achievementEngineV2` (catalog evaluator pure) son 3 capas, no duplicados. Plan unificación v2.6+ documentado inline. (audit 02 S2)
+- **Hex hardcoded → tokens Tailwind**: 6 ocurrencias `text-[#a5b4fc]/[#c4b5fd]/[#fbbf24]` reemplazadas por `text-indigo-300 / text-violet-300 / text-amber-400` en Pill, FabActionSheet, DailyPhrase, HeatmapChart, PremiumOverlay. (audit 09 S1-U-1)
+- **IDOR contract test inventory**: `tests/idorContract.test.ts` documenta los 30+ endpoints `:id` que deben filtrar por coupleId. Patrón canónico (findFirst con coupleId, updateMany con coupleId). Convertir a E2E real cuando exista harness DB+http. (audit 11 S1-T-3)
 
 ### v2.4.3 Sprint 1 hardening — **2026-05-05**
 - **v2.4.0 — Quick wins críticos (D1):**

@@ -38,7 +38,9 @@
 | **v2.4.1** | **Audit hardening D2** — `$transaction` en negotiationEngine.accept + force creator check + dispute reverte PT + reset-confirm doble confirm | ✅ **En producción 2026-05-05** | `main` | `v2.4.1` |
 | **v2.4.2** | **Audit hardening D3** — deletedAt filter login/signup + IDOR journal + GDPR Art. 8 + categories schema + forgot-password real | ✅ **En producción 2026-05-05** | `main` | `v2.4.2` |
 | **v2.4.3** | **Audit hardening D4** — deploy script sin --delete + plan baseline migrations Postgres + STATUS/ROADMAP al día | ✅ **En producción 2026-05-05** | `main` | `v2.4.3` |
-| **v2.5** | **Sprint 2 audit** — Tasks.tsx → React Query · achievement engines unified · design tokens cleanup · IDOR contract tests | 📝 Plan listo en master report audit | `feature/v2.5-sprint2-audit` | — |
+| **v2.5.0** | **Sprint 2 audit** — Tasks.tsx → React Query · achievement engines layered (3 servicios documentados, no duplicados) · 6 hex hardcoded → tokens Tailwind · IDOR contract test inventory | ✅ **En producción 2026-05-05** | `main` | `v2.5.0` |
+| **v2.6** | **Achievements unification** — V1 usa V2 internamente para evaluar catálogo declarativo | 📝 Backlog | — | — |
+| **v2.7** | **Tokens unification full** — eliminar matri-* CSS vars + backgrounds opaque dark consolidados en surface tokens | 📝 Backlog | — | — |
 | **v2.0.6** | **Refinos catálogo** — picker en EventCreate, contraoferta en propuestas, "proponer cambio" inline | 🤔 Por decidir tras D30 | `feature/v2.0.6-refinos` | — |
 | **v2.1** | **Conectados** — Google sync bidireccional + push real + ICS + referidos | 📝 Spec aprobado (2026-05-02) | `feature/v2.1-conectados` | — |
 | **v2.2** | **Multiidiomas** — i18n ES/EN/CA/PT (interfaz, prompts journal, emails) | 🧠 Brainstorm pendiente | `feature/v2.2-multiidiomas` | — |
