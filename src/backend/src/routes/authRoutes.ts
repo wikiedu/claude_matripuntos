@@ -1,5 +1,8 @@
 import express, { Request, Response } from 'express'
+import crypto from 'crypto'
+import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { z } from 'zod'
 import { signupCouple, loginUser, getUserById, getCoupleData, signupUser } from '../services/authService.js'
 import {
   createInvitation,
@@ -580,6 +583,103 @@ router.post('/register-with-code', async (req: Request, res: Response): Promise<
     }
     const message = error instanceof Error ? error.message : 'Failed to register with code'
     res.status(400).json({ error: message })
+  }
+})
+
+// v2.4 audit 04 S1-4 — Forgot password / reset password.
+// Patrón: cliente envía email, backend genera token aleatorio (32 bytes
+// hex), guarda SHA-256 hash con expira a 1h, manda email con link
+// `${RESET_URL}?token=<plaintext>`. Cliente abre link, envía
+// { token, newPassword } a /reset-password — backend hashea, busca,
+// valida no usado/no expirado, actualiza passwordHash, marca usedAt.
+//
+// Anti-enumeration: SIEMPRE devolvemos 200 OK aunque no exista usuario
+// con ese email — evita revelar qué emails están registrados.
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+})
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(32).max(128),
+  newPassword: z.string().min(8, 'Mínimo 8 caracteres').max(200),
+})
+
+router.post('/forgot-password', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = forgotPasswordSchema.parse(req.body)
+    const user = await prisma.user.findFirst({ where: { email, deletedAt: null } })
+    // Anti-enumeration: respuesta idéntica si existe o no.
+    if (user) {
+      const tokenPlaintext = crypto.randomBytes(32).toString('hex')
+      const tokenHash = crypto.createHash('sha256').update(tokenPlaintext).digest('hex')
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1h
+
+      await prisma.passwordResetToken.create({
+        data: { userId: user.id, tokenHash, expiresAt },
+      })
+
+      try {
+        const { sendPasswordResetEmail } = await import('../services/emailService.js')
+        await sendPasswordResetEmail(user.email, user.name, tokenPlaintext)
+      } catch (e) {
+        console.error('[forgot-password] email send failed', e)
+        // No fallamos la request — el usuario debe poder reintentar sin
+        // enterarse de problemas internos de email.
+      }
+    }
+    res.status(200).json({
+      message: 'Si tu email está registrado, recibirás un enlace para reestablecer tu contraseña.',
+    })
+  } catch (error) {
+    if (error instanceof ZodError) {
+      res.status(400).json({ error: 'Validation error', details: error.errors })
+      return
+    }
+    console.error('[forgot-password]', error)
+    res.status(500).json({ error: 'Failed to process request' })
+  }
+})
+
+router.post('/reset-password', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { token, newPassword } = resetPasswordSchema.parse(req.body)
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+
+    const reset = await prisma.passwordResetToken.findUnique({ where: { tokenHash } })
+    if (!reset || reset.usedAt || reset.expiresAt < new Date()) {
+      res.status(400).json({ error: 'Token inválido o caducado. Solicita uno nuevo.' })
+      return
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10)
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: reset.userId },
+        data: { passwordHash },
+      }),
+      prisma.passwordResetToken.update({
+        where: { id: reset.id },
+        data: { usedAt: new Date() },
+      }),
+      // Best-effort: revoca refresh tokens vivos del user para forzar
+      // re-login de cualquier sesión existente (opcional pero estándar).
+      prisma.refreshToken.updateMany({
+        where: { userId: reset.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ])
+
+    res.status(200).json({
+      message: 'Contraseña actualizada. Inicia sesión con tu nueva contraseña.',
+    })
+  } catch (error) {
+    if (error instanceof ZodError) {
+      res.status(400).json({ error: 'Validation error', details: error.errors })
+      return
+    }
+    console.error('[reset-password]', error)
+    res.status(500).json({ error: 'Failed to reset password' })
   }
 })
 

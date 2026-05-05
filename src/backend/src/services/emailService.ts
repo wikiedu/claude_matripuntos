@@ -88,3 +88,31 @@ export function inviteEmail(inviterName: string, link: string): { subject: strin
 </div>`,
   }
 }
+
+// v2.4 audit 04 S1-4 — password reset email helper.
+export function passwordResetEmail(userName: string, link: string): { subject: string; html: string; text: string } {
+  return {
+    subject: 'Restablecer tu contraseña',
+    text: `Hola ${userName},\n\nHemos recibido una solicitud para restablecer tu contraseña en Matripuntos.\n\nAbre este enlace para crear una nueva (caduca en 1 hora):\n${link}\n\nSi no fuiste tú, ignora este mensaje. Tu contraseña actual sigue válida.\n\nMatripuntos`,
+    html: `<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px;background:#0f0a1e;color:#fff;border-radius:16px">
+<h1 style="font-size:20px;margin:0 0 12px">Restablecer contraseña</h1>
+<p style="color:rgba(255,255,255,0.85);margin:0 0 16px">Hola ${userName},</p>
+<p style="color:rgba(255,255,255,0.85);margin:0 0 16px">Hemos recibido una solicitud para restablecer tu contraseña.</p>
+<p style="margin:24px 0;text-align:center"><a href="${link}" style="background:#fbbf24;color:#000;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Crear nueva contraseña</a></p>
+<p style="color:rgba(255,255,255,0.6);font-size:13px;margin:0 0 8px">El enlace caduca en 1 hora.</p>
+<p style="color:rgba(255,255,255,0.6);font-size:13px;margin:0">Si no fuiste tú, ignora este mensaje. Tu contraseña actual sigue válida.</p>
+</div>`,
+  }
+}
+
+// Wrapper específico para password reset usado por el endpoint /forgot-password.
+export async function sendPasswordResetEmail(
+  to: string,
+  userName: string,
+  tokenPlaintext: string,
+): Promise<SendEmailResult> {
+  const base = process.env.PASSWORD_RESET_BASE_URL ?? 'https://matripuntos.com/reset-password'
+  const link = `${base}?token=${encodeURIComponent(tokenPlaintext)}`
+  const tpl = passwordResetEmail(userName || 'amiga/o', link)
+  return sendEmail({ to, subject: tpl.subject, html: tpl.html, text: tpl.text })
+}

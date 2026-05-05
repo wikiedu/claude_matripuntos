@@ -229,6 +229,8 @@ model User {
 
   // v1.8-prep relations (refresh tokens)
   refreshTokens           RefreshToken[]
+  // v2.4 audit 04 S1-4 — password reset
+  passwordResetTokens     PasswordResetToken[]
 
   // v2.0.4 relations
   configurationProposals  ConfigurationProposal[] @relation("ConfigProposer")
@@ -908,6 +910,22 @@ model RefreshToken {
   deviceFingerprint String?       // user-agent + IP hash opcional para detectar reuse
   createdAt     DateTime @default(now())
   lastUsedAt    DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// v2.4 audit 04 S1-4 — Password reset flow.
+// Token plaintext nunca se guarda; sólo el hash SHA-256. Single-use:
+// `usedAt` se setea al canjear y bloquea reuso. Expira 1h tras emit.
+model PasswordResetToken {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash     String   @unique
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime @default(now())
 
   @@index([userId])
   @@index([expiresAt])
