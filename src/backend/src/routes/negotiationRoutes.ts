@@ -246,10 +246,27 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
         } else if (data.responseType === 'counter_proposed') {
           const nextRound = negotiation.event.negotiationRound + 1
 
-          // MVP: no premium plan implementation yet, so we do not enforce the
-          // maxFreeRounds cap. The schema column + lifecycle are preserved for
-          // when premium ships. The default was bumped to a large value so that
-          // existing rows never trip the check either.
+          // v2.4 fix audit 08 S0-3: enforce maxFreeRounds para planes free.
+          // Antes el cap estaba en schema pero nunca se chequeaba → rondas
+          // ilimitadas para todos. Ahora: lee Subscription de la pareja, y si
+          // no es premium/pro, lanza 403 cuando nextRound > maxFreeRounds.
+          const subscription = await tx.subscription.findUnique({
+            where: { coupleId: negotiation.event.coupleId },
+            select: { plan: true, endsAt: true },
+          })
+          const isActivePremium =
+            subscription &&
+            (subscription.plan === 'premium' || subscription.plan === 'pro') &&
+            (!subscription.endsAt || subscription.endsAt > new Date())
+          const maxFreeRounds = negotiation.event.maxFreeRounds ?? 2
+          if (!isActivePremium && nextRound > maxFreeRounds) {
+            // Throwing aborta la $transaction. RespondError lo mapea a 403.
+            throw new RespondError(
+              403,
+              `Has agotado las ${maxFreeRounds} rondas gratuitas de negociación. ` +
+              `Actualiza a Premium para rondas ilimitadas, o usa "Forzar" para cerrar el evento.`,
+            )
+          }
 
           await tx.negotiation.create({
             data: {
