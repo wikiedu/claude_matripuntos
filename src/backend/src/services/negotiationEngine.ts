@@ -147,135 +147,128 @@ export class NegotiationEngine {
         throw new Error('No negotiation found')
       }
 
-      let updatedEvent: Event
+      // v2.4 audit 02 S0 — todas las mutaciones de respond viven en una sola
+      // $transaction. Antes el accept hacía updateMany→find→negotiation.create→
+      // pointsTransaction.create fuera de transaction; un crash a mitad dejaba
+      // el evento accepted SIN saldo, rompiendo la invariante "saldo == suma
+      // transactions". Con $transaction o todo se aplica o nada.
+      const updatedEvent: Event = await prisma.$transaction(async (tx) => {
+        let result: Event
+        switch (response.action) {
+          case 'accept': {
+            // Atomic state transition: only the first concurrent accept succeeds.
+            const accepted = await tx.event.updateMany({
+              where: {
+                id: eventId,
+                status: { in: ['draft', 'pending', 'proposed', 'counter_proposal'] },
+              },
+              data: {
+                status: 'accepted',
+                pointsAgreed: lastNegotiation.pointsProposed,
+              },
+            })
+            if (accepted.count === 0) {
+              throw new Error('Event already resolved')
+            }
+            result = await tx.event.findUniqueOrThrow({ where: { id: eventId } })
 
-      switch (response.action) {
-        case 'accept': {
-          // Atomic state transition: only the first concurrent accept succeeds.
-          // If event is already accepted/rejected/forced, updateMany returns count=0
-          // and we abort — preventing duplicate event_accepted point transactions.
-          const accepted = await prisma.event.updateMany({
-            where: {
-              id: eventId,
-              status: { in: ['draft', 'pending', 'proposed', 'counter_proposal'] },
-            },
-            data: {
-              status: 'accepted',
-              pointsAgreed: lastNegotiation.pointsProposed,
-            },
-          })
-          if (accepted.count === 0) {
-            throw new Error('Event already resolved')
+            await tx.negotiation.create({
+              data: {
+                eventId,
+                roundNumber: lastNegotiation.roundNumber,
+                respondedBy: responderId,
+                responseType: 'accepted',
+                respondedAt: new Date(),
+                pointsProposed: lastNegotiation.pointsProposed,
+              },
+            })
+
+            // Proposer loses points (negative transaction). Si esta línea falla
+            // por cualquier motivo (ej. constraint UNIQUE en relatedEventId),
+            // toda la $transaction hace rollback y el evento queda como estaba.
+            await tx.pointsTransaction.create({
+              data: {
+                coupleId: user.coupleId ?? '',
+                userId: event.createdBy!,
+                type: 'event_accepted',
+                relatedEventId: eventId,
+                amount: new Decimal(-lastNegotiation.pointsProposed!),
+                description: `Actividad aceptada: ${event.title || event.type}`,
+              },
+            })
+            return result
           }
-          updatedEvent = await prisma.event.findUniqueOrThrow({ where: { id: eventId } })
 
-          // Record acceptance
-          await prisma.negotiation.create({
-            data: {
-              eventId,
-              roundNumber: lastNegotiation.roundNumber,
-              respondedBy: responderId,
-              responseType: 'accepted',
-              respondedAt: new Date(),
-              pointsProposed: lastNegotiation.pointsProposed,
-            },
-          })
+          case 'reject':
+            result = await tx.event.update({
+              where: { id: eventId },
+              data: { status: 'rejected' },
+            })
+            await tx.negotiation.create({
+              data: {
+                eventId,
+                roundNumber: lastNegotiation.roundNumber,
+                respondedBy: responderId,
+                responseType: 'rejected',
+                respondedAt: new Date(),
+                message: response.message || null,
+                pointsProposed: lastNegotiation.pointsProposed,
+              },
+            })
+            return result
 
-          // Create points transaction
-          // Proposer loses points (negative transaction)
-          await prisma.pointsTransaction.create({
-            data: {
-              coupleId: user.coupleId ?? '',
-              userId: event.createdBy!,
-              type: 'event_accepted',
-              relatedEventId: eventId,
-              amount: new Decimal(-lastNegotiation.pointsProposed!),
-              description: `Actividad aceptada: ${event.title || event.type}`,
-            },
-          })
-          break
+          case 'counter_propose':
+            if (lastNegotiation.roundNumber >= 2) {
+              throw new Error('Maximum 2 negotiation rounds allowed')
+            }
+            if (!response.pointsProposed) {
+              throw new Error('Points must be provided for counter proposal')
+            }
+            result = await tx.event.update({
+              where: { id: eventId },
+              data: {
+                status: 'counter_proposal',
+                currentNegotiationRound: 2,
+                lastProposedBy: responderId,
+                lastProposedPoints: response.pointsProposed,
+                justification: response.message || null,
+              },
+            })
+            await tx.negotiation.create({
+              data: {
+                eventId,
+                roundNumber: 2,
+                proposedBy: responderId,
+                pointsProposed: response.pointsProposed,
+                message: response.message || null,
+                responseType: 'counter_proposed',
+                respondedAt: new Date(),
+              },
+            })
+            return result
+
+          case 'pending_conversation':
+            result = await tx.event.update({
+              where: { id: eventId },
+              data: { status: 'pending_conversation' },
+            })
+            await tx.negotiation.create({
+              data: {
+                eventId,
+                roundNumber: lastNegotiation.roundNumber,
+                respondedBy: responderId,
+                responseType: 'pending_conversation',
+                respondedAt: new Date(),
+                message: response.message || null,
+                pointsProposed: lastNegotiation.pointsProposed,
+              },
+            })
+            return result
+
+          default:
+            throw new Error('Invalid response action')
         }
-
-        case 'reject':
-          updatedEvent = await prisma.event.update({
-            where: { id: eventId },
-            data: {
-              status: 'rejected',
-            },
-          })
-
-          await prisma.negotiation.create({
-            data: {
-              eventId,
-              roundNumber: lastNegotiation.roundNumber,
-              respondedBy: responderId,
-              responseType: 'rejected',
-              respondedAt: new Date(),
-              message: response.message || null,
-              pointsProposed: lastNegotiation.pointsProposed,
-            },
-          })
-          break
-
-        case 'counter_propose':
-          // Check if we're on round 1 (can go to round 2)
-          if (lastNegotiation.roundNumber >= 2) {
-            throw new Error('Maximum 2 negotiation rounds allowed')
-          }
-
-          if (!response.pointsProposed) {
-            throw new Error('Points must be provided for counter proposal')
-          }
-
-          updatedEvent = await prisma.event.update({
-            where: { id: eventId },
-            data: {
-              status: 'counter_proposal',
-              currentNegotiationRound: 2,
-              lastProposedBy: responderId,
-              lastProposedPoints: response.pointsProposed,
-              justification: response.message || null,
-            },
-          })
-
-          // Record counter proposal
-          await prisma.negotiation.create({
-            data: {
-              eventId,
-              roundNumber: 2,
-              proposedBy: responderId,
-              pointsProposed: response.pointsProposed,
-              message: response.message || null,
-              responseType: 'counter_proposed',
-              respondedAt: new Date(),
-            },
-          })
-          break
-
-        case 'pending_conversation':
-          updatedEvent = await prisma.event.update({
-            where: { id: eventId },
-            data: {
-              status: 'pending_conversation',
-            },
-          })
-
-          await prisma.negotiation.create({
-            data: {
-              eventId,
-              roundNumber: lastNegotiation.roundNumber,
-              respondedBy: responderId,
-              responseType: 'pending_conversation',
-              respondedAt: new Date(),
-              message: response.message || null,
-              pointsProposed: lastNegotiation.pointsProposed,
-            },
-          })
-          break
-
-        default:
-          throw new Error('Invalid response action')
-      }
+      })
 
       // Notify creator of response
       const creator = await prisma.user.findUnique({
