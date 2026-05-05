@@ -1,4 +1,14 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+/* v2.5.2 audit 09 S2-U-6 — Inter self-hosted con @fontsource/inter en
+ * lugar de Google Fonts CDN. Razones:
+ *   - Privacidad GDPR: no se manda IP de cada visitor a fonts.googleapis.com
+ *   - Perf: chunk bundleado, sin DNS extra ni TLS handshake.
+ *   - Offline: la PWA cachea Inter como cualquier asset.
+ */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/inter/800.css';
 
 @tailwind base;
 @tailwind components;
@@ -54,5 +64,25 @@ body {
 
   .badge-warning {
     @apply inline-flex items-center gap-1 px-2.5 py-1 bg-warning bg-opacity-10 text-warning rounded-full text-sm font-medium;
+  }
+}
+
+/* v2.5.2 audit 09 S2-U-2 — respetar prefers-reduced-motion.
+ * Reduce/elimina animaciones para usuarios con esta preferencia activa
+ * (vértigo, mareo, lectores de pantalla). El scroll-smooth de html y
+ * cualquier transition CSS también se neutralizan. Para JS animations
+ * (PointsBurst, AnimatedNumber, LevelUpModal, Flame flicker), el
+ * componente correspondiente debería leer matchMedia y saltar la
+ * animación o usar transición instantánea.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  html {
+    scroll-behavior: auto !important;
   }
 }
