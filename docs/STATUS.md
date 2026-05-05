@@ -1,11 +1,11 @@
 # STATUS — Matripuntos
 
 **Última actualización:** 2026-05-05
-**Versión actual desplegada en producción:** `v2.5.7` · Sprints 1-9 hardening del audit profundo
+**Versión actual desplegada en producción:** `v2.5.8` · Sprints 1-10 hardening del audit profundo
 
 > **Auditoría 2026-05-05** completada: ~255 hallazgos en 12 dominios, ver
-> `docs/audits/2026-05-05-full-audit/`. Sprints 1-9 (v2.4.0 → v2.5.7) cierran
-> 16 S0 críticos + 30+ S1 alto impacto. Pendientes en backlog v2.6/v2.7.
+> `docs/audits/2026-05-05-full-audit/`. Sprints 1-10 (v2.4.0 → v2.5.8) cierran
+> 16 S0 críticos + 35+ S1 alto impacto + perf gains hot-path. Pendientes en backlog v2.6/v2.7.
 
 > **Handoff Claude Design 14 canvases iniciales completado al 100%.**
 > **Canvas 15 (Tareas/Actividades rediseño)** desplegado en v2.3.0.
@@ -19,6 +19,12 @@
 ## 🟢 EN PRODUCCIÓN (deployable + público)
 
 > Lo que está hoy mismo accesible al usuario en matripuntos.com.
+
+### v2.5.8 Sprint 10 — perf + integrity + memo — **2026-05-05**
+- **/tasks/recurring N+1 → groupBy + findMany agregada**: para 50 tasks pasamos de 100 round-trips a 2. Map lookup O(1) (audit 01).
+- **CalendarEntry.relatedEventId/relatedTaskId con FK explícita** → onDelete: SetNull. Migration limpia huérfanos antes de añadir constraints (audit 03 S1).
+- **AppHeader React.memo**: ~20% menos re-renders del header en flujo típico (audit 06).
+- **MIGRATIONS-BASELINE.md actualizado**: 4 migrations Postgres-nativas idempotentes documentadas (passwordReset, indexes, taskFK, calendarFK).
 
 ### v2.5.7 Sprint 9 — DB hardening + perf — **2026-05-05**
 - **Task.defaultAssigneeId con FK explícita** → User onDelete SetNull. Migration limpia primero referencias huérfanas. Antes era String? sin foreign key (audit 03 S1).

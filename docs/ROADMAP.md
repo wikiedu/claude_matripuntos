@@ -46,6 +46,7 @@
 | **v2.5.5** | **Sprint 7 audit** — pointsDisputed validation · TaskLog date ISO · analyticsV2 LIMIT | ✅ **En producción 2026-05-05** | `main` | `v2.5.5` |
 | **v2.5.6** | **Sprint 8 audit** — Calendar RQ · 4 composite indexes · Onboarding deps · Tasks modales legacy a11y | ✅ **En producción 2026-05-05** | `main` | `v2.5.6` |
 | **v2.5.7** | **Sprint 9 audit** — Task.defaultAssigneeId FK · /balance N+1 → groupBy · Tasks dead code | ✅ **En producción 2026-05-05** | `main` | `v2.5.7` |
+| **v2.5.8** | **Sprint 10 audit** — /tasks/recurring N+1 → groupBy · CalendarEntry FKs · AppHeader memo · MIGRATIONS-BASELINE doc | ✅ **En producción 2026-05-05** | `main` | `v2.5.8` |
 | **v2.6** | **Achievements unification** — V1 usa V2 internamente para evaluar catálogo declarativo | 📝 Backlog | — | — |
 | **v2.7** | **Tokens unification full** — eliminar matri-* CSS vars + backgrounds opaque dark consolidados en surface tokens | 📝 Backlog | — | — |
 | **v2.0.6** | **Refinos catálogo** — picker en EventCreate, contraoferta en propuestas, "proponer cambio" inline | 🤔 Por decidir tras D30 | `feature/v2.0.6-refinos` | — |
