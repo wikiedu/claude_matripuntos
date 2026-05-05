@@ -58,13 +58,18 @@ export default function Journal() {
   }
 
   async function react(entryId: string, emoji: string) {
+    // v2.6.1 audit 05 4.2 — antes el catch era silencioso y el user no
+    // sabía que la reacción no se había guardado. Mostramos el error
+    // (mismo banner que submit) y preservamos la intención del click.
     try {
       await apiClient.request(`/journal/entries/${entryId}/react`, {
         method: 'POST',
         body: JSON.stringify({ emoji }),
       })
       queryClient.invalidateQueries({ queryKey: ['journal', 'entries'] })
-    } catch {}
+    } catch (e: any) {
+      setErr(e?.message ?? 'No se pudo guardar la reacción')
+    }
   }
 
   function deleteEntry(id: string) {
@@ -76,7 +81,9 @@ export default function Journal() {
     try {
       await apiClient.request(`/journal/entries/${confirmDeleteId}`, { method: 'DELETE' })
       queryClient.invalidateQueries({ queryKey: ['journal', 'entries'] })
-    } catch {}
+    } catch (e: any) {
+      setErr(e?.message ?? 'No se pudo eliminar la entrada')
+    }
     setConfirmDeleteId(null)
   }
 
@@ -214,7 +221,20 @@ function EntryCard({ entry, isMine, onReact, onDelete }: {
   onReact: (emoji: string) => void
   onDelete: () => void
 }) {
-  const tags = (() => { try { return JSON.parse(entry.tags) as string[] } catch { return [] } })()
+  // v2.6.1 audit 05 4.3 — `entry.tags` puede ser un JSON malformado (bug
+  // histórico v2.0.2) o un string vacío. Parseamos defensivamente y
+  // logueamos en consola para diagnostico — el cliente sigue mostrando
+  // [] en ese caso para no romper la card.
+  const tags = (() => {
+    if (!entry.tags) return []
+    try {
+      const parsed = JSON.parse(entry.tags)
+      return Array.isArray(parsed) ? parsed.filter((t): t is string => typeof t === 'string') : []
+    } catch (e) {
+      console.warn('[Journal] entry.tags malformado, usando []:', entry.id, e)
+      return []
+    }
+  })()
   const reactionCounts = new Map<string, number>()
   for (const r of entry.reactions ?? []) {
     reactionCounts.set(r.emoji, (reactionCounts.get(r.emoji) ?? 0) + 1)
