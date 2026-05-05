@@ -71,9 +71,18 @@ const PORT = process.env.PORT || 3000
 mountSentryRequestHandler(app)
 
 // Middleware
-const allowedOrigins = process.env.FRONTEND_URL
-  ? [process.env.FRONTEND_URL]
-  : ['http://localhost:5173', 'http://localhost:4173']
+// v2.7.3 audit 04 S2-7 — soporte multi-origin via CSV (preview/staging).
+// FRONTEND_URLS (plural) es la nueva canónica; FRONTEND_URL (singular)
+// se mantiene por compatibilidad para no romper deploys existentes.
+const allowedOrigins = (() => {
+  const csv = process.env.FRONTEND_URLS ?? process.env.FRONTEND_URL ?? ''
+  const parsed = csv
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  if (parsed.length > 0) return parsed
+  return ['http://localhost:5173', 'http://localhost:4173']
+})()
 
 // Audit v1.4 security hardening: helmet adds HSTS, X-Content-Type-Options,
 // Referrer-Policy, XSS filter, etc. We disable `contentSecurityPolicy`

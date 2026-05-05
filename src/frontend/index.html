@@ -2,6 +2,13 @@
 <html lang="es" class="dark">
   <head>
     <meta charset="UTF-8" />
+    <!-- v2.7.3 audit 04 S2-4 — CSP defense-in-depth para el SPA hosteado
+         vía FTP en keepitup.io. Permite self + connect a Render API,
+         PostHog y Sentry. img: data: para data-URLs de proof de tareas.
+         style/script 'unsafe-inline' necesario para Vite y estilos
+         dinámicos (Tailwind genera bundle, pero algunos componentes
+         inyectan style runtime). -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://*.posthog.com https://*.sentry.io; connect-src 'self' https://matripuntos-api.onrender.com https://api.matripuntos.com https://*.posthog.com https://*.sentry.io https://*.supabase.co; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self';">
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Matripuntos - Gamifica la equidad en tu pareja</title>

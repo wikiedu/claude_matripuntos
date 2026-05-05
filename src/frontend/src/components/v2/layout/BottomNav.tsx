@@ -27,7 +27,7 @@ export function BottomNav({ onFab }: Props) {
         onClick={() => nav(it.to)}
         aria-label={it.label}
         aria-current={active ? 'page' : undefined}
-        className="flex flex-col items-center justify-center gap-1 px-3 py-1 min-w-[44px] min-h-[44px] bg-transparent border-0 focus:outline-none focus:ring-2 focus:ring-brand-purple/40 rounded"
+        className="flex flex-col items-center justify-center gap-1 px-3 py-1 min-w-[44px] min-h-[44px] bg-transparent border-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/40 rounded"
       >
         <Icon size={18} className={active ? 'text-brand-amber' : 'text-text-tertiary'} />
         <span className={`text-[9px] font-semibold ${active ? 'text-brand-amber' : 'text-text-tertiary'}`}>{it.label}</span>

@@ -36,6 +36,20 @@ export default {
         warn:    '#fbbf24',
         danger:  '#ef4444',
 
+        // v2.7.3 audit 06 S2-5 — tokens para hex que aparecían
+        // hardcodeados en >10 archivos (CookieConsentBanner,
+        // MoodSelectorSheet, LeaveCoupleWizard, DeleteAccountWizard,
+        // AppHeader, etc). Centralizar permite cambiar la marca
+        // tocando un solo lugar.
+        page: {
+          deep: '#1a1035',
+          blur: 'rgba(15,10,30,0.95)',
+        },
+        accent: {
+          'indigo-soft': '#a5b4fc',
+          'purple-soft': '#c4b5fd',
+        },
+
         // === Legacy tokens (kept for v1 components; removed progressively in v1.4 Tasks 0.3–8.1) ===
         primary: '#6366F1',
         secondary: '#EC4899',
