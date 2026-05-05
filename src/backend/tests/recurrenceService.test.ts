@@ -90,3 +90,39 @@ describe('expandRecurrence', () => {
     expect(() => expandRecurrence('FREQ=DAILY', start, 0)).toThrow()
   })
 })
+
+// v2.5.1 audit 02 S1 — RFC 5545 §3.3.10 clamp fin-de-mes.
+describe('expandRecurrence MONTHLY clamp', () => {
+  it('31-ene MONTHLY clamp a 28-feb (no bisiesto)', () => {
+    const start = new Date('2026-01-31T10:00:00Z') // 2026 no bisiesto
+    const dates = expandRecurrence('FREQ=MONTHLY;COUNT=3', start, 365)
+    expect(dates).toHaveLength(3)
+    expect(dates[0].toISOString().slice(0, 10)).toBe('2026-01-31')
+    expect(dates[1].toISOString().slice(0, 10)).toBe('2026-02-28')
+    expect(dates[2].toISOString().slice(0, 10)).toBe('2026-03-31')
+  })
+
+  it('31-ene MONTHLY clamp a 29-feb en año bisiesto', () => {
+    const start = new Date('2024-01-31T10:00:00Z') // 2024 bisiesto
+    const dates = expandRecurrence('FREQ=MONTHLY;COUNT=3', start, 365)
+    expect(dates).toHaveLength(3)
+    expect(dates[0].toISOString().slice(0, 10)).toBe('2024-01-31')
+    expect(dates[1].toISOString().slice(0, 10)).toBe('2024-02-29')
+    expect(dates[2].toISOString().slice(0, 10)).toBe('2024-03-31')
+  })
+
+  it('30 de cada mes clamp a 28/29-feb', () => {
+    const start = new Date('2026-01-30T10:00:00Z')
+    const dates = expandRecurrence('FREQ=MONTHLY;COUNT=2', start, 365)
+    expect(dates[1].toISOString().slice(0, 10)).toBe('2026-02-28')
+  })
+
+  it('YEARLY 29-feb 2024 → 28-feb 2025 (no bisiesto)', () => {
+    const start = new Date('2024-02-29T10:00:00Z')
+    const dates = expandRecurrence('FREQ=YEARLY;COUNT=3', start, 365 * 5)
+    expect(dates).toHaveLength(3)
+    expect(dates[0].toISOString().slice(0, 10)).toBe('2024-02-29')
+    expect(dates[1].toISOString().slice(0, 10)).toBe('2025-02-28')
+    expect(dates[2].toISOString().slice(0, 10)).toBe('2026-02-28')
+  })
+})

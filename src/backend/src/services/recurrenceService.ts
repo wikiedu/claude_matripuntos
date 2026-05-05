@@ -69,6 +69,18 @@ export function expandRecurrence(rrule: string, start: Date, windowDays: number 
   const upperBound = rule.until && rule.until.getTime() < windowEnd.getTime() ? rule.until : windowEnd
   const max = rule.count ?? MAX_OCCURRENCES
 
+  // v2.5.1 audit 02 S1 — preservar "always day N" en MONTHLY/YEARLY:
+  // anchorDay/anchorMonth/hours capturados del start original. En cada
+  // advance MONTHLY/YEARLY recomputamos desde anchor (no desde cursor)
+  // para que 31-ene → 28-feb → 31-mar (no 28-mar).
+  const anchorDay = start.getUTCDate()
+  const anchorMonth = start.getUTCMonth()
+  const anchorHours = start.getUTCHours()
+  const anchorMinutes = start.getUTCMinutes()
+  const anchorSeconds = start.getUTCSeconds()
+  let monthlyCount = 0
+  let yearlyCount = 0
+
   let cursor = new Date(start)
   let safety = 0
 
@@ -82,13 +94,28 @@ export function expandRecurrence(rrule: string, start: Date, windowDays: number 
 
     if (include) out.push(new Date(cursor))
 
-    advance(cursor, rule)
+    advance(cursor, rule, {
+      start, anchorDay, anchorMonth,
+      anchorHours, anchorMinutes, anchorSeconds,
+      monthlyCount: ++monthlyCount, yearlyCount: ++yearlyCount,
+    })
   }
 
   return out
 }
 
-function advance(cursor: Date, rule: ParsedRule): void {
+interface AdvanceCtx {
+  start: Date
+  anchorDay: number
+  anchorMonth: number
+  anchorHours: number
+  anchorMinutes: number
+  anchorSeconds: number
+  monthlyCount: number
+  yearlyCount: number
+}
+
+function advance(cursor: Date, rule: ParsedRule, ctx: AdvanceCtx): void {
   switch (rule.freq) {
     case 'DAILY':
       cursor.setUTCDate(cursor.getUTCDate() + rule.interval)
@@ -102,10 +129,37 @@ function advance(cursor: Date, rule: ParsedRule): void {
       }
       break
     case 'MONTHLY':
-      cursor.setUTCMonth(cursor.getUTCMonth() + rule.interval)
+      // RFC 5545 §3.3.10: cuando el día del start no existe en el mes
+      // target (ej. 31-ene → feb), clamp al último día del mes target,
+      // pero el SIGUIENTE iteración se basa en el anchorDay original.
+      // Así 31-ene → 28-feb → 31-mar (no 28-mar).
+      monthlyAdvance(cursor, rule.interval, ctx)
       break
     case 'YEARLY':
-      cursor.setUTCFullYear(cursor.getUTCFullYear() + rule.interval)
+      yearlyAdvance(cursor, rule.interval, ctx)
       break
   }
+}
+
+function monthlyAdvance(cursor: Date, interval: number, ctx: AdvanceCtx): void {
+  // Calcula año/mes target desde el anchor.
+  const totalMonths = ctx.start.getUTCMonth() + interval * ctx.monthlyCount
+  const targetYear = ctx.start.getUTCFullYear() + Math.floor(totalMonths / 12)
+  const targetMonth = ((totalMonths % 12) + 12) % 12
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate()
+  const targetDay = Math.min(ctx.anchorDay, lastDay)
+  cursor.setTime(
+    Date.UTC(targetYear, targetMonth, targetDay,
+      ctx.anchorHours, ctx.anchorMinutes, ctx.anchorSeconds),
+  )
+}
+
+function yearlyAdvance(cursor: Date, interval: number, ctx: AdvanceCtx): void {
+  const targetYear = ctx.start.getUTCFullYear() + interval * ctx.yearlyCount
+  const lastDay = new Date(Date.UTC(targetYear, ctx.anchorMonth + 1, 0)).getUTCDate()
+  const targetDay = Math.min(ctx.anchorDay, lastDay)
+  cursor.setTime(
+    Date.UTC(targetYear, ctx.anchorMonth, targetDay,
+      ctx.anchorHours, ctx.anchorMinutes, ctx.anchorSeconds),
+  )
 }
