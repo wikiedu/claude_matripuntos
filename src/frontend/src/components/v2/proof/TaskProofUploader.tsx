@@ -64,8 +64,9 @@ export function TaskProofUploader({ logId, canEdit, compact = false }: Props) {
     return null  // partner sin permiso para editar y sin foto: no mostrar nada
   }
 
+  // v2.6.2 audit 06 S1-14 — repintado con tokens dark del v2.
   return (
-    <div className={compact ? 'mt-1' : 'mt-2 p-2 rounded border bg-gray-50'}>
+    <div className={compact ? 'mt-1' : 'mt-2 p-2 rounded border border-brd-subtle bg-surface-muted'}>
       {url ? (
         <div className="flex items-start gap-2">
           <img
@@ -74,7 +75,7 @@ export function TaskProofUploader({ logId, canEdit, compact = false }: Props) {
             className={compact ? 'w-12 h-12 rounded object-cover' : 'w-24 h-24 rounded object-cover'}
           />
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-text-secondary">
               Subida {uploadedAt ? new Date(uploadedAt).toLocaleString() : ''}
             </p>
             {canEdit && (
@@ -82,7 +83,7 @@ export function TaskProofUploader({ logId, canEdit, compact = false }: Props) {
                 type="button"
                 onClick={() => remove.mutate(logId)}
                 disabled={remove.isPending}
-                className="text-xs text-red-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 rounded"
+                className="text-xs text-danger hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger rounded"
               >
                 Quitar foto
               </button>
@@ -90,12 +91,12 @@ export function TaskProofUploader({ logId, canEdit, compact = false }: Props) {
           </div>
         </div>
       ) : (
-        <label className="text-xs cursor-pointer text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
+        <label className="text-xs cursor-pointer text-brand-amber hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber rounded">
           📸 Añadir foto de prueba (opcional)
           <input type="file" accept="image/*" capture="environment" onChange={handleFile} className="hidden" disabled={busy} />
         </label>
       )}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-xs text-danger">{error}</p>}
     </div>
   )
 }

@@ -41,35 +41,41 @@ export function ProposeChangeDialog({ field, fieldLabel, oldValue, onClose }: Pr
     }
   }
 
+  // v2.6.2 audit 06 S1-13 — repintado con tokens dark del v2 design system.
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="propose-change-title"
+    >
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-4"
+        className="bg-surface-card border border-brd-subtle rounded-2xl shadow-xl w-full max-w-md p-5 space-y-4"
       >
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold">Proponer cambio</h3>
+          <h3 id="propose-change-title" className="font-semibold text-text-primary">Proponer cambio</h3>
           <button
             type="button"
             onClick={onClose}
             aria-label="Cerrar"
-            className="text-gray-500 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+            className="text-text-tertiary hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber rounded"
           >
             ✕
           </button>
         </div>
 
-        <p className="text-sm text-gray-600">{fieldLabel}</p>
+        <p className="text-sm text-text-secondary">{fieldLabel}</p>
 
-        <div className="text-sm flex items-center gap-2">
-          <span className="line-through text-gray-400">{oldValue}</span>
+        <div className="text-sm flex items-center gap-2 text-text-secondary">
+          <span className="line-through text-text-tertiary">{oldValue}</span>
           <span aria-hidden>→</span>
           <input
             type="text"
             value={newValue}
             onChange={(e) => setNewValue(e.target.value)}
             placeholder="Nuevo valor"
-            className="flex-1 px-2 py-1 border border-gray-300 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="flex-1 px-2 py-1 border border-brd-subtle bg-surface-muted text-text-primary rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber"
             required
             autoFocus
           />
@@ -81,29 +87,29 @@ export function ProposeChangeDialog({ field, fieldLabel, oldValue, onClose }: Pr
           placeholder="Por qué crees que deberíamos cambiarlo (opcional)"
           maxLength={500}
           rows={3}
-          className="w-full px-2 py-1.5 border border-gray-300 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 text-sm"
+          className="w-full px-2 py-1.5 border border-brd-subtle bg-surface-muted text-text-primary rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber text-sm placeholder:text-text-tertiary"
         />
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
 
         <div className="flex gap-2 justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="px-3 py-1.5 rounded-lg border border-brd-subtle bg-surface-muted text-text-primary text-sm hover:bg-surface-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={propose.isPending}
-            className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50"
+            className="px-3 py-1.5 rounded-lg bg-brand-amber text-bg-page text-sm font-semibold hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber disabled:opacity-50"
           >
             {propose.isPending ? 'Enviando…' : 'Enviar a tu pareja'}
           </button>
         </div>
 
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-text-tertiary">
           Tu pareja recibirá la propuesta y podrá aceptarla o rechazarla. Hasta entonces no se aplica el cambio.
         </p>
       </form>
