@@ -3,8 +3,9 @@
 // AddTaskSheet for task creation, dark-mode Log/Dispute modals.
 // Rendered naked inside AuthedLayout (AppHeader is provided globally).
 
-import { useState, useEffect, useCallback } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useState, useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { isSheetOpen } from '../lib/sheetLock'
 import {
   Plus, CheckCircle, Loader, X, RefreshCw, AlertTriangle, CheckCheck, HelpCircle, Clock,
   Sparkles, History, ListChecks,
@@ -325,10 +326,43 @@ export default function Tasks() {
   const queryClient = useQueryClient()
   const { user } = useAppStore()
 
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [allLogs, setAllLogs] = useState<TaskLog[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // v2.5 audit 05 S0 + 07 — migración a React Query.
+  // Antes: useState + useEffect propio + focus/visibilitychange/setInterval
+  // → triple polling no coordinado que causaba el "refresh extraño". v2.3.5
+  // mitigó la ruta de AuthedLayout pero esta página tenía SU propio polling.
+  // Ahora: useQuery con refetchInterval que respeta sheetLock + visibility.
+  const tasksQuery = useQuery({
+    queryKey: ['tasks', 'all'],
+    queryFn: () => apiClient.tasks.getAll() as Promise<{ tasks: Task[] }>,
+    select: (d) => (d?.tasks ?? []),
+    staleTime: 10_000,
+    refetchInterval: () => (isSheetOpen() ? false : 30_000),
+    refetchIntervalInBackground: false,
+  })
+  const logsQuery = useQuery({
+    queryKey: ['tasks', 'logs', 'all'],
+    queryFn: () => apiClient.tasks.getAllLogs() as Promise<{ logs: any[] }>,
+    select: (d) =>
+      (d?.logs ?? []).map((l: any) => ({
+        ...l,
+        taskName: l.taskName ?? l.task?.name ?? '',
+        taskCategory: l.taskCategory ?? l.task?.category ?? '',
+      })) as TaskLog[],
+    staleTime: 10_000,
+    refetchInterval: () => (isSheetOpen() ? false : 30_000),
+    refetchIntervalInBackground: false,
+  })
+  const tasks: Task[] = tasksQuery.data ?? []
+  const allLogs: TaskLog[] = logsQuery.data ?? []
+  // isLoading sólo en bootstrap (sin data aún) para evitar el flash en
+  // refetches background (mismo patrón que useAppStore.isRefreshing).
+  const isLoading = (tasksQuery.isLoading && !tasksQuery.data) || (logsQuery.isLoading && !logsQuery.data)
+  // `error` agrega errores de query Y errores de mutaciones (verify, log,
+  // dispute, delete...). Las mutaciones lo setean vía `setError` y las
+  // queries vía la unión de tasksQuery.error / logsQuery.error.
+  const [mutationError, setMutationError] = useState<string | null>(null)
+  const setError = setMutationError
+  const error = mutationError ?? tasksQuery.error?.message ?? logsQuery.error?.message ?? null
   const [success, setSuccess] = useState<string | null>(null)
   const [tab, setTab] = useState<'mis_tareas' | 'recurrentes' | 'verificar' | 'historial'>('mis_tareas')
 
@@ -376,67 +410,19 @@ export default function Tasks() {
     return d
   })
 
+  // v2.5 audit 05 S0 — el polling y los listeners de focus/visibility
+  // anteriores se eliminan: useQuery los gestiona internamente con
+  // `refetchInterval: () => isSheetOpen() ? false : 30_000` y
+  // `refetchOnWindowFocus: false` (configurado globalmente en App.tsx).
+  // `loadData()` se mantiene como API estable para los ~7 callers de
+  // mutaciones (verify, dispute, log, delete, etc.) — invalida ambas queries
+  // así obtienen datos frescos sin tocar `isLoading`.
   const loadData = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-    // v2.2.12 — Render hace cold-start tras inactividad; el primer request
-    // a veces falla con "Failed to fetch". Reintentamos 2 veces con backoff
-    // antes de mostrar error al usuario.
-    const attempt = async () => {
-      const [tasksRes, logsRes] = await Promise.all([
-        apiClient.tasks.getAll(),
-        apiClient.tasks.getAllLogs(),
-      ])
-      setTasks((tasksRes as any).tasks || [])
-      setAllLogs(((logsRes as any).logs || []).map((l: any) => ({
-        ...l,
-        taskName: l.taskName ?? l.task?.name ?? '',
-        taskCategory: l.taskCategory ?? l.task?.category ?? '',
-      })))
-    }
-    let lastErr: unknown = null
-    for (let i = 0; i < 3; i++) {
-      try {
-        await attempt()
-        lastErr = null
-        break
-      } catch (e) {
-        lastErr = e
-        const isNetwork = e instanceof TypeError || (e instanceof Error && /failed to fetch/i.test(e.message))
-        if (!isNetwork) break
-        await new Promise((r) => setTimeout(r, 600 * (i + 1)))
-      }
-    }
-    if (lastErr) {
-      setError(lastErr instanceof Error ? lastErr.message : 'Error cargando tareas')
-    }
-    setIsLoading(false)
-  }, [])
-
-  useEffect(() => { loadData() }, [loadData])
-
-  // v1.6.3 fix QA Bug 3: refetch automático al volver al tab/window. Antes el
-  // user tenía que pulsar refresh manual cuando el partner verificaba/disputaba
-  // una tarea. Ahora cualquier acción del partner se ve al volver a Matripuntos.
-  useEffect(() => {
-    function onFocus() { loadData() }
-    function onVisible() { if (document.visibilityState === 'visible') loadData() }
-    window.addEventListener('focus', onFocus)
-    document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      window.removeEventListener('focus', onFocus)
-      document.removeEventListener('visibilitychange', onVisible)
-    }
-  }, [loadData])
-
-  // v1.6.3 fix QA Bug 3: polling cada 30s mientras la tab está visible —
-  // captura cambios del partner sin necesidad de blur/focus.
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (document.visibilityState === 'visible') loadData()
-    }, 30_000)
-    return () => clearInterval(id)
-  }, [loadData])
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'all'] }),
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'logs', 'all'] }),
+    ])
+  }, [queryClient])
 
   // ─── Derived state ─────────────────────────────────────────────────────────
   const today = toLocalDateString(new Date())
