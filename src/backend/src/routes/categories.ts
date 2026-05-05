@@ -178,26 +178,23 @@ router.post('/', async (req: Request, res: Response) => {
  */
 router.put('/:categoryId', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const coupleId = (req as any).user?.coupleId as string | undefined
     const { categoryId } = req.params
     const { name, emoji, type, basePoints, description } = req.body
 
-    // Get user's couple
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    })
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' })
+    // v2.5.9 audit 01 S1-R-14 — scope por coupleId del JWT, evitando el
+    // patrón "findUnique → manual compare" donde un user sin couple
+    // (coupleId=null) podría operar sobre categorías huérfanas.
+    if (!coupleId) {
+      return res.status(401).json({ error: 'Authentication required' })
     }
 
-    // Get category and verify it belongs to couple
-    const category = await prisma.category.findUnique({
-      where: { id: categoryId },
+    const category = await prisma.category.findFirst({
+      where: { id: categoryId, coupleId },
     })
 
-    if (!category || category.coupleId !== user.coupleId) {
-      return res.status(403).json({ error: 'Unauthorized' })
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' })
     }
 
     // Cannot edit base categories
@@ -238,25 +235,20 @@ router.put('/:categoryId', async (req: Request, res: Response) => {
  */
 router.delete('/:categoryId', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const coupleId = (req as any).user?.coupleId as string | undefined
     const { categoryId } = req.params
 
-    // Get user's couple
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    })
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' })
+    // v2.5.9 audit 01 S1-R-14 — scope por coupleId del JWT.
+    if (!coupleId) {
+      return res.status(401).json({ error: 'Authentication required' })
     }
 
-    // Get category and verify it belongs to couple
-    const category = await prisma.category.findUnique({
-      where: { id: categoryId },
+    const category = await prisma.category.findFirst({
+      where: { id: categoryId, coupleId },
     })
 
-    if (!category || category.coupleId !== user.coupleId) {
-      return res.status(403).json({ error: 'Unauthorized' })
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' })
     }
 
     // Cannot delete base categories
@@ -284,26 +276,23 @@ router.delete('/:categoryId', async (req: Request, res: Response) => {
  */
 router.get('/:categoryId', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const coupleId = (req as any).user?.coupleId as string | undefined
     const { categoryId } = req.params
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    })
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' })
+    // v2.5.9 audit 01 S1-R-14 — scope por coupleId del JWT.
+    if (!coupleId) {
+      return res.status(401).json({ error: 'Authentication required' })
     }
 
-    const category = await prisma.category.findUnique({
-      where: { id: categoryId },
+    const category = await prisma.category.findFirst({
+      where: { id: categoryId, coupleId },
       include: {
         subcategories: true,
       },
     })
 
-    if (!category || category.coupleId !== user.coupleId) {
-      return res.status(403).json({ error: 'Unauthorized' })
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' })
     }
 
     res.json({
@@ -334,21 +323,18 @@ router.post('/:categoryId/subcategories', async (req: Request, res: Response) =>
       return res.status(400).json({ error: 'Name and basePointsModifier required' })
     }
 
-    // Get user and category
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    })
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' })
+    // v2.5.9 audit 01 S1-R-14 — scope por coupleId del JWT.
+    const coupleId = (req as any).user?.coupleId as string | undefined
+    if (!coupleId) {
+      return res.status(401).json({ error: 'Authentication required' })
     }
 
-    const category = await prisma.category.findUnique({
-      where: { id: categoryId },
+    const category = await prisma.category.findFirst({
+      where: { id: categoryId, coupleId },
     })
 
-    if (!category || category.coupleId !== user.coupleId) {
-      return res.status(403).json({ error: 'Unauthorized' })
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' })
     }
 
     // Only custom categories can have custom subcategories

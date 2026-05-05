@@ -110,9 +110,14 @@ router.put('/:id/read', authMiddleware, async (req: Request, res: Response): Pro
       return
     }
 
-    // updateMany evita race condition: el WHERE compuesto (id + userId)
-    // va en la misma query que el update, así nadie puede marcar como
-    // leída una notificación que no sea suya aunque adivine el id.
+    // v2.5.9 audit 01 S1-R-12 — `updateMany` + `findUnique` eran 2 queries
+    // y una posible race entre ellas. Con `update` + clave compuesta
+    // virtual no se puede expresar (clave es única solo por id), así que
+    // hacemos `updateMany` ‐ el filtro por userId actúa como guard ‐ y
+    // como la query devuelve count, sabemos si se actualizó. Devolvemos
+    // los datos del request original para evitar el segundo round-trip
+    // y la race con un delete intermedio: el cliente sólo necesita saber
+    // que isRead=true.
     const updateResult = await prisma.notification.updateMany({
       where: { id: req.params.id, userId: req.userId },
       data: { isRead: true },
@@ -123,26 +128,8 @@ router.put('/:id/read', authMiddleware, async (req: Request, res: Response): Pro
       return
     }
 
-    const updated = await prisma.notification.findUnique({
-      where: { id: req.params.id },
-    })
-
-    if (!updated) {
-      res.status(404).json({ error: 'Notification not found' })
-      return
-    }
-
     res.json({
-      notification: {
-        id: updated.id,
-        type: updated.type,
-        title: updated.title,
-        message: updated.message,
-        isRead: updated.isRead,
-        relatedEventId: updated.relatedEventId,
-        relatedTaskLogId: updated.relatedTaskLogId,
-        createdAt: updated.createdAt,
-      },
+      notification: { id: req.params.id, isRead: true },
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to mark notification as read'

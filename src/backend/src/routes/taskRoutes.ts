@@ -322,6 +322,10 @@ router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response):
     const dayStart = new Date(targetDate); dayStart.setHours(0, 0, 0, 0)
     const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate() + 1)
 
+    // v2.5.9 audit 01 S1-R-8 — race condition: dos completes concurrentes
+    // podían leer el mismo placeholder y ambos llamar update. Ahora el
+    // "flip" se hace con `updateMany({where: {id, completedBy: null}})` —
+    // si count===0, otro completer ya ganó la carrera y caemos al create.
     const placeholder = await prisma.taskLog.findFirst({
       where: {
         taskId,
@@ -333,32 +337,39 @@ router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response):
       orderBy: { scheduledFor: 'asc' },
     })
 
-    const taskLog = placeholder
-      ? await prisma.taskLog.update({
-          where: { id: placeholder.id },
-          data: {
-            completedBy: req.userId,
-            date: targetDate,
-            pointsBase: new Decimal(data.pointsBase),
-            modifier: modifierName,
-            modifierValue: new Decimal(modifierValue),
-            pointsFinal: new Decimal(pointsFinal),
-            status: 'pending',
-          },
-        })
-      : await prisma.taskLog.create({
-          data: {
-            coupleId: req.coupleId,
-            taskId,
-            completedBy: req.userId,
-            date: targetDate,
-            pointsBase: new Decimal(data.pointsBase),
-            modifier: modifierName,
-            modifierValue: new Decimal(modifierValue),
-            pointsFinal: new Decimal(pointsFinal),
-            status: 'pending',
-          },
-        })
+    let taskLog: any = null
+    if (placeholder) {
+      const flipResult = await prisma.taskLog.updateMany({
+        where: { id: placeholder.id, completedBy: null },
+        data: {
+          completedBy: req.userId,
+          date: targetDate,
+          pointsBase: new Decimal(data.pointsBase),
+          modifier: modifierName,
+          modifierValue: new Decimal(modifierValue),
+          pointsFinal: new Decimal(pointsFinal),
+          status: 'pending',
+        },
+      })
+      if (flipResult.count > 0) {
+        taskLog = await prisma.taskLog.findUnique({ where: { id: placeholder.id } })
+      }
+    }
+    if (!taskLog) {
+      taskLog = await prisma.taskLog.create({
+        data: {
+          coupleId: req.coupleId,
+          taskId,
+          completedBy: req.userId,
+          date: targetDate,
+          pointsBase: new Decimal(data.pointsBase),
+          modifier: modifierName,
+          modifierValue: new Decimal(modifierValue),
+          pointsFinal: new Decimal(pointsFinal),
+          status: 'pending',
+        },
+      })
+    }
 
     // Send notification to partner
     await notifyTaskCompleted(
@@ -602,12 +613,15 @@ router.put('/:taskId/logs/:logId/dispute', authMiddleware, async (req: Request, 
           },
         })
       }
+      // v2.5.9 audit 01 S1-R-9 — usar `disputedBy`/`disputedAt` en lugar
+      // de reusar `verifiedBy` para el partner que disputa. Mantiene los
+      // dos roles separados (verifier vs disputer) y desambigua analytics.
       const u = await tx.taskLog.update({
         where: { id: req.params.logId },
         data: {
           status: 'disputed',
-          verifiedBy: req.userId,
-          verifiedAt: new Date(),
+          disputedBy: req.userId,
+          disputedAt: new Date(),
           disputeReason: data.disputeReason,
           pointsDisputed: data.pointsDisputed ? new Decimal(data.pointsDisputed) : undefined,
         },

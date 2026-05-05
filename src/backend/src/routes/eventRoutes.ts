@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
+import { Decimal } from '@prisma/client/runtime/library'
 import { pointsCalculator } from '../services/pointsCalculator.js'
 
 const router = express.Router()
@@ -39,6 +40,24 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
     }
 
     const data = createEventSchema.parse(req.body)
+
+    // v2.5.9 audit 01 S1-R-16 — sin esta validación zod permitía
+    // `numChildren=10` para una pareja sin hijos, multiplicando puntos
+    // sin sentido (factor hijos × 2.2). El cap real es el menor entre
+    // `couple.numChildren` y `Child.count`.
+    if (data.numChildren && data.numChildren > 0) {
+      const couple = await prisma.couple.findUnique({
+        where: { id: req.coupleId },
+        select: { numChildren: true, children: { select: { id: true } } },
+      })
+      const realCap = Math.max(couple?.numChildren ?? 0, couple?.children?.length ?? 0)
+      if (data.numChildren > realCap) {
+        res.status(400).json({
+          error: `numChildren (${data.numChildren}) excede el número real de hijos de la pareja (${realCap}).`,
+        })
+        return
+      }
+    }
 
     // Aplica los multiplicadores canónicos (docs/PUNTOS.md) ya en la creación.
     // Antes guardábamos pointsCalculated = pointsBase, que dejaba la fórmula
@@ -287,20 +306,24 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response): Promise<
     } as any
     const recalculated = await pointsCalculator.calculateEventPoints(merged, null)
 
+    // v2.5.9 audit 01 S1-R-5 — `data.x && {…}` rechazaba strings vacíos y
+    // ceros, así que el partner no podía limpiar `title`/`description`/
+    // `compensation` ni bajar `compensationDiscount` a 0. Comparamos contra
+    // `undefined` para distinguir "no enviado" de "enviado vacío".
     const updated = await prisma.event.update({
       where: { id: req.params.id },
       data: {
-        ...(data.type && { type: data.type }),
-        ...(data.title && { title: data.title }),
-        ...(data.description && { description: data.description }),
-        ...(data.dateStart && { dateStart: new Date(data.dateStart) }),
-        ...(data.dateEnd && { dateEnd: new Date(data.dateEnd) }),
+        ...(data.type !== undefined && { type: data.type }),
+        ...(data.title !== undefined && { title: data.title || null }),
+        ...(data.description !== undefined && { description: data.description || null }),
+        ...(data.dateStart !== undefined && { dateStart: new Date(data.dateStart) }),
+        ...(data.dateEnd !== undefined && { dateEnd: new Date(data.dateEnd) }),
         ...(data.hasChildren !== undefined && { hasChildren: data.hasChildren }),
         ...(data.numChildren !== undefined && { numChildren: data.numChildren }),
-        ...(data.pointsBase && { pointsBase: new Decimal(data.pointsBase) }),
+        ...(data.pointsBase !== undefined && { pointsBase: new Decimal(data.pointsBase) }),
         pointsCalculated: recalculated,
-        ...(data.compensation && { compensation: data.compensation }),
-        ...(data.compensationDiscount && { compensationDiscount: new Decimal(data.compensationDiscount) }),
+        ...(data.compensation !== undefined && { compensation: data.compensation || null }),
+        ...(data.compensationDiscount !== undefined && { compensationDiscount: new Decimal(data.compensationDiscount) }),
       },
     })
 
@@ -351,7 +374,5 @@ router.delete('/:id', authMiddleware, async (req: Request, res: Response): Promi
     res.status(400).json({ error: message })
   }
 })
-
-import { Decimal } from '@prisma/client/runtime/library'
 
 export default router

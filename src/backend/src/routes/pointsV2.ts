@@ -116,39 +116,46 @@ router.post('/calculate', async (req: Request, res: Response) => {
 router.post('/recalculate/:eventId', async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id
+    const coupleId = (req as any).user?.coupleId as string | undefined
     const { eventId } = req.params
 
-    // Get event
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
+    if (!coupleId) {
+      return res.status(401).json({ error: 'Authentication required' })
+    }
+
+    // v2.5.9 audit 01 S1-R-3 — antes el partner podía recalcular un evento
+    // ya `accepted/forced` y sobrescribir `pointsCalculated` post-acuerdo.
+    // Ahora restringimos a (a) draft y (b) creator, manteniendo la
+    // utilidad legítima (preview en el formulario de edición).
+    const event = await prisma.event.findFirst({
+      where: { id: eventId, coupleId },
     })
 
     if (!event) {
       return res.status(404).json({ error: 'Event not found' })
     }
 
-    // Verify user has access
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    })
-
-    if (!user || user.coupleId !== event.coupleId) {
-      return res.status(403).json({ error: 'Unauthorized' })
+    if (event.status !== 'draft') {
+      return res.status(409).json({
+        error: 'Solo se puede recalcular un evento en estado draft',
+      })
     }
 
-    // Get creator
+    if (event.createdBy && event.createdBy !== userId) {
+      return res.status(403).json({ error: 'Solo el creador puede recalcular el evento' })
+    }
+
+    // Get creator (puede haber sido borrado — fallback al user actual).
     const creator = event.createdBy
       ? await prisma.user.findUnique({ where: { id: event.createdBy } })
-      : user
+      : await prisma.user.findUnique({ where: { id: userId } })
 
     if (!creator) {
       return res.status(404).json({ error: 'Creator not found' })
     }
 
-    // Calculate new points
     const newPoints = await pointsCalculator.calculateEventPoints(event, creator)
 
-    // Update event
     const updated = await prisma.event.update({
       where: { id: eventId },
       data: {

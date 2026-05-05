@@ -65,18 +65,25 @@ router.get('/summary', readBucket, async (req: Request, res: Response) => {
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const { from, to } = parseRange(req)
 
+  // v2.5.9 audit 01 S1-R-18 — `take` defensivo en findMany de hot-path
+  // de analytics. Para el rango por defecto (30-90 días) un couple
+  // activo no llega a 5k filas, así que el cap es transparente. En
+  // caso de couples extremos protege la memoria del worker Render.
   const [evRows, txRows, lgRows] = await Promise.all([
     prisma.event.findMany({
       where: { coupleId, dateStart: { gte: from, lte: to } },
       select: { id: true, dateStart: true, status: true, type: true, pointsCalculated: true, createdBy: true },
+      take: 5000,
     }),
     prisma.pointsTransaction.findMany({
       where: { coupleId, createdAt: { gte: from, lte: to } },
       select: { id: true, amount: true, userId: true, createdAt: true, type: true },
+      take: 5000,
     }),
     prisma.taskLog.findMany({
       where: { coupleId, date: { gte: from, lte: to } },
       select: { id: true, status: true, date: true, pointsFinal: true, completedBy: true },
+      take: 5000,
     }),
   ])
 
@@ -116,6 +123,7 @@ router.get('/heatmap', readBucket, async (req: Request, res: Response) => {
   const evRows = await prisma.event.findMany({
     where: { coupleId, dateStart: { gte: from, lte: to } },
     select: { id: true, dateStart: true, status: true, type: true, pointsCalculated: true, createdBy: true },
+    take: 5000, // v2.5.9 audit 01 S1-R-18
   })
   const events: RawEvent[] = evRows.map(e => ({
     id: e.id, dateStart: e.dateStart, status: e.status, type: e.type,
@@ -134,6 +142,7 @@ router.get('/equity-curve', readBucket, async (req: Request, res: Response) => {
     where: { coupleId, createdAt: { gte: from, lte: to } },
     select: { id: true, amount: true, userId: true, createdAt: true, type: true },
     orderBy: { createdAt: 'asc' },
+    take: 5000, // v2.5.9 audit 01 S1-R-18
   })
   const txs: RawTransaction[] = txRows.map(t => ({
     id: t.id, amount: toNum(t.amount), userId: t.userId ?? '', createdAt: t.createdAt, type: t.type,
@@ -152,6 +161,7 @@ router.get('/mood-timeline', readBucket, async (req: Request, res: Response) => 
   const logs = await prisma.moodLog.findMany({
     where: { coupleId, createdAt: { gte: from, lte: to } },
     select: { id: true, moodKey: true, userId: true, createdAt: true },
+    take: 5000, // v2.5.9 audit 01 S1-R-18
   })
   const { user1Id, user2Id } = await loadCoupleUsers(coupleId)
   const raw: RawMoodLog[] = logs.map(l => ({ id: l.id, moodKey: l.moodKey, userId: l.userId, createdAt: l.createdAt }))
@@ -218,11 +228,14 @@ router.post('/insights/regenerate', readBucket, async (req: Request, res: Respon
   // Cargar datos
   const last30From = new Date(now.getTime() - 30 * 24 * 3600 * 1000)
   const prev30From = new Date(now.getTime() - 60 * 24 * 3600 * 1000)
+  // v2.5.9 audit 01 S1-R-18 — añadimos `take: 5000` también en estas
+  // queries que antes no tenían cap. Los rangos son acotados (60d) pero
+  // un couple muy activo puede ir cerca y esto blinda el endpoint.
   const [evLast, evPrev, lgLast, lgPrev, txAll] = await Promise.all([
-    prisma.event.findMany({ where: { coupleId, dateStart: { gte: last30From, lte: now } } }),
-    prisma.event.findMany({ where: { coupleId, dateStart: { gte: prev30From, lt: last30From } } }),
-    prisma.taskLog.findMany({ where: { coupleId, date: { gte: last30From, lte: now } } }),
-    prisma.taskLog.findMany({ where: { coupleId, date: { gte: prev30From, lt: last30From } } }),
+    prisma.event.findMany({ where: { coupleId, dateStart: { gte: last30From, lte: now } }, take: 5000 }),
+    prisma.event.findMany({ where: { coupleId, dateStart: { gte: prev30From, lt: last30From } }, take: 5000 }),
+    prisma.taskLog.findMany({ where: { coupleId, date: { gte: last30From, lte: now } }, take: 5000 }),
+    prisma.taskLog.findMany({ where: { coupleId, date: { gte: prev30From, lt: last30From } }, take: 5000 }),
     // v2.5.5 audit 01 — LIMIT defensivo: couples con histórico largo
     // (años) podrían cargar miles de transactions y reventar memoria del
     // worker en Render. Solo necesitamos el rango previo 60d para

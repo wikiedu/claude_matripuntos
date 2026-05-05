@@ -40,6 +40,8 @@ router.get('/entries', readBucket, async (req: Request, res: Response) => {
   const coupleId = (req as any).user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
+  // v2.5.9 audit 01 S1-R-11 — filtrar entries cuyo autor está soft-deleted
+  // para que el ghost user no siga apareciendo en el feed del partner.
   const entries = await prisma.journalEntry.findMany({
     where: {
       coupleId,
@@ -47,6 +49,7 @@ router.get('/entries', readBucket, async (req: Request, res: Response) => {
         { authorId: userId },
         { shared: true },
       ],
+      author: { deletedAt: null },
     },
     orderBy: { createdAt: 'desc' },
     take: 100,
