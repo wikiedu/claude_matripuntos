@@ -24,15 +24,7 @@ export interface DigestData {
  */
 export async function sendWeeklyDigests(): Promise<void> {
   const now = new Date()
-
-  // Last week: Mon 00:00:00 → Sun 23:59:59
-  const weekEnd = new Date(now)
-  weekEnd.setDate(now.getDate() - now.getDay()) // last Sunday (or today if Sunday)
-  weekEnd.setHours(23, 59, 59, 999)
-
-  const weekStart = new Date(weekEnd)
-  weekStart.setDate(weekEnd.getDate() - 6) // Monday of that week
-  weekStart.setHours(0, 0, 0, 0)
+  const { weekStart, weekEnd } = lastIsoWeekRange(now)
 
   const couples = await prisma.couple.findMany({
     include: {
@@ -122,4 +114,29 @@ async function getUserBalance(coupleId: string, userId: string | undefined): Pro
   })
 
   return Number(result._sum.amount ?? 0)
+}
+
+/**
+ * v2.5.1 audit 02 S1 — fix weekEnd boundary.
+ *
+ * Antes: `weekEnd.setDate(now.getDate() - now.getDay())` con `setHours(23,59,59)`.
+ * Si el cron se ejecutaba un día que no fuera lunes (cold start delay,
+ * test manual), la lógica producía solapamientos o agujeros con el digest
+ * de la semana anterior.
+ *
+ * Ahora: helper canónico ISO week. Lunes 00:00 a Domingo 23:59:59 *de la
+ * semana ANTERIOR* a `now`, sin importar qué día sea now.
+ */
+export function lastIsoWeekRange(now: Date): { weekStart: Date; weekEnd: Date } {
+  const day = now.getUTCDay() // 0=Sun, 1=Mon, ..., 6=Sat
+  // Días desde el último lunes (sin contar hoy si hoy es lunes).
+  // Si day=1 (Mon), hace 7 días fue el lunes anterior.
+  // Si day=0 (Sun), hace 6 días fue el lunes (mismo "esta semana"
+  //                hasta domingo 23:59 — usar week previa).
+  const daysSinceLastMonday = day === 0 ? 13 : day === 1 ? 7 : day - 1 + 7
+  const weekStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysSinceLastMonday, 0, 0, 0, 0),
+  )
+  const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000 - 1)
+  return { weekStart, weekEnd }
 }
