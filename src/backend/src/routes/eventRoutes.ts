@@ -43,6 +43,8 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
     // Aplica los multiplicadores canónicos (docs/PUNTOS.md) ya en la creación.
     // Antes guardábamos pointsCalculated = pointsBase, que dejaba la fórmula
     // (tipo × franja × duración × hijos) sin efecto en la ruta V1.
+    // v2.4 fix audit 08 S0-2: incluimos compensationDiscount en el draft para
+    // que el calculator lo aplique también en la creación (no sólo al accept).
     const draftEvent = {
       coupleId: req.coupleId,
       type: data.type,
@@ -51,6 +53,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
       hasChildren: data.hasChildren,
       numChildren: data.numChildren,
       pointsBase: new Decimal(data.pointsBase),
+      compensationDiscount: new Decimal(data.compensationDiscount),
     } as any
     const pointsCalculated = await pointsCalculator.calculateEventPoints(draftEvent, null)
 
@@ -265,8 +268,11 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response): Promise<
     }
 
     // Si cambia cualquier dato que afecta a la fórmula (tipo, fechas, hijos,
-    // base) recalculamos pointsCalculated con los multiplicadores. Antes se
-    // escribía pointsCalculated = pointsBase plano, perdiendo la fórmula.
+    // base, compensationDiscount) recalculamos pointsCalculated con los
+    // multiplicadores. Antes se escribía pointsCalculated = pointsBase plano,
+    // perdiendo la fórmula.
+    // v2.4 fix audit 08 S0-2: incluimos compensationDiscount en merged para
+    // que ediciones de compensación reflejen los puntos correctamente.
     const merged = {
       coupleId: event.coupleId,
       type: data.type ?? event.type,
@@ -275,6 +281,9 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response): Promise<
       hasChildren: data.hasChildren ?? event.hasChildren,
       numChildren: data.numChildren ?? event.numChildren,
       pointsBase: data.pointsBase ? new Decimal(data.pointsBase) : event.pointsBase,
+      compensationDiscount: data.compensationDiscount !== undefined
+        ? new Decimal(data.compensationDiscount)
+        : event.compensationDiscount,
     } as any
     const recalculated = await pointsCalculator.calculateEventPoints(merged, null)
 
