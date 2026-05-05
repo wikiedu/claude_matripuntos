@@ -7,7 +7,7 @@
 ## 1. PROYECTO
 App web gamificada para parejas: gestión equitativa de responsabilidades del hogar mediante puntos negociables. Repo: https://github.com/wikiedu/claude_matripuntos
 
-**Versión actual en producción:** v2.5.8 · Sprints 1-10 hardening del audit profundo 2026-05-05 (tag `v2.5.8`)
+**Versión actual en producción:** v2.7.0 · Sprints 1-18 hardening del audit profundo 2026-05-05 (tag `v2.7.0`)
 **Estado del proyecto:** ver `docs/STATUS.md` para snapshot completo (qué está en prod, qué está pendiente, qué decisiones quedan).
 **Auditoría base:** `docs/audits/2026-05-05-full-audit/00-MASTER-REPORT.md` (12 dominios, ~255 hallazgos).
 **Branch principal:** `main`
@@ -297,6 +297,15 @@ Formato: `vX.Y · Nombre`. Branches: `feature/vX.Y-nombre-kebab`. Tags git: `mvp
 | **v2.0.3.1** | **Hotfix v2.0.3** — IDOR journal, push unsubscribe, focus rings, BottomNav safe-area | ✅ Producción 2026-05-02 | `main` (tag `v2.0.3.1`) |
 | **v2.0.4** | **Catálogo + Consenso** — ActivityTemplate + ConfigurationProposal + ProposalsPanel | ✅ Producción 2026-05-03 (pendiente seed + QA E2E manual) | `main` (tag `v2.0.4`) |
 | **v2.0.5** | **Quick wins** — anniversary timer + image proof tareas | ✅ Producción 2026-05-03 | `main` (tag `v2.0.5`) |
+| v2.4.x → v2.5.8 | Sprints 1-10 hardening (16 S0 + 35 S1 cerrados) | ✅ Producción 2026-05-05 | `main` |
+| v2.5.9 | Sprint 11 — backend route hardening (10 fixes audit 01) | ✅ Producción 2026-05-06 | `main` (tag `v2.5.9`) |
+| v2.6.0 | Sprint 12 — schema hardening (FKs SetNull + indexes) | ✅ Producción 2026-05-06 | `main` (tag `v2.6.0`) |
+| v2.6.1 | Sprint 13 — frontend pages a11y/UX | ✅ Producción 2026-05-06 | `main` (tag `v2.6.1`) |
+| v2.6.2 | Sprint 14 — components dark mode + a11y + zIndex | ✅ Producción 2026-05-06 | `main` (tag `v2.6.2`) |
+| v2.6.3 | Sprint 15 — services hardening (negociación + ISO weeks) | ✅ Producción 2026-05-06 | `main` (tag `v2.6.3`) |
+| v2.6.4 | Sprint 16 — two-account flows (Q-1, Q-10, Q-5) | ✅ Producción 2026-05-06 | `main` (tag `v2.6.4`) |
+| v2.6.5 | Sprint 18 — DB-bound CI job + tests faltantes | ✅ Producción 2026-05-06 | `main` (tag `v2.6.5`) |
+| **v2.7.0** | **Sprint 17 — refresh token endpoints (audit 04 S1-6)** | ✅ Producción 2026-05-06 | `main` (tag `v2.7.0`) |
 | **v2.0.6** | **Refinos catálogo** — picker en EventCreate, contraoferta, "proponer" inline | 🤔 Por decidir tras D30 | `feature/v2.0.6-refinos` |
 | **v2.1** | **Conectados** — Google sync + push real + ICS + referidos | 📝 Spec aprobado | `feature/v2.1-conectados` |
 | **v2.2** | **Multiidiomas** — i18n ES/EN/CA/PT | 🧠 Brainstorm pendiente | `feature/v2.2-multiidiomas` |

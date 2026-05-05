@@ -1,11 +1,11 @@
 # STATUS — Matripuntos
 
-**Última actualización:** 2026-05-05
-**Versión actual desplegada en producción:** `v2.5.8` · Sprints 1-10 hardening del audit profundo
+**Última actualización:** 2026-05-06
+**Versión actual desplegada en producción:** `v2.7.0` · Sprints 1-18 hardening del audit profundo
 
 > **Auditoría 2026-05-05** completada: ~255 hallazgos en 12 dominios, ver
-> `docs/audits/2026-05-05-full-audit/`. Sprints 1-10 (v2.4.0 → v2.5.8) cierran
-> 16 S0 críticos + 35+ S1 alto impacto + perf gains hot-path. Pendientes en backlog v2.6/v2.7.
+> `docs/audits/2026-05-05-full-audit/`. Sprints 1-18 (v2.4.0 → v2.7.0) cierran
+> los **16 S0 críticos** y **~50 S1 alto impacto**. S2/S3 pendientes en backlog (no bloqueantes).
 
 > **Handoff Claude Design 14 canvases iniciales completado al 100%.**
 > **Canvas 15 (Tareas/Actividades rediseño)** desplegado en v2.3.0.
@@ -19,6 +19,55 @@
 ## 🟢 EN PRODUCCIÓN (deployable + público)
 
 > Lo que está hoy mismo accesible al usuario en matripuntos.com.
+
+### v2.7.0 Sprint 17 — refresh token endpoints — **2026-05-06**
+- **POST /auth/refresh**: rotación con reuse detection (audit 04 S1-6 / 01 S1-R-17). Token revocado entrante → revoca toda la chain del user.
+- **POST /auth/logout**: revoca todos los refresh activos. Access JWT actual sigue válido hasta su expiry natural (no hay blacklist).
+- **POST /auth/login** opt-in: si el cliente envía `X-Want-Refresh: 1` recibe además `refreshToken` + `refreshExpiresAt`. Sin header → respuesta legacy.
+- Estrategia conservadora zero-downtime: JWT access TTL sigue 7d, frontend no obligado a integrar todavía.
+
+### v2.6.5 Sprint 18 — DB-bound CI + tests faltantes — **2026-05-06**
+- **CI ci.yml: nuevo job `backend-db`** con Postgres efímera (`db push`) que corre suites antes excluidos: analyticsService, anniversaryService, gamificationService, achievementEngine. Cierra audit 11 S0-T-1.
+- **pointsCalculator tests + 4** para cap 500, roundToHalf asimétrico (audit 08 S2-1), franja madrugada/noche overnight (S1-T-1).
+
+### v2.6.4 Sprint 16 — two-account flows — **2026-05-06**
+- **AuthedLayout**: tras notif nueva ahora invalida también `['couple']` + `loadUserData(silent)` para que el inviter vea al partner sin esperar 60s (audit 12 Q-1).
+- **/auth/couple-preview/:code y /register-with-code**: cap por usuarios ACTIVOS (deletedAt=null), no totales. Couples con ghost soft-deleted ya no se consideran "llenas" (audit 12 Q-10).
+
+### v2.6.3 Sprint 15 — services hardening — **2026-05-06**
+- **negotiationEngine.proposeEvent**: solo proposable si event.status='draft' (audit 02 S1-1, evita loop del proposer).
+- **negotiationEngine.respondToProposal counter_propose**: rechaza si la última propuesta es del responder (audit 02 S1-2, evita loop).
+- **streakService**: nueva fn `isoWeeksBetween()` que cuenta por frontera ISO (lunes), no por `Math.floor((now-last)/7d)`. Cierra audit 02 S1-9 + 08 S1-7. 5 tests añadidos.
+
+### v2.6.2 Sprint 14 — components dark mode + a11y — **2026-05-06**
+- **ActivityCatalogPicker, ProposalsPanel, ProposeChangeDialog, TaskProofUploader**: repintados con tokens dark del v2 design system (audit 06 S1-12, 13, 14).
+- **RankingTab**: copy 'v1.5' → 'próximamente' (audit 06 S1-18).
+- **lib/zIndex.ts**: tabla canónica de niveles z-index (audit 06 S1-17).
+
+### v2.6.1 Sprint 13 — frontend pages a11y/UX — **2026-05-06**
+- **Journal react()**: errores en banner en lugar de tragárselos (audit 05 4.2).
+- **Journal entry.tags**: parse defensivo con console.warn cuando malformado (audit 05 4.3).
+- **Settings LeaveCoupleWizard**: useNavigate + loadUserData(silent) en lugar de window.location.href full reload (audit 05 10.2).
+- **Tasks 'Esta semana' contador**: cuenta logs reales del usuario en la semana ISO en lugar del hardcoded 0/N (audit 05 1.4).
+
+### v2.6.0 Sprint 12 — schema hardening — **2026-05-06**
+- **Compensation.linkedTaskId index** (audit 03 S1-6, hot-path al borrar Task con SetNull).
+- **Invitation.fromUserId/toUserId Cascade → SetNull** para preservar audit trail (audit 03 S1-9).
+- **ConfigurationProposal/ChangeLog: User refs Cascade → SetNull** idem (audit 03 S1-8).
+- **RefreshToken: index compuesto (userId, revokedAt)** para queries 'tokens activos' (audit 03 S1-10).
+- Migration `v2_6_0_audit_trail_fks_indexes` con DROP IF EXISTS + IF NOT EXISTS defensivos.
+
+### v2.5.9 Sprint 11 — backend route hardening — **2026-05-06**
+- **pointsV2 /recalculate**: restricción a draft + creator (audit 01 S1-R-3 IDOR).
+- **eventRoutes PUT**: distinción undefined vs vacío para title/description/compensation (S1-R-5).
+- **eventRoutes POST**: validación numChildren <= couple real (S1-R-16).
+- **taskRoutes /:taskId/log**: updateMany guard contra race del placeholder (S1-R-8).
+- **taskRoutes /dispute**: nueva columna disputedBy + disputedAt (S1-R-9, migration).
+- **journal GET /entries**: filter author.deletedAt:null (S1-R-11).
+- **notificationRoutes /:id/read**: 1 query, sin race + double-fetch (S1-R-12).
+- **family /pets PUT**: undefined vs falsy para quantity 0 (S1-R-13).
+- **family + categories**: scope por req.coupleId con findFirst (S1-R-14).
+- **analyticsV2**: take:5000 defensivo en findMany hot-path (S1-R-18).
 
 ### v2.5.8 Sprint 10 — perf + integrity + memo — **2026-05-05**
 - **/tasks/recurring N+1 → groupBy + findMany agregada**: para 50 tasks pasamos de 100 round-trips a 2. Map lookup O(1) (audit 01).
