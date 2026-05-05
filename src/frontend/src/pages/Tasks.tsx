@@ -553,6 +553,25 @@ export default function Tasks() {
     return false
   })
 
+  // v2.6.1 audit 05 1.4 — antes mostrábamos `0/{N}` hardcoded en la
+  // sección "Esta semana". Ahora contamos cuántas de esas tareas tienen
+  // un log mío esta semana (status pending/verified, no disputed).
+  const weekStartIso = toLocalDateString(weekBounds.start)
+  const weekEndIso = toLocalDateString(weekBounds.end)
+  const myWeekLogsByTaskId = new Set(
+    allLogs
+      .filter((l) => l.completedBy?.id === user?.id)
+      .filter((l) => l.status !== 'disputed')
+      .filter((l) => {
+        const d = l.date?.toString().slice(0, 10)
+        return d ? d >= weekStartIso && d < weekEndIso : false
+      })
+      .map((l) => l.taskId),
+  )
+  const weekDoneCount = weekNotTodayTasks.filter((t) =>
+    myWeekLogsByTaskId.has(t.id),
+  ).length
+
   // Bug 2026-04-22: el catálogo es un listado fijo de ideas — no se filtra por
   // lo que ya añadiste. Duplicar es intencional (ej: "Limpiar baño" con dos
   // baños). Antes escondíamos ítems ya añadidos, lo que hacía que el catálogo
@@ -943,11 +962,13 @@ export default function Tasks() {
                   <div className="flex items-baseline justify-between px-1 pt-3.5 pb-2">
                     <h3 className="m-0 text-[13px] font-extrabold text-text-primary tracking-tight">📅 Esta semana</h3>
                     <span className="text-[11px] font-bold text-text-tertiary tabular-nums tracking-wide">
-                      <b className="text-brand-amber font-extrabold">0</b>/{weekNotTodayTasks.length}
+                      <b className="text-brand-amber font-extrabold">{weekDoneCount}</b>/{weekNotTodayTasks.length}
                     </span>
                   </div>
                   <div className="space-y-1.5">
-                    {weekNotTodayTasks.map((task) => (
+                    {weekNotTodayTasks.map((task) => {
+                      const doneThisWeek = myWeekLogsByTaskId.has(task.id)
+                      return (
                       <div key={task.id} className="relative group">
                         <TaskItemMedium
                           task={{
@@ -958,8 +979,8 @@ export default function Tasks() {
                             isRecurring: (task as any).isRecurring,
                             scheduledFor: (task as any).scheduledFor,
                           }}
-                          doneToday={false}
-                          onMark={() => setLoggingTask(task)}
+                          doneToday={doneThisWeek}
+                          onMark={() => !doneThisWeek && setLoggingTask(task)}
                         />
                         <button
                           type="button"
@@ -970,7 +991,8 @@ export default function Tasks() {
                           ×
                         </button>
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </section>
               )}

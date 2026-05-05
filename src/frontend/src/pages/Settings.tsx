@@ -309,7 +309,8 @@ function MyMoodWeekPanel() {
 // -----------------------------------------------------------------------------
 
 function CoupleSection({ onBack }: { onBack: () => void }) {
-  const { user, couple } = useAppStore()
+  const nav = useNavigate()
+  const { user, couple, loadUserData } = useAppStore()
   const partner = couple?.users?.find((u) => u.id !== user?.id)
 
   const [error, setError] = useState<string | null>(null)
@@ -395,11 +396,16 @@ function CoupleSection({ onBack }: { onBack: () => void }) {
             isOpen={unlinkOpen}
             partnerName={partner.name}
             onClose={() => setUnlinkOpen(false)}
-            onLeft={() => {
+            onLeft={async () => {
               setUnlinkOpen(false)
-              // Forzar re-fetch de couple/user — backend asignó couple individual nuevo.
-              // El user store debería refrescar; al recargar la app verá el nuevo state.
-              window.location.href = '/dashboard'
+              // v2.6.1 audit 05 10.2 — antes hacíamos `window.location.href`
+              // (full reload de la app) tras dejar la pareja. Eso descarta
+              // el cache de React Query y el estado Zustand. Ahora
+              // refrescamos el store y navegamos sin reload.
+              try {
+                await loadUserData(true)
+              } catch {}
+              nav('/dashboard')
             }}
           />
         </Card>
