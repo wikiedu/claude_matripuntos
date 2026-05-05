@@ -81,14 +81,17 @@ export default function Onboarding() {
 
   // If a logged-in user opens the invite link, just pre-fill the pair code
   // and skip straight to Rules — they already have an account.
+  // v2.5.6 audit 05 S1 — antes había eslint-disable y deps incompletas.
+  // Si `couple` se conectaba justo cuando este effect corría, `steps`
+  // mutaba de 6→5 pero el effect no re-ejecutaba. Añadimos `steps` y
+  // `setStep`/`setData` no necesitan estar (estables por React).
   useEffect(() => {
     if (urlToken && user) {
       setData((prev) => ({ ...prev, pairMethod: 'code', pairCode: urlToken }))
       const rulesIdx = steps.indexOf('rules')
       if (rulesIdx >= 0) setStep(rulesIdx)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlToken, user])
+  }, [urlToken, user, steps])
 
   // If user already completed onboarding, skip to dashboard
   useEffect(() => {

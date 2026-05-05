@@ -296,6 +296,9 @@ model Event {
   @@index([createdBy])
   @@index([status])
   @@index([dateStart])
+  // v2.5.6 audit 03 S1 — composite para queries hot-path:
+  // GET /events?status=pending&limit=20 ordenado por dateStart.
+  @@index([coupleId, status, dateStart])
 }
 
 // Tasks - Tareas recurrentes diarias
@@ -377,6 +380,9 @@ model TaskLog {
   @@index([date])
   @@index([status])
   @@index([scheduledFor])
+  // v2.5.6 audit 03 S1 — composite para queries hot-path:
+  // GET /tasks/logs?date=...&userId=... y filtros de Tasks page.
+  @@index([coupleId, date, completedBy])
 }
 
 // Negotiations - Historial de negociaciones
@@ -431,6 +437,9 @@ model PointsTransaction {
   @@index([type])
   @@index([relatedEventId])
   @@index([createdAt])
+  // v2.5.6 audit 03 S1 — composite para historial y balance:
+  // SUM(amount) WHERE coupleId=X ORDER BY createdAt DESC.
+  @@index([coupleId, createdAt])
 }
 
 // Compensations - Descuentos y compensaciones
@@ -506,6 +515,9 @@ model Notification {
   @@index([userId])
   @@index([isRead])
   @@index([createdAt])
+  // v2.5.6 audit 03 S1 — composite para badge y panel notif:
+  // GET /notifications?unread=true filtrado por user.
+  @@index([userId, isRead])
 }
 
 // Subscriptions - Plan premium
