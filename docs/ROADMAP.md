@@ -42,6 +42,10 @@
 | **v2.5.1** | **Sprint 3 audit** — recurrenceService MONTHLY/YEARLY clamp anchor (RFC 5545) · streak en TZ local couple · digestService weekEnd ISO canónico · 15 tests nuevos | ✅ **En producción 2026-05-05** | `main` | `v2.5.1` |
 | **v2.5.2** | **Sprint 4 audit** — prefers-reduced-motion · Inter self-hosted (@fontsource) GDPR · ConfirmDialog en force endpoint | ✅ **En producción 2026-05-05** | `main` | `v2.5.2` |
 | **v2.5.3** | **Sprint 5 audit** — XP cuenta event_accepted/forced · partner_joined notif · invalidate tras notif · guard /login /signup · AppHeader refresh selectivo | ✅ **En producción 2026-05-05** | `main` | `v2.5.3` |
+| **v2.5.4** | **Sprint 6 audit** — 401 sin reload · soft-delete filter más sites · dissolveCouple rota secretKey · V2 counter race lock | ✅ **En producción 2026-05-05** | `main` | `v2.5.4` |
+| **v2.5.5** | **Sprint 7 audit** — pointsDisputed validation · TaskLog date ISO · analyticsV2 LIMIT | ✅ **En producción 2026-05-05** | `main` | `v2.5.5` |
+| **v2.5.6** | **Sprint 8 audit** — Calendar RQ · 4 composite indexes · Onboarding deps · Tasks modales legacy a11y | ✅ **En producción 2026-05-05** | `main` | `v2.5.6` |
+| **v2.5.7** | **Sprint 9 audit** — Task.defaultAssigneeId FK · /balance N+1 → groupBy · Tasks dead code | ✅ **En producción 2026-05-05** | `main` | `v2.5.7` |
 | **v2.6** | **Achievements unification** — V1 usa V2 internamente para evaluar catálogo declarativo | 📝 Backlog | — | — |
 | **v2.7** | **Tokens unification full** — eliminar matri-* CSS vars + backgrounds opaque dark consolidados en surface tokens | 📝 Backlog | — | — |
 | **v2.0.6** | **Refinos catálogo** — picker en EventCreate, contraoferta en propuestas, "proponer cambio" inline | 🤔 Por decidir tras D30 | `feature/v2.0.6-refinos` | — |

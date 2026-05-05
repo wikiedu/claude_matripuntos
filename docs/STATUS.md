@@ -1,11 +1,11 @@
 # STATUS — Matripuntos
 
 **Última actualización:** 2026-05-05
-**Versión actual desplegada en producción:** `v2.5.3` · Sprints 1-5 hardening del audit profundo
+**Versión actual desplegada en producción:** `v2.5.7` · Sprints 1-9 hardening del audit profundo
 
 > **Auditoría 2026-05-05** completada: ~255 hallazgos en 12 dominios, ver
-> `docs/audits/2026-05-05-full-audit/`. Sprints 1-5 (v2.4.0 → v2.5.3) cierran
-> 15 S0 críticos + 17 S1 alto impacto. Pendientes en backlog v2.6/v2.7.
+> `docs/audits/2026-05-05-full-audit/`. Sprints 1-9 (v2.4.0 → v2.5.7) cierran
+> 16 S0 críticos + 30+ S1 alto impacto. Pendientes en backlog v2.6/v2.7.
 
 > **Handoff Claude Design 14 canvases iniciales completado al 100%.**
 > **Canvas 15 (Tareas/Actividades rediseño)** desplegado en v2.3.0.
@@ -19,6 +19,28 @@
 ## 🟢 EN PRODUCCIÓN (deployable + público)
 
 > Lo que está hoy mismo accesible al usuario en matripuntos.com.
+
+### v2.5.7 Sprint 9 — DB hardening + perf — **2026-05-05**
+- **Task.defaultAssigneeId con FK explícita** → User onDelete SetNull. Migration limpia primero referencias huérfanas. Antes era String? sin foreign key (audit 03 S1).
+- **/points/balance N+1 → groupBy**: una query en lugar de N findMany. Usa el composite index PointsTransaction(coupleId, createdAt) (audit 01).
+- **Tasks 'verificar' tab eliminado**: dead code de v2.3.0 (-129 LOC) (audit 05).
+
+### v2.5.6 Sprint 8 — Calendar RQ + indexes + a11y — **2026-05-05**
+- **Calendar.tsx → React Query**: mismo patrón que Tasks v2.5.0. Eliminado polling propio + setLoading flash (audit 05 S1).
+- **4 composite indexes hot-path**: Event(coupleId,status,dateStart), TaskLog(coupleId,date,completedBy), PointsTransaction(coupleId,createdAt), Notification(userId,isRead). Migration idempotente (audit 03 S1).
+- **Onboarding effect deps fix**: deps incompletas con eslint-disable arregladas (audit 05 S1).
+- **Tasks LogTaskModal y DisputeModal con role/aria-modal/escape/sheetLock**: a11y + sheetLock auto (audit 06 S1).
+
+### v2.5.5 Sprint 7 — Validación + LIMIT — **2026-05-05**
+- **pointsDisputed positive() + max(100)**: antes aceptaba negativos/NaN (audit 08 S1-4).
+- **TaskLog date ISO + max 30d futuro**: refine zod (audit 08 S1-4).
+- **analyticsV2 insights/regenerate con LIMIT 5000 + filtro createdAt**: evita memory blow-up con histórico largo (audit 01).
+
+### v2.5.4 Sprint 6 — 401 + soft-delete + dissolveCouple + race — **2026-05-05**
+- **401 handler usa navigate()** sin full reload (audit 07).
+- **soft-delete filter** en queries críticas balance/family (audit 03 S1-4).
+- **dissolveCouple rota secretKey** y limpia joinCode (audit 02 S1).
+- **V2 counter_propose lock optimista** contra race (audit 12 S1-Q-4).
 
 ### v2.5.3 Sprint 5 más S1 — **2026-05-05**
 - **XP cuenta event_accepted/forced**: gamificación parcialmente arreglada. Antes el filtro `amount: { gt: 0 }` ignoraba transacciones negativas (eventos aceptados donde el proposer paga). Ahora suma valor absoluto excepto donations. (audit 08 S1-3)
