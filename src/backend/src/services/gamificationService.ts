@@ -105,6 +105,27 @@ export async function calculateAndSaveXP(coupleId: string): Promise<number> {
   return xp
 }
 
+/**
+ * v2.5.1 audit 02 S1 — fix TZ local de la pareja.
+ * Antes: `today.setHours(0,0,0,0)` rodaba al midnight del SERVER (UTC en
+ * Render). Una user de Madrid completando una tarea a 23:30 local podía
+ * ver la racha cuenta como "ayer ya cubierto" en lugar de "hoy nuevo".
+ *
+ * Ahora: usamos el timezone del primer user del couple (proxy del couple
+ * timezone) y comparamos fechas como YYYY-MM-DD en esa TZ con
+ * Intl.DateTimeFormat. Cuando se desee Couple.timezone como campo propio,
+ * actualizar este helper.
+ */
+function dateKeyInTz(date: Date, tz: string): string {
+  // YYYY-MM-DD en la zona horaria dada.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date)
+}
+
 export async function updateDailyStreak(coupleId: string): Promise<void> {
   const couple = await prisma.couple.findUnique({ where: { id: coupleId } })
   if (!couple) return
@@ -112,22 +133,22 @@ export async function updateDailyStreak(coupleId: string): Promise<void> {
   // v2.2.8 — modo pausa: si la pareja está en pausa, no se mueve la racha.
   if (couple.pausedUntil && couple.pausedUntil > new Date()) return
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
+  // v2.5.1 — TZ del primer user (creador) como proxy del couple timezone.
+  // Si Couple gana un campo `timezone` propio, sustituir aquí.
+  const firstUser = await prisma.user.findFirst({
+    where: { coupleId, deletedAt: null },
+    orderBy: { createdAt: 'asc' },
+    select: { timezone: true },
+  })
+  const tz = firstUser?.timezone || 'Europe/Madrid'
 
-  const lastActivity = couple.lastActivityDate
-    ? new Date(couple.lastActivityDate)
+  const now = new Date()
+  const todayStr = dateKeyInTz(now, tz)
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  const yesterdayStr = dateKeyInTz(yesterday, tz)
+  const lastStr = couple.lastActivityDate
+    ? dateKeyInTz(new Date(couple.lastActivityDate), tz)
     : null
-
-  if (lastActivity) {
-    lastActivity.setHours(0, 0, 0, 0)
-  }
-
-  const todayStr = today.toISOString().slice(0, 10)
-  const lastStr = lastActivity?.toISOString().slice(0, 10)
-  const yesterdayStr = yesterday.toISOString().slice(0, 10)
 
   if (lastStr === todayStr) {
     // Already counted today
