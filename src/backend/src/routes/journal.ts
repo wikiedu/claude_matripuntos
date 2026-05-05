@@ -191,7 +191,17 @@ router.post('/retrospectives/:id/seen', writeBucket, async (req: Request, res: R
 
   const isUser1 = couple.users[0]?.id === userId
   const update = isUser1 ? { seenByUser1: true } : { seenByUser2: true }
-  await prisma.journalRetrospective.update({ where: { id: req.params.id }, data: update })
+  // v2.4 audit 04 S0-1 — IDOR: la retrospective debe pertenecer al couple
+  // del caller. Antes se actualizaba por id sin filtrar coupleId, lo que
+  // permitía marcar como leídas retrospectivas de otra pareja.
+  // updateMany devuelve count=0 si no hay match → 404.
+  const result = await prisma.journalRetrospective.updateMany({
+    where: { id: req.params.id, coupleId },
+    data: update,
+  })
+  if (result.count === 0) {
+    return res.status(404).json({ error: 'Retrospective not found' })
+  }
   res.json({ ok: true })
 })
 

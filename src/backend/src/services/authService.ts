@@ -57,8 +57,14 @@ export async function signupUser(
   language: string = 'es'
 ) {
   try {
-    // Check if email already exists
-    const existingUser = await prisma.user.findUnique({ where: { email } })
+    // v2.4 audit 03 S0 — solo bloqueamos el alta si EXISTE un usuario ACTIVO
+    // con ese email. Soft-deletes (deletedAt no nulo) no deben bloquear
+    // re-registro porque accountDeletionService reescribe el email a
+    // deleted-<id>-<ts>@matripuntos.local — pero como defensa extra filtramos
+    // siempre por deletedAt: null en lookups de auth.
+    const existingUser = await prisma.user.findFirst({
+      where: { email, deletedAt: null },
+    })
     if (existingUser) {
       throw new Error('Email already registered')
     }
@@ -305,8 +311,11 @@ export const signupCouple = async (
 // Login user
 export const loginUser = async (email: string, password: string) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { email },
+    // v2.4 audit 03 S0 — filtrar deletedAt para que un usuario soft-deleted
+    // no pueda seguir logueándose con sus credenciales antiguas hasta el
+    // hard-purge a los 30d.
+    const user = await prisma.user.findFirst({
+      where: { email, deletedAt: null },
       include: { couple: true }
     })
 

@@ -1,9 +1,25 @@
 import { Router, Request, Response } from 'express'
+import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 import { createNotification } from '../services/notificationService.js'
 
 const router = Router()
 import prisma from '../lib/prisma.js'
+
+// v2.4 audit 01 S0-R-3 — schema estricto para propose-change. Antes el
+// endpoint hacía `const { comment, ...fields } = req.body` y guardaba
+// `fields` raw en payload JSON. Si el endpoint que aplica la propuesta
+// hacía spread sobre los campos, un payload con `coupleId` podía mover
+// la categoría a otro couple. Aquí limitamos los campos al subset
+// permitido y dropea cualquier otro silenciosamente.
+const proposeChangeSchema = z.object({
+  comment: z.string().min(1).max(500),
+  name: z.string().min(1).max(100).optional(),
+  emoji: z.string().max(8).optional(),
+  type: z.enum(['event', 'chore', 'service']).optional(),
+  basePoints: z.number().min(0).max(500).optional(),
+  description: z.string().max(500).optional(),
+})
 
 // Middleware to ensure user is authenticated
 router.use(authenticateToken)
@@ -414,8 +430,16 @@ router.post('/propose', async (req: Request, res: Response): Promise<void> => {
 router.put('/:id/propose-change', async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.coupleId || !req.userId) { res.status(401).json({ error: 'Authentication required' }); return }
-    const { comment, ...fields } = req.body
-    if (!comment) { res.status(400).json({ error: 'comment is required' }); return }
+
+    const parsed = proposeChangeSchema.safeParse(req.body)
+    if (!parsed.success) {
+      res.status(400).json({
+        error: 'Validation error',
+        details: parsed.error.errors.map((e) => ({ path: e.path.join('.'), message: e.message })),
+      })
+      return
+    }
+    const { comment, ...fields } = parsed.data
 
     const category = await prisma.category.findFirst({
       where: { id: req.params.id, coupleId: req.coupleId }

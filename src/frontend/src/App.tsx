@@ -6,6 +6,8 @@ import { apiClient } from './services/apiClient'
 import { useActivities } from './hooks/useActivities'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
 import RequestActivity from './pages/RequestActivity'
@@ -132,6 +134,8 @@ function AppRoutes() {
       {/* Cold screens — no AuthedLayout */}
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/onboarding/join/:token" element={<Onboarding />} />
 
