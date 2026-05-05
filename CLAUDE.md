@@ -7,8 +7,9 @@
 ## 1. PROYECTO
 App web gamificada para parejas: gestión equitativa de responsabilidades del hogar mediante puntos negociables. Repo: https://github.com/wikiedu/claude_matripuntos
 
-**Versión actual en producción:** v2.3.5 · KISS Actividades + refresh hardening (tag `v2.3.5`, 2026-05-04)  
-**Estado del proyecto:** ver `docs/STATUS.md` para snapshot completo (qué está en prod, qué está pendiente, qué decisiones quedan).  
+**Versión actual en producción:** v2.4.3 · Sprint 1 hardening del audit profundo 2026-05-05 (tag `v2.4.3`)
+**Estado del proyecto:** ver `docs/STATUS.md` para snapshot completo (qué está en prod, qué está pendiente, qué decisiones quedan).
+**Auditoría base:** `docs/audits/2026-05-05-full-audit/00-MASTER-REPORT.md` (12 dominios, ~255 hallazgos).
 **Branch principal:** `main`
 
 ## 2. STACK TÉCNICO

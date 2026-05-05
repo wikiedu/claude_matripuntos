@@ -33,6 +33,12 @@
 | **v2.0.3.1** | **Hotfix técnico + UX must-fix** — IDOR journal, push unsubscribe, focus rings, BottomNav safe-area | ✅ **En producción 2026-05-02** | `main` | `v2.0.3.1` |
 | **v2.0.4** | **Catálogo + consenso** — ActivityTemplate + ConfigurationProposal + ProposalsPanel | ✅ **En producción 2026-05-03** (pendiente seed + QA E2E manual) | `main` | `v2.0.4` |
 | **v2.0.5** | **Quick wins** — anniversary timer + image proof tareas (data-URL <500KB) | ✅ **En producción 2026-05-03** | `main` | `v2.0.5` |
+| **v2.3.x** | **KISS Actividades + refresh hardening** — múltiples polish releases | ✅ **En producción 2026-05-04** | `main` | `v2.3.5` |
+| **v2.4.0** | **Audit hardening D1** — web-push + alerts/confirms + compensationDiscount + maxFreeRounds + isLoading split + sheetLock auto | ✅ **En producción 2026-05-05** | `main` | `v2.4.0` |
+| **v2.4.1** | **Audit hardening D2** — `$transaction` en negotiationEngine.accept + force creator check + dispute reverte PT + reset-confirm doble confirm | ✅ **En producción 2026-05-05** | `main` | `v2.4.1` |
+| **v2.4.2** | **Audit hardening D3** — deletedAt filter login/signup + IDOR journal + GDPR Art. 8 + categories schema + forgot-password real | ✅ **En producción 2026-05-05** | `main` | `v2.4.2` |
+| **v2.4.3** | **Audit hardening D4** — deploy script sin --delete + plan baseline migrations Postgres + STATUS/ROADMAP al día | ✅ **En producción 2026-05-05** | `main` | `v2.4.3` |
+| **v2.5** | **Sprint 2 audit** — Tasks.tsx → React Query · achievement engines unified · design tokens cleanup · IDOR contract tests | 📝 Plan listo en master report audit | `feature/v2.5-sprint2-audit` | — |
 | **v2.0.6** | **Refinos catálogo** — picker en EventCreate, contraoferta en propuestas, "proponer cambio" inline | 🤔 Por decidir tras D30 | `feature/v2.0.6-refinos` | — |
 | **v2.1** | **Conectados** — Google sync bidireccional + push real + ICS + referidos | 📝 Spec aprobado (2026-05-02) | `feature/v2.1-conectados` | — |
 | **v2.2** | **Multiidiomas** — i18n ES/EN/CA/PT (interfaz, prompts journal, emails) | 🧠 Brainstorm pendiente | `feature/v2.2-multiidiomas` | — |
