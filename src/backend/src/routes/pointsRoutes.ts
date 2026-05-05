@@ -251,17 +251,26 @@ router.get('/balance', authMiddleware, async (req: Request, res: Response): Prom
       return
     }
 
+    // v2.5.7 audit 01 — antes hacíamos N queries (una findMany por user).
+    // Ahora una sola groupBy con SUM. Para un couple de 2 users esto es
+    // técnicamente 2x más rápido pero más importante: usa el composite
+    // index PointsTransaction(coupleId, createdAt) y reduce el round-trip
+    // a la BD. Beneficio escala si en el futuro un couple tiene >2 users.
+    const grouped = await prisma.pointsTransaction.groupBy({
+      by: ['userId'],
+      where: { coupleId: req.coupleId },
+      _sum: { amount: true },
+    })
     const balances: { [key: string]: number } = {}
-
+    for (const row of grouped) {
+      if (row.userId) {
+        balances[row.userId] = Number(row._sum.amount ?? 0)
+      }
+    }
+    // Garantiza que todos los users del couple tienen entry (=0 si no hay
+    // tx). El groupBy omite users sin transacciones.
     for (const user of couple.users) {
-      const transactions = await prisma.pointsTransaction.findMany({
-        where: {
-          coupleId: req.coupleId,
-          userId: user.id,
-        },
-      })
-
-      balances[user.id] = transactions.reduce((sum, t) => sum + Number(t.amount), 0)
+      if (!(user.id in balances)) balances[user.id] = 0
     }
 
     const currentUser = couple.users.find((u) => u.id === req.userId)

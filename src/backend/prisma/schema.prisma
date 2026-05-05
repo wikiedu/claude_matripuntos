@@ -231,6 +231,8 @@ model User {
   refreshTokens           RefreshToken[]
   // v2.4 audit 04 S1-4 — password reset
   passwordResetTokens     PasswordResetToken[]
+  // v2.5.7 audit 03 S1 — back-relation Task.defaultAssignee
+  tasksAsDefaultAssignee  Task[]                  @relation("TaskDefaultAssignee")
 
   // v2.0.4 relations
   configurationProposals  ConfigurationProposal[] @relation("ConfigProposer")
@@ -322,7 +324,11 @@ model Task {
   occurrenceCount       Int                      @default(0)
 
   // v1.5 quick-win #3 — default assignee for the task (nullable = either)
+  // v2.5.7 audit 03 S1 — relation FK explícita con onDelete: SetNull. Antes
+  // era un String? sin foreign key → si se borraba el User asignado,
+  // defaultAssigneeId quedaba apuntando a un id fantasma.
   defaultAssigneeId     String?
+  defaultAssignee       User?                    @relation("TaskDefaultAssignee", fields: [defaultAssigneeId], references: [id], onDelete: SetNull)
 
   // Relations
   couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
@@ -334,6 +340,7 @@ model Task {
 
   @@index([coupleId])
   @@index([category])
+  @@index([defaultAssigneeId])
 }
 
 // TaskLogs - Registro de tareas completadas
