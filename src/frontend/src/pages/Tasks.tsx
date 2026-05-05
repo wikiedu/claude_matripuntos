@@ -7,12 +7,12 @@ import { useState, useCallback, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { isSheetOpen, acquireSheetLock, releaseSheetLock } from '../lib/sheetLock'
 import {
-  Plus, CheckCircle, Loader, X, RefreshCw, AlertTriangle, CheckCheck, HelpCircle, Clock,
+  Plus, CheckCircle, Loader, X, RefreshCw, AlertTriangle, Clock,
   Sparkles, History, ListChecks,
 } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
-import { toLocalDateString, formatLocalDate, formatLocalWeekDay } from '../utils/dateUtils'
+import { toLocalDateString, formatLocalDate } from '../utils/dateUtils'
 import { WeeklyTaskView } from '../components/WeeklyTaskView'
 import { WeekStrip } from '../components/v2/tasks/WeekStrip'
 // v2.3.0 — Pill retirado del header tras refactor canvas 15.
@@ -396,12 +396,17 @@ export default function Tasks() {
   const setError = setMutationError
   const error = mutationError ?? tasksQuery.error?.message ?? logsQuery.error?.message ?? null
   const [success, setSuccess] = useState<string | null>(null)
-  const [tab, setTab] = useState<'mis_tareas' | 'recurrentes' | 'verificar' | 'historial'>('mis_tareas')
+  // v2.5.7 audit 05 — eliminada la pestaña 'verificar' del tipo: era dead
+  // code desde v2.3.0 (reemplazada por VerifyBanner condicional).
+  const [tab, setTab] = useState<'mis_tareas' | 'recurrentes' | 'historial'>('mis_tareas')
 
   // Modals
   const [loggingTask, setLoggingTask] = useState<Task | null>(null)
   const [disputingLog, setDisputingLog] = useState<TaskLog | null>(null)
-  const [verifyingId, setVerifyingId] = useState<string | null>(null)
+  // v2.5.7 — verifyingId quedó como state local sin lectores tras eliminar
+  // pestaña 'verificar' (audit 05). Lo conservamos por si lo usa
+  // VerifyBanner en el futuro; el setter sigue exportado.
+  const [, setVerifyingId] = useState<string | null>(null)
   const [showAddSheet, setShowAddSheet] = useState(false)
   // v2.1.1: el botón primario abre el sheet del catálogo. El secundario abre
   // el AddTaskSheet en blanco (crear tarea nueva fuera del catálogo).
@@ -1017,135 +1022,6 @@ export default function Tasks() {
             <RecurringTaskManager onChanged={loadData} />
           )}
 
-          {/* ── VERIFICAR TAB ── */}
-          {tab === 'verificar' && (
-            <div className="space-y-4">
-              {partnerPendingLogs.length > 0 ? (
-                <>
-                  <p className="text-sm text-text-secondary">
-                    Tu pareja ha completado {partnerPendingLogs.length} tarea
-                    {partnerPendingLogs.length !== 1 ? 's' : ''} que esperan tu verificación
-                  </p>
-                  {partnerPendingLogs.map((log) => (
-                    <div
-                      key={log.id}
-                      className="p-3 rounded-lg bg-surface-card border border-brd-subtle border-l-4 border-l-brand-purple"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">
-                              {CATEGORY_EMOJI[log.taskCategory?.toLowerCase()] || '✅'}
-                            </span>
-                            <div className="min-w-0">
-                              <p className="font-semibold text-text-primary truncate">{log.taskName}</p>
-                              <p className="text-xs text-text-secondary">
-                                {log.completedBy?.name} · {formatLocalWeekDay(log.date)}
-                                {log.modifier && log.modifier !== 'none' && (
-                                  <span
-                                    className={`ml-2 text-[11px] px-1.5 py-0.5 rounded-full ${
-                                      log.modifier === 'extra'
-                                        ? 'bg-success/15 text-success border border-success/30'
-                                        : 'bg-warn/15 text-warn border border-warn/30'
-                                    }`}
-                                  >
-                                    {log.modifier === 'extra' ? '⭐ Extra +30%' : '🔸 Parcial −30%'}
-                                  </span>
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right ml-3">
-                          <div className="text-xl font-bold text-brand-purple tabular-nums">+{log.pointsFinal}</div>
-                          <div className="text-[11px] text-text-tertiary">pts</div>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleVerify(log)}
-                          disabled={verifyingId === log.id}
-                          className="flex-1 py-2 px-3 rounded-md text-sm font-bold bg-success/15 text-success border border-success/30 hover:bg-success/20 disabled:opacity-50 flex items-center justify-center gap-1.5 transition"
-                        >
-                          {verifyingId === log.id ? (
-                            <Loader className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <CheckCheck className="w-4 h-4" />
-                          )}
-                          Verificar (+{log.pointsFinal} pts)
-                        </button>
-                        <button
-                          onClick={() => setDisputingLog(log)}
-                          disabled={verifyingId === log.id}
-                          className="flex-1 py-2 px-3 rounded-md text-sm font-bold bg-warn/15 text-warn border border-warn/30 hover:bg-warn/20 disabled:opacity-50 flex items-center justify-center gap-1.5 transition"
-                        >
-                          <AlertTriangle className="w-4 h-4" />
-                          Disputar
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                <div className="rounded-md bg-surface-card border border-brd-subtle p-10 text-center">
-                  <Sparkles className="w-10 h-10 mx-auto text-brand-purple mb-2" />
-                  <p className="font-semibold text-text-primary">Todo al día</p>
-                  <p className="text-sm text-text-secondary mt-1 max-w-xs mx-auto">
-                    No hay tareas de tu pareja pendientes de verificar. Cuando complete una nueva tarea, aparecerá aquí para confirmarla.
-                  </p>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setTab('mis_tareas')}
-                    className="mt-3"
-                  >
-                    Ir a mis tareas
-                  </Button>
-                </div>
-              )}
-
-              {myPendingLogs.length > 0 && (
-                <div className="mt-4">
-                  <h3 className="text-xs font-bold text-text-tertiary uppercase tracking-wide mb-2 flex items-center gap-2">
-                    <HelpCircle className="w-4 h-4" />
-                    Mis tareas esperando tu pareja ({myPendingLogs.length})
-                  </h3>
-                  <div className="space-y-1.5">
-                    {myPendingLogs.map((log) => (
-                      <div
-                        key={log.id}
-                        className="p-3 rounded-md bg-surface-card border border-brd-subtle opacity-70"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-text-primary">{log.taskName}</p>
-                            <p className="text-[11px] text-text-tertiary">
-                              {formatLocalDate(log.date)} · ⏳ Esperando verificación
-                            </p>
-                          </div>
-                          <span className="text-sm font-bold text-text-tertiary tabular-nums">
-                            +{log.pointsFinal} pts
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* v2.3.1 — link historial al final (canvas 15). Visible siempre
-                  que haya logs en allLogs (si la pareja ya tiene actividad). */}
-              {allLogs.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setTab('historial')}
-                  className="block mx-auto mt-4 mb-2 text-xs font-bold text-text-tertiary hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple rounded px-2 py-1"
-                >
-                  Ver <span className="text-brand-purple">historial completo →</span>
-                </button>
-              )}
-            </div>
-          )}
 
           {/* ── HISTORIAL TAB ── */}
           {tab === 'historial' && (
