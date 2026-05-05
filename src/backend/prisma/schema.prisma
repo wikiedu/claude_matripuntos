@@ -291,6 +291,8 @@ model Event {
   negotiations          Negotiation[]
   compensations         Compensation[]
   pointsTransactions    PointsTransaction[]
+  // v2.5.8 audit 03 S1 — back-relation CalendarEntry.relatedEvent
+  calendarEntries       CalendarEntry[]          @relation("CalendarEntryRelatedEvent")
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
@@ -334,6 +336,8 @@ model Task {
   couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
   logs                  TaskLog[]
   compensations         Compensation[]
+  // v2.5.8 audit 03 S1 — back-relation CalendarEntry.relatedTask
+  calendarEntries       CalendarEntry[]          @relation("CalendarEntryRelatedTask")
 
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
@@ -804,6 +808,11 @@ model CalendarEntry {
 
   // Relations
   couple                Couple                   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  // v2.5.8 audit 03 S1 — relations explícitas con onDelete: SetNull para
+  // que borrar el Event/Task referenciado no deje el CalendarEntry con id
+  // fantasma. CalendarEntry se queda sólo con el title cached.
+  relatedEvent          Event?                   @relation("CalendarEntryRelatedEvent", fields: [relatedEventId], references: [id], onDelete: SetNull)
+  relatedTask           Task?                    @relation("CalendarEntryRelatedTask", fields: [relatedTaskId], references: [id], onDelete: SetNull)
 
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt @default(now())
@@ -813,6 +822,8 @@ model CalendarEntry {
   @@index([type])
   @@index([coupleId, date])
   @@index([coupleId, type])
+  @@index([relatedEventId])
+  @@index([relatedTaskId])
   @@unique([externalSource, externalId])
 }
 
