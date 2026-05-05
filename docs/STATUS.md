@@ -1,11 +1,11 @@
 # STATUS — Matripuntos
 
 **Última actualización:** 2026-05-05
-**Versión actual desplegada en producción:** `v2.5.2` · Sprints 1-4 hardening del audit profundo
+**Versión actual desplegada en producción:** `v2.5.3` · Sprints 1-5 hardening del audit profundo
 
 > **Auditoría 2026-05-05** completada: ~255 hallazgos en 12 dominios, ver
-> `docs/audits/2026-05-05-full-audit/`. Sprints 1-4 (v2.4.0 → v2.5.2) cierran
-> 15 S0 críticos + 12 S1 alto impacto. Pendientes en backlog v2.6/v2.7.
+> `docs/audits/2026-05-05-full-audit/`. Sprints 1-5 (v2.4.0 → v2.5.3) cierran
+> 15 S0 críticos + 17 S1 alto impacto. Pendientes en backlog v2.6/v2.7.
 
 > **Handoff Claude Design 14 canvases iniciales completado al 100%.**
 > **Canvas 15 (Tareas/Actividades rediseño)** desplegado en v2.3.0.
@@ -19,6 +19,13 @@
 ## 🟢 EN PRODUCCIÓN (deployable + público)
 
 > Lo que está hoy mismo accesible al usuario en matripuntos.com.
+
+### v2.5.3 Sprint 5 más S1 — **2026-05-05**
+- **XP cuenta event_accepted/forced**: gamificación parcialmente arreglada. Antes el filtro `amount: { gt: 0 }` ignoraba transacciones negativas (eventos aceptados donde el proposer paga). Ahora suma valor absoluto excepto donations. (audit 08 S1-3)
+- **partner_joined notif al aceptar email invitation**: User1 ahora recibe notif inmediata cuando User2 acepta el link del email (antes el otro flow register-with-code ya la tenía). (audit 12 S1-Q-1)
+- **Invalidate balance/queries tras incrementarse unread count**: cuando llega notif del partner, el cliente refresca balance/eventos/tareas/gamificación sin esperar al próximo polling. Cierra el ciclo notif → UI update. (audit 12 S1-Q-5)
+- **Guard ya-autenticado en /login y /signup**: redirect a /dashboard si el user llega ya con sesión. UX. (audit 05 S1)
+- **AppHeader refresh button selectivo**: antes invalidateQueries() sin key disparaba >20 refetches en cascada. Ahora sólo las 7 queries que el user genuinamente quiere ver frescas. (audit 06 S1-11)
 
 ### v2.5.2 Sprint 4 audit pulido — **2026-05-05**
 - **prefers-reduced-motion** respetado globalmente: animaciones reducidas a 0.01ms para usuarios con la preferencia (audit 09 S2-U-2).
