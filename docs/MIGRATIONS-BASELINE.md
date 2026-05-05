@@ -107,14 +107,21 @@ Más completo pero más invasivo: traducir las 6 primeras migraciones a sintaxis
 
 ## Cuándo ejecutar Plan A
 
-**NO durante este sprint v2.4.** Razones:
+**Hasta la fecha NO ha sido necesario ejecutarlo en v2.4-v2.5.x.** Razones:
 
-1. La nueva migration `20261201000000_v2_4_password_reset` añade una tabla `PasswordResetToken` — Postgres-nativa, NO sufre el problema de las primeras 6.
-2. Render auto-deploy de v2.4.x ejecutará `prisma migrate deploy` y verá la nueva migration. El comportamiento es:
-   - Si `_prisma_migrations` está al día (porque scripts/reconcile ya se ha ejecutado en el pasado): aplica `20261201_v2_4_password_reset` y todo funciona.
+1. Las **4 migrations nuevas** introducidas son todas Postgres-nativas y NO sufren el problema de las primeras 6:
+   - `20261201000000_v2_4_password_reset` (v2.4.2) — tabla PasswordResetToken
+   - `20261202000000_v2_5_6_compound_indexes` (v2.5.6) — 4 indexes hot-path con `IF NOT EXISTS` (idempotentes)
+   - `20261202010000_v2_5_7_task_default_assignee_fk` (v2.5.7) — FK Task.defaultAssigneeId con limpieza defensiva de huérfanos
+   - `20261202020000_v2_5_8_calendar_entry_fks` (v2.5.8) — FK CalendarEntry.relatedEventId/relatedTaskId con limpieza defensiva
+
+2. Render auto-deploy ejecuta `prisma migrate deploy` en cada push a main. El comportamiento observado es:
+   - Si `_prisma_migrations` está al día: aplica la nueva migration y todo funciona.
    - Si NO está al día: deploy de Render falla. **Plan B fallback:** ejecutar `scripts/reconcile-prisma-migrations.mjs` manualmente en local apuntando a producción, y luego re-deployear.
 
-3. Si alguno de los puntos 2 falla, este documento es la guía.
+3. Las migrations de v2.5.x usan `CREATE INDEX IF NOT EXISTS` y `UPDATE ... WHERE NOT EXISTS` defensivos para que sean **idempotentes** y **safe** ante reruns.
+
+4. Si alguno de los puntos 2 falla, este documento es la guía.
 
 ---
 
