@@ -1,0 +1,47 @@
+# v2.7.4 audit 10 S2-I-1, S2-I-7 — render.yaml versionado.
+# Permite reproducir el deploy desde cero con `render blueprint deploy`.
+# Hasta ahora el deploy estaba configurado solo en el dashboard de Render.
+#
+# NOTA: este file documenta la configuración esperada. El servicio actual
+# en Render se sigue gestionando desde el dashboard (no se aplica
+# automáticamente al pushear este file). Para activar Blueprint deploy,
+# borra el servicio actual y crea uno nuevo apuntando a este YAML.
+
+services:
+  - type: web
+    name: matripuntos-api
+    runtime: node
+    region: frankfurt           # más cerca de usuarios ES
+    plan: free                  # mover a starter ($7/mo) elimina cold start
+    rootDir: .
+    buildCommand: npm install && cd src/backend && npx prisma generate && npx tsc
+    startCommand: cd src/backend && npx prisma migrate deploy && node dist/server.js
+    healthCheckPath: /api/health
+    autoDeploy: true            # auto-deploy en push a main
+    branch: main
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000             # Render asigna su propio
+      - key: JWT_SECRET
+        sync: false              # gestionar manualmente en dashboard
+      - key: DATABASE_URL
+        sync: false
+      - key: FRONTEND_URLS
+        value: https://matripuntos.com,https://www.matripuntos.com
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: POSTHOG_KEY
+        sync: false
+      - key: POSTHOG_HOST
+        value: https://eu.posthog.com
+
+# Cron jobs — actualmente corren en proceso interno (audit 10 S1-I-1).
+# Cuando se separe a Render Cron Jobs, declarar aquí:
+# crons:
+#   - name: digest-weekly
+#     schedule: "0 20 * * 0"
+#     command: cd src/backend && node dist/jobs/digestWeekly.js

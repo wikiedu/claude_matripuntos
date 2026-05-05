@@ -61,6 +61,30 @@ import prisma from './lib/prisma.js'
 
 dotenv.config()
 
+// v2.7.4 audit 10 S1-I-5 — env validation al boot. Antes el server
+// arrancaba con DATABASE_URL/JWT_SECRET faltantes y fallaba en la
+// primera request con un error opaco. Aquí hacemos fail-fast con un
+// mensaje legible para que un misconfig en Render se diagnostique
+// inmediatamente desde los logs.
+function validateEnv(): void {
+  const required = ['JWT_SECRET', 'DATABASE_URL']
+  const missing = required.filter((k) => !process.env[k] || process.env[k] === '')
+  if (missing.length > 0) {
+    console.error(`[boot] FATAL: env vars requeridas no definidas: ${missing.join(', ')}`)
+    process.exit(1)
+  }
+  // JWT_SECRET tiene mínimo 32 chars (defensivo).
+  if ((process.env.JWT_SECRET ?? '').length < 32) {
+    console.error('[boot] FATAL: JWT_SECRET debe tener al menos 32 caracteres.')
+    process.exit(1)
+  }
+  // En production exigimos NODE_ENV explícito (S0-R-4 audit pre-v1.7).
+  if (process.env.RENDER && process.env.NODE_ENV !== 'production') {
+    console.warn('[boot] WARNING: corriendo en Render sin NODE_ENV=production. Algunas defensas relajan reglas (delete-account code en respuesta, etc).')
+  }
+}
+validateEnv()
+
 initSentry()
 
 const app = express()
