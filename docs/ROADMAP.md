@@ -39,6 +39,8 @@
 | **v2.4.2** | **Audit hardening D3** — deletedAt filter login/signup + IDOR journal + GDPR Art. 8 + categories schema + forgot-password real | ✅ **En producción 2026-05-05** | `main` | `v2.4.2` |
 | **v2.4.3** | **Audit hardening D4** — deploy script sin --delete + plan baseline migrations Postgres + STATUS/ROADMAP al día | ✅ **En producción 2026-05-05** | `main` | `v2.4.3` |
 | **v2.5.0** | **Sprint 2 audit** — Tasks.tsx → React Query · achievement engines layered (3 servicios documentados, no duplicados) · 6 hex hardcoded → tokens Tailwind · IDOR contract test inventory | ✅ **En producción 2026-05-05** | `main` | `v2.5.0` |
+| **v2.5.1** | **Sprint 3 audit** — recurrenceService MONTHLY/YEARLY clamp anchor (RFC 5545) · streak en TZ local couple · digestService weekEnd ISO canónico · 15 tests nuevos | ✅ **En producción 2026-05-05** | `main` | `v2.5.1` |
+| **v2.5.2** | **Sprint 4 audit** — prefers-reduced-motion · Inter self-hosted (@fontsource) GDPR · ConfirmDialog en force endpoint | ✅ **En producción 2026-05-05** | `main` | `v2.5.2` |
 | **v2.6** | **Achievements unification** — V1 usa V2 internamente para evaluar catálogo declarativo | 📝 Backlog | — | — |
 | **v2.7** | **Tokens unification full** — eliminar matri-* CSS vars + backgrounds opaque dark consolidados en surface tokens | 📝 Backlog | — | — |
 | **v2.0.6** | **Refinos catálogo** — picker en EventCreate, contraoferta en propuestas, "proponer cambio" inline | 🤔 Por decidir tras D30 | `feature/v2.0.6-refinos` | — |

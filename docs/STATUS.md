@@ -1,11 +1,11 @@
 # STATUS — Matripuntos
 
 **Última actualización:** 2026-05-05
-**Versión actual desplegada en producción:** `v2.5.0` · Sprint 2 hardening del audit profundo
+**Versión actual desplegada en producción:** `v2.5.2` · Sprints 1-4 hardening del audit profundo
 
 > **Auditoría 2026-05-05** completada: ~255 hallazgos en 12 dominios, ver
-> `docs/audits/2026-05-05-full-audit/`. Sprint 1 (v2.4.0 → v2.4.3) cierra
-> los S0 críticos de quick-wins, integridad data, GDPR/auth y deploy.
+> `docs/audits/2026-05-05-full-audit/`. Sprints 1-4 (v2.4.0 → v2.5.2) cierran
+> 15 S0 críticos + 12 S1 alto impacto. Pendientes en backlog v2.6/v2.7.
 
 > **Handoff Claude Design 14 canvases iniciales completado al 100%.**
 > **Canvas 15 (Tareas/Actividades rediseño)** desplegado en v2.3.0.
@@ -19,6 +19,17 @@
 ## 🟢 EN PRODUCCIÓN (deployable + público)
 
 > Lo que está hoy mismo accesible al usuario en matripuntos.com.
+
+### v2.5.2 Sprint 4 audit pulido — **2026-05-05**
+- **prefers-reduced-motion** respetado globalmente: animaciones reducidas a 0.01ms para usuarios con la preferencia (audit 09 S2-U-2).
+- **Inter self-hosted** via @fontsource: privacidad GDPR (no ping a fonts.googleapis.com con cada visit) + perf + offline-friendly (audit 09 S2-U-6).
+- **ConfirmDialog en force**: antes 1 click → pago inmediato. Ahora preview de puntos + variant danger + label "Pagar X MP y forzar". Mata el riesgo de tap accidental (audit 12 S1-Q-3).
+
+### v2.5.1 Sprint 3 lógica fina services — **2026-05-05**
+- **recurrenceService MONTHLY/YEARLY clamp con anchor** (RFC 5545 §3.3.10): 31-ene → 28-feb → 31-mar (no 28-mar). 29-feb 2024 → 28-feb 2025. (audit 02 S1)
+- **gamificationService streak en TZ local del couple** (no UTC): user de Madrid completando a 23:30 local ya no se considera "ayer". Helper `dateKeyInTz` con `Intl.DateTimeFormat('en-CA', {timeZone})`. (audit 02 S1)
+- **digestService weekEnd ISO canónico**: helper `lastIsoWeekRange(now)` que devuelve Lunes 00:00 → Domingo 23:59:59 de la semana ANTERIOR sin importar qué día sea now. Idempotente para cron retrasado. (audit 02 S1)
+- 91 tests backend pass (15 nuevos en recurrence + digest).
 
 ### v2.5.0 Sprint 2 audit hardening — **2026-05-05**
 - **Tasks.tsx → React Query**: causa B del refresh extraño resuelta. Eliminado el polling triple (focus + visibility + setInterval), reemplazado por useQuery con `refetchInterval: () => isSheetOpen() ? false : 30_000`. `isLoading` solo en bootstrap, no en refetches background. (audit 05 S0)
