@@ -1,5 +1,5 @@
 import { Bell, RefreshCw } from 'lucide-react'
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Avatar } from '../primitives/Avatar'
 
@@ -35,7 +35,11 @@ function presenceLabel(iso: string | null | undefined): { label: string; online:
   return null
 }
 
-export function AppHeader({
+// v2.5.8 audit 06 — memo: AppHeader recibe ~10 props primitives. Antes
+// se re-renderizaba en cada cambio de cualquier query del padre
+// (AuthedLayout) aunque sus props no cambiaran. memo con shallow
+// equality default detecta cambios reales y skipea el resto.
+function AppHeaderImpl({
   userName, userAvatarEmoji, userAvatarColor, userMood,
   partnerMood, partnerName, partnerLastSeenAt,
   unreadCount = 0, onBell, onMenu, onAvatar,
@@ -137,3 +141,5 @@ export function AppHeader({
     </header>
   )
 }
+
+export const AppHeader = memo(AppHeaderImpl)
