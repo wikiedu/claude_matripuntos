@@ -1,7 +1,7 @@
 // v1.7 — Hermetic tests para streakService.recordActivity (función pura).
 
 import { describe, it, expect } from '@jest/globals'
-import { recordActivity, type StreakState } from '../src/services/streakService.js'
+import { recordActivity, isoWeeksBetween, type StreakState } from '../src/services/streakService.js'
 
 const ZERO: StreakState = {
   dailyStreak: 0,
@@ -112,5 +112,43 @@ describe('streakService.recordActivity (weekly)', () => {
     const r = recordActivity(prev, now, 4)
     expect(r.weeklyStreak).toBe(3)
     expect(r.weeklyChanged).toBe(false)
+  })
+})
+
+describe('streakService.isoWeeksBetween (boundary fix v2.6.3 audit 02 S1-9)', () => {
+  it('same monday returns 0', () => {
+    const a = new Date('2026-05-04T08:00:00')
+    const b = new Date('2026-05-04T20:00:00')
+    expect(isoWeeksBetween(a, b)).toBe(0)
+  })
+
+  it('same week different days returns 0', () => {
+    // lunes -> domingo dentro de la misma semana ISO
+    const lunes = new Date('2026-05-04T08:00:00')
+    const domingo = new Date('2026-05-10T20:00:00')
+    expect(isoWeeksBetween(lunes, domingo)).toBe(0)
+  })
+
+  it('lunes then siguiente martes returns 1 (cruza frontera)', () => {
+    // El bug histórico: Math.floor((martes - lunes_anterior) / 7d) = 1.14 → 1.
+    // Aquí queremos que cuente como 1 también, lo correcto.
+    const lunes = new Date('2026-05-04T12:00:00')
+    const martesSiguiente = new Date('2026-05-12T08:00:00')
+    expect(isoWeeksBetween(lunes, martesSiguiente)).toBe(1)
+  })
+
+  it('viernes then proximo miercoles 6d después returns 1 si cruza frontera', () => {
+    // Math.floor((6d) / 7d) = 0 — el bug original. Aquí cruzaron lunes,
+    // así que isoWeeksBetween debería devolver 1.
+    const viernes = new Date('2026-05-08T18:00:00')
+    const miercolesSiguiente = new Date('2026-05-13T10:00:00')
+    expect(isoWeeksBetween(viernes, miercolesSiguiente)).toBe(1)
+  })
+
+  it('symmetric: order doesnt matter', () => {
+    const a = new Date('2026-05-04T08:00:00')
+    const b = new Date('2026-05-18T08:00:00')
+    expect(isoWeeksBetween(a, b)).toBe(isoWeeksBetween(b, a))
+    expect(isoWeeksBetween(a, b)).toBe(2)
   })
 })
