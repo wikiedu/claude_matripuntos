@@ -577,15 +577,31 @@ router.put('/:taskId/logs/:logId/dispute', authMiddleware, async (req: Request, 
       where: { id: req.params.taskId },
     })
 
-    const updated = await prisma.taskLog.update({
-      where: { id: req.params.logId },
-      data: {
-        status: 'disputed',
-        verifiedBy: req.userId,
-        verifiedAt: new Date(),
-        disputeReason: data.disputeReason,
-        pointsDisputed: data.pointsDisputed ? new Decimal(data.pointsDisputed) : undefined,
-      },
+    // v2.4 audit 08 S0-4: si el TaskLog ya estaba `verified` cuando se
+    // disputa, había que revertir la PointsTransaction asociada — antes
+    // simplemente quedaba (saldo inflado). Lo hacemos en $transaction:
+    // borramos la PT (relatedTaskLogId UNIQUE) y marcamos disputed.
+    const wasVerified = taskLog.status === 'verified'
+    const [updated] = await prisma.$transaction(async (tx) => {
+      if (wasVerified) {
+        await tx.pointsTransaction.deleteMany({
+          where: {
+            relatedTaskLogId: req.params.logId,
+            type: 'task_completed',
+          },
+        })
+      }
+      const u = await tx.taskLog.update({
+        where: { id: req.params.logId },
+        data: {
+          status: 'disputed',
+          verifiedBy: req.userId,
+          verifiedAt: new Date(),
+          disputeReason: data.disputeReason,
+          pointsDisputed: data.pointsDisputed ? new Decimal(data.pointsDisputed) : undefined,
+        },
+      })
+      return [u]
     })
 
     // Send notification to the person who completed the task
