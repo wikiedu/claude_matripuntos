@@ -12,6 +12,7 @@ import {
   type ActivityTemplate,
 } from '../../../hooks/useActivityCatalog'
 import { AddActivityTemplateSheet } from './AddActivityTemplateSheet'
+import { AlertDialog } from '../primitives/AlertDialog'
 
 const CATEGORY_META: Record<string, { label: string; emoji: string }> = {
   trabajo:      { label: 'Trabajo',      emoji: '💼' },
@@ -31,6 +32,7 @@ export function ActivityCatalogManager() {
   const [editing, setEditing] = useState<ActivityTemplate | null>(null)
   const [filter, setFilter] = useState<string>('all')
   const [confirmDelete, setConfirmDelete] = useState<ActivityTemplate | null>(null)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const templates = data?.templates ?? []
 
@@ -57,7 +59,7 @@ export function ActivityCatalogManager() {
       await deactivate.mutateAsync(confirmDelete.id)
       setConfirmDelete(null)
     } catch (e: any) {
-      alert(e?.message ?? 'Error al eliminar')
+      setErrorMsg(e?.message ?? 'Error al eliminar')
     }
   }
 
@@ -219,6 +221,14 @@ export function ActivityCatalogManager() {
           </div>
         </div>
       )}
+
+      <AlertDialog
+        open={!!errorMsg}
+        title="No se pudo eliminar"
+        message={errorMsg ?? ''}
+        variant="danger"
+        onClose={() => setErrorMsg(null)}
+      />
     </div>
   )
 }

@@ -30,14 +30,13 @@ export function DeleteAccountWizard({ isOpen, onClose, onDeleted }: Props) {
   const requestCode = async () => {
     setLoading(true); setError(null)
     try {
-      const data: any = await apiClient.request('/account/delete-request', {
+      // Nota: el backend no debe devolver `code` en producción
+      // (ver audit 2026-05-05 S0-R-4 / 04-security-gdpr.md). El código se
+      // envía exclusivamente por email — nunca lo logueamos en cliente.
+      await apiClient.request('/account/delete-request', {
         method: 'POST',
         body: JSON.stringify({ password }),
       })
-      if (data?.codeViaConsole && data?.code) {
-        // Modo dev: el backend devuelve el code para que lo veas en consola.
-        console.log('[DELETE-CODE]', data.code)
-      }
       setStep(3)
     } catch (e: any) {
       setError(e?.message ?? 'Error desconocido')

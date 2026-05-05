@@ -14,6 +14,7 @@ import { ActivityCatalogManager } from '../components/v2/catalog/ActivityCatalog
 import { Plus } from 'lucide-react'
 import { MPTabs } from '../components/v2/tasks/MPTabs'
 import { AddActivitySheet } from '../components/v2/activities/AddActivitySheet'
+import { AlertDialog } from '../components/v2/primitives/AlertDialog'
 
 type Tab = 'active' | 'history' | 'catalog'
 
@@ -26,6 +27,7 @@ export default function Activities() {
   const [tab, setTab] = useState<Tab>('active')
   const [filters, setFilters] = useState<HistoryFilterValues>({ status: 'all', who: 'all', range: 'month' })
   const [showAddSheet, setShowAddSheet] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const partnerName = couple?.users?.find((u) => u.id !== user?.id)?.name ?? 'Tu pareja'
 
@@ -37,7 +39,7 @@ export default function Activities() {
       const msg = err instanceof Error && err.message
         ? err.message
         : 'No se pudo completar la acción. Inténtalo de nuevo.'
-      window.alert(msg)
+      setErrorMsg(msg)
       invalidate()
     },
   })
@@ -137,6 +139,14 @@ export default function Activities() {
       )}
 
       <AddActivitySheet open={showAddSheet} onClose={() => setShowAddSheet(false)} />
+
+      <AlertDialog
+        open={!!errorMsg}
+        title="No se pudo completar"
+        message={errorMsg ?? ''}
+        variant="danger"
+        onClose={() => setErrorMsg(null)}
+      />
     </main>
   )
 }

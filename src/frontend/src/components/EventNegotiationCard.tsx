@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../services/apiClient'
 import { Check, X, MessageSquare, Clock } from 'lucide-react'
+import { ConfirmDialog } from './v2/primitives/ConfirmDialog'
+
+type PendingAction = 'propose' | 'accept' | 'reject' | null
 
 // Keys that downstream screens (Dashboard, Analytics, Achievements, Bell) depend on.
 // Invalidating after accept/reject/counter keeps points and activity feeds fresh
@@ -47,6 +50,7 @@ export const EventNegotiationCard = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showResponses, setShowResponses] = useState(false)
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const isCreator = createdBy === currentUserId
   const isResponder = !isCreator
   const queryClient = useQueryClient()
@@ -70,9 +74,11 @@ export const EventNegotiationCard = ({
     }
   }
 
-  const handlePropose = async () => {
-    if (!confirm('¿Enviar propuesta a tu pareja?')) return
+  const handlePropose = () => setPendingAction('propose')
+  const handleAccept = () => setPendingAction('accept')
+  const handleReject = () => setPendingAction('reject')
 
+  const runPropose = async () => {
     try {
       setLoading(true)
       await apiClient.negotiation.proposeEvent(eventId)
@@ -85,9 +91,7 @@ export const EventNegotiationCard = ({
     }
   }
 
-  const handleAccept = async () => {
-    if (!confirm('¿Aceptar esta propuesta?')) return
-
+  const runAccept = async () => {
     try {
       setLoading(true)
       await apiClient.negotiation.respondToProposal(eventId, 'accept')
@@ -101,9 +105,7 @@ export const EventNegotiationCard = ({
     }
   }
 
-  const handleReject = async () => {
-    if (!confirm('¿Rechazar esta propuesta?')) return
-
+  const runReject = async () => {
     try {
       setLoading(true)
       await apiClient.negotiation.respondToProposal(eventId, 'reject')
@@ -115,6 +117,14 @@ export const EventNegotiationCard = ({
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleConfirm = async () => {
+    const action = pendingAction
+    setPendingAction(null)
+    if (action === 'propose') await runPropose()
+    else if (action === 'accept') await runAccept()
+    else if (action === 'reject') await runReject()
   }
 
   const handlePendingConversation = async () => {
@@ -363,6 +373,29 @@ export const EventNegotiationCard = ({
           {status.status === 'pending_conversation' && '💬 Pendiente de conversación en persona'}
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingAction !== null}
+        title={
+          pendingAction === 'propose' ? 'Enviar propuesta' :
+          pendingAction === 'accept' ? 'Aceptar propuesta' :
+          pendingAction === 'reject' ? 'Rechazar propuesta' : ''
+        }
+        message={
+          pendingAction === 'propose' ? '¿Enviar la propuesta a tu pareja?' :
+          pendingAction === 'accept' ? '¿Confirmas que aceptas esta propuesta?' :
+          pendingAction === 'reject' ? '¿Confirmas que rechazas esta propuesta?' : ''
+        }
+        confirmLabel={
+          pendingAction === 'propose' ? 'Enviar' :
+          pendingAction === 'accept' ? 'Aceptar' :
+          pendingAction === 'reject' ? 'Rechazar' : 'Confirmar'
+        }
+        variant={pendingAction === 'reject' ? 'danger' : 'primary'}
+        busy={loading}
+        onConfirm={handleConfirm}
+        onClose={() => setPendingAction(null)}
+      />
     </div>
   )
 }
