@@ -46,6 +46,13 @@ export class NegotiationEngine {
         throw new Error('Only event creator can propose')
       }
 
+      // v2.6.3 audit 02 S1-1 — guard contra "loop del proposer": no se
+      // puede re-proponer el mismo evento si ya tiene una ronda activa
+      // del mismo user. proposeEvent solo es válido en draft.
+      if (event.status !== 'draft') {
+        throw new Error(`No se puede proponer: evento en estado ${event.status}`)
+      }
+
       // Get user
       const user = await prisma.user.findUnique({
         where: { id: proposerUserId },
@@ -223,6 +230,14 @@ export class NegotiationEngine {
             }
             if (!response.pointsProposed) {
               throw new Error('Points must be provided for counter proposal')
+            }
+            // v2.6.3 audit 02 S1-2 — antes el responder podía contraofertar
+            // dos veces seguidas si la última ronda la había hecho él
+            // mismo (loop). Validamos que la última propuesta NO sea ya
+            // del responder. Si es del responder, sólo puede aceptar/
+            // rechazar/forzar — no contra-contraofertar.
+            if (lastNegotiation.proposedBy === responderId) {
+              throw new Error('Ya hiciste la última propuesta. Espera a que tu pareja responda.')
             }
             // v2.5.4 audit 12 S1-Q-4 — lock optimista: dos counter_propose
             // simultáneos sobre el mismo evento eran race (last write wins).

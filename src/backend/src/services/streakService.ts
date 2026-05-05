@@ -80,7 +80,13 @@ export function recordActivity(
   let weeklyChanged = false
 
   if (last) {
-    const weeksSinceLast = Math.floor((now.getTime() - last.getTime()) / (7 * DAY_MS))
+    // v2.6.3 audit 02 S1-9 y 08 S1-7 — antes usábamos
+    // `Math.floor((now - last) / 7d)` que ignora la frontera ISO de
+    // semana: una actividad el lunes y otra el siguiente martes
+    // contaban como "0 semanas" aunque hubieran cruzado la barrera.
+    // Ahora calculamos por semanas ISO (lunes-domingo) en local time:
+    // weeksSinceLast = #semanas-ISO-distintas entre last y now.
+    const weeksSinceLast = isoWeeksBetween(last, now)
     if (weeksSinceLast >= 1 && weeklyActiveDays < 3) {
       newWeekly = 0
       weeklyChanged = newWeekly !== prev.weeklyStreak
@@ -108,6 +114,26 @@ function sameLocalDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear()
     && a.getMonth() === b.getMonth()
     && a.getDate() === b.getDate()
+}
+
+// Lunes-comienzo ISO: devuelve un Date al inicio (00:00) del lunes
+// inmediatamente anterior o igual a `d` en hora LOCAL.
+function startOfIsoWeek(d: Date): Date {
+  const x = new Date(d)
+  x.setHours(0, 0, 0, 0)
+  const day = x.getDay() // 0=domingo, 1=lunes, ..., 6=sábado
+  const diff = day === 0 ? 6 : day - 1
+  x.setDate(x.getDate() - diff)
+  return x
+}
+
+// Cuántas semanas ISO distintas separan `a` y `b`. 0 si caen en la
+// misma semana ISO (lunes común). 1 si la siguiente. Etc.
+export function isoWeeksBetween(a: Date, b: Date): number {
+  const sa = startOfIsoWeek(a).getTime()
+  const sb = startOfIsoWeek(b).getTime()
+  const diff = Math.abs(sb - sa)
+  return Math.round(diff / (7 * DAY_MS))
 }
 
 export function streakStateFromRow(row: CoupleStreak | null): StreakState {
