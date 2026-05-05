@@ -463,17 +463,23 @@ router.get('/couple-preview/:code', async (req: Request, res: Response): Promise
       return
     }
 
+    // v2.6.4 audit 12 S1-Q-10 — solo contamos usuarios activos (no ghost
+     // soft-deleted) para el cap. Una couple con 1 active + 1 ghost no
+     // está "llena" y debe permitir invitar a alguien nuevo.
     const couple = await prisma.couple.findUnique({
       where: { joinCode: normalized },
-      include: { users: { select: { id: true, name: true } } },
+      include: {
+        users: {
+          where: { deletedAt: null },
+          select: { id: true, name: true },
+        },
+      },
     })
     if (!couple) {
       res.status(404).json({ error: 'Código no encontrado' })
       return
     }
 
-    // Si la pareja ya tiene 2 miembros no se puede unir nadie más — devolvemos
-    // estado explícito para que el frontend muestre el mensaje correcto.
     const isFull = couple.users.length >= 2
 
     res.json({
@@ -511,9 +517,12 @@ router.post('/register-with-code', async (req: Request, res: Response): Promise<
     let txResult: { user: { id: string; email: string; name: string; coupleId: string | null }, coupleId: string }
     try {
       txResult = await prisma.$transaction(async (tx) => {
+        // v2.6.4 audit 12 S1-Q-10 — cap por usuarios activos, no totales.
+        // Couples con 1 active + 1 ghost soft-deleted siguen siendo
+        // joinable porque el ghost no ocupa puesto efectivo.
         const couple = await tx.couple.findUnique({
           where: { joinCode: normalized },
-          include: { users: true },
+          include: { users: { where: { deletedAt: null } } },
         })
         if (!couple) {
           throw Object.assign(new Error('Código no encontrado'), { httpStatus: 404 })
@@ -521,7 +530,9 @@ router.post('/register-with-code', async (req: Request, res: Response): Promise<
         if (couple.users.length >= 2) {
           throw Object.assign(new Error('Esta pareja ya está completa'), { httpStatus: 409 })
         }
-        const existingUser = await tx.user.findUnique({ where: { email: validated.email } })
+        const existingUser = await tx.user.findFirst({
+          where: { email: validated.email, deletedAt: null },
+        })
         if (existingUser) {
           throw Object.assign(new Error('Ya existe una cuenta con este email'), { httpStatus: 409 })
         }
@@ -536,7 +547,9 @@ router.post('/register-with-code', async (req: Request, res: Response): Promise<
             hasCompletedOnboarding: false,
           },
         })
-        const postCount = await tx.user.count({ where: { coupleId: couple.id } })
+        const postCount = await tx.user.count({
+          where: { coupleId: couple.id, deletedAt: null },
+        })
         if (postCount > 2) {
           throw Object.assign(new Error('Esta pareja ya está completa'), { httpStatus: 409 })
         }

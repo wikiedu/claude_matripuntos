@@ -62,6 +62,12 @@ export function AuthedLayout({ children }: { children: ReactNode }) {
   // incrementa), el partner ha hecho algo: invalidamos queries downstream
   // para que balance/eventos/tareas se refresquen sin esperar al próximo
   // tick de polling. Cierra el ciclo notif → UI update.
+  // v2.6.4 audit 12 S1-Q-1 — además forzamos `loadUserData(true)` para
+  // refrescar `couple.users` inmediatamente. Caso típico: invitee acepta
+  // la invitación, backend crea Notification 'partner_joined' al
+  // inviter, pero `couple.users` solo se refrescaba en el tick de 60s.
+  // Ahora el inviter ve a su pareja casi al instante (siguiente
+  // polling de 30s + invalidación inmediata de couple data).
   const prevUnreadRef = useRef(unreadCount)
   useEffect(() => {
     if (unreadCount > prevUnreadRef.current && !isSheetOpen()) {
@@ -70,9 +76,12 @@ export function AuthedLayout({ children }: { children: ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['activities'] })
       queryClient.invalidateQueries({ queryKey: ['tasks', 'logs', 'all'] })
       queryClient.invalidateQueries({ queryKey: ['gamification', 'status'] })
+      queryClient.invalidateQueries({ queryKey: ['couple'] })
+      // Refresca user/couple del store sin tocar isLoading.
+      loadUserData?.(true).catch(() => {})
     }
     prevUnreadRef.current = unreadCount
-  }, [unreadCount, queryClient])
+  }, [unreadCount, queryClient, loadUserData])
 
   // Achievement counts for HeaderMenu → "Logros" subtitle.
   const { data: achievementsMap } = useQuery<AchievementMapNode[]>({
