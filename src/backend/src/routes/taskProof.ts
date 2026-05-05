@@ -26,12 +26,26 @@ router.use((_req, res, next) => {
 const MAX_DATA_URL_BYTES = 500 * 1024 // 500 KB
 const MAX_HTTPS_URL_LEN  = 2048
 
+// v2.7.3 audit 04 S2-2 — antes aceptábamos cualquier `data:image/*`,
+// incluido `data:image/svg+xml` que puede ejecutar JS si se abre en
+// nueva pestaña o se inspecciona como data-url. Whitelist explícita
+// de formatos raster seguros.
+const ALLOWED_DATA_PREFIXES = [
+  'data:image/jpeg;',
+  'data:image/jpg;',
+  'data:image/png;',
+  'data:image/webp;',
+] as const
+
 const schema = z.object({
   proofImageUrl: z.string().min(1).refine((s) => {
     if (s.startsWith('https://')) return s.length <= MAX_HTTPS_URL_LEN
-    if (s.startsWith('data:image/')) return s.length <= MAX_DATA_URL_BYTES
+    if (s.startsWith('data:image/')) {
+      if (s.length > MAX_DATA_URL_BYTES) return false
+      return ALLOWED_DATA_PREFIXES.some((prefix) => s.startsWith(prefix))
+    }
     return false
-  }, 'URL inválida (debe ser https:// o data:image/* <500KB)'),
+  }, 'URL inválida (https:// o data:image/{jpeg,png,webp} <500KB; SVG no permitido)'),
 })
 
 // POST /api/task-logs/:logId/proof
