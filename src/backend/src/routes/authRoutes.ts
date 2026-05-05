@@ -26,6 +26,11 @@ import { ZodError } from 'zod'
 import prisma from '../lib/prisma.js'
 import { normalizeJoinCode } from '../utils/joinCode.js'
 import { demoLogin, isDemoEnabled } from '../services/demoService.js'
+import {
+  issueRefresh,
+  rotateRefresh,
+  revokeAllForUser,
+} from '../services/refreshTokenService.js'
 
 const router = express.Router()
 
@@ -100,10 +105,20 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
 
     const result = await loginUser(validated.email, validated.password)
 
+    // v2.7.0 audit 04 S1-6 — clientes que opten por refresh token rotation
+    // envían `X-Want-Refresh: 1` y reciben además un refreshToken. Sin
+    // header se devuelve solo `token` legacy para no romper sesiones
+    // existentes.
+    const refreshPair = await maybeIssueRefreshPair(result.user.id, req.headers as any)
+
     res.json({
       message: 'Login successful',
       token: result.token,
       user: result.user,
+      ...(refreshPair && {
+        refreshToken: refreshPair.refreshToken,
+        refreshExpiresAt: refreshPair.refreshExpiresAt,
+      }),
     })
   } catch (error) {
     if (error instanceof ZodError) {
@@ -695,5 +710,96 @@ router.post('/reset-password', async (req: Request, res: Response): Promise<void
     res.status(500).json({ error: 'Failed to reset password' })
   }
 })
+
+// v2.7.0 audit 04 S1-6 / 01 S1-R-17 — endpoints de refresh token rotation.
+// Estrategia conservadora (zero-downtime):
+//   • El JWT access sigue con TTL 7d (no rompemos sesiones existentes).
+//   • /auth/refresh acepta un refreshToken plaintext y devuelve uno nuevo
+//     + un access JWT fresco. Disponible para clientes que opten por
+//     usarlo (web app + apps nativas futuras).
+//   • /auth/logout revoca todos los refresh tokens del user. El access
+//     JWT actual sigue válido hasta su expiry natural — no hay blacklist.
+//
+// Cuando el frontend esté ready para integrar refresh, reduciremos JWT
+// access TTL a 1h en una versión futura sin cambiar este contrato.
+
+const refreshSchema = z.object({
+  refreshToken: z.string().min(32).max(128),
+})
+
+router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { refreshToken } = refreshSchema.parse(req.body)
+    const result = await rotateRefresh(refreshToken)
+    if (!result.ok) {
+      // No revelamos si fue not_found vs revoked vs expired — anti-enum.
+      res.status(401).json({ error: 'Refresh token inválido o expirado' })
+      return
+    }
+
+    // Cargar user actual para meter coupleId en el access JWT.
+    const user = await prisma.user.findFirst({
+      where: { id: result.userId, deletedAt: null },
+      select: { id: true, coupleId: true, email: true, name: true },
+    })
+    if (!user) {
+      res.status(401).json({ error: 'User no disponible' })
+      return
+    }
+
+    const accessToken = jwt.sign(
+      { userId: user.id, coupleId: user.coupleId },
+      process.env.JWT_SECRET!,
+      { expiresIn: '7d' }, // mantenemos 7d hasta que el frontend integre rotación.
+    )
+
+    res.json({
+      accessToken,
+      refreshToken: result.newPlaintext,
+      refreshExpiresAt: result.newExpiresAt?.toISOString(),
+      user: { id: user.id, email: user.email, name: user.name },
+    })
+  } catch (error) {
+    if (error instanceof ZodError) {
+      res.status(400).json({ error: 'Validation error', details: error.errors })
+      return
+    }
+    console.error('[refresh]', error)
+    res.status(500).json({ error: 'Failed to refresh token' })
+  }
+})
+
+router.post('/logout', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.userId) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
+    }
+    const revokedCount = await revokeAllForUser(req.userId)
+    // El access JWT actual sigue válido hasta su expiry natural — no hay
+    // blacklist global. Si el cliente desease invalidar el JWT actual,
+    // tendría que esperar a la rotación / re-login.
+    res.json({ message: 'Logged out', revokedRefreshTokens: revokedCount })
+  } catch (error) {
+    console.error('[logout]', error)
+    res.status(500).json({ error: 'Failed to logout' })
+  }
+})
+
+// Helper interno: emite un par {access, refresh} cuando el cliente envía
+// el header `X-Want-Refresh: 1` en login/register. Permite migración
+// progresiva (clientes nuevos opt-in, clientes legacy ignoran).
+export async function maybeIssueRefreshPair(
+  userId: string,
+  reqHeaders: Record<string, string | string[] | undefined>,
+): Promise<{ refreshToken: string; refreshExpiresAt: string } | null> {
+  const want = reqHeaders['x-want-refresh']
+  if (want !== '1' && want !== 'true') return null
+  const issued = await issueRefresh(userId)
+  return {
+    refreshToken: issued.plaintext,
+    refreshExpiresAt: issued.expiresAt.toISOString(),
+  }
+}
 
 export default router
