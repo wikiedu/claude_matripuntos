@@ -4,6 +4,33 @@
 //
 // Función evaluateAchievement es pura (sin DB) — la persistencia de
 // CoupleAchievement la hacen las routes/jobs llamadores.
+//
+// =============================================================================
+// v2.5 audit 02 S2 — Aclaración de los 3 servicios de achievements:
+//
+// Auditoría 2026-05-05 reportó "3 sistemas paralelos" pero tras análisis
+// son 3 capas distintas, no duplicados:
+//
+//   1. achievementEngine.ts (V1, 504 LOC)
+//      Per-user, write-side. Llamado desde routes (taskRoutes,
+//      negotiationRoutes, achievements). Persiste UserAchievement.
+//
+//   2. achievementCheckService.ts (212 LOC)
+//      Read-side. Construye el mapa de achievements (unlocked + progress)
+//      para la UI. checkAllAchievements + getAchievementsMap.
+//
+//   3. achievementEngineV2.ts (este archivo, 82 LOC)
+//      Catalog-side. PURE logic: evaluateNewUnlocks + computeProgress +
+//      visibleCatalog sobre el catálogo declarativo (achievementCatalog.ts).
+//      Ahora mismo NO se llama desde routes — solo está testeado aislado.
+//
+// PLAN UNIFICACIÓN (v2.6+): hacer que V1 use V2 internamente para evaluar
+// las condiciones del catálogo declarativo en lugar de hardcodearlas.
+// V2 actúa como "evaluator pure" del schema. V1 mantiene la responsabilidad
+// de persistencia y notificaciones. checkService consume ambos.
+//
+// Ver docs/audits/2026-05-05-full-audit/02-backend-services.md S2.
+// =============================================================================
 
 import type { AchievementCatalogEntry } from '../data/achievementCatalog.js'
 import { ACHIEVEMENT_CATALOG } from '../data/achievementCatalog.js'
