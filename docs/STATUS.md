@@ -1,7 +1,11 @@
 # STATUS — Matripuntos
 
-**Última actualización:** 2026-05-04
-**Versión actual desplegada en producción:** `v2.3.5` · KISS Actividades + refresh hardening
+**Última actualización:** 2026-05-05
+**Versión actual desplegada en producción:** `v2.4.3` · Sprint 1 hardening del audit profundo
+
+> **Auditoría 2026-05-05** completada: ~255 hallazgos en 12 dominios, ver
+> `docs/audits/2026-05-05-full-audit/`. Sprint 1 (v2.4.0 → v2.4.3) cierra
+> los S0 críticos de quick-wins, integridad data, GDPR/auth y deploy.
 
 > **Handoff Claude Design 14 canvases iniciales completado al 100%.**
 > **Canvas 15 (Tareas/Actividades rediseño)** desplegado en v2.3.0.
@@ -15,6 +19,52 @@
 ## 🟢 EN PRODUCCIÓN (deployable + público)
 
 > Lo que está hoy mismo accesible al usuario en matripuntos.com.
+
+### v2.4.3 Sprint 1 hardening — **2026-05-05**
+- **v2.4.0 — Quick wins críticos (D1):**
+  - `web-push` instalado: push notifications vuelven a funcionar en prod
+    (audit 10 S0-I-1; bug invisible desde v1.7).
+  - Eliminadas TODAS las `window.alert()` y `confirm()` nativas: nuevo
+    primitive `<AlertDialog />`, `EventNegotiationCard` migrado a
+    `<ConfirmDialog />`, `Journal` también. `console.log('[DELETE-CODE]')`
+    eliminado de `DeleteAccountWizard`.
+  - `compensationDiscount` ahora se aplica al CREAR/EDITAR eventos (antes
+    sólo al accept; el preview engañaba).
+  - `maxFreeRounds` enforced en V1 con check de Subscription premium.
+  - **Refresh extraño RESUELTO**: `useAppStore.loadUserData(silent=true)`
+    desde polling no toca `isLoading`, mata el flash "Cargando…" cada 60s.
+    `BottomSheet` y `ConfirmDialog` adquieren `sheetLock` automáticamente
+    + `role="dialog"` + safe-area.
+- **v2.4.1 — Integridad transaccional (D2):**
+  - `negotiationEngine.respondToProposal()` envuelto en `$transaction`
+    (antes: invariante saldo rota si crash a mitad).
+  - `/negotiations/:id/force` valida que el caller sea el creador del
+    evento + `$transaction`.
+  - `/tasks/logs/:id/dispute` revierte `PointsTransaction` si el TaskLog
+    estaba `verified` (antes: saldo inflado).
+  - `/points/reset-confirm` hardening: doble confirmación textual
+    (`{ confirmText: "RESET" }`), expiry 24h, audit notif a ambos users.
+- **v2.4.2 — Acceso & GDPR (D3):**
+  - `loginUser` y `signupUser` filtran `deletedAt: null` (defensa
+    profundidad contra ghost emails).
+  - IDOR fix en `/journal/retrospectives/:id/seen` (filtraba sólo por id).
+  - `signupSchema` legacy couple exige `ageConfirmed1/2` (GDPR Art. 8).
+  - `/categories/:id/propose-change` con schema zod estricto.
+  - **Forgot-password real**: backend (`PasswordResetToken` model +
+    migración + endpoints + email template) + frontend
+    (`/forgot-password`, `/reset-password`). Reemplaza el mailto
+    temporal de v2.0.3.1.
+- **v2.4.3 — Deploy & migrations baseline (D4):**
+  - `deploy-frontend.sh` ya NO usa `--delete` (preserva uploads de
+    usuarios cuando se añadan en /uploads/) + `--only-newer` + `--parallel`
+    + `DRY_RUN=1` para preview.
+  - `docs/MIGRATIONS-BASELINE.md` documentado: plan ejecutable para
+    cuando producción necesite reconcile de las 6 primeras migraciones
+    SQLite vs Postgres.
+
+**Tests:** 73 backend + 160/166 frontend pass. 6 fallos pre-existentes
+en main (`ActivityActionCard.test.tsx`, `BottomNav.test.tsx`) marcados
+para Sprint 2.
 
 ### Core (MVP1 → v1.7)
 - Auth (signup, login, demo, invitaciones, partner linking, password reset).
