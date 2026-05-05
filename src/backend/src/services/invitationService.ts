@@ -64,6 +64,31 @@ export async function acceptEmailInvitation(token: string, newUserId: string) {
     include: { users: true },
   })
 
+  // v2.5.3 audit 12 S1-Q-1 — notificar al inviter (User1) que User2 se
+  // unió. Antes no había notif: User1 no se enteraba hasta el polling
+  // de loadUserData (60s). Best-effort: si la notif falla por algún
+  // motivo, la creación del couple ya está commiteada.
+  if (invitation.fromUserId) {
+    try {
+      const inviteeName = await prisma.user.findUnique({
+        where: { id: newUserId },
+        select: { name: true },
+      })
+      await prisma.notification.create({
+        data: {
+          coupleId: couple.id,
+          userId: invitation.fromUserId,
+          type: 'partner_joined',
+          title: '🎉 Tu pareja se ha unido',
+          message: `${inviteeName?.name ?? 'Tu pareja'} ha aceptado la invitación y ya estáis vinculados.`,
+          isRead: false,
+        },
+      })
+    } catch (e) {
+      console.error('[invitationService] partner_joined notif failed', e)
+    }
+  }
+
   return couple
 }
 
