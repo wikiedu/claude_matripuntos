@@ -69,10 +69,17 @@ export class PointsCalculator {
 
     const eventChildren = event.numChildren ?? 0
     const registeredCount = couple.children.length
-    // Preferimos el count del evento (cuántos hijos se ven afectados en esta
-    // ausencia concreta). Si el evento dice 0 pero hasChildren=true y la pareja
-    // tiene numChildren, usamos numChildren como último recurso para MVP.
-    const effective = eventChildren > 0 ? eventChildren : registeredCount > 0 ? registeredCount : couple.numChildren ?? 0
+    // v2.7.2 audit 02 S2-3 / 08 S2-4 — la spec de docs/PUNTOS.md dice
+    // "afectados en esa ausencia concreta". Si el evento explícitamente
+    // dice 0 (no afectados), el factor debe ser 1.0 aunque la pareja
+    // tenga 3 hijos registrados — el evento ocurrió SIN niños presentes.
+    // Antes caíamos a registeredCount/couple.numChildren cuando eventChildren===0,
+    // inflando spuriously. Ahora 0 es 0.
+    const effective = eventChildren > 0
+      ? eventChildren
+      : (event as any).hasChildren && registeredCount === 0
+        ? (couple.numChildren ?? 0)  // MVP-only fallback (no Child[] registry)
+        : 0
 
     let multiplier = 1.0
     if (effective === 1) multiplier = 1.4

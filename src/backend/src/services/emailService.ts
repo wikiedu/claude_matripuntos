@@ -20,14 +20,20 @@ interface SendEmailResult {
   error?: string
 }
 
-export async function sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
-  if (!RESEND_API_KEY) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[email] dev mode (sin RESEND_API_KEY):', params.subject, '→', params.to)
-    }
-    return { ok: false, error: 'RESEND_API_KEY not configured' }
-  }
+// v2.7.2 audit 02 S2-16 — retry exponencial para 5xx/network errors.
+// Emails críticos (delete-account code, invite, password reset) no
+// deben perderse por un blip transitorio de Resend. 3 attempts con
+// backoff 200/600/1800ms + jitter ±25% para evitar thundering herd.
+async function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)) }
 
+const MAX_ATTEMPTS = 3
+const RETRY_DELAYS_MS = [200, 600, 1800]
+
+function jitter(ms: number): number {
+  return Math.round(ms * (0.75 + Math.random() * 0.5))
+}
+
+async function sendEmailOnce(params: SendEmailParams): Promise<{ ok: boolean; id?: string; status?: number; error?: string; transient: boolean }> {
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -47,16 +53,48 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
 
     if (!res.ok) {
       const text = await res.text().catch(() => '<no body>')
-      console.error(`[email] resend ${res.status}:`, text.slice(0, 500))
-      return { ok: false, error: `resend ${res.status}` }
+      // v2.7.2 audit 02 S2-17 — antes truncábamos a 500 chars siempre,
+      // pero los errores de Resend (validation) son verbose y truncar
+      // ocultaba el detalle. En dev logueamos completo, en prod
+      // mantenemos el truncado para no inundar logs.
+      const isProd = process.env.NODE_ENV === 'production'
+      const logged = isProd ? text.slice(0, 500) : text
+      console.error(`[email] resend ${res.status}:`, logged)
+      const transient = res.status >= 500 || res.status === 429
+      return { ok: false, status: res.status, error: `resend ${res.status}`, transient }
     }
 
     const json: any = await res.json().catch(() => null)
-    return { ok: true, id: json?.id }
+    return { ok: true, id: json?.id, transient: false }
   } catch (e: any) {
-    console.error('[email] resend send failed:', e?.message)
-    return { ok: false, error: e?.message ?? 'send failed' }
+    console.error('[email] resend send failed:', e?.message ?? e)
+    return { ok: false, error: e?.message ?? 'send failed', transient: true }
   }
+}
+
+export async function sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
+  if (!RESEND_API_KEY) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[email] dev mode (sin RESEND_API_KEY):', params.subject, '→', params.to)
+    }
+    return { ok: false, error: 'RESEND_API_KEY not configured' }
+  }
+
+  let lastError: string | undefined
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const result = await sendEmailOnce(params)
+    if (result.ok) return { ok: true, id: result.id }
+    lastError = result.error
+    if (!result.transient) {
+      // Errores 4xx no son retryables (bad email, validation, auth) —
+      // solo perdemos tiempo reintentando.
+      return { ok: false, error: result.error }
+    }
+    if (attempt < MAX_ATTEMPTS - 1) {
+      await sleep(jitter(RETRY_DELAYS_MS[attempt]!))
+    }
+  }
+  return { ok: false, error: lastError ?? 'send failed after retries' }
 }
 
 // Plantillas — mantener simples y testeables. Asunto y body en español.
