@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode } from 'react'
+import { useState, useEffect, useRef, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AppHeader } from '../components/v2/layout/AppHeader'
@@ -57,6 +57,22 @@ export function AuthedLayout({ children }: { children: ReactNode }) {
     staleTime: 10_000,
   })
   const unreadCount = unreadRes?.unreadCount ?? unreadRes?.count ?? 0
+
+  // v2.5.3 audit 12 S1-Q-5 — cuando llega una nueva notif (unreadCount
+  // incrementa), el partner ha hecho algo: invalidamos queries downstream
+  // para que balance/eventos/tareas se refresquen sin esperar al próximo
+  // tick de polling. Cierra el ciclo notif → UI update.
+  const prevUnreadRef = useRef(unreadCount)
+  useEffect(() => {
+    if (unreadCount > prevUnreadRef.current && !isSheetOpen()) {
+      queryClient.invalidateQueries({ queryKey: ['balance'] })
+      queryClient.invalidateQueries({ queryKey: ['recentActivity'] })
+      queryClient.invalidateQueries({ queryKey: ['activities'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'logs', 'all'] })
+      queryClient.invalidateQueries({ queryKey: ['gamification', 'status'] })
+    }
+    prevUnreadRef.current = unreadCount
+  }, [unreadCount, queryClient])
 
   // Achievement counts for HeaderMenu → "Logros" subtitle.
   const { data: achievementsMap } = useQuery<AchievementMapNode[]>({
