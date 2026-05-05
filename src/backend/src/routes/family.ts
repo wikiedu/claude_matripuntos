@@ -1,12 +1,38 @@
 import { Router, Request, Response } from 'express'
+import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
-import { ChildInput, PetInput } from '../types/v2.js'
 
 const router = Router()
 import prisma from '../lib/prisma.js'
 
 // Middleware to ensure user is authenticated
 router.use(authenticateToken)
+
+// v2.7.1 audit 01 S2-R-3, S2-R-4 — schemas estrictos para Children/Pets.
+// Antes los handlers chequeaban manualmente `if (!data.name || ...)` sin
+// max() en strings, sin validar dateOfBirth en pasado, sin cap de hijos.
+const childCreateSchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  dateOfBirth: z.string().refine((s) => {
+    const d = new Date(s)
+    return !isNaN(d.getTime()) && d.getTime() <= Date.now()
+  }, { message: 'dateOfBirth debe ser una fecha pasada válida' }),
+  livesWithUser1: z.boolean().optional(),
+  livesWithUser2: z.boolean().optional(),
+  hasSpecialNeeds: z.boolean().optional(),
+}).strict()
+
+const childUpdateSchema = childCreateSchema.partial().strict()
+
+const petCreateSchema = z.object({
+  name: z.string().trim().min(1).max(40),
+  type: z.string().trim().min(1).max(40),
+  quantity: z.number().int().min(0).max(20).optional(),
+}).strict()
+
+const petUpdateSchema = petCreateSchema.partial().strict()
+
+const MAX_CHILDREN_PER_COUPLE = 12
 
 /**
  * Add a child to the couple
@@ -15,26 +41,30 @@ router.use(authenticateToken)
 router.post('/children', async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id
-    const data: ChildInput = req.body
-
-    // Get user's couple
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    })
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' })
+    const coupleId = (req as any).user?.coupleId as string | undefined
+    if (!coupleId) {
+      return res.status(401).json({ error: 'Authentication required' })
     }
 
-    // Validate required fields
-    if (!data.name || !data.dateOfBirth) {
-      return res.status(400).json({ error: 'Name and dateOfBirth are required' })
+    const parsed = childCreateSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Validation error', details: parsed.error.errors })
+    }
+    const data = parsed.data
+
+    // v2.7.1 audit 01 S2-R-4 — cap defensivo. Antes no había límite y un
+    // bug del frontend o un attacker podían inflar la BD con hijos
+    // ficticios. 12 cubre incluso familias numerosas + adopción.
+    const childCount = await prisma.child.count({ where: { coupleId } })
+    if (childCount >= MAX_CHILDREN_PER_COUPLE) {
+      return res.status(409).json({
+        error: `Has alcanzado el máximo de ${MAX_CHILDREN_PER_COUPLE} hijos por pareja.`,
+      })
     }
 
-    // Create child
     const child = await prisma.child.create({
       data: {
-        coupleId: user.coupleId,
+        coupleId,
         name: data.name,
         dateOfBirth: new Date(data.dateOfBirth),
         livesWithUser1: data.livesWithUser1,
@@ -43,9 +73,7 @@ router.post('/children', async (req: Request, res: Response) => {
       },
     })
 
-    // Notify the partner so the change isn't silent — children directly impact
-    // the points multiplier, so the partner needs visibility.
-    await notifyPartnerOnChildChange(user.id, user.coupleId, 'added', data.name)
+    await notifyPartnerOnChildChange(userId, coupleId, 'added', data.name)
 
     res.status(201).json({
       message: 'Child added successfully',
@@ -93,7 +121,12 @@ router.put('/children/:childId', async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id
     const { childId } = req.params
-    const data: Partial<ChildInput> = req.body
+
+    const parsedBody = childUpdateSchema.safeParse(req.body)
+    if (!parsedBody.success) {
+      return res.status(400).json({ error: 'Validation error', details: parsedBody.error.errors })
+    }
+    const data = parsedBody.data
 
     // v2.5.9 audit 01 S1-R-14 — usamos `req.coupleId` (validado por authMW)
     // y `findFirst` con scope de couple en una sola query, evitando el
@@ -176,30 +209,23 @@ router.delete('/children/:childId', async (req: Request, res: Response) => {
  */
 router.post('/pets', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
-    const data: PetInput = req.body
-
-    // Get user's couple
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    })
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' })
+    const coupleId = (req as any).user?.coupleId as string | undefined
+    if (!coupleId) {
+      return res.status(401).json({ error: 'Authentication required' })
     }
 
-    // Validate required fields
-    if (!data.name || !data.type) {
-      return res.status(400).json({ error: 'Name and type are required' })
+    const parsed = petCreateSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Validation error', details: parsed.error.errors })
     }
+    const data = parsed.data
 
-    // Create pet
     const pet = await prisma.pet.create({
       data: {
-        coupleId: user.coupleId,
+        coupleId,
         name: data.name,
         type: data.type,
-        quantity: data.quantity || 1,
+        quantity: data.quantity ?? 1,
       },
     })
 
@@ -248,7 +274,12 @@ router.put('/pets/:petId', async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id
     const { petId } = req.params
-    const data: Partial<PetInput> = req.body
+
+    const parsedBody = petUpdateSchema.safeParse(req.body)
+    if (!parsedBody.success) {
+      return res.status(400).json({ error: 'Validation error', details: parsedBody.error.errors })
+    }
+    const data = parsedBody.data
 
     // v2.5.9 audit 01 S1-R-14 — scope por req.coupleId.
     if (!req.coupleId) {

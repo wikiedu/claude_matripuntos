@@ -123,10 +123,20 @@ router.get('/replay', readBucket, async (req: Request, res: Response) => {
   res.json({ replays: fresh })
 })
 
+// v2.7.1 audit 01 S2-R-21 — replayKey debe ajustarse a un formato
+// canónico (slug + opcional sufijo numérico). Antes el path param se
+// aceptaba sin validar, lo que permitía a un user crear infinitas
+// filas en CoupleReplaySeen con keys arbitrarias (DoS minor).
+const REPLAY_KEY_RE = /^[a-z0-9_-]{1,40}$/
+
 router.post('/replay/:key/seen', readBucket, async (req: Request, res: Response) => {
   const coupleId = (req as any).user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const replayKey = req.params.key
+
+  if (!REPLAY_KEY_RE.test(replayKey)) {
+    return res.status(400).json({ error: 'replayKey con formato inválido' })
+  }
 
   await prisma.coupleReplaySeen.upsert({
     where: { coupleId_replayKey: { coupleId, replayKey } },

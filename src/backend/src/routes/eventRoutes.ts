@@ -241,7 +241,10 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response): Promise<
         creator: event.creator ? {
           id: event.creator.id,
           name: event.creator.name,
-          email: event.creator.email,
+          // v2.7.1 audit 01 S2-R-23 — el partner ya conoce el email de su
+          // pareja (es público en el perfil compartido). Al exponer el
+          // email del creator en la respuesta de cada evento, replicábamos
+          // PII innecesariamente. El frontend nunca lo usa.
         } : null,
         negotiations: event.negotiations.map(n => ({
           id: n.id,

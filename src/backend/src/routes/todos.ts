@@ -5,18 +5,22 @@ import prisma from '../lib/prisma.js'
 
 const router = express.Router()
 
+// v2.7.1 audit 01 S2-R-16 — `.strict()` rechaza cualquier campo extra
+// que el frontend mande. Antes campos desconocidos pasaban silenciosos
+// y, si downstream se hacía spread sobre ellos, podía haber colisión
+// con campos sensibles. .strict() es defensa-en-profundidad.
 const createTodoSchema = z.object({
-  text: z.string().min(1),
+  text: z.string().min(1).max(500),
   dueDate: z.string().optional(),
   isShared: z.boolean().optional().default(false),
-})
+}).strict()
 
 const updateTodoSchema = z.object({
-  text: z.string().min(1).optional(),
+  text: z.string().min(1).max(500).optional(),
   isCompleted: z.boolean().optional(),
   dueDate: z.string().nullable().optional(),
   isShared: z.boolean().optional(),
-})
+}).strict()
 
 // GET /api/todos — mine + partner shared
 router.get('/', authMiddleware, async (req: Request, res: Response): Promise<void> => {

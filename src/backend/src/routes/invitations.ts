@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 import { invalidateAuthCache } from '../middleware/authMiddleware.js'
 import crypto from 'crypto'
@@ -40,10 +41,13 @@ router.post('/invite-partner', deprecationMiddleware, authenticateToken, async (
     const userId = (req as any).user.id
     const { inviteeEmail } = req.body
 
-    // Validate email
-    if (!inviteeEmail || typeof inviteeEmail !== 'string') {
-      return res.status(400).json({ error: 'inviteeEmail is required' })
+    // v2.7.1 audit 01 S2-R-12 — antes solo verificábamos string truthy.
+    // Ahora validamos formato email + lowercase para canonicalizar.
+    const emailParse = z.string().email().max(255).safeParse(inviteeEmail)
+    if (!emailParse.success) {
+      return res.status(400).json({ error: 'inviteeEmail debe ser un email válido' })
     }
+    const cleanEmail = emailParse.data.toLowerCase()
 
     // Get user and couple
     const user = await prisma.user.findUnique({
@@ -60,7 +64,7 @@ router.post('/invite-partner', deprecationMiddleware, authenticateToken, async (
     const existingInvitation = await prisma.invitation.findFirst({
       where: {
         coupleId,
-        toEmail: inviteeEmail,
+        toEmail: cleanEmail,
         status: 'pending',
       },
     })
@@ -79,7 +83,7 @@ router.post('/invite-partner', deprecationMiddleware, authenticateToken, async (
       data: {
         coupleId,
         fromUserId: userId,
-        toEmail: inviteeEmail,
+        toEmail: cleanEmail,
         token,
         type: 'email_invite',
         status: 'pending',

@@ -21,6 +21,24 @@ const proposeChangeSchema = z.object({
   description: z.string().max(500).optional(),
 })
 
+// v2.7.1 audit 01 S2-R-1, S2-R-2 — antes el POST /api/categories validaba
+// `name`, `emoji`, `type`, `basePoints` con if-statements imperativos sin
+// .max() en strings ni regex en emoji ni cap en basePoints. Adicionalmente
+// el check de duplicado lowercaseaba para comparar pero guardaba el case
+// original — "Cocina" y "cocina" terminaban como nombres distintos en BD.
+const createCategorySchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  emoji: z.string().min(1).max(8),
+  type: z.enum(['event', 'chore', 'service']),
+  basePoints: z.number().min(0).max(500),
+  description: z.string().max(500).optional(),
+}).strict()
+
+const subcategorySchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  basePointsModifier: z.number().min(0).max(10),
+}).strict()
+
 // Middleware to ensure user is authenticated
 router.use(authenticateToken)
 
@@ -113,49 +131,38 @@ router.get('/default', async (req: Request, res: Response) => {
  */
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
-    const { name, emoji, type, basePoints, description } = req.body
-
-    // Validate inputs
-    if (!name || !emoji || !type || basePoints === undefined) {
-      return res.status(400).json({
-        error: 'Name, emoji, type, and basePoints are required',
-      })
+    const coupleId = (req as any).user?.coupleId as string | undefined
+    if (!coupleId) {
+      return res.status(401).json({ error: 'Authentication required' })
     }
 
-    if (!['event', 'chore', 'service'].includes(type)) {
-      return res.status(400).json({ error: 'Invalid type' })
+    const parsed = createCategorySchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Validation error', details: parsed.error.errors })
     }
+    const { name, emoji, type, basePoints, description } = parsed.data
 
-    // Get user's couple
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    })
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' })
-    }
-
-    // Check if category with same name already exists
+    // v2.7.1 audit 01 S2-R-2 — normalizamos a `name.trim()` y comparamos
+    // case-insensitive, guardando el name "limpio" (no lowercased) para
+    // que la UI muestre el casing del user. Antes lowercaseamos solo para
+    // el check pero guardábamos el original → "Cocina" entraba aunque
+    // "cocina" ya existiese.
+    const cleanName = name.trim()
     const existing = await prisma.category.findFirst({
-      where: {
-        coupleId: user.coupleId,
-        name: name.toLowerCase(),
-      },
+      where: { coupleId, name: { equals: cleanName, mode: 'insensitive' } },
     })
 
     if (existing) {
-      return res.status(400).json({ error: 'Category already exists' })
+      return res.status(409).json({ error: 'Ya existe una categoría con ese nombre' })
     }
 
-    // Create custom category
     const category = await prisma.category.create({
       data: {
-        coupleId: user.coupleId,
-        name,
+        coupleId,
+        name: cleanName,
         emoji,
         type,
-        basePoints: parseFloat(basePoints),
+        basePoints,
         description,
         isCustom: true,
         isActive: true,
@@ -317,11 +324,12 @@ router.post('/:categoryId/subcategories', async (req: Request, res: Response) =>
   try {
     const userId = (req as any).user.id
     const { categoryId } = req.params
-    const { name, basePointsModifier } = req.body
-
-    if (!name || basePointsModifier === undefined) {
-      return res.status(400).json({ error: 'Name and basePointsModifier required' })
+    // v2.7.1 audit 01 S2-R-3 — zod schema estricto para subcategorías.
+    const parsed = subcategorySchema.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Validation error', details: parsed.error.errors })
     }
+    const { name, basePointsModifier } = parsed.data
 
     // v2.5.9 audit 01 S1-R-14 — scope por coupleId del JWT.
     const coupleId = (req as any).user?.coupleId as string | undefined
@@ -348,7 +356,7 @@ router.post('/:categoryId/subcategories', async (req: Request, res: Response) =>
       data: {
         categoryId,
         name,
-        basePointsModifier: parseFloat(basePointsModifier),
+        basePointsModifier,
       },
     })
 

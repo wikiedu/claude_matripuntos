@@ -26,8 +26,12 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
 
     const { limit, offset, unreadOnly } = listNotificationsSchema.parse(req.query)
 
+    // v2.7.1 audit 01 S2-R-5 — defensa-en-profundidad: filtramos por
+    // userId + coupleId. Si por bug otra ruta crease una Notification con
+    // userId del user y coupleId distinto, no la veríamos aquí.
     const where: any = {
       userId: req.userId,
+      coupleId: req.coupleId,
     }
 
     if (unreadOnly) {
@@ -43,10 +47,10 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
 
     const total = await prisma.notification.count({ where })
 
-    // Count unread
     const unreadCount = await prisma.notification.count({
       where: {
         userId: req.userId,
+        coupleId: req.coupleId,
         isRead: false,
       },
     })
@@ -91,6 +95,7 @@ router.get('/unread-count', authMiddleware, async (req: Request, res: Response):
     const unreadCount = await prisma.notification.count({
       where: {
         userId: req.userId,
+        coupleId: req.coupleId,
         isRead: false,
       },
     })

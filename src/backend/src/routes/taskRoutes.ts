@@ -304,13 +304,20 @@ router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response):
     const streakWeeks = (couple as any)?.weeklyStreakWeeks || 0
     const factorMascotas = await getFactorMascotas(req.coupleId)
 
-    const { modifierName, modifierValue, pointsFinal } = calculateTaskLogPoints({
+    const { modifierName, modifierValue, pointsFinal: rawPointsFinal } = calculateTaskLogPoints({
       pointsBase: data.pointsBase,
       modifier: data.modifier,
       streakDays,
       streakWeeks,
       factorMascotas,
     })
+
+    // v2.7.1 audit 01 S2-R-22 — cap defensivo. data.pointsBase ya tiene
+    // .max(100) en el schema, pero los multiplicadores (streak ×1.05,
+    // weekly ×1.10, factorMascotas ×~1.15) pueden empujar pointsFinal a
+    // ~133. Cap a 500 alinea con el cap de eventos y evita inflación
+    // desbocada si el calculator cambia.
+    const pointsFinal = Math.min(500, rawPointsFinal)
 
     // Bug 2026-04-22: si existe un placeholder auto-generado para esta tarea
     // en este mismo día (recurrencia que aún nadie ejecutó), lo "flipeamos"
