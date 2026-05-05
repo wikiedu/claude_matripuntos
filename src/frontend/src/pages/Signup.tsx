@@ -45,6 +45,15 @@ export default function Signup() {
   const [loading, setLoading]   = useState(false)
   const [err, setErr]           = useState<string | null>(null)
 
+  // v2.5.3 audit 05 S1 — guard "ya autenticado": si el user llega a
+  // /signup con sesión activa, redirige a /dashboard.
+  const { isAuthenticated, user: authedUser } = useAppStore()
+  useEffect(() => {
+    if (isAuthenticated && authedUser) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [isAuthenticated, authedUser, navigate])
+
   // Al cargar: si hay ?code= en la URL, intentamos preview. Si falla con 404
   // el usuario puede crear una cuenta normal. Si falla con 409 (full) o red,
   // damos mensaje claro y no dejamos avanzar con ese código.

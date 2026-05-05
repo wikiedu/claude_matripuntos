@@ -7,7 +7,7 @@ import { Input } from '../components/v2/primitives/Input'
 
 export default function Login() {
   const nav = useNavigate()
-  const { login, demoLogin } = useAppStore()
+  const { login, demoLogin, isAuthenticated, user } = useAppStore()
   const [email, setEmail]     = useState('')
   const [pwd, setPwd]         = useState('')
   const [showPwd, setShowPwd] = useState(false)
@@ -15,6 +15,15 @@ export default function Login() {
   const [demoLoading, setDemoLoading] = useState(false)
   const [demoAvailable, setDemoAvailable] = useState(false)
   const [err, setErr]         = useState<string | null>(null)
+
+  // v2.5.3 audit 05 S1 — guard "ya autenticado": si el user llega a
+  // /login con sesión activa, redirige a /dashboard en lugar de mostrar
+  // el form (UX confuso "tengo que iniciar sesión otra vez?").
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      nav('/dashboard', { replace: true })
+    }
+  }, [isAuthenticated, user, nav])
 
   // Probe backend for demo availability. Silently hides the CTA when the
   // endpoint is 404 or DEMO_MODE_ENABLED=false — so local dev and prod can

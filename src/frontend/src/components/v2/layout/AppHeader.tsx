@@ -43,11 +43,25 @@ export function AppHeader({
   const queryClient = useQueryClient()
   const [refreshing, setRefreshing] = useState(false)
 
+  // v2.5.3 audit 06 S1-11 — botón Refresh hacía invalidateQueries() sin
+  // key → cascada >20 refetches simultáneos. Ahora invalidamos solo las
+  // queries cuyo refresh aporta valor al user en el momento (datos del
+  // dashboard, listas que ven, contadores). Las internas (analytics
+  // aggregator, achievement maps cacheadas, daily phrase) se quedan
+  // hasta su staleTime natural.
   const handleRefresh = async () => {
     setRefreshing(true)
     try {
-      await queryClient.invalidateQueries()
-      // Mínimo 400ms de spinner para que se note el feedback visual
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['balance'] }),
+        queryClient.invalidateQueries({ queryKey: ['recentActivity'] }),
+        queryClient.invalidateQueries({ queryKey: ['activities'] }),
+        queryClient.invalidateQueries({ queryKey: ['tasks', 'all'] }),
+        queryClient.invalidateQueries({ queryKey: ['tasks', 'logs', 'all'] }),
+        queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] }),
+        queryClient.invalidateQueries({ queryKey: ['gamification', 'status'] }),
+      ])
+      // Mínimo 400ms de spinner para que se note el feedback visual.
       await new Promise((r) => setTimeout(r, 400))
     } finally {
       setRefreshing(false)
