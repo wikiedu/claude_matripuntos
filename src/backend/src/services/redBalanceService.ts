@@ -34,8 +34,19 @@ export async function computeRedBalance(
   userId: string,
   now: Date = new Date(),
 ): Promise<RedBalanceStatus> {
+  // v2.7.2 audit 02 S2-8 — si la pareja está en pausa (vacation mode),
+  // no contamos rojo: el digest queda silenciado, los streaks no
+  // avanzan, y este conteo emocional debe respetar la pausa también.
+  const couple = await prisma.couple.findUnique({
+    where: { id: coupleId },
+    select: { pausedUntil: true },
+  })
+  if (couple?.pausedUntil && couple.pausedUntil.getTime() > now.getTime()) {
+    return { daysInRed: 0, severity: null, myDailyDelta: [], partnerName: null }
+  }
+
   const partner = await prisma.user.findFirst({
-    where: { coupleId, NOT: { id: userId } },
+    where: { coupleId, NOT: { id: userId }, deletedAt: null },
     select: { id: true, name: true },
   })
 
@@ -54,11 +65,20 @@ export async function computeRedBalance(
     select: { userId: true, amount: true, createdAt: true },
   })
 
+  // v2.7.2 audit 02 S2-7 — antes usábamos toISOString() que da UTC; un
+  // user en CET cerrando el día a las 23:30 quedaba en el "día siguiente"
+  // UTC, distorsionando el delta diario. Usamos formato local en-CA
+  // YYYY-MM-DD via Intl que respeta TZ del runtime (Render: UTC, pero
+  // si pasamos a Postgres con TZ explícita se canaliza correctamente).
+  const dayKey = (d: Date) => new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(d)
+
   // Buckets por día local
   const myByDay = new Map<string, number>()
   const partnerByDay = new Map<string, number>()
   for (const t of txs) {
-    const k = t.createdAt.toISOString().slice(0, 10)
+    const k = dayKey(t.createdAt)
     const map = t.userId === userId ? myByDay : partnerByDay
     map.set(k, (map.get(k) ?? 0) + Number(t.amount))
   }
@@ -68,7 +88,7 @@ export async function computeRedBalance(
   let stillInStreak = true
   for (let i = 13; i >= 0; i--) {
     const day = new Date(now.getTime() - i * DAY_MS)
-    const k = day.toISOString().slice(0, 10)
+    const k = dayKey(day)
     const mine = myByDay.get(k) ?? 0
     const theirs = partnerByDay.get(k) ?? 0
     myDailyDelta.push(mine)

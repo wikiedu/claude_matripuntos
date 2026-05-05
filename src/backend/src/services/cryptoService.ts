@@ -30,11 +30,20 @@ export function encrypt(plaintext: string, keyOverride?: Buffer): string {
   ].join(':')
 }
 
+// v2.7.2 audit 02 S2-18 — validar formato base64url antes de Buffer.from
+// para detectar payloads malformados en lugar de aceptarlos silenciosos.
+// `enc` puede ser vacío (encrypt('') es legítimo); `iv` y `tag` no.
+const BASE64URL_RE = /^[A-Za-z0-9_-]+$/
+const BASE64URL_OR_EMPTY_RE = /^[A-Za-z0-9_-]*$/
+
 export function decrypt(payload: string, keyOverride?: Buffer): string {
   const key = keyOverride ?? getKey()
   const parts = payload.split(':')
   if (parts.length !== 3) throw new Error('Invalid encrypted payload format')
   const [ivB, tagB, encB] = parts
+  if (!ivB || !BASE64URL_RE.test(ivB)) throw new Error('Invalid iv segment')
+  if (!tagB || !BASE64URL_RE.test(tagB)) throw new Error('Invalid tag segment')
+  if (encB === undefined || !BASE64URL_OR_EMPTY_RE.test(encB)) throw new Error('Invalid enc segment')
   const iv = Buffer.from(ivB, 'base64url')
   const tag = Buffer.from(tagB, 'base64url')
   const enc = Buffer.from(encB, 'base64url')

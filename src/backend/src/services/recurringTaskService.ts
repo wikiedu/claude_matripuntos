@@ -25,6 +25,14 @@ export function getNextOccurrences(
   const maxCount = options.maxCount ?? (options.endDate ? Infinity : weeks)
   let current = new Date(start)
 
+  // v2.7.2 audit 02 S2-9 — clamp anchor-based para MONTHLY igual que
+  // recurrenceService.advance (RFC 5545 §3.3.10). `setMonth(+1)` con
+  // `current` el 31 de enero produce 3 de marzo (overflow). Usamos
+  // anchorDay = el día original (31) y clampeamos al último día del
+  // mes destino cuando éste sea más corto.
+  const anchorDay = start.getUTCDate()
+  let monthlyCount = 0
+
   while (current <= endDate && results.length < maxCount) {
     results.push(new Date(current))
     switch (frequency) {
@@ -41,9 +49,16 @@ export function getNextOccurrences(
         current = new Date(current.getTime() + 14 * 86400000)
         break
       case 'monthly': {
-        const next = new Date(current)
-        next.setMonth(next.getMonth() + 1)
-        current = next
+        monthlyCount++
+        const totalMonths = start.getUTCMonth() + monthlyCount
+        const targetYear = start.getUTCFullYear() + Math.floor(totalMonths / 12)
+        const targetMonth = ((totalMonths % 12) + 12) % 12
+        const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate()
+        const targetDay = Math.min(anchorDay, lastDay)
+        current = new Date(Date.UTC(
+          targetYear, targetMonth, targetDay,
+          start.getUTCHours(), start.getUTCMinutes(), start.getUTCSeconds(),
+        ))
         break
       }
     }
