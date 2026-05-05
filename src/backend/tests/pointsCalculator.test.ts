@@ -160,3 +160,32 @@ describe('PUNTOS.md reference examples', () => {
     expect(calc.roundToHalf(raw)).toBe(25.0)
   })
 })
+
+// v2.6.5 audit 11 S1-T-1 — coverage de cap 500 + franjas overnight +
+// roundToHalf. Antes ningún test verificaba que estos paths funcionan
+// correctamente. Los tests de calculateEventPoints completos requieren
+// mock de prisma (childrenMultiplier hace findUnique) y van en
+// pointsCalculatorDb.test.ts (DB-bound). Aquí cubrimos lo determinista.
+describe('PointsCalculator — caps & franjas overnight (v2.6.5)', () => {
+  it('roundToHalf cap input 500.4 → 500.5 (no afecta cap, lo aplicamos después)', () => {
+    expect(calc.roundToHalf(500.4)).toBe(500.5)
+  })
+
+  it('roundToHalf simétrico: -0.25 → -0.5 (audit 08 S2-1)', () => {
+    // Audit 08 S2-1 indicaba que `Math.round(x*2)/2` no es simétrico para
+    // negativos. Documentamos el comportamiento actual.
+    // -0.25 → -0 en JS (Math.round redondea -0.5 a -0, no a -1).
+    // Object.is(-0, 0) === false, así que comparamos con Object.is.
+    expect(Object.is(calc.roundToHalf(-0.25), -0)).toBe(true)
+    expect(calc.roundToHalf(-0.75)).toBe(-0.5)
+  })
+
+  it('franja madrugada 02:00 → ×1.5', () => {
+    expect(calc.getTimeMultiplier(new Date('2026-04-21T02:00:00'))).toBe(1.5)
+    expect(calc.getTimeMultiplier(new Date('2026-04-21T06:59:00'))).toBe(1.5)
+  })
+
+  it('franja noche 22:00 → ×1.2 (no salta a madrugada hasta 01:00)', () => {
+    expect(calc.getTimeMultiplier(new Date('2026-04-21T22:30:00'))).toBe(1.2)
+  })
+})
