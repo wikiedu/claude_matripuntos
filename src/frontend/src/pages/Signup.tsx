@@ -136,7 +136,9 @@ export default function Signup() {
             body: JSON.stringify({ email, password: pwd, name: name.trim(), language: 'es', ageConfirmed: true }),
           })
 
-      apiClient.setToken(data.token)
+      // v2.7.5 — persiste token + refresh si vino. Sin refresh el flujo
+      // sigue funcionando con JWT 7d como antes.
+      apiClient.setTokensFromAuthResponse(data)
       useAppStore.getState().setUser(data.user)
       useAppStore.setState({ isAuthenticated: true })
 

@@ -80,8 +80,8 @@ export function StepJoinAccount({ token, onAfterRegister }: Props) {
         password,
         name: name.trim(),
       })
-      // Save the JWT so subsequent calls are authed
-      apiClient.setToken(res.token)
+      // v2.7.5 — Save the JWT (+ refresh si vino) para subsequent calls authed
+      apiClient.setTokensFromAuthResponse(res)
       // Populate the store directly from the register response. This replaces
       // the old sequence (updateMe + loadUserData) that had three failure
       // modes: /profile/me could 500 leaving hasCompletedOnboarding=false,
