@@ -18,7 +18,6 @@ import Settings from './pages/Settings'
 import Analytics from './pages/Analytics'
 import { Calendar } from './pages/Calendar'
 import Journal from './pages/Journal'
-import { AnalyticsPage } from './pages/AnalyticsPage'
 import Achievements from './pages/Achievements'
 import ShoppingListPage from './pages/ShoppingListPage'
 import TodoListPage from './pages/TodoListPage'
@@ -263,14 +262,10 @@ function AppRoutes() {
         }
       />
 
-      <Route
-        path="/analytics/advanced"
-        element={
-          <ProtectedRoute>
-            <AuthedLayout><AnalyticsPage /></AuthedLayout>
-          </ProtectedRoute>
-        }
-      />
+      {/* v2.7.6 audit 06 S2-3 — /analytics/advanced eliminado: usaba el
+           legacy AnalyticsDashboard (13.8KB) que no estaba enlazado en
+           ningún sitio del producto. La página /analytics canónica usa
+           el aggregator V2 con invariantes matemáticos verificados. */}
 
       <Route
         path="/achievements"

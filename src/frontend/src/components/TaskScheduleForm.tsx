@@ -1,3 +1,8 @@
+// v2.7.6 audit 06 S2-1 / 09 S2-U-1 — reescritura con Tailwind v2 tokens.
+// Antes: inline styles enteros con paleta clara hardcodeada (#fffbeb,
+// #f59e0b, #92400e, #e5e7eb), incoherente con el resto de la app dark.
+// Y referencias a `var(--matri-*)` legacy. Ahora todo tokens v2.
+
 import { useState } from 'react'
 import type { TaskSchedule } from '../types'
 
@@ -29,119 +34,80 @@ export function TaskScheduleForm({ value, onChange }: Props) {
     onChange({ ...value, ...patch })
   }
 
+  const inputCls = 'bg-surface-muted border border-brd-subtle rounded-md px-3 py-2 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber'
+
   return (
-    <div style={{
-      marginTop: 12,
-      border: `2px solid ${enabled ? '#f59e0b' : '#e5e7eb'}`,
-      borderRadius: 10,
-      padding: '10px 12px',
-      background: enabled ? '#fffbeb' : '#f9fafb',
-      transition: 'all 0.2s',
-    }}>
-      {/* Toggle */}
+    <div
+      className={`mt-3 rounded-lg p-3 transition-colors border-2 ${
+        enabled ? 'bg-brand-amber/10 border-brand-amber/60' : 'bg-surface-muted border-brd-subtle'
+      }`}
+    >
       <button
         type="button"
         onClick={toggle}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-          width: '100%', marginBottom: enabled ? 12 : 0,
-        }}
+        className="flex items-center gap-2.5 w-full bg-transparent border-0 p-0 cursor-pointer"
+        aria-pressed={enabled}
       >
-        <span style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: enabled ? 'flex-end' : 'flex-start',
-          width: 42, height: 24, borderRadius: 12,
-          background: enabled ? '#f59e0b' : '#d1d5db',
-          padding: '0 3px',
-          flexShrink: 0,
-          transition: 'background 0.2s',
-          boxSizing: 'border-box' as const,
-        }}>
-          <span style={{
-            width: 18, height: 18, borderRadius: 9,
-            background: '#fff',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-            display: 'block',
-            flexShrink: 0,
-          }} />
+        <span
+          className={`inline-flex items-center w-[42px] h-6 rounded-full px-[3px] flex-shrink-0 transition-colors ${
+            enabled ? 'bg-brand-amber justify-end' : 'bg-text-tertiary justify-start'
+          }`}
+        >
+          <span className="block w-[18px] h-[18px] rounded-full bg-white shadow-sm flex-shrink-0" />
         </span>
-        <span style={{
-          fontSize: 14, fontWeight: 600,
-          color: enabled ? '#92400e' : '#6b7280',
-        }}>
+        <span className={`text-sm font-semibold ${enabled ? 'text-brand-amber' : 'text-text-secondary'}`}>
           📅 Planificar esta tarea
         </span>
       </button>
 
       {enabled && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {/* Date+time */}
+        <div className="flex flex-col gap-2 mt-3">
           <input
             type="datetime-local"
             value={value?.scheduledFor ?? ''}
-            onChange={e => {
+            onChange={(e) => {
               const v = e.target.value
               if (!value) onChange({ scheduledFor: v })
               else update({ scheduledFor: v })
             }}
-            style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid var(--matri-card-border)',
-              borderRadius: 8, padding: '8px 10px',
-              color: 'var(--matri-text)', fontSize: 12,
-            }}
+            className={inputCls}
           />
 
-          {/* Frequency */}
           <select
             value={value?.frequency ?? ''}
-            onChange={e => {
+            onChange={(e) => {
               const freq = e.target.value
               if (!value?.scheduledFor) return
               if (!freq) onChange({ scheduledFor: value.scheduledFor })
               else update({ frequency: freq as TaskSchedule['frequency'] })
             }}
-            style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid var(--matri-card-border)',
-              borderRadius: 8, padding: '8px 10px',
-              color: 'var(--matri-text)', fontSize: 12,
-            }}
+            className={inputCls}
           >
-            {FREQUENCY_OPTIONS.map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+            {FREQUENCY_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
             ))}
           </select>
 
-          {/* End condition (only if recurring) */}
           {value?.frequency && (
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="flex gap-2">
               <input
                 type="date"
                 value={value.recurrenceEnd ?? ''}
-                onChange={e => update({ recurrenceEnd: e.target.value || undefined })}
+                onChange={(e) => update({ recurrenceEnd: e.target.value || undefined })}
                 placeholder="Termina el..."
-                style={{
-                  flex: 1, background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid var(--matri-card-border)',
-                  borderRadius: 8, padding: '8px 10px',
-                  color: 'var(--matri-text)', fontSize: 11,
-                }}
+                className={`${inputCls} flex-1`}
               />
               <input
                 type="number"
                 min={1}
                 value={value.maxOccurrences ?? ''}
-                onChange={e => update({ maxOccurrences: e.target.value ? Number(e.target.value) : undefined })}
+                onChange={(e) =>
+                  update({ maxOccurrences: e.target.value ? Number(e.target.value) : undefined })
+                }
                 placeholder="Máx. veces"
-                style={{
-                  flex: 1, background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid var(--matri-card-border)',
-                  borderRadius: 8, padding: '8px 10px',
-                  color: 'var(--matri-text)', fontSize: 11,
-                }}
+                className={`${inputCls} flex-1`}
               />
             </div>
           )}
