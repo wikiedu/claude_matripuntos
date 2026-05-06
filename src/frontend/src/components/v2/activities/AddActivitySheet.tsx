@@ -81,7 +81,12 @@ export function AddActivitySheet({ open, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center sm:p-4">
-      <div className="w-full sm:max-w-lg bg-surface-card border border-brd-subtle rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 max-h-[92vh] overflow-y-auto">
+      {/* v2.7.7 audit 09 S1-U-2 — safe-area-inset-bottom para iPhone notch.
+           sm:rounded-2xl + sm:p-4 al desktop reset el padding bottom inheritor. */}
+      <div
+        className="w-full sm:max-w-lg bg-surface-card border border-brd-subtle rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 max-h-[92vh] overflow-y-auto"
+        style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+      >
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-bold text-text-primary flex-1">
             Nueva actividad

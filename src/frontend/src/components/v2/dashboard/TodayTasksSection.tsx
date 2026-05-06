@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../primitives/Button'
 import { Card } from '../primitives/Card'
@@ -18,7 +19,11 @@ interface Props {
   partnerName: string
 }
 
-export function TodayTasksSection({ tasks, onComplete, partnerName }: Props) {
+// v2.7.7 audit 06 S2-10 — memo() para evitar re-renders en cada tick
+// del polling (60s). Shallow equality detecta cuando `tasks` es
+// referencialmente igual y skipea. El padre (Dashboard) debe pasar
+// tasks desde useMemo o React Query data (ambos estables).
+function TodayTasksSectionImpl({ tasks, onComplete, partnerName }: Props) {
   const nav = useNavigate()
 
   if (tasks.length === 0) {
@@ -65,3 +70,5 @@ export function TodayTasksSection({ tasks, onComplete, partnerName }: Props) {
     </div>
   )
 }
+
+export const TodayTasksSection = memo(TodayTasksSectionImpl)

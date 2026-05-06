@@ -186,9 +186,23 @@ export default function Journal() {
       <section className="space-y-2">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-text-tertiary mb-1.5">Entradas</p>
         {entries.length === 0 ? (
-          <p className="text-xs text-white/50 italic text-center py-8">
-            Aún no hay nada escrito. Lo que escribáis aquí queda como vuestro diario compartido.
-          </p>
+          /* v2.7.7 audit 09 S2-U-8 — empty state con ilustración + CTA. */
+          <div className="text-center py-10 px-4 rounded-xl bg-surface-card border border-brd-subtle border-dashed">
+            <div className="text-4xl mb-3" aria-hidden="true">📔</div>
+            <p className="text-sm font-semibold text-text-primary mb-1">Aún no hay entradas</p>
+            <p className="text-xs text-text-secondary mb-4 max-w-xs mx-auto leading-relaxed">
+              Lo que escribáis aquí queda como vuestro diario compartido. Empieza con una reflexión, un hito o una carta.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                document.querySelector<HTMLTextAreaElement>('[data-testid="journal-body"]')?.focus()
+              }}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-amber hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber rounded px-2 py-1"
+            >
+              ✍️ Escribir la primera entrada
+            </button>
+          </div>
         ) : (
           entries.map(e => (
             <EntryCard

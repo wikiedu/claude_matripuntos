@@ -25,7 +25,10 @@ export function MoodSelectorSheet({ open, currentMoodKey, onChange, onClose }: P
         className="absolute inset-0 bg-black/60"
         onClick={onClose}
       />
-      <div className="relative w-full bg-[#1a1035] rounded-t-3xl p-6 pb-8 shadow-2xl">
+      <div
+        className="relative w-full bg-page-deep rounded-t-3xl p-6 shadow-2xl"
+        style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
+      >
         <div className="mx-auto h-1 w-12 rounded-full bg-white/20 mb-4" />
         <h3 className="text-lg font-semibold text-white mb-4">¿Cómo estás hoy?</h3>
 
