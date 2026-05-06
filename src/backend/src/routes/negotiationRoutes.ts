@@ -306,8 +306,12 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
     // Side effects that must run AFTER the transaction has committed.
     // These are non-fatal for the response itself: on failure we log and
     // continue so the user still sees success.
+    // v2.8.0 audit 02 S2-11 — V1 engine detrás de feature flag (mismo patrón
+    // que taskRoutes). El sistema canónico es V2 (checkAllAchievements
+    // llamado abajo), pero V1 corre en paralelo hasta que el frontend
+    // deje de necesitarlo.
     if (data.responseType === 'accepted') {
-      if (negotiation.proposedBy) {
+      if (negotiation.proposedBy && process.env.LEGACY_ACHIEVEMENTS_ENABLED !== 'false') {
         try {
           await achievementEngine.checkAchievements(
             negotiation.proposedBy,
