@@ -1,3 +1,23 @@
+/**
+ * @deprecated v2.8.0 — Sistema V1 (per-user `Achievement`/`UserAchievement`).
+ *
+ * El sistema canónico es V2: `achievementCheckService.ts` (per-couple
+ * `AchievementDefinition` + `CoupleAchievement`) + `achievementEngineV2.ts`
+ * (catálogo declarativo). Esta clase persiste solo porque el frontend
+ * sigue leyendo `/api/achievements` (V1) y `/api/achievements/user`.
+ *
+ * Plan de eliminación:
+ *   1. Migrar frontend a `/api/achievements/map` (V2 unificado).
+ *   2. Setear `LEGACY_ACHIEVEMENTS_ENABLED=false` en Render para
+ *      apagar las llamadas desde routes.
+ *   3. Eliminar `achievementEngine.ts` + endpoints `/api/achievements`,
+ *      `/api/achievements/user`, `/api/achievements/check`.
+ *   4. Migración de datos: backfill `CoupleAchievement` desde
+ *      `UserAchievement` si hace falta preservar histórico.
+ *
+ * Audit referencia: `docs/audits/2026-05-05-full-audit/02-backend-services.md` S2-11.
+ */
+
 import { Decimal } from '@prisma/client/runtime/library'
 import type { PrismaClient } from '@prisma/client'
 import prismaClient from '../lib/prisma.js'

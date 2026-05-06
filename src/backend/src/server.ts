@@ -85,6 +85,15 @@ function validateEnv(): void {
 }
 validateEnv()
 
+// v2.8.0 audit 02 S2-11 — log de estado del legacy achievement engine.
+// Cuando el frontend deje de leer /api/achievements (V1), se podrá
+// setear LEGACY_ACHIEVEMENTS_ENABLED=false y este log lo confirmará.
+if (process.env.LEGACY_ACHIEVEMENTS_ENABLED === 'false') {
+  console.log('[boot] legacy V1 achievementEngine OFF — solo V2 (CoupleAchievement) activo.')
+} else {
+  console.log('[boot] legacy V1 achievementEngine activo (en paralelo a V2). Set LEGACY_ACHIEVEMENTS_ENABLED=false para apagarlo cuando el frontend migre.')
+}
+
 initSentry()
 
 const app = express()
