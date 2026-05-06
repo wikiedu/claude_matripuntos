@@ -1,13 +1,13 @@
 # STATUS — Matripuntos
 
 **Última actualización:** 2026-05-06
-**Versión actual desplegada en producción:** `v2.7.4` · Sprints 1-22 hardening del audit profundo
+**Versión actual desplegada en producción:** `v2.8.0` · Sprints 1-26 hardening del audit profundo
 
-> **Auditoría 2026-05-05** completada: ~255 hallazgos en 12 dominios, ver
-> `docs/audits/2026-05-05-full-audit/`. Sprints 1-22 (v2.4.0 → v2.7.4) cierran
-> los **25 S0 críticos**, **~85 S1 alto impacto**, y **40+ S2/S3** entre los 12 dominios.
-> Lo que queda son items específicos de producto (decisiones, no bugs) o
-> mejoras profundas (consolidación de 3 sistemas de achievements, etc).
+> **Auditoría 2026-05-05** completada y cerrada: ~255 hallazgos en 12 dominios.
+> Sprints 1-26 (v2.4.0 → v2.8.0) cierran los **25 S0 críticos**, **~85 S1**,
+> **~60 S2** y **~15 S3**. Los items pendientes son específicos de producto
+> (eliminación física de V1 achievements tras frontend migration, decisión
+> sobre couple/pause unilateral o consenso, Render plan starter vs uptime-robot).
 
 > **Handoff Claude Design 14 canvases iniciales completado al 100%.**
 > **Canvas 15 (Tareas/Actividades rediseño)** desplegado en v2.3.0.
@@ -22,7 +22,32 @@
 
 > Lo que está hoy mismo accesible al usuario en matripuntos.com.
 
-### v2.7.4 Sprint 22 — UX + infra S2/S3 final — **2026-05-06**
+### v2.8.0 Sprint 26 — achievements V2 canonical — **2026-05-06**
+- **ADR docs/decisions/2026-05-06-achievements-canonical-v2.md**: V2 (per-couple) declarado canónico, V1 (per-user) deprecado (audit 02 S2-11)
+- **achievementEngine.ts**: bloque @deprecated explícito + plan de eliminación
+- **routes**: V1 calls detrás de feature flag `LEGACY_ACHIEVEMENTS_ENABLED` (default true). Cuando frontend migre, bastará setear false en Render
+- **server.ts boot log**: indica el estado del flag
+
+### v2.7.7 Sprint 25 — empty states + memo + iOS safe-area — **2026-05-06**
+- **Journal feed empty state**: ilustración 📔 + CTA que enfoca el textarea (audit 09 S2-U-8)
+- **TodayTasksSection**: React.memo evita re-renders en cada tick polling 60s (audit 06 S2-10)
+- **MoodSelectorSheet, AddActivitySheet, AddTaskFromCatalogSheet**: paddingBottom env(safe-area-inset-bottom) para iPhone notch (audit 09 S1-U-2)
+
+### v2.7.6 Sprint 24 — tokens legacy + dead code cleanup — **2026-05-06**
+- **Dead code purgado**: AnalyticsPage.tsx, AnalyticsDashboard.tsx, StatCard.tsx, Card.tsx, Button.tsx, TaskPendingCard.tsx + ruta /analytics/advanced
+- **TaskScheduleForm reescrito** con Tailwind v2 tokens + a11y (audit 06 S2-1)
+- **WeeklyTaskView reescrito** con grid responsivo vertical-mobile/horizontal-sm+ (audit 06 S2-2)
+- **OnboardingLanding reescrito** con bg-grad-page + tokens v2 (audit 09 S2-U-1)
+- var(--matri-*) eliminado de runtime — solo queda en App.css legacy preservado defensivamente
+
+### v2.7.5 Sprint 23 — frontend refresh tokens integration — **2026-05-06**
+- **apiClient**: setTokensFromAuthResponse, getRefreshToken, tryRefresh con refreshInFlight singleton (audit 04 S1-6)
+- **request() interceptor 401**: rotación automática + retry una vez antes de caer al onUnauthorized legacy
+- **auth.login + registerWithCode**: header X-Want-Refresh:1
+- **auth.logout()**: nuevo método POST /auth/logout
+- **useAppStore.logout()**: best-effort llama backend
+
+### v2.7.4 Sprint 22 — UX + infra S2/S3 — **2026-05-06**
 - **render.yaml versionado**: blueprint con healthCheckPath, autoDeploy, multi-env (audit 10 S2-I-1, S2-I-7)
 - **src/backend/.env.example**: consolidado de todas las env vars (audit 10 S2-I-2)
 - **server.ts validateEnv()**: fail-fast al boot si JWT_SECRET/DATABASE_URL faltan o JWT_SECRET <32 chars (audit 10 S1-I-5)
