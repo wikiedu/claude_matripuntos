@@ -1,3 +1,8 @@
+// v2.7.6 audit 06 S2-2 / 09 S2-U-1 — reescritura con Tailwind v2 tokens.
+// Antes: inline styles + minWidth 700 forzaba scroll horizontal en móvil
+// y referencias a `var(--matri-*)` legacy. Ahora responsivo (vertical en
+// móvil, grid en sm+) con tokens v2.
+
 import { useWeeklyTasks } from '../hooks/useWeeklyTasks'
 
 interface Props {
@@ -6,10 +11,10 @@ interface Props {
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
-const STATUS_COLORS: Record<string, string> = {
-  verified: '#22c55e',
-  pending: '#f59e0b',
-  disputed: '#ef4444',
+const STATUS_COLOR_CLS: Record<string, string> = {
+  verified: 'text-success border-success/30',
+  pending:  'text-brand-amber border-brand-amber/30',
+  disputed: 'text-danger border-danger/30',
 }
 
 export function WeeklyTaskView({ weekStart }: Props) {
@@ -35,62 +40,65 @@ export function WeeklyTaskView({ weekStart }: Props) {
 
   if (isLoading) {
     return (
-      <div style={{ textAlign: 'center', padding: 24, color: 'var(--matri-text-3)', fontSize: 12 }}>
+      <div className="text-center py-6 text-text-tertiary text-xs">
         Cargando semana...
       </div>
     )
   }
 
   return (
-    <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(100px, 1fr))', gap: 6, minWidth: 700 }}>
+    <div className="overflow-x-auto pb-2">
+      <div className="grid grid-cols-1 sm:grid-cols-7 gap-1.5 sm:min-w-[700px]">
         {days.map((day, i) => {
           const isToday = day.toDateString() === new Date().toDateString()
           const dayLogs = logsForDay(day)
           const iso = day.toISOString().slice(0, 10)
           return (
-            <div key={i} id={`day-${iso}`} data-day-iso={iso} style={{ scrollMarginLeft: 16 }}>
-              {/* Day header */}
-              <div style={{
-                textAlign: 'center', marginBottom: 6,
-                padding: '4px 0',
-              }}>
-                <p style={{ fontSize: 9, color: 'var(--matri-text-3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <div
+              key={i}
+              id={`day-${iso}`}
+              data-day-iso={iso}
+              className="scroll-ml-4"
+            >
+              <div className="text-center mb-1.5 py-1">
+                <p className="text-[9px] uppercase tracking-wider text-text-tertiary">
                   {DAY_LABELS[i]}
                 </p>
-                <p style={{
-                  fontSize: 14, fontWeight: isToday ? 700 : 400,
-                  color: isToday ? 'var(--matri-amber)' : 'var(--matri-text)',
-                }}>
+                <p
+                  className={`text-sm ${
+                    isToday ? 'font-bold text-brand-amber' : 'font-normal text-text-primary'
+                  }`}
+                >
                   {day.getDate()}
                 </p>
               </div>
-              {/* Logs */}
               {dayLogs.length === 0 && (
-                <div style={{
-                  height: 40, borderRadius: 8,
-                  border: '1px dashed rgba(255,255,255,0.08)',
-                }} />
+                <div className="h-10 rounded-md border border-dashed border-brd-subtle" />
               )}
-              {dayLogs.map((log: any) => (
-                <div key={log.id} style={{
-                  background: 'var(--matri-card-bg)',
-                  border: `1px solid ${STATUS_COLORS[log.status] ?? 'var(--matri-card-border)'}33`,
-                  borderRadius: 8, padding: '6px 8px', marginBottom: 4,
-                }}>
-                  <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--matri-text)', marginBottom: 2 }}>
-                    {log.task?.name ?? '—'}
-                  </p>
-                  {log.scheduledFor && (
-                    <p style={{ fontSize: 9, color: 'var(--matri-text-3)' }}>
-                      {new Date(log.scheduledFor).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+              {dayLogs.map((log: any) => {
+                const statusCls = STATUS_COLOR_CLS[log.status] ?? 'text-text-tertiary border-brd-subtle'
+                return (
+                  <div
+                    key={log.id}
+                    className={`bg-surface-card border rounded-md px-2 py-1.5 mb-1 ${statusCls.split(' ')[1]}`}
+                  >
+                    <p className="text-[10px] font-semibold text-text-primary mb-0.5">
+                      {log.task?.name ?? '—'}
                     </p>
-                  )}
-                  <p style={{ fontSize: 9, color: STATUS_COLORS[log.status] ?? 'var(--matri-text-3)', marginTop: 2 }}>
-                    {log.pointsFinal ?? log.pointsBase} pts
-                  </p>
-                </div>
-              ))}
+                    {log.scheduledFor && (
+                      <p className="text-[9px] text-text-tertiary">
+                        {new Date(log.scheduledFor).toLocaleTimeString('es-ES', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    )}
+                    <p className={`text-[9px] mt-0.5 ${statusCls.split(' ')[0]}`}>
+                      {log.pointsFinal ?? log.pointsBase} pts
+                    </p>
+                  </div>
+                )
+              })}
             </div>
           )
         })}
