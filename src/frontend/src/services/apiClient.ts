@@ -9,6 +9,12 @@ const API_BASE_URL = (import.meta as any).env.VITE_API_URL ?? (
 // Simple API client with automatic token management
 class ApiClient {
   private token: string | null = null
+  private refreshToken: string | null = null
+  // v2.7.5 audit 04 S1-6 — refresh-in-flight promise para que múltiples
+  // requests concurrentes que reciben 401 compartan UNA sola rotación
+  // (evita carrera donde 5 requests en paralelo intentan rotar a la vez,
+  // cada uno revocando el refresh del anterior).
+  private refreshInFlight: Promise<boolean> | null = null
   // Callback registered by App.tsx to purge Zustand store + React Query cache
   // when a 401 fires. Kept as a callback (not a direct import of useAppStore)
   // to avoid a circular dependency — the store imports apiClient.
@@ -17,6 +23,26 @@ class ApiClient {
   setToken(token: string) {
     this.token = token
     localStorage.setItem('auth_token', token)
+  }
+
+  // v2.7.5 — store refresh token separado del access. Si el access token
+  // se filtra vía XSS, el refresh sigue protegido por su propio flujo
+  // (rotación con detección de reuse en backend).
+  setRefreshToken(refresh: string) {
+    this.refreshToken = refresh
+    localStorage.setItem('refresh_token', refresh)
+  }
+
+  getRefreshToken(): string | null {
+    if (this.refreshToken) return this.refreshToken
+    const stored = localStorage.getItem('refresh_token')
+    if (stored) this.refreshToken = stored
+    return this.refreshToken
+  }
+
+  setTokensFromAuthResponse(res: { token?: string; refreshToken?: string }) {
+    if (res.token) this.setToken(res.token)
+    if (res.refreshToken) this.setRefreshToken(res.refreshToken)
   }
 
   getToken(): string | null {
@@ -29,14 +55,16 @@ class ApiClient {
 
   clearToken() {
     this.token = null
+    this.refreshToken = null
     localStorage.removeItem('auth_token')
+    localStorage.removeItem('refresh_token')
   }
 
   setOnUnauthorized(cb: (() => void) | null) {
     this.onUnauthorized = cb
   }
 
-  private getHeaders(): HeadersInit {
+  private getHeaders(extra?: Record<string, string>): HeadersInit {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     }
@@ -46,10 +74,45 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${token}`
     }
 
+    if (extra) Object.assign(headers, extra)
+
     return headers
   }
 
-  async request(endpoint: string, options: RequestInit = {}) {
+  // v2.7.5 audit 04 S1-6 — intenta rotar el refresh token. Devuelve true
+  // si la rotación tuvo éxito (access token actualizado en memoria +
+  // localStorage). Compartido entre requests concurrentes via
+  // `refreshInFlight` para evitar tormentas de rotación.
+  private async tryRefresh(): Promise<boolean> {
+    if (this.refreshInFlight) return this.refreshInFlight
+    const refreshToken = this.getRefreshToken()
+    if (!refreshToken) return false
+
+    this.refreshInFlight = (async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        })
+        if (!res.ok) return false
+        const data = await res.json().catch(() => null)
+        if (!data?.accessToken || !data?.refreshToken) return false
+        this.setToken(data.accessToken)
+        this.setRefreshToken(data.refreshToken)
+        return true
+      } catch {
+        return false
+      } finally {
+        // Liberamos el lock un tick después para que las próximas requests
+        // vean el token nuevo en localStorage.
+        setTimeout(() => { this.refreshInFlight = null }, 0)
+      }
+    })()
+    return this.refreshInFlight
+  }
+
+  async request(endpoint: string, options: RequestInit = {}, _retried = false): Promise<any> {
     const url = `${API_BASE_URL}${endpoint}`
     const response = await fetch(url, {
       ...options,
@@ -61,6 +124,19 @@ class ApiClient {
 
     if (!response.ok) {
       if (response.status === 401) {
+        // v2.7.5 audit 04 S1-6 — antes de despachar al onUnauthorized
+        // (que limpia store + redirige a /login), intentamos rotar con
+        // refresh token. Solo si la rotación falla (no hay refresh,
+        // refresh expirado, reuse detectado) caemos al flujo legacy.
+        // _retried previene loops infinitos: cada request rota como mucho
+        // 1 vez, y si el segundo intento también es 401, asumimos sesión
+        // muerta de verdad.
+        if (!_retried && endpoint !== '/auth/refresh' && endpoint !== '/auth/login') {
+          const ok = await this.tryRefresh()
+          if (ok) {
+            return this.request(endpoint, options, true)
+          }
+        }
         // v2.5.4 audit 07 — antes hacíamos `window.location.href = '/login'`
         // que es un FULL RELOAD: pierde cualquier estado en memoria (forms
         // en progreso, mood seleccionado sin guardar, etc). Ahora delegamos
@@ -102,11 +178,19 @@ class ApiClient {
         body: JSON.stringify(data),
       }),
 
+    // v2.7.5 audit 04 S1-6 — `X-Want-Refresh: 1` opt-in: el backend
+     // responde con `refreshToken` además del access JWT. Si en el futuro
+     // se reduce el TTL del access a 15m, ya tenemos rotación lista.
     login: (email: string, password: string) =>
       this.request('/auth/login', {
         method: 'POST',
+        headers: { 'X-Want-Refresh': '1' },
         body: JSON.stringify({ email, password }),
       }),
+
+    // v2.7.5 — revoca todos los refresh tokens activos del user.
+    logout: () =>
+      this.request('/auth/logout', { method: 'POST' }),
 
     demoAvailable: () => this.request('/auth/demo-available'),
     demoLogin: () => this.request('/auth/demo-login', { method: 'POST' }),
@@ -150,6 +234,7 @@ class ApiClient {
     }) =>
       this.request('/auth/register-with-code', {
         method: 'POST',
+        headers: { 'X-Want-Refresh': '1' },
         body: JSON.stringify(data),
       }),
   }

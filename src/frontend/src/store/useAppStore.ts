@@ -67,7 +67,10 @@ export const useAppStore = create<AppState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       const response = await apiClient.auth.login(email, password)
-      apiClient.setToken(response.token)
+      // v2.7.5 audit 04 S1-6 — setTokensFromAuthResponse persiste también
+      // el refreshToken si el backend lo incluye (cuando el cliente envía
+      // X-Want-Refresh:1, ya seteado en apiClient.auth.login).
+      apiClient.setTokensFromAuthResponse(response)
 
       // Attempt to load couple data. Users with no couple yet will get a 401/400 — that's expected.
       let couple = null
@@ -95,7 +98,7 @@ export const useAppStore = create<AppState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       const response = await apiClient.auth.demoLogin()
-      apiClient.setToken(response.token)
+      apiClient.setTokensFromAuthResponse(response)
       let couple = null
       try {
         const coupleResponse = await apiClient.auth.getCouple()
@@ -173,6 +176,11 @@ export const useAppStore = create<AppState>((set) => ({
   },
 
   logout: () => {
+    // v2.7.5 audit 04 S1-6 — best-effort POST /auth/logout para revocar
+    // los refresh tokens del user en el backend. Si falla (red, server
+    // caído), igualmente limpiamos local — el access JWT expirará por
+    // su cuenta y el refresh sin uso queda inerte.
+    apiClient.auth.logout().catch(() => {})
     apiClient.clearToken()
     queryClient.clear()
     set({ user: null, couple: null, isAuthenticated: false, error: null })
