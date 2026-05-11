@@ -74,3 +74,5 @@ src/backend/.claude-flow/
 .mcp.json
 .swarm/
 ruvector.db
+.agents/
+skills-lock.json
