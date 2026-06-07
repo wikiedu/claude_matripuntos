@@ -1,5 +1,7 @@
 # CLAUDE.md — Matripuntos
 
+> **Estado:** rama `refactor/opus-4-8` en curso. Existe `ESTADO_PRE_REFACTOR.md` (raíz) con el baseline de features funcionales antes del refactor. Las secciones §3/§5/§6 reflejan el árbol real a 2026-06-07.
+
 ## 0. REGLAS DE SESIÓN
 - **Aviso al 75% de contexto:** cuando el uso de contexto de la sesión se acerque al 75% (≈150k/200k tokens), detente en el siguiente punto de control natural (tras un commit, tras un deploy, al cerrar un bug) y **pregunta al usuario** si continuar o cerrar con `/compact`. En el aviso incluye: (1) resumen de lo hecho, (2) lo pendiente, (3) tu recomendación (seguir / compactar / abrir sesión nueva). NO arranques tareas nuevas pasado ese umbral sin OK explícito del usuario.
 - Los permisos están en modo wildcard en `.claude/settings.local.json` — puedes ejecutar Bash/Edit/Write sin pedir confirmación, salvo acciones destructivas o de alcance compartido (push --force, drop table, envíos externos), que siempre confirman antes.
@@ -21,45 +23,121 @@ App web gamificada para parejas: gestión equitativa de responsabilidades del ho
 - Recharts (analytics charts)
 
 **Backend** (`src/backend/`) — Puerto 3000
-- Node.js + Express + TypeScript
-- Prisma ORM · Zod (validation) · JWT (auth)
+- Node.js + Express + TypeScript (ESM, `node --loader ts-node/esm`)
+- Prisma ORM · Zod (validation) · JWT + refresh tokens (auth)
 - SQLite local → PostgreSQL/Supabase en producción
 
+**Monorepo / paquetes compartidos:**
+- `packages/shared/` — Zod schemas compartidos back↔front (`schemas/auth|account|couple|profile|common.ts`) + catálogo de eventos de telemetría (`telemetry-events.ts`). Se compila a `dist/` y el backend lo importa; el `build` del backend lo compila **primero** (ver §4).
+- `scripts/` — utilidades de operación: `reconcile-prisma-migrations.mjs` (reconcilia migraciones Prisma), `seed-prod-couple.mjs`, `patch-onboarded.mjs`, `start-server.sh` / `stop-server.sh`, `server.cjs`, `frame-template.html`.
+
 **Deploy:**
-- Frontend: FTP → `ftp.keepitup.io` (dominio propio) — credenciales en `.deploy-credentials` (no en git)
+- Frontend: build Vite → FTP. Dominio de producción: **matripuntos.com**. Host FTP de deploy: `ftp.keepitup.io`. Credenciales en `.deploy-credentials` (local, no en git).
 - Backend: Render — auto-deploy desde `main` via GitHub
 - DB producción: Supabase (PostgreSQL) — conectado a Render via env vars
 
 ## 3. ESTRUCTURA DE CÓDIGO
 
+> El frontend está en plena migración a UI "v2". Los componentes nuevos viven en `components/v2/<dominio>/`; en la raíz de `components/` solo queda un puñado de componentes legacy/transversales todavía en uso.
+
+### Frontend — `src/frontend/src/`
+
 ```
-src/
-├── frontend/src/
-│   ├── pages/           # Login, Dashboard, Tasks, Calendar, Analytics, AnalyticsPage,
-│   │                    # History, Settings, Onboarding, RequestActivity, RequestInbox, NotFound
-│   ├── components/      # AchievementsPanel, AnalyticsDashboard, CalendarDashboard,
-│   │                    # CalendarDay/Month/Week, CategoryManager, CounterProposalForm,
-│   │                    # EventNegotiationCard, GamificationDashboard, NegotiationHistory,
-│   │                    # NotificationBell, PointsBreakdown, StatCard, TaskVerificationCard
-│   │                    # UI: Alert, Button, Card, AchievementBadge
-│   ├── components/onboarding/  # OnboardingStep1-4, OnboardingJoinFlow
-│   ├── store/           # useAppStore.ts — Zustand (auth, user, couple)
-│   ├── services/        # apiClient.ts — axios con JWT interceptor
-│   ├── hooks/           # useAuth.ts
-│   ├── types/           # index.ts, analytics.ts, calendar.ts
-│   └── utils/           # pointsCalculator.ts — fórmula de puntos en frontend
-│
-└── backend/src/
-    ├── server.ts         # Express app, montaje de rutas, middleware
-    ├── routes/           # authRoutes, eventRoutes, taskRoutes, negotiationRoutes,
-    │                     # pointsRoutes, configurationRoutes, notificationRoutes,
-    │                     # profile, family, invitations, categories, pointsV2,
-    │                     # negotiation (V2), achievements, calendar, analytics
-    ├── services/         # authService, pointsCalculator, negotiationEngine,
-    │                     # achievementEngine, notificationService, analyticsService, calendarService
-    ├── middleware/        # authMiddleware.ts — JWT → req.userId + req.coupleId
-    ├── schemas/          # authSchemas.ts (Zod)
-    └── types/            # v2.ts
+pages/                      # Una página por ruta de React Router
+  Home.tsx                  # Dashboard principal post-login (selector Home v2)
+  Dashboard.tsx             # Vista de saldo/gamificación (legacy, aún enlazada)
+  Tasks.tsx                 # Tareas recurrentes + verificación
+  Activities.tsx            # Lista de actividades/eventos negociables
+  ActivityDetail.tsx        # Detalle + negociación de una actividad
+  RequestActivity.tsx       # Crear/solicitar actividad
+  Calendar.tsx              # Calendario 360 (mes/semana/día)
+  Analytics.tsx             # Analytics (basic + pro con overlay premium)
+  Achievements.tsx          # Logros + nivel + ranking
+  Journal.tsx               # Diario de pareja (entries + reacciones + retros)
+  Notifications.tsx         # Centro de notificaciones
+  ShoppingListPage.tsx      # Lista de la compra compartida
+  TodoListPage.tsx          # To-dos (propios/compartidos)
+  Settings.tsx              # Ajustes de cuenta/pareja/preferencias
+  Login.tsx · Signup.tsx    # Auth
+  ForgotPassword.tsx · ResetPassword.tsx   # Recuperación de contraseña
+  Onboarding.tsx            # Wrapper del flujo de onboarding
+  NotFound.tsx              # 404
+  legal/                    # Terms.tsx, Privacy.tsx, Cookies.tsx, LegalPage.tsx
+  onboarding/               # Flujo paso a paso: StepWelcome, StepPair, StepProfile,
+                            #   StepCategories, StepRules, StepDone, StepJoinAccount,
+                            #   StepInviteeAvatar, StepInviteeWork, OnboardingLanding,
+                            #   PartnerCatchUp
+
+components/                 # Raíz: legacy/transversales aún en uso
+  Alert.tsx                 # Banner de alerta
+  AnalyticsChart.tsx        # Wrapper Recharts
+  CookieConsentBanner.tsx   # Consentimiento de cookies (GDPR)
+  EventNegotiationCard.tsx  # Card de negociación de evento (legacy)
+  Footer.tsx · RuleProposalCard.tsx · TaskScheduleForm.tsx · WeeklyTaskView.tsx
+  v2/                       # UI nueva, 19 subcarpetas por dominio:
+    primitives/             # Design system: Button, Card, Input, Avatar, BottomSheet,
+                            #   AlertDialog, ConfirmDialog, Pill, ProgressBar, Skeleton, AvatarPicker
+    layout/                 # AppHeader, BottomNav, FabActionSheet, HeaderMenu
+    home/                   # HomeSelector (router de la home)
+    dashboard/             # ~30 cards de la home: BalanceLevelHero, LevelBar/LevelUpModal,
+                            #   StreakBadge/StreakStrip, ChallengeCard, MoodCard/MoodNudge/MoodPairCard,
+                            #   DailyPhrase, ReplayCard, RedBalanceCard, TodayTasksSection,
+                            #   VerifyTasksBanner, ActivitiesBanner, ProfileCompletionBanner,
+                            #   PauseBanner, NoPartnerBanner, QuickPreviews, PointsBurst, AnimatedNumber…
+    tasks/                  # AddTaskSheet, AddTaskFromCatalogSheet, RecurringTaskManager,
+                            #   TaskItemLarge/Medium, TaskRow, WeekStrip, CategoryFilterStrip, VerifyBanner…
+    activities/             # ActivityActionCard, ActivityWaitingCard, AddActivitySheet,
+                            #   CounterOfferSheet (contraoferta), HistoryFilters
+    calendar/               # CalendarMonthViewV2, MonthGrid, WeekStripChart, EventCardV2, CalendarV2Section
+    analytics/              # BasicAnalytics, AdvancedAnalytics, AnalyticsProSection/Teaser,
+                            #   PremiumOverlay, MovementsTab, AnalyticsTabs, charts/, analyticsUtils.ts
+    achievements/           # LevelHero, AchievementsTabs, AchievementBadgeV2, RankingTab, HistoryTab
+    catalog/                # ActivityCatalogManager/Picker, AddActivityTemplateSheet
+    consensus/              # ProposalsPanel, ProposeChangeDialog, RealRulesSection (config-proposals)
+    couple/                 # CoupleHealthCard
+    anniversary/            # AnniversaryCard
+    premium/                # PremiumInterestModal
+    proof/                  # TaskProofUploader (imagen prueba de tarea)
+    profile/                # MyMoodWeek
+    sheets/                 # MoodSelectorSheet
+    wizards/                # DeleteAccountWizard, LeaveCoupleWizard
+    tour/                   # DashboardTour (onboarding guiado)
+
+store/      useAppStore.ts  # Zustand: auth, user, couple global
+services/   apiClient.ts    # axios + interceptor JWT/refresh · telemetry.ts · consent.ts
+hooks/                      # ~23 hooks React Query, uno por dominio: useAuth, useActivities,
+                            #   useActivityCatalog, useAnalyticsV2, useAnniversary, useCalendarV2,
+                            #   useConfigProposals, useConsent, useGamificationV2, useJournal,
+                            #   useShoppingList, useTaskProof, useTodos, useWebPush, useWeeklyTasks…
+utils/      cyrb53.ts (hash) · dailyPhrase.ts · dateUtils.ts · shoppingCategory.ts
+data/ · layout/ · lib/ · styles/ · types/ · test/   # constantes, layout shell, helpers, estilos, tipos, setup tests
+```
+
+### Backend — `src/backend/src/`
+
+```
+server.ts                   # Express app: rate limiters, montaje de las 36 rutas, middleware
+routes/                     # 36 archivos — inventario completo en §6
+middleware/  authMiddleware.ts          # JWT → req.userId + req.coupleId (+ optionalAuthMiddleware)
+schemas/     authSchemas.ts (Zod)       # (la mayoría de schemas compartidos viven en packages/shared)
+types/       v2.ts
+services/                   # ~40 servicios (lógica de dominio). Principales:
+  authService                # registro/login/JWT · refreshTokenService (rotación) · cryptoService (AES-256-GCM)
+  accountDeletionService     # borrado de cuenta con anonimización · coupleLifecycleService (salir/pausar pareja)
+  pointsCalculator · taskLogPoints   # fórmula de puntos (pura, testeada) · redBalanceService (saldo en rojo)
+  negotiationEngine          # motor de negociación de eventos
+  achievementEngine · achievementEngineV2 · achievementCheckService   # logros (V1 legacy + V2 canónico)
+  gamificationService · challengeService · streakService · replayService   # nivel/XP, retos, rachas, replays
+  analyticsService · analyticsAggregator · insightHeuristic · insightsGenerator   # analytics + insights server-side
+  calendarService · recurrenceService · recurringTaskService · holidaysService · birthdaysService   # calendario 360
+  journalPromptsService · journalRetrospectiveService    # diario: prompts diarios + retrospectivas
+  notificationService · notificationDigestService · notificationPreferencesService   # notificaciones + digest
+  webPushService             # web-push (VAPID/RFC 8030)
+  activityTemplateService · bootstrapCatalog   # catálogo de actividades + auto-seed global
+  configurationProposalService    # propuestas de cambio de config con consenso
+  invitationService · emailService · telemetry · demoService · digestService
+prisma/      schema.prisma · migrations/ · seed.ts · dev.db (local)
+tests/       Jest (unit + integration) — ver §4
 ```
 
 ## 4. CÓMO ARRANCAR
@@ -73,159 +151,271 @@ cd src/frontend && npm install && npm run dev   # → localhost:5173
 
 # Utilidades DB
 cd src/backend
-npx prisma studio                               # Browser de BD
-npx prisma migrate dev                          # Aplicar migraciones
-npx ts-node prisma/seed.ts                      # Datos de prueba
+npm run studio          # = prisma studio (browser de BD)
+npm run migrate         # = prisma migrate dev (aplicar migraciones en local)
+npm run seed            # = ts-node --esm prisma/seed.ts (datos de prueba)
+```
+
+**Build (monorepo):** `npm run build` en el backend compila **primero** `packages/shared` (`tsc`), luego `prisma generate`, y por último el backend. No se puede compilar el backend de forma aislada sin `shared` build.
+
+**Scripts npm útiles del backend:**
+```
+npm run type-check        # tsc --noEmit
+npm run lint              # eslint src
+npm test                  # jest (todo)
+npm run test:unit         # solo unit puro (pointsCalculator, insightHeuristic, joinCode)
+npm run test:integration  # tests que tocan BD
+npm run migrate:deploy    # prisma migrate deploy (prod / CI)
+npm run migrate:status    # estado de migraciones
+npm run migrate:reconcile # node scripts/reconcile-prisma-migrations.mjs (reconcilia historial Prisma)
+npm start                 # prisma migrate deploy && node dist/server.js (prod)
 ```
 
 Health check: `GET http://localhost:3000/api/health`
 
 ## 5. BASE DE DATOS
 
-Schema: `src/backend/prisma/schema.prisma` · DB local: `src/backend/prisma/dev.db`
+Schema: `src/backend/prisma/schema.prisma` · DB local: `src/backend/prisma/dev.db` · **47 modelos**.
 
-**Modelos core:**
+> **🔗 = couple-level** (tiene `coupleId`; entra en la lógica de los 2 usuarios y en el aislamiento por pareja). Sin marca = user-scoped (vía `userId`) o global/secundario (vía FK a otro modelo).
+
+**Núcleo pareja / usuario / auth:**
 ```
-Couple     id, secretKey(unique), numChildren, language
-           → User[], Event[], Task[], Configuration(1), Subscription(1)
-
-User       id, coupleId→Couple, email(unique), passwordHash, name,
-           roleInHome, hasCompletedOnboarding
-
-Event      id, coupleId, createdBy→User, type, dateStart, dateEnd,
-           numChildren, pointsBase, pointsCalculated, pointsAgreed?,
-           status(draft/pending/accepted/rejected/forced),
-           negotiationRound, maxFreeRounds(def:2),
-           lastProposedBy?, lastProposedPoints?,
-           negotiationHistory(JSON), compensation?, compensationDiscount
-
-Task       id, coupleId, name, category(cocina/baños/limpieza/compra/
-           logistica/cuidado/mantenimiento/jardineria/mascotas),
-           pointsBase, isDefault
-
-TaskLog    id, coupleId, taskId, completedBy?, date,
-           pointsBase, modifier?, modifierValue, pointsFinal,
-           status(pending/verified/disputed),
-           verifiedBy?, verifiedAt?
-
-Negotiation id, eventId, roundNumber, proposedBy?, pointsProposed,
-            message?, responseType(accepted/rejected/counter_proposed/
-            awaiting/forced), respondedBy?, respondedAt?
-
-PointsTransaction id, coupleId, userId?, type(event_accepted/
-                  task_completed/donation/forced_payment),
-                  amount, relatedEventId?(unique), relatedTaskLogId?(unique)
-
-Compensation  id, eventId, coupleId, type, discountAmount,
-              discountPercent?, status(pending/completed)
-
-Configuration id, coupleId(unique), tasksConfig(JSON),
-              multipliersConfig(JSON), activityTypes(JSON)
-
-Notification  id, coupleId, userId, type, title, message, isRead
-Subscription  id, coupleId(unique), plan(free/premium/pro), stripeId?
+🔗 Couple            secretKey(unique), joinCode, numChildren, language, relationshipStartDate,
+                     pausedUntil/pausedReason, dissolvedAt, xp/level/streaks · raíz de casi todo
+🔗 User              coupleId, email(unique), passwordHash, name, roleInHome, hasCompletedOnboarding,
+                     deletedAt (soft-delete), notificationPreferences(JSON)
+   UserProfile       userId(unique) → surname, foto, dateOfBirth, weeklyWorkHours, workMode/workSchedule,
+                     taskPreferencesLoves/Dislikes(JSON), avatar, currentMood
+🔗 CoupleProfile     coupleId(unique) → homeType, homeSizeM2, cohabitation, externalServices(JSON)
+🔗 Child             name, dateOfBirth, livesWithUser1/2, hasSpecialNeeds
+🔗 Pet               name, type, quantity
+🔗 Invitation        fromUserId, toEmail/toUserId, token(unique), type, status, expiresAt
+   RefreshToken      userId → tokenHash, expiresAt, revokedAt, rotatedFrom, deviceFingerprint (rotación)
+   PasswordResetToken userId → tokenHash, expiresAt, usedAt
 ```
 
-**Modelos V2:**
+**Eventos · negociación · puntos:**
 ```
-UserProfile    userId(unique) → surname, profilePhotoUrl, weeklyWorkHours,
-               workMode, taskPreferencesLoves(JSON), taskPreferencesDislikes(JSON)
-CoupleProfile  coupleId(unique) → homeType, homeSizeM2, externalServices(JSON)
-Child          coupleId → name, dateOfBirth, livesWithUser1/2, hasSpecialNeeds
-Pet            coupleId → name, type, quantity
-Invitation     coupleId → inviteeEmail, token(unique), status(pending/accepted/rejected), expiresAt
-Category       coupleId → name, emoji, type(event/chore/service), basePoints,
-               isCustom, isActive → Subcategory[]
-Achievement    coupleId → type(solo/couple), name, rarity(common/rare/epic/legendary)
-UserAchievement userId+achievementId(unique) → unlockedAt
-CoupleScore    coupleId+weekStartDate(unique) → user1Score, user2Score, overallScore,
-               equilibrium, activity, consensus, constancy
-CalendarEntry  coupleId → type(event/task/service/birthday/holiday), title, date
+🔗 Event             createdBy→User, type, dateStart/End, numChildren, pointsBase/Calculated/Agreed,
+                     status(draft/pending/accepted/rejected/forced), negotiationRound, maxFreeRounds,
+                     negotiationHistory(JSON), compensation, compensationDiscount
+   Negotiation       eventId, roundNumber, proposedBy, pointsProposed, message,
+                     responseType(accepted/rejected/counter_proposed/awaiting/forced)
+🔗 PointsTransaction userId, type(event_accepted/task_completed/donation/forced_payment), amount,
+                     relatedEventId(unique)?, relatedTaskLogId(unique)? · fuente de verdad del saldo
+🔗 Compensation      eventId, type, discountAmount, discountPercent?, status(pending/completed), linkedTaskId
+```
+
+**Tareas:**
+```
+🔗 Task              name, category, pointsBase, isDefault, scheduledFor, isRecurring/frequency/
+                     recurrenceStart-End/maxOccurrences, defaultAssigneeId
+🔗 TaskLog           taskId, completedBy, date, pointsBase/modifier/pointsFinal,
+                     status(pending/verified/disputed), verifiedBy/disputedBy, proofImageUrl
+```
+
+**Configuración · consenso · catálogo:**
+```
+🔗 Configuration         coupleId(unique) → tasksConfig/multipliersConfig/activityTypes (JSON)
+🔗 ConfigurationProposal proposedBy→User, field/oldValue/newValue, rationale, status, expiresAt (consenso)
+🔗 ConfigurationChangeLog field/oldValue/newValue, appliedBy, proposalId (auditoría de cambios aplicados)
+🔗 ActivityTemplate      category, name, pointsBaseSuggested, defaultDuration/Impact, emoji,
+                         instancesThisMonth, pointsApproved (catálogo de actividades)
+🔗 Category              name, emoji, type(event/chore/service), basePoints, isCustom, isActive
+   Subcategory           categoryId → name, basePointsModifier
+🔗 RuleProposal          proposedBy/respondedBy, type, payload(JSON), status, comments (propuestas de regla)
+```
+
+**Gamificación · ánimo:**
+```
+   Achievement           (V1 legacy) coupleId, type(solo/couple), name, rarity, condition
+   UserAchievement       userId+achievementId(unique) → unlockedAt
+   AchievementDefinition (V2 canónico, global) name, rarity, category, condition, xpReward, orderIndex
+🔗 CoupleAchievement     achievementDefinitionId, progress(JSON), unlockedAt (V2, por pareja)
+🔗 CoupleLevel           coupleId(unique) → xp, level
+🔗 CoupleStreak          coupleId(unique) → dailyStreak/weeklyStreak, longestDaily/Weekly
+🔗 CoupleChallenge       weekStart, type, config(JSON), status, progress/goal, rewardXp
+🔗 CoupleReplaySeen      replayKey, seenByUser1/2 (cards de re-engagement vistas)
+🔗 CoupleScore           coupleId+weekStartDate(unique) → user1/2Score, overallScore,
+                         equilibrium, activity, consensus, constancy
+🔗 MoodLog               userId, moodKey, createdAt (ánimo diario)
+```
+
+**Calendario:**
+```
+🔗 CalendarEntry         type(event/task/service/birthday/holiday), title, date/endDate, allDay,
+                         relatedEventId/relatedTaskId, recurrence, externalSource/externalId
+   GoogleCalendarSync    userId(unique) → refreshToken(cifrado), syncEnabled, lastSyncToken, filters
+🔗 ServiceProvider       name, type, recurrence, active (servicios externos recurrentes del hogar)
+```
+
+**Diario de pareja (journaling):**
+```
+🔗 JournalEntry          authorId/recipientId, type, title, body, shared, attachments/tags, promptId
+   JournalReaction       entryId, userId, emoji
+   JournalPrompt         (global) text, category, weight — prompts diarios
+🔗 JournalRetrospective  period, startDate/endDate, data(JSON), seenByUser1/2
+```
+
+**Listas compartidas:**
+```
+🔗 ShoppingList          coupleId, isActive, archivedAt
+   ShoppingItem          listId → text, isChecked, checkedBy/checkedAt
+🔗 Todo                  userId, coupleId, text, isCompleted, dueDate, isShared
+```
+
+**Analytics · notificaciones · premium · subscripción:**
+```
+🔗 AnalyticsInsight      kind, title/body, payload(JSON), trend, validUntil, seenByUser1/2
+🔗 Notification          userId, type, title/message, relatedEventId/TaskLogId, isRead
+🔗 PushSubscription      userId, endpoint, p256dh/auth, userAgent (web-push)
+🔗 Subscription          coupleId(unique) → plan(free/premium/pro), stripeId
+🔗 PremiumInterest       userId, email, source, notified (lista de espera premium)
 ```
 
 ## 6. API ROUTES
 
-Todas requieren `Authorization: Bearer <JWT>` salvo `/auth/register` y `/auth/login`.
+Todas requieren `Authorization: Bearer <JWT>` salvo auth público (`register/login/signup/refresh/forgot-password/reset-password`, `demo-login`, `couple-preview`). 36 archivos de rutas montados en `server.ts`. Mismo prefijo `/api/...` puede tener 2 archivos (V1 + V2 conviven).
 
+**Auth + invitaciones** — `authRoutes.ts` + `invitationRoutes` (ambos en `/api/auth`)
 ```
 /api/auth
-  POST /register          { email, password, name, coupleSecretKey? }
-  POST /login             { email, password } → { token, user, couple }
-  POST /invite            { inviteeEmail }
-  POST /join-couple       { token }
+  POST /register · /register-with-code · /signup     Alta de usuario/pareja
+  POST /login · /logout · /refresh                   Sesión (JWT + refresh token rotation)
+  POST /forgot-password · /reset-password            Recuperación de contraseña
+  GET  /me · /couple · /partner-summary              Datos sesión/pareja/partner
+  GET  /couple-preview/:code                          Preview pública por joinCode
+  POST /invite · /accept-invite · /reject-invite      Invitar partner por email
+  POST /propose-partner · /accept-proposal · /reject-proposal · GET /proposals   Vincular partner existente
+  POST /demo-login · GET /demo-available             Modo demo
+  (invitationRoutes) POST /invite-partner · /link-partner · /accept-link-partner · /reject-link-partner
+                     GET /invitation/:token · /pending-link-requests · POST /register-with-invitation
+```
 
+**Eventos + negociación V2** — `eventRoutes.ts` + `negotiation.ts` (ambos en `/api/events`)
+```
 /api/events
-  GET  /                  ?status=pending&limit=20
-  POST /                  { type, dateStart, dateEnd, numChildren, pointsBase, compensation? }
-  GET  /:id               → event + negotiations[]
-  PUT  /:id / DELETE /:id
-  POST /:id/accept        Partner acepta → crea PointsTransaction
-  POST /:id/reject        Partner rechaza
-  POST /:id/counter       { pointsProposed, message? } — bloqueado si rondas agotadas
-  POST /:id/force         Proposer fuerza, paga de su propio saldo
+  GET  /  ·  POST /  ·  GET /:id  ·  PUT /:id  ·  DELETE /:id     CRUD de actividades/eventos
+  (V2)  POST /:eventId/propose · /:eventId/respond               Proponer / responder negociación
+  (V2)  GET  /:eventId/negotiation · /:eventId/negotiation/history · /user/pending
+```
 
-/api/tasks
-  GET|POST /              CRUD de tareas de la pareja
-  PUT|DELETE /:id
-  GET  /logs              ?date=2026-04-01&userId=xxx
-  POST /logs              { taskId, date, pointsBase, pointsFinal }
-  PUT  /logs/:id          { status: 'verified'|'disputed' }
-  POST /logs/:id/dispute  { reason }
+**Negociación V1** — `negotiationRoutes.ts` (`/api/negotiations`)
+```
+  GET /event/:eventId · POST / · POST /:negotiationId/force · PUT /:negotiationId/respond
+```
 
-/api/points
-  GET  /balance           → { user1: {name,balance}, user2: {name,balance}, net }
-  GET  /history           ?limit=50&offset=0
-  GET  /leaderboard       ?period=week|month
+**Tareas + logs** — `taskRoutes.ts` (`/api/tasks`)
+```
+  GET / · POST / · DELETE /:id                         CRUD tareas
+  POST /:id/pause · /:id/resume · /:id/schedule        Recurrencia
+  GET  /recurring · /logs · /all-logs · /:taskId/logs  Consultar logs
+  POST /:taskId/log                                    Registrar tarea hecha
+  PUT  /:taskId/logs/:logId/verify · /dispute          Verificar / disputar log
+```
 
-/api/negotiations
-  GET  /pending           Eventos esperando respuesta del usuario actual
+**Prueba de tarea (imagen)** — `taskProof.ts` (`/api/task-logs`, flag TASK_PROOF_ENABLED)
+```
+  GET / POST / DELETE  /:logId/proof    proofImageUrl (solo el completer)
+```
 
-/api/notifications
-  GET  /                  ?unread=true
-  PUT  /:id/read
-  PUT  /read-all
+**Puntos** — `pointsRoutes.ts` + `pointsV2.ts` (ambos en `/api/points`)
+```
+  GET /balance · /history · /transactions/:id · /chart-data · /stats · /red-balance
+  POST /reset-request · /reset-confirm                  Reset de saldo (con rate limit)
+  (V2) POST /calculate · /preview · /recalculate/:eventId · GET /category/:categoryId
+```
 
-/api/configuration
-  GET|PUT /               { tasksConfig?, multipliersConfig?, activityTypes? }
+**Configuración + consenso** — `configurationRoutes.ts` + `configurationProposals.ts` + `ruleProposals.ts`
+```
+/api/configuration        GET / · PUT / · POST /reset         tasksConfig/multipliers/activityTypes
+/api/config-proposals     GET / · /history · /changelog       Propuestas de cambio con consenso
+                          POST / · /:id/accept · /:id/reject · /:id/cancel
+/api/rules                GET / · POST /propose · PUT /:id/respond    RuleProposal (propuestas de regla)
+```
 
-/api/activity-templates  (v2.0.4 — flag CATALOG_ENABLED, default ON)
-  GET  /                  ?grouped=true → templates globales + propios de la pareja
-  POST /                  { category, name, pointsBaseSuggested, ... } — crea custom
-  PUT|DELETE /:id         (solo own templates)
-  POST /:id/use           Marca uso (instrumentación, no bloqueante)
+**Catálogo de actividades** — `activityTemplates.ts` (`/api/activity-templates`, flag CATALOG_ENABLED)
+```
+  GET / · POST / · PUT /:id · DELETE /:id · POST /:id/use
+```
 
-/api/config-proposals    (v2.0.4 — flag CONFIG_PROPOSALS_ENABLED, default ON)
-  GET  /                  Propuestas activas
-  GET  /history           Histórico (rejected/expired/cancelled/accepted)
-  GET  /changelog         Cambios aplicados
-  POST /                  { field, oldValue, newValue, rationale?, expiryDays? }
-  POST /:id/accept        Solo el partner; aplica cambio + log
-  POST /:id/reject        Solo el partner
-  POST /:id/cancel        Solo el proposer
+**Categorías** — `categories.ts` (`/api/categories`)
+```
+  GET / · /default · /:categoryId · POST / · PUT /:categoryId · DELETE /:categoryId
+  POST /:categoryId/subcategories · /propose · PUT /:id/propose-change
+```
 
-/api/anniversary         (v2.0.5 — flag ANNIVERSARY_ENABLED, default ON)
-  GET  /                  Breakdown años/meses/días + próximo hito
-  PUT  /                  { startDate: ISO } — fija fecha (no futura)
-  DELETE /                Limpia la fecha
+**Familia** — `family.ts` (`/api`)
+```
+  GET/POST /children · PUT/DELETE /children/:childId
+  GET/POST /pets · PUT/DELETE /pets/:petId
+```
 
-/api/task-logs           (v2.0.5 — flag TASK_PROOF_ENABLED, default ON)
-  GET  /:logId/proof      proofImageUrl + proofUploadedAt
-  POST /:logId/proof      { proofImageUrl } — solo el completer
-  DELETE /:logId/proof    solo el completer
+**Perfil** — `profile.ts` + `profileCompletion.ts` (`/api/profile`)
+```
+  GET/PUT /me · GET /user/:userId · POST /user · GET/POST /couple
+  GET/PUT /notification-preferences · GET /mood-history · GET /completion
+```
 
-/api/profile
-  GET|PUT /me
+**Logros + gamificación** — `achievements.ts` + `gamification.ts` + `gamificationV2.ts`
+```
+/api/achievements    GET / · /user · /couple-score · /map · POST /check
+/api/gamification     GET /status
+/api/gamification-v2  GET /level · /streak · /challenge · /replay · POST /replay/:key/seen
+```
 
-/api  (family)
-  GET|POST /children      { name, dateOfBirth, livesWithUser1?, livesWithUser2? }
-  DELETE   /children/:id
-  GET|POST /pets          { name, type, quantity? }
-  DELETE   /pets/:id
+**Calendario** — `calendar.ts` + `calendarV2.ts` + `googleCalendarOauth.ts`
+```
+/api/calendar         GET /month/:y/:m · /week/:y/:w · /day/:date · /by-type/:type · /upcoming · /special-dates
+                      POST /entry · PUT /entry/:id · DELETE /entry/:id
+/api/calendar/v2      CRUD /entries + CRUD /service-providers
+/api/calendar/google  GET /auth · /status · POST /callback · /sync · DELETE /disconnect   (OAuth Google, token cifrado)
+```
 
-/api/categories           CRUD + subcategories
-/api/achievements         GET / · GET /user
-/api/calendar             GET ?month=4&year=2026 · POST
-/api/analytics            GET /overview · /trends · /equity
+**Diario** — `journal.ts` (`/api/journal`, v2.0.2)
+```
+  GET/POST/PUT/DELETE /entries · POST/DELETE /entries/:id/react
+  GET /prompts/today · /retrospectives · POST /retrospectives/:id/seen
+```
+
+**Analytics** — `analytics.ts` + `analyticsV2.ts`
+```
+/api/analytics     GET /couple · /users · /heatmap · /weekly-trends · /points-by-category · /time-invested
+                   /completion-rate · /daily-activity · /daily-breakdown · /negotiations · /insight
+                   /monthly/:y/:m · /yearly/:y
+/api/analytics/v2  GET /summary · /compare · /equity-curve · /heatmap · /mood-timeline · /insights
+                   POST /insights/:id/seen · /insights/regenerate
+```
+
+**Notificaciones + push** — `notificationRoutes.ts` + `notificationsPush.ts`
+```
+/api/notifications       GET / · /unread-count · PUT /:id/read · /read-all · DELETE / · /:id
+/api/notifications/push  GET /vapid-key · POST /subscribe · /unsubscribe · /test
+```
+
+**Listas** — `shopping.ts` (`/api/shopping`) + `todos.ts` (`/api/todos`)
+```
+/api/shopping  GET / · POST /items · /archive · PUT /items/:id · DELETE /items/:id
+/api/todos     GET / · POST / · PUT /:id · DELETE /:id
+```
+
+**Anniversary** — `anniversary.ts` (`/api/anniversary`, flag ANNIVERSARY_ENABLED)
+```
+  GET /  ·  PUT / { startDate }  ·  DELETE /
+```
+
+**Ciclo de vida cuenta/pareja** — `account.ts` + `couple.ts`
+```
+/api/account  GET /export (GDPR) · POST /delete-request · /delete
+/api/couple   GET /pause-status · POST /pause · /resume · /leave
+```
+
+**Otros** — `history.ts` · `activityRoutes.ts` · `premium.ts`
+```
+/api/history          GET /past-couples        Parejas disueltas anteriores
+/api/recent-activity  GET /                     Feed de actividad reciente
+/api/premium          POST /interest           Apuntarse a lista de espera premium (rate-limited)
 ```
 
 ## 7. SISTEMA DE PUNTOS
