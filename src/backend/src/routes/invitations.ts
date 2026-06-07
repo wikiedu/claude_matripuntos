@@ -7,6 +7,10 @@ import bcryptjs from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import prisma from '../lib/prisma.js'
 
+// STATUS: deprecación aplazada (Sunset vencido pero en uso por Onboarding.tsx /
+// StepJoinAccount.tsx). Retirada y revisión IDOR pospuestas a Fase 1. Ver
+// TODO_REFACTOR.md.
+
 // Single source of truth for the signing secret. authService.ts already
 // validates length >= 32 on boot, so the env var is guaranteed set here.
 // Using a fallback silently would accept invites signed with "your-secret-key"

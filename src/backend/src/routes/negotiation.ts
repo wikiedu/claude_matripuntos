@@ -1,3 +1,6 @@
+// STATUS: deprecación aplazada. Pendiente de migración a V1 (/api/negotiations)
+// o reescritura completa del flujo de negociación en Fase 1 (EventNegotiationCard
+// sigue vivo en Calendar.tsx). IDOR cerrado en commit f8229d7. Ver TODO_REFACTOR.md.
 import { Router, Request, Response } from 'express'
 import { authenticateToken } from '../middleware/auth.js'
 import { negotiationEngine } from '../services/negotiationEngine.js'
