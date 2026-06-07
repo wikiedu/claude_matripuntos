@@ -50,6 +50,19 @@ onboarding al flujo de join-code de `authRoutes.ts`.
 
 ---
 
+## Fase 1 PWA — reactivar web push (desactivado en Fase 0)
+
+`src/frontend/src/hooks/useWebPush.ts` quedó **desactivado** (flag
+`WEB_PUSH_ENABLED = false`) porque registraba `/push-sw.js`, que **no existe** en
+`public/` → 404 (push roto en prod). El hook ahora es no-op y reporta
+`'unsupported'`; no tiene consumidores en el frontend hoy.
+
+**Acción Fase 1 (PWA):** crear `public/manifest.webmanifest` + service worker real
+(p.ej. con `vite-plugin-pwa`/Workbox) que incluya el handler de push, añadir
+`theme-color` y metas `apple-mobile-web-app-*` en `index.html`, y poner
+`WEB_PUSH_ENABLED = true`. El backend ya tiene la infra (VAPID, `notificationsPush`,
+`webPushService`).
+
 ## Otros (descubierto en Fase 0, no bloqueante)
 
 - **Harness de tests DB-bound inexistente / roto:** `schema.prisma` es

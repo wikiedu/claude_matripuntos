@@ -7,6 +7,15 @@
 import { useEffect, useState } from 'react'
 import { apiClient } from '../services/apiClient'
 
+// Fase 0 2026-06-07 — WEB PUSH DESACTIVADO.
+// El service worker `/push-sw.js` no existe en public/, así que registrarlo daba
+// un 404 (push roto en prod). Decisión: no dejar código vivo intentando registrar
+// un SW inexistente. El hook queda como no-op que reporta 'unsupported' y NUNCA
+// llama a navigator.serviceWorker.register.
+// TODO(Fase 1 PWA): crear manifest + service worker real + push, y poner
+// WEB_PUSH_ENABLED = true. Ver TODO_REFACTOR.md.
+const WEB_PUSH_ENABLED: boolean = false
+
 type State = 'idle' | 'unsupported' | 'denied' | 'subscribing' | 'subscribed' | 'error'
 
 export function useWebPush() {
@@ -15,6 +24,11 @@ export function useWebPush() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    if (!WEB_PUSH_ENABLED) {
+      // Push desactivado en Fase 0 — no registramos el SW inexistente.
+      setState('unsupported')
+      return
+    }
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       setState('unsupported')
       return
@@ -28,6 +42,11 @@ export function useWebPush() {
 
   async function subscribe(): Promise<boolean> {
     setError(null)
+    if (!WEB_PUSH_ENABLED) {
+      // No-op mientras no exista el SW real (Fase 1 PWA).
+      setState('unsupported')
+      return false
+    }
     if (state === 'unsupported') return false
     setState('subscribing')
 
@@ -77,6 +96,7 @@ export function useWebPush() {
   }
 
   async function unsubscribe(): Promise<void> {
+    if (!WEB_PUSH_ENABLED) return
     if (typeof window === 'undefined') return
     const reg = await navigator.serviceWorker.getRegistration?.()
     const sub = await reg?.pushManager.getSubscription?.()
