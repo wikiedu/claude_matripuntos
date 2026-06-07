@@ -30,14 +30,17 @@ router.post('/:eventId/propose', authenticateToken, async (req: Request, res: Re
     const { eventId } = req.params
     const { message } = req.body
     const userId = (req as any).userId
+    const coupleId = (req as any).coupleId
 
     if (!eventId) {
       return res.status(400).json({ error: 'eventId is required' })
     }
 
-    // Verify user owns the event
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
+    // Verify user owns the event. Scoped to the authed user's couple to prevent
+    // cross-couple IDOR (Fase 0 saneamiento 2026-06-07): an event from another
+    // couple resolves to null → 404, never reaching the createdBy check.
+    const event = await prisma.event.findFirst({
+      where: { id: eventId, coupleId },
     })
 
     if (!event) {
@@ -81,6 +84,7 @@ router.post('/:eventId/respond', authenticateToken, async (req: Request, res: Re
     const { eventId } = req.params
     const { action, pointsProposed, message } = req.body
     const userId = (req as any).userId
+    const coupleId = (req as any).coupleId
 
     if (!eventId) {
       return res.status(400).json({ error: 'eventId is required' })
@@ -93,9 +97,12 @@ router.post('/:eventId/respond', authenticateToken, async (req: Request, res: Re
       })
     }
 
-    // Verify event exists
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
+    // Verify event exists within the authed user's couple. Scoping by coupleId
+    // closes the cross-couple IDOR (Fase 0 saneamiento 2026-06-07): previously a
+    // user from another couple passed the `createdBy !== userId` check and could
+    // accept/reject/counter a foreign event, corrupting cross-couple balances.
+    const event = await prisma.event.findFirst({
+      where: { id: eventId, coupleId },
     })
 
     if (!event) {
@@ -152,14 +159,17 @@ router.get('/:eventId/negotiation', authenticateToken, async (req: Request, res:
   try {
     const { eventId } = req.params
     const userId = (req as any).userId
+    const coupleId = (req as any).coupleId
 
     if (!eventId) {
       return res.status(400).json({ error: 'eventId is required' })
     }
 
-    // Verify event exists and user is involved
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
+    // Verify event exists within the authed user's couple (cross-couple IDOR fix,
+    // Fase 0 2026-06-07): reading another couple's negotiation status/history is
+    // also an information-disclosure IDOR, so scope the load by coupleId.
+    const event = await prisma.event.findFirst({
+      where: { id: eventId, coupleId },
       include: {
         creator: {
           select: { id: true, name: true, email: true },
@@ -222,13 +232,16 @@ router.get('/:eventId/negotiation', authenticateToken, async (req: Request, res:
 router.get('/:eventId/negotiation/history', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { eventId } = req.params
+    const coupleId = (req as any).coupleId
 
     if (!eventId) {
       return res.status(400).json({ error: 'eventId is required' })
     }
 
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
+    // Scope by coupleId to prevent cross-couple history disclosure (IDOR fix,
+    // Fase 0 2026-06-07).
+    const event = await prisma.event.findFirst({
+      where: { id: eventId, coupleId },
     })
 
     if (!event) {
