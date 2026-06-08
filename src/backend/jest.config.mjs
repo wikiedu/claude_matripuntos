@@ -4,6 +4,9 @@ export default {
   extensionsToTreatAsEsm: ['.ts'],
   roots: ['<rootDir>/tests'],
   testMatch: ['**/?(*.)+(spec|test).ts'],
+  // Los E2E (tests/e2e) tienen su propia config (jest.e2e.config.mjs) porque
+  // requieren levantar Postgres. Se excluyen del `npm test` unit/hermético.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/tests/e2e/'],
   // setup.ts carga DATABASE_URL antes de que cualquier import de Prisma se
   // evalúe (globalSetup corre en un worker distinto, por eso usamos setupFiles).
   setupFiles: ['<rootDir>/tests/setup.ts'],

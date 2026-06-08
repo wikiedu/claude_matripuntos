@@ -14,6 +14,12 @@ import type { Request, Response, NextFunction } from 'express'
 
 const keyByUserOrIp = (req: Request) => (req as any).user?.id ?? req.ip
 
+// Fase 1 (harness E2E): el rate-limiting es infra, no lógica de negocio. En
+// tests lo saltamos para (a) no acumular el bucket de auth (10/min IP) entre
+// tests y (b) evitar la validación ERR_ERL_KEY_GEN_IPV6 de express-rate-limit v8
+// sobre los keyGenerator basados en req.ip. Solo afecta a NODE_ENV=test.
+const skipInTest = () => process.env.NODE_ENV === 'test'
+
 const messageFor = (bucket: string): { error: string } => {
   if (bucket === 'auth') return { error: 'Demasiados intentos, prueba en un minuto' }
   if (bucket === 'critical') return { error: 'Esta acción tiene un límite de 3 por hora por seguridad' }
@@ -32,6 +38,7 @@ const handlerFor = (bucket: string) =>
 export const authBucket = rateLimit({
   windowMs: 60_000, max: 10, keyGenerator: req => req.ip ?? 'unknown',
   handler: handlerFor('auth'),
+  skip: skipInTest,
   standardHeaders: true,
   legacyHeaders: false,
 })
@@ -39,23 +46,27 @@ export const authBucket = rateLimit({
 export const profileMutationBucket = rateLimit({
   windowMs: 60_000, max: 30, keyGenerator: keyByUserOrIp,
   handler: handlerFor('profile'),
+  skip: skipInTest,
   standardHeaders: true,
 })
 
 export const writeBucket = rateLimit({
   windowMs: 60_000, max: 60, keyGenerator: keyByUserOrIp,
   handler: handlerFor('write'),
+  skip: skipInTest,
   standardHeaders: true,
 })
 
 export const readBucket = rateLimit({
   windowMs: 60_000, max: 200, keyGenerator: keyByUserOrIp,
   handler: handlerFor('read'),
+  skip: skipInTest,
   standardHeaders: true,
 })
 
 export const criticalBucket = rateLimit({
   windowMs: 3_600_000, max: 3, keyGenerator: keyByUserOrIp,
   handler: handlerFor('critical'),
+  skip: skipInTest,
   standardHeaders: true,
 })

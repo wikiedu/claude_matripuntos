@@ -145,6 +145,7 @@ const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
   message: { error: 'Too many requests, please try again later' },
+  skip: () => process.env.NODE_ENV === 'test', // Fase 1: sin rate-limit en E2E
   standardHeaders: true,
   legacyHeaders: false,
 })
@@ -156,6 +157,7 @@ const resetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
   message: { error: 'Demasiadas solicitudes de reseteo. Inténtalo en 1 hora.' },
+  skip: () => process.env.NODE_ENV === 'test', // Fase 1: sin rate-limit en E2E
   standardHeaders: true,
   legacyHeaders: false,
 })
