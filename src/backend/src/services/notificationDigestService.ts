@@ -82,18 +82,20 @@ export async function runDigestForCurrentMinute(now: Date = new Date()): Promise
         skipped++
         continue
       }
-      let anyOk = false
-      for (const sub of subs) {
-        const result = await sendPushToSubscription(
-          { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
-          payload,
-        )
-        if (result.ok) anyOk = true
-        else if (result.statusCode === 410 || result.statusCode === 404) {
-          await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {})
-        }
-      }
-      if (anyOk) sent++
+      // audit §4 #7 — envíos por device en paralelo (antes secuenciales).
+      const sendResults = await Promise.all(
+        subs.map(async (sub) => {
+          const result = await sendPushToSubscription(
+            { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+            payload,
+          )
+          if (!result.ok && (result.statusCode === 410 || result.statusCode === 404)) {
+            await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {})
+          }
+          return result.ok
+        }),
+      )
+      if (sendResults.some(Boolean)) sent++
       else skipped++
     } catch (err) {
       console.error(`[digest] user ${u.id} failed:`, err)

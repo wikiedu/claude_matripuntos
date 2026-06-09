@@ -79,17 +79,22 @@ router.post('/test', writeBucket, async (req: Request, res: Response) => {
   const subs = await prisma.pushSubscription.findMany({ where: { userId } })
   if (subs.length === 0) return res.status(404).json({ error: 'Sin suscripciones' })
 
-  const results: any[] = []
-  const expired: string[] = []
-  for (const sub of subs) {
-    const r = await sendPushToSubscription(sub, {
-      title: 'Notificación de prueba',
-      body: 'Si ves esto, las notificaciones funcionan ✅',
-      url: '/dashboard',
-    })
-    results.push({ endpoint: sub.endpoint, ok: r.ok, statusCode: r.statusCode })
-    if (r.statusCode === 410 || r.statusCode === 404) expired.push(sub.endpoint)
-  }
+  // audit §4 #7 — antes los envíos eran secuenciales (for await). Ahora en
+  // paralelo: cada device es independiente y la latencia de red dominaba.
+  const settled = await Promise.all(
+    subs.map(async (sub) => {
+      const r = await sendPushToSubscription(sub, {
+        title: 'Notificación de prueba',
+        body: 'Si ves esto, las notificaciones funcionan ✅',
+        url: '/dashboard',
+      })
+      return { endpoint: sub.endpoint, ok: r.ok, statusCode: r.statusCode }
+    }),
+  )
+  const results = settled
+  const expired = settled
+    .filter((r) => r.statusCode === 410 || r.statusCode === 404)
+    .map((r) => r.endpoint)
   if (expired.length > 0) {
     await prisma.pushSubscription.deleteMany({ where: { endpoint: { in: expired } } })
   }
