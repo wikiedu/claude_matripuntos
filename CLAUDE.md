@@ -516,7 +516,7 @@ Roadmap completo: `docs/ROADMAP.md` · Decisiones: `docs/DECISIONS.md` · Spec o
 ## 10. CONVENCIONES
 
 - **Auth:** `authMiddleware` inyecta `req.userId` y `req.coupleId` en cada request protegido
-- **Prisma:** `new PrismaClient()` por archivo de ruta (no instancia compartida)
+- **Prisma:** **singleton** — `import prisma from '../lib/prisma.js'` (instancia única compartida, importada por ~57 archivos). NO crear `new PrismaClient()` por archivo (anti-patrón obsoleto que agotaba el pool); única excepción: `prisma/seed.ts`.
 - **Tipos numéricos:** Usar `Decimal` de `@prisma/client/runtime/library` para puntos
 - **Errores:** `res.status(4xx).json({ error: 'mensaje legible' })`
 - **JSON en SQLite:** negotiationHistory, tasksConfig, etc. son strings. Parsear con `JSON.parse()`/`JSON.stringify()`
