@@ -8,7 +8,7 @@
 //   <button onClick={(e) => { trigger('+15 MP', e.currentTarget); doComplete() }}>
 //   { node }   // pinta el flotador globalmente
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 
 interface BurstInstance {
@@ -23,6 +23,18 @@ let _seq = 1
 export function usePointsBurst() {
   const [bursts, setBursts] = useState<BurstInstance[]>([])
   const timeoutsRef = useRef<Map<number, number>>(new Map())
+
+  // Audit 2026-06-07 §3.3 — los timeouts de 1400ms vivían en un ref sin
+  // cleanup de desmontaje: si el componente se desmontaba antes de disparar,
+  // ejecutaban setState sobre un componente desmontado. Limpiamos todos al
+  // desmontar.
+  useEffect(() => {
+    const timeouts = timeoutsRef.current
+    return () => {
+      timeouts.forEach((handle) => window.clearTimeout(handle))
+      timeouts.clear()
+    }
+  }, [])
 
   const trigger = useCallback((text: string, anchorEl?: Element | null) => {
     const id = _seq++

@@ -2,7 +2,7 @@
 // 7-col European Monday-start grid with emoji indicators, today highlight,
 // selected-day amber border, and long-press support on empty cells.
 
-import { useRef } from 'react'
+import { useRef, useEffect } from 'react'
 import type { Event as AppEvent } from '../../../types'
 
 interface Props {
@@ -81,6 +81,11 @@ export function MonthGrid({
       pressTimer.current = null
     }
   }
+
+  // Audit 2026-06-07 §3.3 — el timer de long-press se limpiaba en
+  // mouseup/touchend pero NO en desmontaje: cambiar de mes/ruta durante un
+  // press activo disparaba onLongPress tras el unmount. Limpiamos al desmontar.
+  useEffect(() => clearPress, [])
 
   const startPress = (date: string, hasEvents: boolean) => {
     if (!onLongPress || hasEvents) return
