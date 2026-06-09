@@ -19,6 +19,9 @@ export interface TestCouple {
 
 let seq = 0
 
+/** Password con la que se registran todos los usuarios de test. */
+export const TEST_PASSWORD = 'password123'
+
 /**
  * Registra una pareja (2 usuarios) vía /api/auth/register y hace login de ambos
  * para obtener sus JWT. Devuelve ambos usuarios con token, compartiendo coupleId.
@@ -29,7 +32,7 @@ export async function registerCouple(app: Express): Promise<TestCouple> {
   const tag = `e2e${Date.now()}x${seq}`
   const emailA = `${tag}_a@test.local`
   const emailB = `${tag}_b@test.local`
-  const password = 'password123'
+  const password = TEST_PASSWORD
 
   const reg = await request(app)
     .post('/api/auth/register')
