@@ -358,27 +358,32 @@ if (RUN_BACKGROUND_JOBS) cron.schedule('0 * * * *', async () => {
         completedBy: { not: null },
       },
     })
-    const affectedCouples = new Set<string>()
-    for (const log of pending) {
+    const affectedCouples = new Set<string>(pending.map((l) => l.coupleId))
+    if (pending.length > 0) {
+      // audit §4 #2 — antes: un $transaction por TaskLog vencido (N+1 que
+      // escalaba con el volumen de pendientes). Ahora: dos operaciones bulk
+      // (updateMany + createMany) en una sola transacción atómica. Los logs
+      // ya vienen filtrados por completedBy != null, así que userId nunca es
+      // null y relatedTaskLogId (UNIQUE) no colisiona (el log estaba pending,
+      // sin PointsTransaction previa).
+      const now = new Date()
+      const ids = pending.map((l) => l.id)
       await prisma.$transaction([
-        prisma.taskLog.update({
-          where: { id: log.id },
-          data: { status: 'verified', verifiedAt: new Date() },
+        prisma.taskLog.updateMany({
+          where: { id: { in: ids } },
+          data: { status: 'verified', verifiedAt: now },
         }),
-        prisma.pointsTransaction.create({
-          data: {
+        prisma.pointsTransaction.createMany({
+          data: pending.map((log) => ({
             coupleId: log.coupleId,
-            userId: log.completedBy ?? undefined,
+            userId: log.completedBy!,
             type: 'task_completed',
             relatedTaskLogId: log.id,
             amount: log.pointsFinal,
             description: 'Auto-verificado tras 24h sin respuesta',
-          },
+          })),
         }),
       ])
-      affectedCouples.add(log.coupleId)
-    }
-    if (pending.length > 0) {
       console.log(`[cron] Auto-verified ${pending.length} task log(s)`)
     }
     // Recompute gamification once per affected couple
