@@ -5,6 +5,52 @@ perder el contexto. Cada entrada: qué, por qué bloquea, decisión, riesgo.
 
 ---
 
+## 📍 PROGRESO DEL REFACTOR (mapeado al audit Top 10, `CLAUDE_AUDIT.md` §8)
+
+> Plan del refactor = **Top 10 priorizado del audit** + **decisiones
+> arquitectónicas** de `ESTADO_PRE_REFACTOR.md`. Esta es la lista maestra para
+> retomar tras un `/clear`.
+
+**Hecho:**
+- ✅ #1 IDOR negociación V2 cerrado (commit `f8229d7`, Fase 0)
+- ✅ #2 viewport-fit=cover (commit `c1839a6`, Fase 0)
+- ✅ #5 baseline `ESTADO_PRE_REFACTOR.md` rellenado
+- ✅ **Harness E2E (Fase 1·T1)** — `npm run test:e2e`, flujos #2 y #3, 3 suites/6 tests
+- ✅ #7 cleanup timers (PointsBurst + MonthGrid) — commit `6b43ec0`
+- ✅ #7-code-smell push N+1 paralelizado — commit `f583fa5`
+- ✅ #2-code-smell auto-verify cron batch (updateMany+createMany) — commit `b7c5696`
+
+**Pendiente (orden sugerido para retomar):**
+1. **#4 Corregir CLAUDE.md obsoleto** — ⚠️ BLOQUEADO: editar CLAUDE.md lo veta el
+   auto-mode classifier (self-modification). **Necesita OK explícito de Edu.**
+   Cambios pendientes: §10 convención Prisma (singleton, no `new PrismaClient()`
+   por archivo); revisar nota "V1 vs V2 no eliminar" vs decisión de retirar V2.
+2. **#6 Logger central `pino`** + sustituir 131 `console.*`. Medio. Hacerlo por
+   callsite (no sed ciego: pino.error(obj,msg) ≠ console.error(msg,err)).
+3. **strict:true backend** (decisión tomada). Grande, rompe compilación temporal,
+   ~196 `any`. Augmentar `Express.Request` (tipar req.userId/coupleId) primero.
+4. **#9 Activar refresh tokens + JWT corto** (~15min). Infra existe
+   (`refreshTokenService`), parcialmente integrada en frontend (v2.7.5). Verificar
+   estado real antes; coordina front (interceptor) + back (X-Want-Refresh).
+5. **#8 Descomponer `Tasks.tsx`** (god-component ~775 ln) + memoizar handlers.
+   Grande, riesgo medio. El harness E2E NO cubre UI; verificar manual o con
+   Playwright (Fase 1.x).
+6. **Retirar rutas V2 negociación** (`negotiation.ts`). Grande: requiere reescribir
+   `EventNegotiationCard` contra API canónica + reescribir el E2E del flujo #3
+   (hoy testea las rutas V2). Ver bloque de abajo.
+7. **#10 Imágenes de prueba a object storage** (sacar base64 de Postgres). Grande,
+   necesita infra (Supabase Storage/S3).
+8. **(Baja) N+1 recurrente semanal** `recurringTaskService.generateInstancesForCouple`
+   (loop por task). Cron semanal, bajo impacto; batch limpio entre tareas es
+   no-trivial. Diferido conscientemente.
+
+**Decisiones arquitectónicas tomadas (de `ESTADO_PRE_REFACTOR.md`):** mantener
+Vite SPA (futuro Capacitor) · mantener polling (Supabase Realtime selectivo
+después) · activar PWA en este refactor · activar strict:true · activar refresh
+tokens · retirar V2 deprecadas.
+
+---
+
 ## Fase 0 (2026-06-07) — retirada de rutas V2 deprecadas: APLAZADA a Fase 1
 
 ### `src/backend/src/routes/negotiation.ts` (montado en `/api/events`)
