@@ -63,14 +63,28 @@ onboarding al flujo de join-code de `authRoutes.ts`.
 `WEB_PUSH_ENABLED = true`. El backend ya tiene la infra (VAPID, `notificationsPush`,
 `webPushService`).
 
-## Otros (descubierto en Fase 0, no bloqueante)
+## Fase 1 · Tarea 1 — Harness E2E: HECHO (2026-06-09)
 
-- **Harness de tests DB-bound inexistente / roto:** `schema.prisma` es
-  `provider = "postgresql"` pero `.env.test` trae una URL SQLite `file:` y
-  `setup.ts` cae a SQLite — incompatibles. No hay Postgres local ni app
-  exportable desde `server.ts` (hace `app.listen` directo). Los tests actuales
-  son herméticos. Para E2E reales (necesarios en Fase 1) hay que: exportar `app`
-  de `server.ts`, y levantar un Postgres de test (o testcontainers/CI service).
-- **`npm run type-check` no corre `prisma generate` antes:** un checkout fresco
-  falla el type-check hasta ejecutar `prisma generate`. Considerar un `pretest`/
-  `pretype-check` que genere el cliente.
+Cerrado el bloqueo "harness DB-bound inexistente". `server.ts` ya exporta `app`
+(listen/crons bajo guard `NODE_ENV!=='test'`), y `npm run test:e2e` levanta un
+Postgres real (embedded-postgres, sin Docker; override `DATABASE_URL_TEST` para
+CI/Homebrew) y cubre los flujos críticos #2 y #3. Ver `src/backend/tests/e2e/README.md`.
+Estado: 3 suites / 6 tests verdes.
+
+### Deuda descubierta al montar el harness
+
+- **Migraciones de la era SQLite incompatibles con Postgres fresco:** la
+  migración `init` (y otras) usan tipos SQLite (`datetime`), así que
+  `prisma migrate deploy` **falla** en la 1ª migración contra un Postgres limpio.
+  El harness E2E lo sortea con fallback a `prisma db push` (schema desde
+  `schema.prisma`), pero esto significa que **no se puede recrear la DB desde el
+  historial de migraciones en Postgres** — prod depende de baseline/reconcile
+  (`docs/MIGRATIONS-BASELINE.md`, `scripts/reconcile-prisma-migrations.mjs`).
+  Acción futura: squash/baseline de migraciones a Postgres-nativo para que
+  `migrate deploy` reproduzca el schema sin `db push`.
+- **24 tests unit DB-bound siguen rojos:** no migrados a este harness (fuera del
+  alcance de la Tarea 1). Camino: o reusan el Postgres de test del harness E2E,
+  o se les da su propia config. Pendiente.
+- **`npm run type-check` sin `prisma generate` previo:** un checkout fresco falla
+  el type-check hasta generar el cliente. Considerar un `pretest`/`pretype-check`
+  que genere el cliente.
