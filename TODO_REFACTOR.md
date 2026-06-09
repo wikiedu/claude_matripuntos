@@ -29,9 +29,18 @@ perder el contexto. Cada entrada: qué, por qué bloquea, decisión, riesgo.
    callsite (no sed ciego: pino.error(obj,msg) ≠ console.error(msg,err)).
 3. **strict:true backend** (decisión tomada). Grande, rompe compilación temporal,
    ~196 `any`. Augmentar `Express.Request` (tipar req.userId/coupleId) primero.
-4. **#9 Activar refresh tokens + JWT corto** (~15min). Infra existe
-   (`refreshTokenService`), parcialmente integrada en frontend (v2.7.5). Verificar
-   estado real antes; coordina front (interceptor) + back (X-Want-Refresh).
+4. **#9 Activar refresh tokens + JWT corto** — 🟡 STEP A HECHO (commit `5e9cb89`),
+   STEP B pendiente.
+   - ✅ Step A: `signAccessToken` (punto único, expiry `JWT_ACCESS_EXPIRY` por env,
+     default 7d) + refresh-pair en TODOS los sitios de sesión (login, signup,
+     accept-invite, register-with-code, refresh). Frontend manda X-Want-Refresh en
+     todos. E2E del flujo refresh + reuse detection (4 tests). Interceptor del
+     frontend (`tryRefresh` en 401, rehidrata de localStorage) ya estaba completo.
+   - ⏳ Step B (activación real, bajo riesgo): (a) retirar `invitations.ts` o
+     añadirle refresh-pair (hoy emite sesión sin refresh — ver NOTA #9 en el
+     archivo); (b) setear `JWT_ACCESS_EXPIRY=15m` en Render; (c) idealmente subir
+     bcrypt rounds 10→12 de paso (audit §5). Verificar manualmente en prod que el
+     refresh-on-401 funciona end-to-end antes de bajar más el TTL.
 5. **#8 Descomponer `Tasks.tsx`** (god-component ~775 ln) + memoizar handlers.
    Grande, riesgo medio. El harness E2E NO cubre UI; verificar manual o con
    Playwright (Fase 1.x).
