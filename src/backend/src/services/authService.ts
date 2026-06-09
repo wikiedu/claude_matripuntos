@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken'
+import jwt, { type SignOptions } from 'jsonwebtoken'
 import bcryptjs from 'bcryptjs'
 import crypto from 'crypto'
 import { config } from 'dotenv'
@@ -11,7 +11,24 @@ const JWT_SECRET = process.env.JWT_SECRET
 if (!JWT_SECRET || JWT_SECRET.length < 32) {
   throw new Error('JWT_SECRET env var must be set and at least 32 characters long')
 }
-const JWT_EXPIRY = '7d'
+// Expiry del access token, configurable por env para activación incremental
+// del esquema de refresh-token rotation (audit #9). Default '7d' = sin cambio
+// de comportamiento; para activar sesiones cortas se setea JWT_ACCESS_EXPIRY
+// (p.ej. '15m') en el entorno, SIN redeploy de código. Todos los sitios que
+// emiten access tokens deben usar `signAccessToken` para respetar este valor.
+export const JWT_ACCESS_EXPIRY = process.env.JWT_ACCESS_EXPIRY ?? '7d'
+const JWT_EXPIRY = JWT_ACCESS_EXPIRY
+
+/**
+ * Firma un access token de sesión con el expiry canónico (JWT_ACCESS_EXPIRY).
+ * Punto único de emisión para que acortar el JWT sea un cambio de env.
+ */
+export const signAccessToken = (userId: string, coupleId: string | null): string => {
+  // expiresIn viene de env (string), que TS no puede validar contra el tipo
+  // template-literal StringValue de jsonwebtoken → cast explícito.
+  const opts: SignOptions = { expiresIn: JWT_EXPIRY as SignOptions['expiresIn'] }
+  return jwt.sign({ userId, coupleId }, JWT_SECRET, opts)
+}
 
 // Hash password
 export const hashPassword = async (password: string): Promise<string> => {
@@ -27,13 +44,9 @@ export const verifyPassword = async (
   return bcryptjs.compare(password, hash)
 }
 
-// Generate JWT token
+// Generate JWT token (delega en signAccessToken para un único punto de expiry)
 export const generateToken = (userId: string, coupleId: string): string => {
-  return jwt.sign(
-    { userId, coupleId },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRY }
-  )
+  return signAccessToken(userId, coupleId)
 }
 
 // Verify JWT token

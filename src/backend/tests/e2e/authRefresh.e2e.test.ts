@@ -72,6 +72,25 @@ describe('E2E refresh-token rotation (#9)', () => {
     expect(reused.status).toBe(401)
   })
 
+  it('signup con X-Want-Refresh emite par refresh y rota (#9 step A)', async () => {
+    // Antes del step A, /signup NO emitía refreshToken aunque se pidiera →
+    // bajar el JWT habría deslogado a quien se registra. Ahora sí lo emite.
+    const email = `signup_${Date.now()}@test.local`
+    const reg = await request(app)
+      .post('/api/auth/signup')
+      .set('X-Want-Refresh', '1')
+      .send({ email, password: TEST_PASSWORD, name: 'Solo', ageConfirmed: true })
+    expect(reg.status).toBe(201)
+    expect(reg.body.token).toBeTruthy()
+    expect(reg.body.refreshToken).toBeTruthy()
+
+    const rot = await request(app)
+      .post('/api/auth/refresh')
+      .send({ refreshToken: reg.body.refreshToken })
+    expect(rot.status).toBe(200)
+    expect(rot.body.accessToken).toBeTruthy()
+  })
+
   it('rechaza un refresh token inexistente con 401', async () => {
     const bogus = await request(app)
       .post('/api/auth/refresh')

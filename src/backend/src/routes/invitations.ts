@@ -4,8 +4,8 @@ import { authenticateToken } from '../middleware/auth.js'
 import { invalidateAuthCache } from '../middleware/authMiddleware.js'
 import crypto from 'crypto'
 import bcryptjs from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import prisma from '../lib/prisma.js'
+import { signAccessToken } from '../services/authService.js'
 
 // STATUS: deprecación aplazada (Sunset vencido pero en uso por Onboarding.tsx /
 // StepJoinAccount.tsx). Retirada y revisión IDOR pospuestas a Fase 1. Ver
@@ -345,11 +345,11 @@ router.post('/register-with-invitation', deprecationMiddleware, async (req: Requ
       },
     })
 
-    const authToken = jwt.sign(
-      { userId: newUser.id, coupleId: newUser.coupleId },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    )
+    // NOTA #9: estas rutas (deprecadas, Sunset) no emiten refresh-pair aún.
+    // Antes de bajar JWT_ACCESS_EXPIRY a 15m en prod, retirarlas (Fase 1) o
+    // añadirles maybeIssueRefreshPair — si no, sus sesiones expirarían sin
+    // poder renovar. Mientras el default sea 7d, sin impacto.
+    const authToken = signAccessToken(newUser.id, newUser.coupleId)
 
     res.status(201).json({
       message: 'Registration successful',
@@ -524,13 +524,9 @@ router.post('/accept-link-partner', authenticateToken, async (req: Request, res:
       data: { isRead: true },
     })
 
-    // Issue a new JWT with the updated coupleId
-    const jwt = await import('jsonwebtoken')
-    const newToken = jwt.default.sign(
-      { userId, coupleId: invitation.coupleId },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    )
+    // Issue a new JWT with the updated coupleId (ver NOTA #9 arriba sobre
+    // refresh-pair en rutas deprecadas).
+    const newToken = signAccessToken(userId, invitation.coupleId)
 
     const couple = await prisma.couple.findUnique({
       where: { id: invitation.coupleId! },

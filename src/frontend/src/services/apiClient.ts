@@ -175,6 +175,7 @@ class ApiClient {
     }) =>
       this.request('/auth/signup', {
         method: 'POST',
+        headers: { 'X-Want-Refresh': '1' }, // #9 — signup también opta a rotación
         body: JSON.stringify(data),
       }),
 
@@ -203,7 +204,7 @@ class ApiClient {
       this.request('/auth/invite', { method: 'POST', body: JSON.stringify({ toEmail }) }),
 
     acceptInvite: (token: string, email: string, password: string, name: string) =>
-      this.request('/auth/accept-invite', { method: 'POST', body: JSON.stringify({ token, email, password, name }) }),
+      this.request('/auth/accept-invite', { method: 'POST', headers: { 'X-Want-Refresh': '1' }, body: JSON.stringify({ token, email, password, name }) }),
 
     rejectInvite: (token: string) =>
       this.request('/auth/reject-invite', { method: 'POST', body: JSON.stringify({ token }) }),

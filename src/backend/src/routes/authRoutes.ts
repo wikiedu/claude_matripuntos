@@ -1,9 +1,8 @@
 import express, { Request, Response } from 'express'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import { z } from 'zod'
-import { signupCouple, loginUser, getUserById, getCoupleData, signupUser } from '../services/authService.js'
+import { signupCouple, loginUser, getUserById, getCoupleData, signupUser, signAccessToken } from '../services/authService.js'
 import {
   createInvitation,
   acceptEmailInvitation,
@@ -87,8 +86,14 @@ router.post('/signup', async (req: Request, res: Response): Promise<void> => {
   try {
     const validated = signupUserSchema.parse(req.body)
     const user = await signupUser(validated.email, validated.password, validated.name, validated.language)
-    const token = jwt.sign({ userId: user.id, coupleId: user.coupleId }, process.env.JWT_SECRET!, { expiresIn: '7d' })
-    res.status(201).json({ message: 'Account created', user, token })
+    const token = signAccessToken(user.id, user.coupleId)
+    const refreshPair = await maybeIssueRefreshPair(user.id, req.headers as any)
+    res.status(201).json({
+      message: 'Account created',
+      user,
+      token,
+      ...(refreshPair && { refreshToken: refreshPair.refreshToken, refreshExpiresAt: refreshPair.refreshExpiresAt }),
+    })
   } catch (error) {
     if (error instanceof ZodError) {
       res.status(400).json({ error: 'Validation error', details: error.errors })
@@ -384,8 +389,14 @@ router.post('/accept-invite', async (req: Request, res: Response): Promise<void>
     // signupUser now detects pending invites and auto-links to the inviter's couple.
     const newUser = await signupUser(validated.email, validated.password, validated.name, validated.language)
     const couple = await prisma.couple.findUnique({ where: { id: newUser.coupleId! }, include: { users: true } })
-    const token = jwt.sign({ userId: newUser.id, coupleId: newUser.coupleId! }, process.env.JWT_SECRET!, { expiresIn: '7d' })
-    res.status(201).json({ message: 'Account created and linked', couple, token })
+    const token = signAccessToken(newUser.id, newUser.coupleId!)
+    const refreshPair = await maybeIssueRefreshPair(newUser.id, req.headers as any)
+    res.status(201).json({
+      message: 'Account created and linked',
+      couple,
+      token,
+      ...(refreshPair && { refreshToken: refreshPair.refreshToken, refreshExpiresAt: refreshPair.refreshExpiresAt }),
+    })
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : 'Failed' })
   }
@@ -592,17 +603,15 @@ router.post('/register-with-code', async (req: Request, res: Response): Promise<
       return
     }
 
-    const token = jwt.sign(
-      { userId: txResult.user.id, coupleId: txResult.coupleId },
-      process.env.JWT_SECRET!,
-      { expiresIn: '7d' }
-    )
+    const token = signAccessToken(txResult.user.id, txResult.coupleId)
+    const refreshPair = await maybeIssueRefreshPair(txResult.user.id, req.headers as any)
 
     res.status(201).json({
       message: 'Account created and linked',
       token,
       user: txResult.user,
       coupleId: txResult.coupleId,
+      ...(refreshPair && { refreshToken: refreshPair.refreshToken, refreshExpiresAt: refreshPair.refreshExpiresAt }),
     })
   } catch (error) {
     if (error instanceof ZodError) {
@@ -747,11 +756,9 @@ router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
       return
     }
 
-    const accessToken = jwt.sign(
-      { userId: user.id, coupleId: user.coupleId },
-      process.env.JWT_SECRET!,
-      { expiresIn: '7d' }, // mantenemos 7d hasta que el frontend integre rotación.
-    )
+    // Respeta JWT_ACCESS_EXPIRY (default 7d). El frontend ya integra rotación
+    // (apiClient.tryRefresh en 401), así que bajar a 15m es solo setear la env.
+    const accessToken = signAccessToken(user.id, user.coupleId)
 
     res.json({
       accessToken,
