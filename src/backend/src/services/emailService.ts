@@ -3,6 +3,8 @@
 // no-op + log en consola (mismo patrón que telemetry). En producción Render
 // configura RESEND_API_KEY. Pruebas locales usan el modo sin SMTP.
 
+import { logger } from '../lib/logger.js'
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const RESEND_FROM = process.env.RESEND_FROM ?? 'Matripuntos <noreply@matripuntos.app>'
 
@@ -73,7 +75,7 @@ async function sendEmailOnce(params: SendEmailParams): Promise<{ ok: boolean; id
       // mantenemos el truncado para no inundar logs.
       const isProd = process.env.NODE_ENV === 'production'
       const logged = isProd ? text.slice(0, 500) : text
-      console.error(`[email] resend ${res.status}:`, logged)
+      logger.error({ body: logged }, `[email] resend ${res.status}`)
       const transient = res.status >= 500 || res.status === 429
       return { ok: false, status: res.status, error: `resend ${res.status}`, transient }
     }
@@ -81,7 +83,7 @@ async function sendEmailOnce(params: SendEmailParams): Promise<{ ok: boolean; id
     const json: any = await res.json().catch(() => null)
     return { ok: true, id: json?.id, transient: false }
   } catch (e: any) {
-    console.error('[email] resend send failed:', e?.message ?? e)
+    logger.error({ err: e }, '[email] resend send failed')
     return { ok: false, error: e?.message ?? 'send failed', transient: true }
   }
 }
@@ -89,7 +91,7 @@ async function sendEmailOnce(params: SendEmailParams): Promise<{ ok: boolean; id
 export async function sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
   if (!RESEND_API_KEY) {
     if (process.env.NODE_ENV !== 'production') {
-      console.log('[email] dev mode (sin RESEND_API_KEY):', params.subject, '→', params.to)
+      logger.info({ subject: params.subject, to: params.to }, '[email] dev mode (sin RESEND_API_KEY)')
     }
     return { ok: false, error: 'RESEND_API_KEY not configured' }
   }

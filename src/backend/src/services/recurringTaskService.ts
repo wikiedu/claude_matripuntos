@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 import type { Task } from '@prisma/client'
 
 type Frequency = 'daily' | 'biweekly' | 'weekly' | 'bimonthly' | 'monthly'
@@ -153,7 +154,7 @@ export async function runWeeklyGeneration(): Promise<void> {
   })
   for (const couple of couples) {
     await generateInstancesForCouple(couple.id).catch(err =>
-      console.error(`recurringTaskService error for couple ${couple.id}:`, err)
+      logger.error({ err }, `recurringTaskService error for couple ${couple.id}`)
     )
   }
 }

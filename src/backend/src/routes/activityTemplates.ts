@@ -8,6 +8,7 @@ import { readBucket, writeBucket } from '../middleware/rateLimiter.js'
 import { activityTemplateService } from '../services/activityTemplateService.js'
 import { configurationProposalService } from '../services/configurationProposalService.js'
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 const router = Router()
 router.use(authenticateToken)
@@ -68,7 +69,7 @@ router.post('/', writeBucket, async (req: Request, res: Response) => {
       rationale: `Puntos sugeridos para la nueva actividad "${created.name}"`,
     })
   } catch (e) {
-    console.warn('[v2.1.1] propose template points failed:', e)
+    logger.warn({ err: e }, '[v2.1.1] propose template points failed')
   }
 
   res.status(201).json({ template: created })
@@ -103,7 +104,7 @@ router.put('/:id', writeBucket, async (req: Request, res: Response) => {
           rationale: `Cambio de puntos sugeridos en "${updated.name}"`,
         })
       } catch (e) {
-        console.warn('[v2.1.1] propose template points (update) failed:', e)
+        logger.warn({ err: e }, '[v2.1.1] propose template points (update) failed')
       }
     }
 

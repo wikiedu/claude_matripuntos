@@ -2,6 +2,7 @@ import { Event, User } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
 
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 /**
  * Points Calculator Service
@@ -146,7 +147,7 @@ export class PointsCalculator {
       if (rounded.lessThan(0)) return new Decimal(0)
       return rounded
     } catch (error) {
-      console.error('Error calculating points:', error)
+      logger.error({ err: error }, 'Error calculating points')
       return event.pointsBase
     }
   }
@@ -181,7 +182,7 @@ export class PointsCalculator {
         finalPoints,
       }
     } catch (error) {
-      console.error('Error getting breakdown:', error)
+      logger.error({ err: error }, 'Error getting breakdown')
       return null
     }
   }

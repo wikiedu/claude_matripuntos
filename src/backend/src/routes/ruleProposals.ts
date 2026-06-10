@@ -2,6 +2,7 @@
 import express, { Request, Response } from 'express'
 import { authenticateToken } from '../middleware/auth.js'
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 import { createNotification } from '../services/notificationService.js'
 
 const router = express.Router()
@@ -31,7 +32,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response): Promise<
 
     res.json({ rules: DEFAULT_RULES, proposals })
   } catch (error) {
-    console.error('Error getting rules:', error)
+    logger.error({ err: error }, 'Error getting rules')
     res.status(500).json({ error: 'Failed to get rules' })
   }
 })
@@ -81,7 +82,7 @@ router.post('/propose', authenticateToken, async (req: Request, res: Response): 
 
     res.status(201).json(proposal)
   } catch (error) {
-    console.error('Error creating rule proposal:', error)
+    logger.error({ err: error }, 'Error creating rule proposal')
     res.status(500).json({ error: 'Failed to create proposal' })
   }
 })
@@ -163,7 +164,7 @@ router.put('/:id/respond', authenticateToken, async (req: Request, res: Response
 
     res.json(updated)
   } catch (error) {
-    console.error('Error responding to proposal:', error)
+    logger.error({ err: error }, 'Error responding to proposal')
     res.status(500).json({ error: 'Failed to respond to proposal' })
   }
 })

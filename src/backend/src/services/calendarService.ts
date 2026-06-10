@@ -1,5 +1,6 @@
 
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 /**
  * FASE 5: Calendar Service
@@ -39,7 +40,7 @@ export async function getMonthCalendar(coupleId: string, year: number, month: nu
       orderBy: { date: 'asc' },
     }),
     getTaskLogsInRange(coupleId, startDate, endDate).catch(err => {
-      console.error('[calendarService] taskLog query failed:', err)
+      logger.error({ err }, '[calendarService] taskLog query failed')
       return []
     }),
   ])
@@ -77,7 +78,7 @@ export async function getWeekCalendar(coupleId: string, year: number, week: numb
       orderBy: { date: 'asc' },
     }),
     getTaskLogsInRange(coupleId, startDate, endDate).catch(err => {
-      console.error('[calendarService] taskLog query failed:', err)
+      logger.error({ err }, '[calendarService] taskLog query failed')
       return []
     }),
   ])
@@ -113,7 +114,7 @@ export async function getDayCalendar(coupleId: string, date: Date | string) {
       orderBy: { date: 'asc' },
     }),
     getTaskLogsInRange(coupleId, startOfDay, endOfDay).catch(err => {
-      console.error('[calendarService] taskLog query failed:', err)
+      logger.error({ err }, '[calendarService] taskLog query failed')
       return []
     }),
   ])

@@ -6,6 +6,7 @@ import { pointsCalculator } from '../services/pointsCalculator.js'
 
 const router = Router()
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 // Middleware to ensure user is authenticated
 router.use(authenticateToken)
@@ -46,7 +47,7 @@ router.post('/preview', async (req: Request, res: Response) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Validation error', details: error.errors })
     }
-    console.error('Error previewing points:', error)
+    logger.error({ err: error }, 'Error previewing points')
     res.status(500).json({ error: 'Failed to preview points' })
   }
 })
@@ -104,7 +105,7 @@ router.post('/calculate', async (req: Request, res: Response) => {
       breakdown,
     })
   } catch (error) {
-    console.error('Error calculating points:', error)
+    logger.error({ err: error }, 'Error calculating points')
     res.status(500).json({ error: 'Failed to calculate points' })
   }
 })
@@ -170,7 +171,7 @@ router.post('/recalculate/:eventId', async (req: Request, res: Response) => {
       event: updated,
     })
   } catch (error) {
-    console.error('Error recalculating points:', error)
+    logger.error({ err: error }, 'Error recalculating points')
     res.status(500).json({ error: 'Failed to recalculate points' })
   }
 })
@@ -224,7 +225,7 @@ router.get('/category/:categoryId', async (req: Request, res: Response) => {
       },
     })
   } catch (error) {
-    console.error('Error fetching category points:', error)
+    logger.error({ err: error }, 'Error fetching category points')
     res.status(500).json({ error: 'Failed to fetch category' })
   }
 })

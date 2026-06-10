@@ -5,6 +5,7 @@ import { createNotification } from '../services/notificationService.js'
 
 const router = Router()
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 // v2.4 audit 01 S0-R-3 — schema estricto para propose-change. Antes el
 // endpoint hacía `const { comment, ...fields } = req.body` y guardaba
@@ -78,7 +79,7 @@ router.get('/', async (req: Request, res: Response) => {
       })),
     })))
   } catch (error) {
-    console.error('Error fetching categories:', error)
+    logger.error({ err: error }, 'Error fetching categories')
     res.status(500).json({ error: 'Failed to fetch categories' })
   }
 })
@@ -120,7 +121,7 @@ router.get('/default', async (req: Request, res: Response) => {
       })),
     })))
   } catch (error) {
-    console.error('Error fetching base categories:', error)
+    logger.error({ err: error }, 'Error fetching base categories')
     res.status(500).json({ error: 'Failed to fetch categories' })
   }
 })
@@ -174,7 +175,7 @@ router.post('/', async (req: Request, res: Response) => {
       category,
     })
   } catch (error) {
-    console.error('Error creating category:', error)
+    logger.error({ err: error }, 'Error creating category')
     res.status(500).json({ error: 'Failed to create category' })
   }
 })
@@ -231,7 +232,7 @@ router.put('/:categoryId', async (req: Request, res: Response) => {
       category: updated,
     })
   } catch (error) {
-    console.error('Error updating category:', error)
+    logger.error({ err: error }, 'Error updating category')
     res.status(500).json({ error: 'Failed to update category' })
   }
 })
@@ -272,7 +273,7 @@ router.delete('/:categoryId', async (req: Request, res: Response) => {
 
     res.json({ message: 'Category deleted successfully' })
   } catch (error) {
-    console.error('Error deleting category:', error)
+    logger.error({ err: error }, 'Error deleting category')
     res.status(500).json({ error: 'Failed to delete category' })
   }
 })
@@ -311,7 +312,7 @@ router.get('/:categoryId', async (req: Request, res: Response) => {
       })),
     })
   } catch (error) {
-    console.error('Error fetching category:', error)
+    logger.error({ err: error }, 'Error fetching category')
     res.status(500).json({ error: 'Failed to fetch category' })
   }
 })
@@ -365,7 +366,7 @@ router.post('/:categoryId/subcategories', async (req: Request, res: Response) =>
       subcategory,
     })
   } catch (error) {
-    console.error('Error adding subcategory:', error)
+    logger.error({ err: error }, 'Error adding subcategory')
     res.status(500).json({ error: 'Failed to add subcategory' })
   }
 })
@@ -413,7 +414,7 @@ router.post('/propose', async (req: Request, res: Response): Promise<void> => {
     }
     res.status(201).json(proposal)
   } catch (error) {
-    console.error('Error proposing category:', error)
+    logger.error({ err: error }, 'Error proposing category')
     res.status(500).json({ error: 'Failed to propose category' })
   }
 })
@@ -452,7 +453,7 @@ router.put('/:id/propose-change', async (req: Request, res: Response): Promise<v
     })
     res.status(201).json(proposal)
   } catch (error) {
-    console.error('Error proposing category change:', error)
+    logger.error({ err: error }, 'Error proposing category change')
     res.status(500).json({ error: 'Failed to propose category change' })
   }
 })

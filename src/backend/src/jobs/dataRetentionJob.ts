@@ -8,6 +8,7 @@
 // de borrar real (gestionado por el scheduler).
 
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 export interface RetentionResult {
   moodLog: number
@@ -32,7 +33,7 @@ export async function runRetention(opts: { dryRun: boolean } = { dryRun: false }
       prisma.invitation.count({ where: { status: 'pending', expiresAt: { lt: inviteCutoff } } }),
       prisma.user.count({ where: { deletedAt: { lt: userPurgeCutoff } } }),
     ])
-    console.log('[retention DRY-RUN]', { moodLog, notification, invitation, userPurged })
+    logger.info({ moodLog, notification, invitation, userPurged }, '[retention DRY-RUN]')
     return { moodLog, notification, invitation, userPurged }
   }
 
@@ -41,6 +42,6 @@ export async function runRetention(opts: { dryRun: boolean } = { dryRun: false }
   const invitation = (await prisma.invitation.deleteMany({ where: { status: 'pending', expiresAt: { lt: inviteCutoff } } })).count
   const userPurged = (await prisma.user.deleteMany({ where: { deletedAt: { lt: userPurgeCutoff } } })).count
 
-  console.log('[retention]', { moodLog, notification, invitation, userPurged })
+  logger.info({ moodLog, notification, invitation, userPurged }, '[retention]')
   return { moodLog, notification, invitation, userPurged }
 }

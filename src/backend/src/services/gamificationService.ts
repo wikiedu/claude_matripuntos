@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma.js'
 import { createCoupleNotification } from './notificationService.js'
+import { logger } from '../lib/logger.js'
 
 // v2.1.0 — sistema unificado de 10 niveles (opción C aprobada 2026-05-03).
 // Reemplaza tanto al "Nido/Brote/..." legacy de v1.2 como al "Vecinos/Amigos/..."
@@ -288,7 +289,7 @@ export async function getGamificationStatus(coupleId: string) {
     await prisma.couple.update({
       where: { id: coupleId },
       data: { level: expectedLevel },
-    }).catch((e) => console.warn('[getGamificationStatus] level reconcile failed:', e))
+    }).catch((e) => logger.warn({ err: e }, '[getGamificationStatus] level reconcile failed'))
   }
 
   return {

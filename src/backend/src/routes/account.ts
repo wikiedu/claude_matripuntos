@@ -11,6 +11,7 @@ import prisma from '../lib/prisma.js'
 import { deleteAccount } from '../services/accountDeletionService.js'
 import { telemetryBackend } from '../services/telemetry.js'
 import { sendEmail, deleteAccountCodeEmail } from '../services/emailService.js'
+import { logger } from '../lib/logger.js'
 
 const router = Router()
 router.use(authenticateToken)
@@ -35,7 +36,7 @@ router.post('/delete-request', criticalBucket, async (req: Request, res: Respons
 
   const isDev = process.env.NODE_ENV !== 'production'
   if (isDev) {
-    console.log(`[DELETE-CODE] user=${userId} code=${code}`)
+    logger.info(`[DELETE-CODE] user=${userId} code=${code}`)
     return res.json({ ok: true, codeViaConsole: true, code })  // exposed only in dev
   }
 
@@ -53,7 +54,7 @@ router.post('/delete-request', criticalBucket, async (req: Request, res: Respons
     tags: [{ name: 'type', value: 'delete_account' }],
   })
   if (!result.ok) {
-    console.error('[delete-request] email send failed:', result.error)
+    logger.error({ sendError: result.error }, '[delete-request] email send failed')
     return res.status(503).json({ error: 'No pudimos enviar el código. Inténtalo más tarde.' })
   }
 

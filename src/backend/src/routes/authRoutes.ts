@@ -30,6 +30,7 @@ import {
   rotateRefresh,
   revokeAllForUser,
 } from '../services/refreshTokenService.js'
+import { logger } from '../lib/logger.js'
 
 const router = express.Router()
 
@@ -361,7 +362,7 @@ router.get('/partner-summary', authMiddleware, async (req: Request, res: Respons
       },
     })
   } catch (error) {
-    console.error('[partner-summary] error:', error)
+    logger.error({ err: error }, '[partner-summary] error')
     res.status(500).json({ error: 'Failed to fetch partner summary' })
   }
 })
@@ -426,7 +427,7 @@ router.post('/propose-partner', authMiddleware, async (req: Request, res: Respon
       try {
         await proposePartner(req.userId, partner.id)
       } catch (inner) {
-        console.error('[propose-partner] silent failure:', inner)
+        logger.error({ err: inner }, '[propose-partner] silent failure')
       }
     }
     res.json({ message: 'Si la cuenta existe, la propuesta fue enviada' })
@@ -660,7 +661,7 @@ router.post('/forgot-password', async (req: Request, res: Response): Promise<voi
         const { sendPasswordResetEmail } = await import('../services/emailService.js')
         await sendPasswordResetEmail(user.email, user.name, tokenPlaintext)
       } catch (e) {
-        console.error('[forgot-password] email send failed', e)
+        logger.error({ err: e }, '[forgot-password] email send failed')
         // No fallamos la request — el usuario debe poder reintentar sin
         // enterarse de problemas internos de email.
       }
@@ -673,7 +674,7 @@ router.post('/forgot-password', async (req: Request, res: Response): Promise<voi
       res.status(400).json({ error: 'Validation error', details: error.errors })
       return
     }
-    console.error('[forgot-password]', error)
+    logger.error({ err: error }, '[forgot-password]')
     res.status(500).json({ error: 'Failed to process request' })
   }
 })
@@ -715,7 +716,7 @@ router.post('/reset-password', async (req: Request, res: Response): Promise<void
       res.status(400).json({ error: 'Validation error', details: error.errors })
       return
     }
-    console.error('[reset-password]', error)
+    logger.error({ err: error }, '[reset-password]')
     res.status(500).json({ error: 'Failed to reset password' })
   }
 })
@@ -771,7 +772,7 @@ router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ error: 'Validation error', details: error.errors })
       return
     }
-    console.error('[refresh]', error)
+    logger.error({ err: error }, '[refresh]')
     res.status(500).json({ error: 'Failed to refresh token' })
   }
 })
@@ -788,7 +789,7 @@ router.post('/logout', authMiddleware, async (req: Request, res: Response): Prom
     // tendría que esperar a la rotación / re-login.
     res.json({ message: 'Logged out', revokedRefreshTokens: revokedCount })
   } catch (error) {
-    console.error('[logout]', error)
+    logger.error({ err: error }, '[logout]')
     res.status(500).json({ error: 'Failed to logout' })
   }
 })

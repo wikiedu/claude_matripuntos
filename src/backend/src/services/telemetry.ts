@@ -3,6 +3,7 @@
 // Schemas validados contra catálogo cerrado en @matripuntos/shared.
 
 import { validateTelemetryEvent, type TelemetryEventName, type TelemetryEventProps } from '../../../../packages/shared/dist/index.js'
+import { logger } from '../lib/logger.js'
 
 const PII_BLACKLIST = ['email', 'password', 'passwordHash', 'name', 'surname', 'secretKey', 'joinCode', 'text', 'message', 'notes']
 
@@ -30,14 +31,14 @@ async function getClient() {
     // el wrapper queda no-op sin romper la app.
     const mod: any = await import('posthog-node' as any).catch(() => null)
     if (!mod?.PostHog) {
-      console.warn('[telemetry] posthog-node no disponible, telemetría deshabilitada')
+      logger.warn('[telemetry] posthog-node no disponible, telemetría deshabilitada')
       client = false
       return null
     }
     client = new mod.PostHog(key, { host: process.env.POSTHOG_HOST ?? 'https://eu.posthog.com' })
     return client
   } catch (e) {
-    console.warn('[telemetry] init falló, telemetría deshabilitada', e)
+    logger.warn({ err: e }, '[telemetry] init falló, telemetría deshabilitada')
     client = false
     return null
   }
@@ -49,7 +50,7 @@ export const telemetryBackend = {
     if (!c) return
     const r = validateTelemetryEvent(event, props ?? {})
     if (r.ok === false) {
-      console.warn(`[telemetry-backend] ${event} schema fail`, r.error.issues)
+      logger.warn({ issues: r.error.issues }, `[telemetry-backend] ${event} schema fail`)
       return
     }
     c.capture({ distinctId, event, properties: sanitize(r.data as any) })

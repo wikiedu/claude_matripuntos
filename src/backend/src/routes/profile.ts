@@ -6,6 +6,7 @@ import { MOOD_KEYS } from '../data/moodKeys.js'
 
 const router = Router()
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 import { getPreferencesForUser, setPreferencesForUser } from '../services/notificationPreferencesService.js'
 
 // v1.6 — Schema canónico para PUT /me. El test hermético en
@@ -92,7 +93,7 @@ router.post('/user', async (req: Request, res: Response) => {
       profile,
     })
   } catch (error) {
-    console.error('Error completing user profile:', error)
+    logger.error({ err: error }, 'Error completing user profile')
     res.status(500).json({ error: 'Failed to complete profile' })
   }
 })
@@ -137,7 +138,7 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
 
     res.json(parsedProfile)
   } catch (error) {
-    console.error('Error fetching user profile:', error)
+    logger.error({ err: error }, 'Error fetching user profile')
     res.status(500).json({ error: 'Failed to fetch profile' })
   }
 })
@@ -196,7 +197,7 @@ router.post('/couple', async (req: Request, res: Response) => {
       profile: coupleProfile,
     })
   } catch (error) {
-    console.error('Error completing couple profile:', error)
+    logger.error({ err: error }, 'Error completing couple profile')
     res.status(500).json({ error: 'Failed to complete couple profile' })
   }
 })
@@ -234,7 +235,7 @@ router.get('/couple', async (req: Request, res: Response) => {
 
     res.json(parsedProfile)
   } catch (error) {
-    console.error('Error fetching couple profile:', error)
+    logger.error({ err: error }, 'Error fetching couple profile')
     res.status(500).json({ error: 'Failed to fetch couple profile' })
   }
 })
@@ -319,7 +320,7 @@ router.put('/me', async (req: Request, res: Response) => {
 
     res.json({ message: 'Profile updated', profile: result })
   } catch (error) {
-    console.error('Error updating profile:', error)
+    logger.error({ err: error }, 'Error updating profile')
     res.status(500).json({ error: 'Failed to update profile' })
   }
 })
@@ -394,7 +395,7 @@ router.get('/mood-history', async (req: Request, res: Response) => {
 
     res.json({ tz, days, history })
   } catch (e) {
-    console.error('Error fetching mood history:', e)
+    logger.error({ err: e }, 'Error fetching mood history')
     res.status(500).json({ error: 'Failed to fetch mood history' })
   }
 })
@@ -409,7 +410,7 @@ router.get('/notification-preferences', async (req: Request, res: Response) => {
     const prefs = await getPreferencesForUser(userId)
     res.json({ preferences: prefs })
   } catch (e) {
-    console.error('[notification-preferences GET] error:', e)
+    logger.error({ err: e }, '[notification-preferences GET] error')
     res.status(500).json({ error: 'Failed to fetch preferences' })
   }
 })
@@ -433,7 +434,7 @@ router.put('/notification-preferences', async (req: Request, res: Response) => {
     const saved = await setPreferencesForUser(userId, next)
     res.json({ preferences: saved })
   } catch (e) {
-    console.error('[notification-preferences PUT] error:', e)
+    logger.error({ err: e }, '[notification-preferences PUT] error')
     res.status(500).json({ error: 'Failed to save preferences' })
   }
 })

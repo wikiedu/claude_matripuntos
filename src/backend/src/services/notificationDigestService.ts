@@ -9,6 +9,7 @@
 // llegar al momento.
 
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 import { parsePreferences, NotificationPreferences } from './notificationPreferencesService.js'
 import { sendPushToSubscription } from './webPushService.js'
 
@@ -98,13 +99,13 @@ export async function runDigestForCurrentMinute(now: Date = new Date()): Promise
       if (sendResults.some(Boolean)) sent++
       else skipped++
     } catch (err) {
-      console.error(`[digest] user ${u.id} failed:`, err)
+      logger.error({ err }, `[digest] user ${u.id} failed`)
       skipped++
     }
   }
 
   if (matched > 0) {
-    console.log(`[digest] matched=${matched} sent=${sent} skipped=${skipped}`)
+    logger.info(`[digest] matched=${matched} sent=${sent} skipped=${skipped}`)
   }
   return { matched, sent, skipped }
 }

@@ -6,6 +6,8 @@
 //   VAPID_PRIVATE_KEY — privada
 //   VAPID_SUBJECT     — mailto:soporte@matripuntos.app
 
+import { logger } from '../lib/logger.js'
+
 interface PushPayload {
   title: string
   body: string
@@ -35,7 +37,7 @@ async function getWebPush() {
   const priv = process.env.VAPID_PRIVATE_KEY
   const subj = process.env.VAPID_SUBJECT ?? 'mailto:soporte@matripuntos.app'
   if (!pub || !priv) {
-    console.warn('[webpush] VAPID keys not set — push deshabilitado')
+    logger.warn('[webpush] VAPID keys not set — push deshabilitado')
     webPushModule = null
     webPushInitialized = true
     return null

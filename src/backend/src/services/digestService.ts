@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma.js'
 import { createNotification } from './notificationService.js'
+import { logger } from '../lib/logger.js'
 
 export interface DigestData {
   weekStart: string
@@ -50,7 +51,7 @@ export async function sendWeeklyDigests(): Promise<void> {
         })
       }
     } catch (err) {
-      console.error(`[digestService] Error building digest for couple ${couple.id}:`, err)
+      logger.error({ err }, `[digestService] Error building digest for couple ${couple.id}`)
     }
   }
 }

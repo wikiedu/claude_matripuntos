@@ -7,6 +7,7 @@
 
 import prisma from '../lib/prisma.js'
 import { ACTIVITY_TEMPLATES_SEED } from '../data/activityTemplatesData.js'
+import { logger } from '../lib/logger.js'
 
 let alreadyRan = false
 
@@ -39,10 +40,10 @@ export async function bootstrapActivityCatalog(): Promise<void> {
       created++
     }
     if (created > 0) {
-      console.log(`[bootstrap] seeded ${created} activity templates`)
+      logger.info(`[bootstrap] seeded ${created} activity templates`)
     }
   } catch (err) {
-    console.error('[bootstrap] catálogo seed failed:', err)
+    logger.error({ err }, '[bootstrap] catálogo seed failed')
     // No-bloqueante: el server arranca igual aunque falle el seed.
   }
 }

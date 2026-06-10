@@ -8,6 +8,7 @@ import {
   mountSentryRequestHandler,
   mountSentryErrorHandler,
 } from './lib/sentry.js'
+import { logger } from './lib/logger.js'
 import authRoutes from './routes/authRoutes.js'
 import eventRoutes from './routes/eventRoutes.js'
 import taskRoutes from './routes/taskRoutes.js'
@@ -70,17 +71,17 @@ function validateEnv(): void {
   const required = ['JWT_SECRET', 'DATABASE_URL']
   const missing = required.filter((k) => !process.env[k] || process.env[k] === '')
   if (missing.length > 0) {
-    console.error(`[boot] FATAL: env vars requeridas no definidas: ${missing.join(', ')}`)
+    logger.fatal({ missing }, '[boot] env vars requeridas no definidas')
     process.exit(1)
   }
   // JWT_SECRET tiene mínimo 32 chars (defensivo).
   if ((process.env.JWT_SECRET ?? '').length < 32) {
-    console.error('[boot] FATAL: JWT_SECRET debe tener al menos 32 caracteres.')
+    logger.fatal('[boot] JWT_SECRET debe tener al menos 32 caracteres')
     process.exit(1)
   }
   // En production exigimos NODE_ENV explícito (S0-R-4 audit pre-v1.7).
   if (process.env.RENDER && process.env.NODE_ENV !== 'production') {
-    console.warn('[boot] WARNING: corriendo en Render sin NODE_ENV=production. Algunas defensas relajan reglas (delete-account code en respuesta, etc).')
+    logger.warn('[boot] corriendo en Render sin NODE_ENV=production. Algunas defensas relajan reglas (delete-account code en respuesta, etc).')
   }
 }
 validateEnv()
@@ -89,9 +90,9 @@ validateEnv()
 // Cuando el frontend deje de leer /api/achievements (V1), se podrá
 // setear LEGACY_ACHIEVEMENTS_ENABLED=false y este log lo confirmará.
 if (process.env.LEGACY_ACHIEVEMENTS_ENABLED === 'false') {
-  console.log('[boot] legacy V1 achievementEngine OFF — solo V2 (CoupleAchievement) activo.')
+  logger.info('[boot] legacy V1 achievementEngine OFF — solo V2 (CoupleAchievement) activo.')
 } else {
-  console.log('[boot] legacy V1 achievementEngine activo (en paralelo a V2). Set LEGACY_ACHIEVEMENTS_ENABLED=false para apagarlo cuando el frontend migre.')
+  logger.info('[boot] legacy V1 achievementEngine activo (en paralelo a V2). Set LEGACY_ACHIEVEMENTS_ENABLED=false para apagarlo cuando el frontend migre.')
 }
 
 initSentry()
@@ -290,7 +291,7 @@ if (RUN_BACKGROUND_JOBS && process.env.NODE_ENV === 'production') {
       await runRetention({ dryRun })
       retentionRunCount++
     } catch (e) {
-      console.error('[retention cron] failed', e)
+      logger.error({ err: e }, '[retention cron] failed')
     }
   })
 }
@@ -307,7 +308,7 @@ mountSentryErrorHandler(app)
 
 // Error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err)
+  logger.error({ err }, 'unhandled request error')
   res.status(500).json({
     error: 'Internal server error',
     message: process.env.NODE_ENV === 'development' ? err.message : undefined,
@@ -316,8 +317,8 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 // v1.3 weekly cron — every Monday at 08:00
 if (RUN_BACKGROUND_JOBS) cron.schedule('0 8 * * 1', () => {
-  runWeeklyGeneration().catch(err => console.error('recurringTask cron error:', err))
-  sendWeeklyDigests().catch(err => console.error('digest cron error:', err))
+  runWeeklyGeneration().catch(err => logger.error({ err }, 'recurringTask cron error'))
+  sendWeeklyDigests().catch(err => logger.error({ err }, 'digest cron error'))
 })
 
 // v2.2.5 — Daily push digest per user (Claude Design canvas 10).
@@ -331,14 +332,14 @@ if (RUN_BACKGROUND_JOBS) cron.schedule('* * * * *', async () => {
   } catch (err) {
     // Solo log si NO es el "import vacío" del entorno tests
     if (process.env.NODE_ENV !== 'test') {
-      console.error('[digest cron]', err)
+      logger.error({ err }, '[digest cron]')
     }
   }
 })
 
 // Freezer reset — every Monday at 00:00 UTC
 if (RUN_BACKGROUND_JOBS) cron.schedule('0 0 * * 1', () => {
-  resetFreezersOnMonday().catch(err => console.error('resetFreezers cron error:', err))
+  resetFreezersOnMonday().catch(err => logger.error({ err }, 'resetFreezers cron error'))
 })
 
 // Auto-accept pending TaskLogs older than 24h — runs every hour
@@ -384,7 +385,7 @@ if (RUN_BACKGROUND_JOBS) cron.schedule('0 * * * *', async () => {
           })),
         }),
       ])
-      console.log(`[cron] Auto-verified ${pending.length} task log(s)`)
+      logger.info({ count: pending.length }, '[cron] auto-verified task logs')
     }
     // Recompute gamification once per affected couple
     for (const coupleId of affectedCouples) {
@@ -393,22 +394,22 @@ if (RUN_BACKGROUND_JOBS) cron.schedule('0 * * * *', async () => {
         await calculateAndSaveXP(coupleId)
         await checkAllAchievements(coupleId)
       } catch (gamErr) {
-        console.error('[cron] gamification recompute error:', gamErr)
+        logger.error({ err: gamErr, coupleId }, '[cron] gamification recompute error')
       }
     }
   } catch (err) {
-    console.error('[cron] auto-accept error:', err)
+    logger.error({ err }, '[cron] auto-accept error')
   }
 })
 
 if (RUN_BACKGROUND_JOBS) {
   app.listen(PORT, () => {
-    console.log(`🚀 Matripuntos backend running on http://localhost:${PORT}`)
-    console.log(`📊 Health check: http://localhost:${PORT}/api/health`)
+    logger.info({ port: PORT }, '🚀 Matripuntos backend running')
+    logger.info(`📊 Health check: http://localhost:${PORT}/api/health`)
     // v2.0.7 — auto-seed del catálogo de actividades. Idempotente, no bloqueante.
     import('./services/bootstrapCatalog.js')
       .then((m) => m.bootstrapActivityCatalog())
-      .catch((err) => console.error('[bootstrap] failed', err))
+      .catch((err) => logger.error({ err }, '[bootstrap] failed'))
   })
 }
 

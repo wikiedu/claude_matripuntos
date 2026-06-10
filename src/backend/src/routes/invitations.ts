@@ -6,6 +6,7 @@ import crypto from 'crypto'
 import bcryptjs from 'bcryptjs'
 import prisma from '../lib/prisma.js'
 import { signAccessToken } from '../services/authService.js'
+import { logger } from '../lib/logger.js'
 
 // STATUS: deprecación aplazada (Sunset vencido pero en uso por Onboarding.tsx /
 // StepJoinAccount.tsx). Retirada y revisión IDOR pospuestas a Fase 1. Ver
@@ -111,7 +112,7 @@ router.post('/invite-partner', deprecationMiddleware, authenticateToken, async (
       },
     })
   } catch (error) {
-    console.error('Error creating invitation:', error)
+    logger.error({ err: error }, 'Error creating invitation')
     res.status(500).json({ error: 'Failed to create invitation' })
   }
 })
@@ -165,7 +166,7 @@ router.get('/invitation/:token', deprecationMiddleware, async (req: Request, res
       },
     })
   } catch (error) {
-    console.error('Error validating invitation:', error)
+    logger.error({ err: error }, 'Error validating invitation')
     res.status(500).json({ error: 'Failed to validate invitation' })
   }
 })
@@ -256,7 +257,7 @@ router.post('/accept-invitation', deprecationMiddleware, authenticateToken, asyn
       couple,
     })
   } catch (error) {
-    console.error('Error accepting invitation:', error)
+    logger.error({ err: error }, 'Error accepting invitation')
     res.status(500).json({ error: 'Failed to accept invitation' })
   }
 })
@@ -380,7 +381,7 @@ router.post('/register-with-invitation', deprecationMiddleware, async (req: Requ
         : null,
     })
   } catch (error) {
-    console.error('Error registering with invitation:', error)
+    logger.error({ err: error }, 'Error registering with invitation')
     res.status(500).json({ error: 'Failed to register' })
   }
 })
@@ -462,7 +463,7 @@ router.post('/link-partner', authenticateToken, async (req: Request, res: Respon
 
     return res.json({ message: 'Solicitud enviada. Tu pareja recibirá una notificación para aceptar.' })
   } catch (error) {
-    console.error('Error sending link request:', error)
+    logger.error({ err: error }, 'Error sending link request')
     return res.status(500).json({ error: 'Failed to send link request' })
   }
 })
@@ -535,7 +536,7 @@ router.post('/accept-link-partner', authenticateToken, async (req: Request, res:
 
     return res.json({ message: 'Vinculación aceptada', token: newToken, couple })
   } catch (error) {
-    console.error('Error accepting link request:', error)
+    logger.error({ err: error }, 'Error accepting link request')
     return res.status(500).json({ error: 'Failed to accept link request' })
   }
 })

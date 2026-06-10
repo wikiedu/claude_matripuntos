@@ -7,6 +7,7 @@ import { negotiationEngine } from '../services/negotiationEngine.js'
 
 const router = Router()
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 /**
  * Negotiation Routes - FASE 3
@@ -70,7 +71,7 @@ router.post('/:eventId/propose', authenticateToken, async (req: Request, res: Re
       message: 'Event proposal sent to partner',
     })
   } catch (error) {
-    console.error('Error proposing event:', error)
+    logger.error({ err: error }, 'Error proposing event')
     res.status(500).json({
       error: 'Failed to propose event',
       details: error instanceof Error ? error.message : 'Unknown error',
@@ -146,7 +147,7 @@ router.post('/:eventId/respond', authenticateToken, async (req: Request, res: Re
       message: `Event proposal ${action}`,
     })
   } catch (error) {
-    console.error('Error responding to proposal:', error)
+    logger.error({ err: error }, 'Error responding to proposal')
     res.status(500).json({
       error: 'Failed to respond to proposal',
       details: error instanceof Error ? error.message : 'Unknown error',
@@ -220,7 +221,7 @@ router.get('/:eventId/negotiation', authenticateToken, async (req: Request, res:
       },
     })
   } catch (error) {
-    console.error('Error getting negotiation status:', error)
+    logger.error({ err: error }, 'Error getting negotiation status')
     res.status(500).json({
       error: 'Failed to get negotiation status',
       details: error instanceof Error ? error.message : 'Unknown error',
@@ -262,7 +263,7 @@ router.get('/:eventId/negotiation/history', authenticateToken, async (req: Reque
       totalRounds: history.length > 0 ? Math.max(...history.map((n: { roundNumber: number }) => n.roundNumber)) : 0,
     })
   } catch (error) {
-    console.error('Error getting negotiation history:', error)
+    logger.error({ err: error }, 'Error getting negotiation history')
     res.status(500).json({
       error: 'Failed to get negotiation history',
       details: error instanceof Error ? error.message : 'Unknown error',
@@ -309,7 +310,7 @@ router.get('/user/pending', authenticateToken, async (req: Request, res: Respons
       events: pendingEvents,
     })
   } catch (error) {
-    console.error('Error getting pending negotiations:', error)
+    logger.error({ err: error }, 'Error getting pending negotiations')
     res.status(500).json({
       error: 'Failed to get pending negotiations',
       details: error instanceof Error ? error.message : 'Unknown error',

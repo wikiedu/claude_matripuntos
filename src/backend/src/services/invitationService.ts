@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 export async function createInvitation(
   fromUserId: string,
@@ -85,7 +86,7 @@ export async function acceptEmailInvitation(token: string, newUserId: string) {
         },
       })
     } catch (e) {
-      console.error('[invitationService] partner_joined notif failed', e)
+      logger.error({ err: e }, '[invitationService] partner_joined notif failed')
     }
   }
 
