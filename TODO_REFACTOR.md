@@ -22,15 +22,21 @@ perder el contexto. Cada entrada: qué, por qué bloquea, decisión, riesgo.
 - ✅ **#6 Logger central `pino`** — `src/lib/logger.ts` (sync stdout, JSON, silent
   en test) + 131 `console.*` sustituidos por callsite (objeto-primero, errores
   como `{ err }`). Override `LOG_LEVEL`. Commit `959f15a`
+- ✅ **strict:true backend (#5)** — en 2 pasos:
+  - `cd4ae6f`: augmentación de `Express.Request` movida a `src/types/express.d.ts`
+    + retirados los 124 `(req as any)` (compila bajo strict:false).
+  - `cbfbb18`: flip a `strict:true` (+ quitado override `noImplicitAny:false`).
+    68 errores resueltos sin `any`: helper `requireAuth(req)` para el contexto
+    de auth (33×), `requireAuth(req).coupleId` en wheres con `user.coupleId`
+    nullable, guards de null (invitations.fromUser/coupleId), arrays `never[]`
+    tipados, fallback en rate-limit key. type-check 0 · E2E · unit verdes.
 
 **Pendiente (orden sugerido para retomar):**
 1. **#4 Corregir CLAUDE.md obsoleto** — ⚠️ BLOQUEADO: editar CLAUDE.md lo veta el
    auto-mode classifier (self-modification). **Necesita OK explícito de Edu.**
    Cambios pendientes: §10 convención Prisma (singleton, no `new PrismaClient()`
    por archivo); revisar nota "V1 vs V2 no eliminar" vs decisión de retirar V2.
-2. **strict:true backend** (decisión tomada). Grande, rompe compilación temporal,
-   ~196 `any`. Augmentar `Express.Request` (tipar req.userId/coupleId) primero.
-3. **#9 Activar refresh tokens + JWT corto** — 🟡 STEP A HECHO (commit `5e9cb89`),
+2. **#9 Activar refresh tokens + JWT corto** — 🟡 STEP A HECHO (commit `5e9cb89`),
    STEP B pendiente.
    - ✅ Step A: `signAccessToken` (punto único, expiry `JWT_ACCESS_EXPIRY` por env,
      default 7d) + refresh-pair en TODOS los sitios de sesión (login, signup,
@@ -42,15 +48,15 @@ perder el contexto. Cada entrada: qué, por qué bloquea, decisión, riesgo.
      archivo); (b) setear `JWT_ACCESS_EXPIRY=15m` en Render; (c) idealmente subir
      bcrypt rounds 10→12 de paso (audit §5). Verificar manualmente en prod que el
      refresh-on-401 funciona end-to-end antes de bajar más el TTL.
-4. **#8 Descomponer `Tasks.tsx`** (god-component ~775 ln) + memoizar handlers.
+3. **#8 Descomponer `Tasks.tsx`** (god-component ~775 ln) + memoizar handlers.
    Grande, riesgo medio. El harness E2E NO cubre UI; verificar manual o con
    Playwright (Fase 1.x).
-5. **Retirar rutas V2 negociación** (`negotiation.ts`). Grande: requiere reescribir
+4. **Retirar rutas V2 negociación** (`negotiation.ts`). Grande: requiere reescribir
    `EventNegotiationCard` contra API canónica + reescribir el E2E del flujo #3
    (hoy testea las rutas V2). Ver bloque de abajo.
-6. **#10 Imágenes de prueba a object storage** (sacar base64 de Postgres). Grande,
+5. **#10 Imágenes de prueba a object storage** (sacar base64 de Postgres). Grande,
    necesita infra (Supabase Storage/S3).
-7. **(Baja) N+1 recurrente semanal** `recurringTaskService.generateInstancesForCouple`
+6. **(Baja) N+1 recurrente semanal** `recurringTaskService.generateInstancesForCouple`
    (loop por task). Cron semanal, bajo impacto; batch limpio entre tareas es
    no-trivial. Diferido conscientemente.
 
