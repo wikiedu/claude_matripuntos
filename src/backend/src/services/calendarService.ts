@@ -360,7 +360,7 @@ function getWeekDates(year: number, week: number): [Date, Date] {
 }
 
 function getDaysOfWeek(startDate: Date): string[] {
-  const days = []
+  const days: string[] = []
   for (let i = 0; i < 7; i++) {
     const date = new Date(startDate)
     date.setDate(startDate.getDate() + i)

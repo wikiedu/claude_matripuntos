@@ -436,7 +436,7 @@ export async function getWeeklyTrends(
   numberOfWeeks: number = 8
 ): Promise<Array<{ label: string; events: number; points: number }>> {
   const today = new Date()
-  const trends = []
+  const trends: Array<{ label: string; events: number; points: number }> = []
 
   for (let i = numberOfWeeks - 1; i >= 0; i--) {
     const weekEnd = new Date(today)
@@ -535,7 +535,7 @@ export async function getMonthlySummary(
  * Get year overview
  */
 export async function getYearOverview(coupleId: string, year: number) {
-  const months = []
+  const months: Awaited<ReturnType<typeof getMonthlySummary>>[] = []
 
   for (let month = 1; month <= 12; month++) {
     const summary = await getMonthlySummary(coupleId, year, month)

@@ -57,7 +57,7 @@ export async function acceptEmailInvitation(token: string, newUserId: string) {
       language: 'es',
       users: {
         connect: [
-          { id: invitation.fromUserId },
+          { id: invitation.fromUserId! },
           { id: newUserId },
         ],
       },
@@ -160,7 +160,7 @@ export async function acceptProposal(invitationId: string) {
       language: 'es',
       users: {
         connect: [
-          { id: invitation.fromUserId },
+          { id: invitation.fromUserId! },
           { id: invitation.toUserId! },
         ],
       },

@@ -184,7 +184,7 @@ router.get('/chart-data', authMiddleware, async (req: Request, res: Response): P
     }
 
     // Generate one entry per day using local date keys
-    const chartData = []
+    const chartData: any[] = []
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date()
       d.setDate(d.getDate() - i)

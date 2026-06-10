@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import { requireAuth } from '../lib/requireAuth.js'
 import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 import { invalidateAuthCache } from '../middleware/authMiddleware.js'
@@ -43,7 +44,7 @@ const deprecationMiddleware = (_req: Request, res: Response, next: Function) => 
  */
 router.post('/invite-partner', deprecationMiddleware, authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
     const { inviteeEmail } = req.body
 
     // v2.7.1 audit 01 S2-R-12 — antes solo verificábamos string truthy.
@@ -160,7 +161,7 @@ router.get('/invitation/:token', deprecationMiddleware, async (req: Request, res
       invitation: {
         id: invitation.id,
         inviteeEmail: invitation.toEmail,
-        inviterName: invitation.fromUser.name,
+        inviterName: invitation.fromUser?.name ?? null,
         coupleId: invitation.coupleId,
         expiresAt: invitation.expiresAt,
       },
@@ -178,7 +179,7 @@ router.get('/invitation/:token', deprecationMiddleware, async (req: Request, res
  */
 router.post('/accept-invitation', deprecationMiddleware, authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
     const { token } = req.body
 
     if (!token) {
@@ -240,7 +241,7 @@ router.post('/accept-invitation', deprecationMiddleware, authenticateToken, asyn
 
     // Get updated couple data
     const couple = await prisma.couple.findUnique({
-      where: { id: invitation.coupleId },
+      where: { id: invitation.coupleId! },
       include: {
         users: {
           select: {
@@ -339,7 +340,7 @@ router.post('/register-with-invitation', deprecationMiddleware, async (req: Requ
     })
 
     const couple = await prisma.couple.findUnique({
-      where: { id: invitation.coupleId },
+      where: { id: invitation.coupleId! },
       include: {
         users: { select: { id: true, email: true, name: true, coupleId: true } },
         configurations: true,
@@ -393,7 +394,7 @@ router.post('/register-with-invitation', deprecationMiddleware, async (req: Requ
  */
 router.post('/link-partner', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
     const { partnerEmail } = req.body
 
     if (!partnerEmail || typeof partnerEmail !== 'string') {
@@ -474,7 +475,7 @@ router.post('/link-partner', authenticateToken, async (req: Request, res: Respon
  */
 router.get('/pending-link-requests', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
     const requests = await prisma.invitation.findMany({
       where: {
         toUserId: userId,
@@ -499,7 +500,7 @@ router.get('/pending-link-requests', authenticateToken, async (req: Request, res
  */
 router.post('/accept-link-partner', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
     const { invitationId } = req.body
 
     if (!invitationId) return res.status(400).json({ error: 'invitationId is required' })
@@ -548,7 +549,7 @@ router.post('/accept-link-partner', authenticateToken, async (req: Request, res:
  */
 router.post('/reject-link-partner', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
     const { invitationId } = req.body
 
     await prisma.invitation.updateMany({

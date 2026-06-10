@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import { requireAuth } from '../lib/requireAuth.js'
 import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 
@@ -41,7 +42,7 @@ const MAX_CHILDREN_PER_COUPLE = 12
  */
 router.post('/children', async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
     const coupleId = req.user?.coupleId as string | undefined
     if (!coupleId) {
       return res.status(401).json({ error: 'Authentication required' })
@@ -92,7 +93,7 @@ router.post('/children', async (req: Request, res: Response) => {
  */
 router.get('/children', async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -103,7 +104,7 @@ router.get('/children', async (req: Request, res: Response) => {
     }
 
     const children = await prisma.child.findMany({
-      where: { coupleId: user.coupleId },
+      where: { coupleId: requireAuth(req).coupleId },
       orderBy: { dateOfBirth: 'asc' },
     })
 
@@ -120,7 +121,7 @@ router.get('/children', async (req: Request, res: Response) => {
  */
 router.put('/children/:childId', async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
     const { childId } = req.params
 
     const parsedBody = childUpdateSchema.safeParse(req.body)
@@ -175,7 +176,7 @@ router.put('/children/:childId', async (req: Request, res: Response) => {
  */
 router.delete('/children/:childId', async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
     const { childId } = req.params
 
     // v2.5.9 audit 01 S1-R-14 — scope por req.coupleId.
@@ -246,7 +247,7 @@ router.post('/pets', async (req: Request, res: Response) => {
  */
 router.get('/pets', async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -257,7 +258,7 @@ router.get('/pets', async (req: Request, res: Response) => {
     }
 
     const pets = await prisma.pet.findMany({
-      where: { coupleId: user.coupleId },
+      where: { coupleId: requireAuth(req).coupleId },
     })
 
     res.json(pets)
@@ -273,7 +274,7 @@ router.get('/pets', async (req: Request, res: Response) => {
  */
 router.put('/pets/:petId', async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
     const { petId } = req.params
 
     const parsedBody = petUpdateSchema.safeParse(req.body)
@@ -323,7 +324,7 @@ router.put('/pets/:petId', async (req: Request, res: Response) => {
  */
 router.delete('/pets/:petId', async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
     const { petId } = req.params
 
     // v2.5.9 audit 01 S1-R-14 — scope por req.coupleId.

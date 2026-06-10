@@ -3,6 +3,7 @@
 // más prioritario.
 
 import { Router, Request, Response } from 'express'
+import { requireAuth } from '../lib/requireAuth.js'
 import { authenticateToken } from '../middleware/auth.js'
 import { readBucket } from '../middleware/rateLimiter.js'
 import prisma from '../lib/prisma.js'
@@ -21,7 +22,7 @@ const WEIGHTS = {
 }
 
 router.get('/completion', readBucket, async (req: Request, res: Response) => {
-  const userId = req.user.id
+  const userId = requireAuth(req).userId
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { profile: true },

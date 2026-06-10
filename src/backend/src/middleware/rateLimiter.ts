@@ -12,7 +12,7 @@
 import rateLimit from 'express-rate-limit'
 import type { Request, Response, NextFunction } from 'express'
 
-const keyByUserOrIp = (req: Request) => req.user?.id ?? req.ip
+const keyByUserOrIp = (req: Request) => req.user?.id ?? req.ip ?? 'unknown'
 
 // Fase 1 (harness E2E): el rate-limiting es infra, no lógica de negocio. En
 // tests lo saltamos para (a) no acumular el bucket de auth (10/min IP) entre

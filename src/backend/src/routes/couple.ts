@@ -1,6 +1,7 @@
 // v1.6.1 — Couple lifecycle routes (leave). criticalBucket aplica.
 
 import { Router, Request, Response } from 'express'
+import { requireAuth } from '../lib/requireAuth.js'
 import bcrypt from 'bcryptjs'
 import { authenticateToken } from '../middleware/auth.js'
 import { criticalBucket } from '../middleware/rateLimiter.js'
@@ -13,8 +14,8 @@ const router = Router()
 router.use(authenticateToken)
 
 router.post('/leave', criticalBucket, async (req: Request, res: Response) => {
-  const userId = req.user.id
-  const coupleId = req.user.coupleId
+  const userId = requireAuth(req).userId
+  const coupleId = requireAuth(req).coupleId
 
   const parsed = coupleLeaveSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Datos inválidos' })

@@ -3,6 +3,7 @@
 // "Mi etapa con [partnerName]" en Settings > Pareja.
 
 import { Router, Request, Response } from 'express'
+import { requireAuth } from '../lib/requireAuth.js'
 import { authenticateToken } from '../middleware/auth.js'
 import { readBucket } from '../middleware/rateLimiter.js'
 import prisma from '../lib/prisma.js'
@@ -11,7 +12,7 @@ const router = Router()
 router.use(authenticateToken)
 
 router.get('/past-couples', readBucket, async (req: Request, res: Response) => {
-  const userId = req.user.id
+  const userId = requireAuth(req).userId
 
   // Past-couples = couples con dissolvedAt donde el user (o su ghost) tuvo
   // PointsTransactions. Cubre el caso histórico desde la perspectiva del user.

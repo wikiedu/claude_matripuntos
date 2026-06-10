@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import { requireAuth } from '../lib/requireAuth.js'
 import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 import { UserProfileInput, CoupleProfileInput, OnboardingData } from '../types/v2.js'
@@ -33,7 +34,7 @@ router.use(authenticateToken)
  */
 router.post('/user', async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
     const data: UserProfileInput = req.body
 
     // Check if user exists
@@ -105,7 +106,7 @@ router.post('/user', async (req: Request, res: Response) => {
 router.get('/user/:userId', async (req: Request, res: Response) => {
   try {
     const { userId } = req.params
-    const currentUserId = req.user.id
+    const currentUserId = requireAuth(req).userId
 
     // Users can only view their own profile or partner's profile
     const currentUser = await prisma.user.findUnique({
@@ -149,7 +150,7 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
  */
 router.post('/couple', async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
     const data: CoupleProfileInput = req.body
 
     // Get user's couple
@@ -208,7 +209,7 @@ router.post('/couple', async (req: Request, res: Response) => {
  */
 router.get('/couple', async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -248,8 +249,8 @@ router.get('/couple', async (req: Request, res: Response) => {
  * where the user exists but no profile row has been created yet.
  */
 router.put('/me', async (req: Request, res: Response) => {
-  const userId = req.user.id
-  const coupleId = req.user.coupleId
+  const userId = requireAuth(req).userId
+  const coupleId = requireAuth(req).coupleId
 
   const parsed = profileUpdateSchema.safeParse(req.body)
   if (!parsed.success) {
@@ -343,7 +344,7 @@ const moodHistoryQuerySchema = z.object({
 })
 
 router.get('/mood-history', async (req: Request, res: Response) => {
-  const userId = req.user.id
+  const userId = requireAuth(req).userId
 
   const parsed = moodHistoryQuerySchema.safeParse(req.query)
   if (!parsed.success) {

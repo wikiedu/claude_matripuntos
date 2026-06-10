@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import { requireAuth } from '../lib/requireAuth.js'
 import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 import { createNotification } from '../services/notificationService.js'
@@ -49,7 +50,7 @@ router.use(authenticateToken)
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -61,7 +62,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     const categories = await prisma.category.findMany({
       where: {
-        coupleId: user.coupleId,
+        coupleId: requireAuth(req).coupleId,
         isActive: true,
       },
       include: {
@@ -90,7 +91,7 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.get('/default', async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -102,7 +103,7 @@ router.get('/default', async (req: Request, res: Response) => {
 
     const baseCategories = await prisma.category.findMany({
       where: {
-        coupleId: user.coupleId,
+        coupleId: requireAuth(req).coupleId,
         isCustom: false,
         isActive: true,
       },
@@ -323,7 +324,7 @@ router.get('/:categoryId', async (req: Request, res: Response) => {
  */
 router.post('/:categoryId/subcategories', async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id
+    const userId = requireAuth(req).userId
     const { categoryId } = req.params
     // v2.7.1 audit 01 S2-R-3 — zod schema estricto para subcategorías.
     const parsed = subcategorySchema.safeParse(req.body)
