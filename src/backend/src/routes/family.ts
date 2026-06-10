@@ -41,8 +41,8 @@ const MAX_CHILDREN_PER_COUPLE = 12
  */
 router.post('/children', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
-    const coupleId = (req as any).user?.coupleId as string | undefined
+    const userId = req.user.id
+    const coupleId = req.user?.coupleId as string | undefined
     if (!coupleId) {
       return res.status(401).json({ error: 'Authentication required' })
     }
@@ -92,7 +92,7 @@ router.post('/children', async (req: Request, res: Response) => {
  */
 router.get('/children', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -120,7 +120,7 @@ router.get('/children', async (req: Request, res: Response) => {
  */
 router.put('/children/:childId', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
     const { childId } = req.params
 
     const parsedBody = childUpdateSchema.safeParse(req.body)
@@ -175,7 +175,7 @@ router.put('/children/:childId', async (req: Request, res: Response) => {
  */
 router.delete('/children/:childId', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
     const { childId } = req.params
 
     // v2.5.9 audit 01 S1-R-14 — scope por req.coupleId.
@@ -210,7 +210,7 @@ router.delete('/children/:childId', async (req: Request, res: Response) => {
  */
 router.post('/pets', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user?.coupleId as string | undefined
+    const coupleId = req.user?.coupleId as string | undefined
     if (!coupleId) {
       return res.status(401).json({ error: 'Authentication required' })
     }
@@ -246,7 +246,7 @@ router.post('/pets', async (req: Request, res: Response) => {
  */
 router.get('/pets', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -273,7 +273,7 @@ router.get('/pets', async (req: Request, res: Response) => {
  */
 router.put('/pets/:petId', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
     const { petId } = req.params
 
     const parsedBody = petUpdateSchema.safeParse(req.body)
@@ -323,7 +323,7 @@ router.put('/pets/:petId', async (req: Request, res: Response) => {
  */
 router.delete('/pets/:petId', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
     const { petId } = req.params
 
     // v2.5.9 audit 01 S1-R-14 — scope por req.coupleId.

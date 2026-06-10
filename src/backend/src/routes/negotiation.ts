@@ -33,8 +33,8 @@ router.post('/:eventId/propose', authenticateToken, async (req: Request, res: Re
   try {
     const { eventId } = req.params
     const { message } = req.body
-    const userId = (req as any).userId
-    const coupleId = (req as any).coupleId
+    const userId = req.userId
+    const coupleId = req.coupleId
 
     if (!eventId) {
       return res.status(400).json({ error: 'eventId is required' })
@@ -87,8 +87,8 @@ router.post('/:eventId/respond', authenticateToken, async (req: Request, res: Re
   try {
     const { eventId } = req.params
     const { action, pointsProposed, message } = req.body
-    const userId = (req as any).userId
-    const coupleId = (req as any).coupleId
+    const userId = req.userId
+    const coupleId = req.coupleId
 
     if (!eventId) {
       return res.status(400).json({ error: 'eventId is required' })
@@ -162,8 +162,8 @@ router.post('/:eventId/respond', authenticateToken, async (req: Request, res: Re
 router.get('/:eventId/negotiation', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { eventId } = req.params
-    const userId = (req as any).userId
-    const coupleId = (req as any).coupleId
+    const userId = req.userId
+    const coupleId = req.coupleId
 
     if (!eventId) {
       return res.status(400).json({ error: 'eventId is required' })
@@ -236,7 +236,7 @@ router.get('/:eventId/negotiation', authenticateToken, async (req: Request, res:
 router.get('/:eventId/negotiation/history', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { eventId } = req.params
-    const coupleId = (req as any).coupleId
+    const coupleId = req.coupleId
 
     if (!eventId) {
       return res.status(400).json({ error: 'eventId is required' })
@@ -277,7 +277,7 @@ router.get('/:eventId/negotiation/history', authenticateToken, async (req: Reque
  */
 router.get('/user/pending', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId
+    const userId = req.userId
 
     // Get user's couple
     const user = await prisma.user.findUnique({

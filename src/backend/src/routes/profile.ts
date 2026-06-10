@@ -33,7 +33,7 @@ router.use(authenticateToken)
  */
 router.post('/user', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
     const data: UserProfileInput = req.body
 
     // Check if user exists
@@ -105,7 +105,7 @@ router.post('/user', async (req: Request, res: Response) => {
 router.get('/user/:userId', async (req: Request, res: Response) => {
   try {
     const { userId } = req.params
-    const currentUserId = (req as any).user.id
+    const currentUserId = req.user.id
 
     // Users can only view their own profile or partner's profile
     const currentUser = await prisma.user.findUnique({
@@ -149,7 +149,7 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
  */
 router.post('/couple', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
     const data: CoupleProfileInput = req.body
 
     // Get user's couple
@@ -208,7 +208,7 @@ router.post('/couple', async (req: Request, res: Response) => {
  */
 router.get('/couple', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -248,8 +248,8 @@ router.get('/couple', async (req: Request, res: Response) => {
  * where the user exists but no profile row has been created yet.
  */
 router.put('/me', async (req: Request, res: Response) => {
-  const userId = (req as any).user.id
-  const coupleId = (req as any).user.coupleId
+  const userId = req.user.id
+  const coupleId = req.user.coupleId
 
   const parsed = profileUpdateSchema.safeParse(req.body)
   if (!parsed.success) {
@@ -343,7 +343,7 @@ const moodHistoryQuerySchema = z.object({
 })
 
 router.get('/mood-history', async (req: Request, res: Response) => {
-  const userId = (req as any).user.id
+  const userId = req.user.id
 
   const parsed = moodHistoryQuerySchema.safeParse(req.query)
   if (!parsed.success) {
@@ -405,7 +405,7 @@ router.get('/mood-history', async (req: Request, res: Response) => {
 // Quiet hours configurables. Toggles por categoría.
 router.get('/notification-preferences', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.id
+    const userId = req.user?.id
     if (!userId) return res.status(401).json({ error: 'Not authenticated' })
     const prefs = await getPreferencesForUser(userId)
     res.json({ preferences: prefs })
@@ -417,7 +417,7 @@ router.get('/notification-preferences', async (req: Request, res: Response) => {
 
 router.put('/notification-preferences', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.id
+    const userId = req.user?.id
     if (!userId) return res.status(401).json({ error: 'Not authenticated' })
     const body = req.body ?? {}
     // Defensive: validar estructura mínima

@@ -21,7 +21,7 @@ router.use(authenticateToken)
 const deleteCodes = new Map<string, { code: string; expiresAt: number }>()
 
 router.post('/delete-request', criticalBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user.id
+  const userId = req.user.id
   const parsed = accountDeleteRequestSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Datos inválidos' })
 
@@ -62,7 +62,7 @@ router.post('/delete-request', criticalBucket, async (req: Request, res: Respons
 })
 
 router.post('/delete', criticalBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user.id
+  const userId = req.user.id
   const parsed = accountDeleteSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Datos inválidos' })
 
@@ -87,7 +87,7 @@ router.post('/delete', criticalBucket, async (req: Request, res: Response) => {
 // Devuelve un bundle JSON con todos los datos del usuario en formato
 // estructurado y legible por máquina. Headers indican download.
 router.get('/export', readBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user.id
+  const userId = req.user.id
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {

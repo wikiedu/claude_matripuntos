@@ -21,7 +21,7 @@ const WEIGHTS = {
 }
 
 router.get('/completion', readBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user.id
+  const userId = req.user.id
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { profile: true },

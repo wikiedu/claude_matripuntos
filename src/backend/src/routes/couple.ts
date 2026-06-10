@@ -13,8 +13,8 @@ const router = Router()
 router.use(authenticateToken)
 
 router.post('/leave', criticalBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user.id
-  const coupleId = (req as any).user.coupleId
+  const userId = req.user.id
+  const coupleId = req.user.coupleId
 
   const parsed = coupleLeaveSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Datos inválidos' })
@@ -38,7 +38,7 @@ router.post('/leave', criticalBucket, async (req: Request, res: Response) => {
 // streaks no se incrementan, digest no se manda, dashboard muestra banner.
 // El saldo se congela tal cual.
 router.post('/pause', async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId
+  const coupleId = req.user?.coupleId
   if (!coupleId) return res.status(401).json({ error: 'Authentication required' })
   const days = Number(req.body?.days)
   if (!Number.isFinite(days) || days < 1 || days > 90) {
@@ -54,7 +54,7 @@ router.post('/pause', async (req: Request, res: Response) => {
 })
 
 router.post('/resume', async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId
+  const coupleId = req.user?.coupleId
   if (!coupleId) return res.status(401).json({ error: 'Authentication required' })
   await prisma.couple.update({
     where: { id: coupleId },
@@ -64,7 +64,7 @@ router.post('/resume', async (req: Request, res: Response) => {
 })
 
 router.get('/pause-status', async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId
+  const coupleId = req.user?.coupleId
   if (!coupleId) return res.status(401).json({ error: 'Authentication required' })
   const couple = await prisma.couple.findUnique({
     where: { id: coupleId },

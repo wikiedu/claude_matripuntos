@@ -43,7 +43,7 @@ const deprecationMiddleware = (_req: Request, res: Response, next: Function) => 
  */
 router.post('/invite-partner', deprecationMiddleware, authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
     const { inviteeEmail } = req.body
 
     // v2.7.1 audit 01 S2-R-12 — antes solo verificábamos string truthy.
@@ -178,7 +178,7 @@ router.get('/invitation/:token', deprecationMiddleware, async (req: Request, res
  */
 router.post('/accept-invitation', deprecationMiddleware, authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
     const { token } = req.body
 
     if (!token) {
@@ -393,7 +393,7 @@ router.post('/register-with-invitation', deprecationMiddleware, async (req: Requ
  */
 router.post('/link-partner', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
     const { partnerEmail } = req.body
 
     if (!partnerEmail || typeof partnerEmail !== 'string') {
@@ -474,7 +474,7 @@ router.post('/link-partner', authenticateToken, async (req: Request, res: Respon
  */
 router.get('/pending-link-requests', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
     const requests = await prisma.invitation.findMany({
       where: {
         toUserId: userId,
@@ -499,7 +499,7 @@ router.get('/pending-link-requests', authenticateToken, async (req: Request, res
  */
 router.post('/accept-link-partner', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
     const { invitationId } = req.body
 
     if (!invitationId) return res.status(400).json({ error: 'invitationId is required' })
@@ -548,7 +548,7 @@ router.post('/accept-link-partner', authenticateToken, async (req: Request, res:
  */
 router.post('/reject-link-partner', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
     const { invitationId } = req.body
 
     await prisma.invitation.updateMany({

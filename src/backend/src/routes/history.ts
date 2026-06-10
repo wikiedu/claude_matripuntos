@@ -11,7 +11,7 @@ const router = Router()
 router.use(authenticateToken)
 
 router.get('/past-couples', readBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user.id
+  const userId = req.user.id
 
   // Past-couples = couples con dissolvedAt donde el user (o su ghost) tuvo
   // PointsTransactions. Cubre el caso histórico desde la perspectiva del user.

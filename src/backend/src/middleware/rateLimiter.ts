@@ -12,7 +12,7 @@
 import rateLimit from 'express-rate-limit'
 import type { Request, Response, NextFunction } from 'express'
 
-const keyByUserOrIp = (req: Request) => (req as any).user?.id ?? req.ip
+const keyByUserOrIp = (req: Request) => req.user?.id ?? req.ip
 
 // Fase 1 (harness E2E): el rate-limiting es infra, no lógica de negocio. En
 // tests lo saltamos para (a) no acumular el bucket de auth (10/min IP) entre
@@ -30,7 +30,7 @@ const handlerFor = (bucket: string) =>
   (req: Request, res: Response, _next: NextFunction, opts: any) => {
     // Telemetría server-side (cargada lazy para evitar ciclos).
     import('../services/telemetry.js')
-      .then(m => m.telemetryBackend?.track?.((req as any).user?.id ?? 'anon', 'ratelimit.hit', { endpoint: req.path, bucket }))
+      .then(m => m.telemetryBackend?.track?.(req.user?.id ?? 'anon', 'ratelimit.hit', { endpoint: req.path, bucket }))
       .catch(() => {})
     res.status(opts.statusCode ?? 429).json(messageFor(bucket))
   }

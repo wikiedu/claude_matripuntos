@@ -21,7 +21,7 @@ router.use((_req, res, next) => {
 
 // GET /api/calendar/google/status — devuelve si el user está conectado.
 router.get('/status', readBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string | undefined
+  const userId = req.user?.id as string | undefined
   if (!userId) return res.status(400).json({ error: 'No user' })
   const sync = await prisma.googleCalendarSync.findUnique({ where: { userId } })
   res.json({
@@ -61,7 +61,7 @@ router.post('/sync', writeBucket, async (_req: Request, res: Response) => {
 
 // DELETE /api/calendar/google/disconnect — borra sync row.
 router.delete('/disconnect', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string | undefined
+  const userId = req.user?.id as string | undefined
   if (!userId) return res.status(400).json({ error: 'No user' })
   await prisma.googleCalendarSync.deleteMany({ where: { userId } })
   // Opcional: borrar entries externas. Por ahora dejamos las que ya están.

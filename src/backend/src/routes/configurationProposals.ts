@@ -27,29 +27,29 @@ const proposeSchema = z.object({
 })
 
 router.get('/', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const active = await configurationProposalService.listActive(coupleId)
   res.json({ proposals: active })
 })
 
 router.get('/history', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const history = await configurationProposalService.listHistory(coupleId)
   res.json({ proposals: history })
 })
 
 router.get('/changelog', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const log = await configurationProposalService.listChangeLog(coupleId)
   res.json({ entries: log })
 })
 
 router.post('/', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const userId = req.user?.id as string
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const parsed = proposeSchema.safeParse(req.body)
@@ -69,8 +69,8 @@ router.post('/', writeBucket, async (req: Request, res: Response) => {
 })
 
 router.post('/:id/accept', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const userId = req.user?.id as string
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   try {
     const result = await configurationProposalService.accept(coupleId, req.params.id, userId)
@@ -85,8 +85,8 @@ router.post('/:id/accept', writeBucket, async (req: Request, res: Response) => {
 })
 
 router.post('/:id/reject', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const userId = req.user?.id as string
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   try {
     const result = await configurationProposalService.reject(coupleId, req.params.id, userId)
@@ -100,8 +100,8 @@ router.post('/:id/reject', writeBucket, async (req: Request, res: Response) => {
 })
 
 router.post('/:id/cancel', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const userId = req.user?.id as string
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   try {
     const result = await configurationProposalService.cancel(coupleId, req.params.id, userId)

@@ -35,7 +35,7 @@ const templateSchema = z.object({
 const updateSchema = templateSchema.partial()
 
 router.get('/', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const grouped = (req.query.grouped ?? 'false') === 'true'
   if (grouped) {
@@ -47,8 +47,8 @@ router.get('/', readBucket, async (req: Request, res: Response) => {
 })
 
 router.post('/', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const userId = req.user?.id as string
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const parsed = templateSchema.safeParse(req.body)
@@ -76,8 +76,8 @@ router.post('/', writeBucket, async (req: Request, res: Response) => {
 })
 
 router.put('/:id', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const userId = req.user?.id as string
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const parsed = updateSchema.safeParse(req.body)
@@ -116,7 +116,7 @@ router.put('/:id', writeBucket, async (req: Request, res: Response) => {
 })
 
 router.delete('/:id', writeBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   try {
     await activityTemplateService.deactivate(coupleId, req.params.id)

@@ -49,7 +49,7 @@ router.use(authenticateToken)
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -90,7 +90,7 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.get('/default', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -132,7 +132,7 @@ router.get('/default', async (req: Request, res: Response) => {
  */
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user?.coupleId as string | undefined
+    const coupleId = req.user?.coupleId as string | undefined
     if (!coupleId) {
       return res.status(401).json({ error: 'Authentication required' })
     }
@@ -186,7 +186,7 @@ router.post('/', async (req: Request, res: Response) => {
  */
 router.put('/:categoryId', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user?.coupleId as string | undefined
+    const coupleId = req.user?.coupleId as string | undefined
     const { categoryId } = req.params
     const { name, emoji, type, basePoints, description } = req.body
 
@@ -243,7 +243,7 @@ router.put('/:categoryId', async (req: Request, res: Response) => {
  */
 router.delete('/:categoryId', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user?.coupleId as string | undefined
+    const coupleId = req.user?.coupleId as string | undefined
     const { categoryId } = req.params
 
     // v2.5.9 audit 01 S1-R-14 — scope por coupleId del JWT.
@@ -284,7 +284,7 @@ router.delete('/:categoryId', async (req: Request, res: Response) => {
  */
 router.get('/:categoryId', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user?.coupleId as string | undefined
+    const coupleId = req.user?.coupleId as string | undefined
     const { categoryId } = req.params
 
     // v2.5.9 audit 01 S1-R-14 — scope por coupleId del JWT.
@@ -323,7 +323,7 @@ router.get('/:categoryId', async (req: Request, res: Response) => {
  */
 router.post('/:categoryId/subcategories', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
     const { categoryId } = req.params
     // v2.7.1 audit 01 S2-R-3 — zod schema estricto para subcategorías.
     const parsed = subcategorySchema.safeParse(req.body)
@@ -333,7 +333,7 @@ router.post('/:categoryId/subcategories', async (req: Request, res: Response) =>
     const { name, basePointsModifier } = parsed.data
 
     // v2.5.9 audit 01 S1-R-14 — scope por coupleId del JWT.
-    const coupleId = (req as any).user?.coupleId as string | undefined
+    const coupleId = req.user?.coupleId as string | undefined
     if (!coupleId) {
       return res.status(401).json({ error: 'Authentication required' })
     }

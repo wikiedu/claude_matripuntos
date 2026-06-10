@@ -26,7 +26,7 @@ const previewSchema = z.object({
 
 router.post('/preview', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
     const data = previewSchema.parse(req.body)
     const user = await prisma.user.findUnique({ where: { id: userId } })
     if (!user?.coupleId) {
@@ -60,7 +60,7 @@ router.post('/preview', async (req: Request, res: Response) => {
  */
 router.post('/calculate', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
     const { eventId } = req.body
 
     if (!eventId) {
@@ -116,8 +116,8 @@ router.post('/calculate', async (req: Request, res: Response) => {
  */
 router.post('/recalculate/:eventId', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
-    const coupleId = (req as any).user?.coupleId as string | undefined
+    const userId = req.user.id
+    const coupleId = req.user?.coupleId as string | undefined
     const { eventId } = req.params
 
     if (!coupleId) {
@@ -182,7 +182,7 @@ router.post('/recalculate/:eventId', async (req: Request, res: Response) => {
  */
 router.get('/category/:categoryId', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = req.user.id
     const { categoryId } = req.params
 
     // Get category
