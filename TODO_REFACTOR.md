@@ -19,17 +19,18 @@ perder el contexto. Cada entrada: qué, por qué bloquea, decisión, riesgo.
 - ✅ #7 cleanup timers (PointsBurst + MonthGrid) — commit `6b43ec0`
 - ✅ #7-code-smell push N+1 paralelizado — commit `f583fa5`
 - ✅ #2-code-smell auto-verify cron batch (updateMany+createMany) — commit `b7c5696`
+- ✅ **#6 Logger central `pino`** — `src/lib/logger.ts` (sync stdout, JSON, silent
+  en test) + 131 `console.*` sustituidos por callsite (objeto-primero, errores
+  como `{ err }`). Override `LOG_LEVEL`. Commit `959f15a`
 
 **Pendiente (orden sugerido para retomar):**
 1. **#4 Corregir CLAUDE.md obsoleto** — ⚠️ BLOQUEADO: editar CLAUDE.md lo veta el
    auto-mode classifier (self-modification). **Necesita OK explícito de Edu.**
    Cambios pendientes: §10 convención Prisma (singleton, no `new PrismaClient()`
    por archivo); revisar nota "V1 vs V2 no eliminar" vs decisión de retirar V2.
-2. **#6 Logger central `pino`** + sustituir 131 `console.*`. Medio. Hacerlo por
-   callsite (no sed ciego: pino.error(obj,msg) ≠ console.error(msg,err)).
-3. **strict:true backend** (decisión tomada). Grande, rompe compilación temporal,
+2. **strict:true backend** (decisión tomada). Grande, rompe compilación temporal,
    ~196 `any`. Augmentar `Express.Request` (tipar req.userId/coupleId) primero.
-4. **#9 Activar refresh tokens + JWT corto** — 🟡 STEP A HECHO (commit `5e9cb89`),
+3. **#9 Activar refresh tokens + JWT corto** — 🟡 STEP A HECHO (commit `5e9cb89`),
    STEP B pendiente.
    - ✅ Step A: `signAccessToken` (punto único, expiry `JWT_ACCESS_EXPIRY` por env,
      default 7d) + refresh-pair en TODOS los sitios de sesión (login, signup,
@@ -41,15 +42,15 @@ perder el contexto. Cada entrada: qué, por qué bloquea, decisión, riesgo.
      archivo); (b) setear `JWT_ACCESS_EXPIRY=15m` en Render; (c) idealmente subir
      bcrypt rounds 10→12 de paso (audit §5). Verificar manualmente en prod que el
      refresh-on-401 funciona end-to-end antes de bajar más el TTL.
-5. **#8 Descomponer `Tasks.tsx`** (god-component ~775 ln) + memoizar handlers.
+4. **#8 Descomponer `Tasks.tsx`** (god-component ~775 ln) + memoizar handlers.
    Grande, riesgo medio. El harness E2E NO cubre UI; verificar manual o con
    Playwright (Fase 1.x).
-6. **Retirar rutas V2 negociación** (`negotiation.ts`). Grande: requiere reescribir
+5. **Retirar rutas V2 negociación** (`negotiation.ts`). Grande: requiere reescribir
    `EventNegotiationCard` contra API canónica + reescribir el E2E del flujo #3
    (hoy testea las rutas V2). Ver bloque de abajo.
-7. **#10 Imágenes de prueba a object storage** (sacar base64 de Postgres). Grande,
+6. **#10 Imágenes de prueba a object storage** (sacar base64 de Postgres). Grande,
    necesita infra (Supabase Storage/S3).
-8. **(Baja) N+1 recurrente semanal** `recurringTaskService.generateInstancesForCouple`
+7. **(Baja) N+1 recurrente semanal** `recurringTaskService.generateInstancesForCouple`
    (loop por task). Cron semanal, bajo impacto; batch limpio entre tareas es
    no-trivial. Diferido conscientemente.
 
