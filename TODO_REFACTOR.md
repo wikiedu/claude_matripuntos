@@ -30,33 +30,31 @@ perder el contexto. Cada entrada: qué, por qué bloquea, decisión, riesgo.
     de auth (33×), `requireAuth(req).coupleId` en wheres con `user.coupleId`
     nullable, guards de null (invitations.fromUser/coupleId), arrays `never[]`
     tipados, fallback en rate-limit key. type-check 0 · E2E · unit verdes.
+- ✅ **#4 CLAUDE.md** (commit `5f7f9ed`) — §10 Prisma ya estaba a singleton;
+  matizada la nota V1/V2 (retirar V2 deprecada solo tras migrar consumidor + E2E;
+  documentado el caso `negotiation.ts`). `pointsCalculator` front inexistente:
+  ya no se afirma en el doc, sin cambio.
+- ✅ **#9 Step B — parte de código** (commit `f3c9688`): refresh-pair en los 2
+  endpoints de `invitations.ts` que emiten sesión (`/register-with-invitation`,
+  `/accept-link-partner`) vía `maybeIssueRefreshPair` (opt-in X-Want-Refresh) +
+  bcrypt 10→12 centralizado (`BCRYPT_ROUNDS` en authService, usado también en
+  reset-password). Resuelta la NOTA #9. type-check 0 · E2E 4/4 suites, 11 tests.
 
 **Pendiente (orden sugerido para retomar):**
-1. **#4 Corregir CLAUDE.md obsoleto** — ⚠️ BLOQUEADO: editar CLAUDE.md lo veta el
-   auto-mode classifier (self-modification). **Necesita OK explícito de Edu.**
-   Cambios pendientes: §10 convención Prisma (singleton, no `new PrismaClient()`
-   por archivo); revisar nota "V1 vs V2 no eliminar" vs decisión de retirar V2.
-2. **#9 Activar refresh tokens + JWT corto** — 🟡 STEP A HECHO (commit `5e9cb89`),
-   STEP B pendiente.
-   - ✅ Step A: `signAccessToken` (punto único, expiry `JWT_ACCESS_EXPIRY` por env,
-     default 7d) + refresh-pair en TODOS los sitios de sesión (login, signup,
-     accept-invite, register-with-code, refresh). Frontend manda X-Want-Refresh en
-     todos. E2E del flujo refresh + reuse detection (4 tests). Interceptor del
-     frontend (`tryRefresh` en 401, rehidrata de localStorage) ya estaba completo.
-   - ⏳ Step B (activación real, bajo riesgo): (a) retirar `invitations.ts` o
-     añadirle refresh-pair (hoy emite sesión sin refresh — ver NOTA #9 en el
-     archivo); (b) setear `JWT_ACCESS_EXPIRY=15m` en Render; (c) idealmente subir
-     bcrypt rounds 10→12 de paso (audit §5). Verificar manualmente en prod que el
-     refresh-on-401 funciona end-to-end antes de bajar más el TTL.
-3. **#8 Descomponer `Tasks.tsx`** (god-component ~775 ln) + memoizar handlers.
+1. **#9 Step B — activación final (env, NO código)** — ⏳ acción de Edu en Render:
+   setear `JWT_ACCESS_EXPIRY=15m` y verificar manualmente en prod que el
+   refresh-on-401 funciona end-to-end (login con cliente real → esperar expiry →
+   confirmar que el interceptor renueva con el refresh token) **antes** de dejarlo
+   permanente. El código ya soporta JWT corto sin dejar sesiones sin renovar.
+2. **#8 Descomponer `Tasks.tsx`** (god-component ~775 ln) + memoizar handlers.
    Grande, riesgo medio. El harness E2E NO cubre UI; verificar manual o con
    Playwright (Fase 1.x).
-4. **Retirar rutas V2 negociación** (`negotiation.ts`). Grande: requiere reescribir
+3. **Retirar rutas V2 negociación** (`negotiation.ts`). Grande: requiere reescribir
    `EventNegotiationCard` contra API canónica + reescribir el E2E del flujo #3
    (hoy testea las rutas V2). Ver bloque de abajo.
-5. **#10 Imágenes de prueba a object storage** (sacar base64 de Postgres). Grande,
+4. **#10 Imágenes de prueba a object storage** (sacar base64 de Postgres). Grande,
    necesita infra (Supabase Storage/S3).
-6. **(Baja) N+1 recurrente semanal** `recurringTaskService.generateInstancesForCouple`
+5. **(Baja) N+1 recurrente semanal** `recurringTaskService.generateInstancesForCouple`
    (loop por task). Cron semanal, bajo impacto; batch limpio entre tareas es
    no-trivial. Diferido conscientemente.
 
