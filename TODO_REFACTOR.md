@@ -62,6 +62,13 @@ perder el contexto. Cada entrada: qué, por qué bloquea, decisión, riesgo.
   (frontend no cubierto por E2E; verificado vía tsc — `vite build` falla en
   esta máquina por entorno: falta `@rollup/rollup-darwin-arm64`, bug npm
   optional-deps pre-existente, no relacionado).
+- ✅ **T8 N+1 recurrente semanal** — `recurringTaskService.generateInstancesForCouple`
+  batcheado: el cálculo de instancias se extrae al helper puro
+  `computeInstancesToCreate` (compartido con `generateOnCreate`, cuyo
+  comportamiento por-task no cambia). Por pareja pasa de ~3 queries/task a:
+  2 lecturas (tasks + logs auto-generados de todas en un `taskId IN`) +
+  1 transacción con un `createMany` global y `updateMany` de `occurrenceCount`
+  agrupado por incremento. type-check 0 · E2E 4/4 suites, 11 tests.
 
 **Pendiente (orden sugerido para retomar):**
 1. **#9 Step B — activación final (env, NO código)** — ⏳ acción de Edu en Render:
@@ -77,9 +84,6 @@ perder el contexto. Cada entrada: qué, por qué bloquea, decisión, riesgo.
    (hoy testea las rutas V2). Ver bloque de abajo.
 4. **#10 Imágenes de prueba a object storage** (sacar base64 de Postgres). Grande,
    necesita infra (Supabase Storage/S3).
-5. **(Baja) N+1 recurrente semanal** `recurringTaskService.generateInstancesForCouple`
-   (loop por task). Cron semanal, bajo impacto; batch limpio entre tareas es
-   no-trivial. Diferido conscientemente.
 
 **Decisiones arquitectónicas tomadas (de `ESTADO_PRE_REFACTOR.md`):** mantener
 Vite SPA (futuro Capacitor) · mantener polling (Supabase Realtime selectivo

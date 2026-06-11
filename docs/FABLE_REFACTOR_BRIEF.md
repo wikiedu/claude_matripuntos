@@ -103,7 +103,7 @@ npm run test:e2e             # Postgres embebido, sin Docker. DEBE: 4 suites / 1
 | **T5** | Imágenes prueba → object storage | `proof/TaskProofUploader.tsx:54,72`, `schema.prisma` (`proofImageUrl`), `routes/taskProof.ts` | sacar base64 de Postgres → Supabase Storage/S3, guardar solo URL. **Confirmar antes si la feature se usa de verdad** (si no, desactivar flag y cerrar) | 4 | 3 |
 | ~~**T6**~~ | ~~God-service `apiClient.ts`~~ ✅ HECHO — core en `services/api/http.ts` + 12 módulos de dominio, fachada intacta | `src/frontend/src/services/apiClient.ts` | dividir por dominio (auth/tasks/events/...) manteniendo el interceptor JWT/refresh único | 3 | 2 |
 | ~~**T7**~~ | ~~Helper JSON-en-SQLite~~ ✅ HECHO — `lib/jsonField.ts`, 36 callsites sustituidos | backend global | `parseJsonField`/`stringifyJsonField` en un util, sustituir callsites | 2 | 1 |
-| **T8** | N+1 recurrente semanal (baja) | `services/recurringTaskService.ts:140` | `createMany` por couple en vez de loop por task | 2 | 2 |
+| ~~**T8**~~ | ~~N+1 recurrente semanal~~ ✅ HECHO — helper puro `computeInstancesToCreate` + batch por couple (2 lecturas + 1 transacción) | `services/recurringTaskService.ts:140` | `createMany` por couple en vez de loop por task | 2 | 2 |
 
 **Notas por tarea:**
 - **T1** es env, no código (el código ya lo soporta tras commit `f3c9688`). Es lo
