@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma.js'
+import { parseJsonField } from '../lib/jsonField.js'
 import { createCoupleNotification } from './notificationService.js'
 
 interface AchievementCondition {
@@ -107,12 +108,8 @@ export async function checkAllAchievements(coupleId: string): Promise<string[]> 
     const ca = existingMap.get(def.id)
     if (ca?.unlockedAt) continue // already unlocked
 
-    let condition: AchievementCondition
-    try {
-      condition = JSON.parse(def.condition)
-    } catch {
-      continue
-    }
+    const condition = parseJsonField<AchievementCondition | null>(def.condition, null)
+    if (!condition) continue
 
     const { met, current, target } = await evaluateCondition(condition, coupleId)
     const progressJson = JSON.stringify({ current, target })
@@ -189,7 +186,7 @@ export async function getAchievementsMap(coupleId: string) {
     }
 
     const isSecret = def.category === 'secretos'
-    const progress = ca?.progress ? JSON.parse(ca.progress) : null
+    const progress = parseJsonField<{ current: number; target: number } | null>(ca?.progress, null)
 
     return {
       id: def.id,

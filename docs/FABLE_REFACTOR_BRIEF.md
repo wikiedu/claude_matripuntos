@@ -102,7 +102,7 @@ npm run test:e2e             # Postgres embebido, sin Docker. DEBE: 4 suites / 1
 | **T4** | PWA Fase 1 (manifest + SW + reactivar push) | `public/`, `index.html`, `vite.config`, `hooks/useWebPush.ts` (flag `WEB_PUSH_ENABLED=false`) | `vite-plugin-pwa`/Workbox: crear `manifest.webmanifest` + SW real con handler push, metas `apple-mobile-web-app-*` + `theme-color`, flag a `true` | 3 | 2 |
 | **T5** | Imágenes prueba → object storage | `proof/TaskProofUploader.tsx:54,72`, `schema.prisma` (`proofImageUrl`), `routes/taskProof.ts` | sacar base64 de Postgres → Supabase Storage/S3, guardar solo URL. **Confirmar antes si la feature se usa de verdad** (si no, desactivar flag y cerrar) | 4 | 3 |
 | **T6** | God-service `apiClient.ts` (938 ln) | `src/frontend/src/services/apiClient.ts` | dividir por dominio (auth/tasks/events/...) manteniendo el interceptor JWT/refresh único | 3 | 2 |
-| **T7** | Helper JSON-en-SQLite (51 `JSON.parse` dispersos) | backend global | `parseJsonField`/`stringifyJsonField` en un util, sustituir callsites | 2 | 1 |
+| ~~**T7**~~ | ~~Helper JSON-en-SQLite~~ ✅ HECHO — `lib/jsonField.ts`, 36 callsites sustituidos | backend global | `parseJsonField`/`stringifyJsonField` en un util, sustituir callsites | 2 | 1 |
 | **T8** | N+1 recurrente semanal (baja) | `services/recurringTaskService.ts:140` | `createMany` por couple en vez de loop por task | 2 | 2 |
 
 **Notas por tarea:**

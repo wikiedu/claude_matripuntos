@@ -6,6 +6,7 @@ import { Router, Request, Response } from 'express'
 import { authenticateToken } from '../middleware/auth.js'
 import { readBucket, writeBucket } from '../middleware/rateLimiter.js'
 import prisma from '../lib/prisma.js'
+import { parseJsonField } from '../lib/jsonField.js'
 
 const router = Router()
 router.use(authenticateToken)
@@ -29,7 +30,7 @@ router.get('/status', readBucket, async (req: Request, res: Response) => {
     syncEnabled: sync?.syncEnabled ?? false,
     lastSyncedAt: sync?.lastSyncedAt ?? null,
     syncWindow: sync?.syncWindow ?? 90,
-    filters: sync?.filters ? JSON.parse(sync.filters) : [],
+    filters: parseJsonField<string[]>(sync?.filters, []),
   })
 })
 

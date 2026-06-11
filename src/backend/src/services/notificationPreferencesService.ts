@@ -7,6 +7,7 @@
 //  - Categorías: request, negotiation, calendar, achievements, streak, ruleProposal
 
 import prisma from '../lib/prisma.js'
+import { parseJsonField } from '../lib/jsonField.js'
 
 export type CategoryKey =
   | 'request' | 'negotiation' | 'calendar'
@@ -36,17 +37,13 @@ export const DEFAULT_PREFERENCES: NotificationPreferences = {
 }
 
 export function parsePreferences(raw: string | null | undefined): NotificationPreferences {
-  if (!raw) return DEFAULT_PREFERENCES
-  try {
-    const parsed = JSON.parse(raw)
-    return {
-      ...DEFAULT_PREFERENCES,
-      ...parsed,
-      quietHours: { ...DEFAULT_PREFERENCES.quietHours, ...(parsed.quietHours ?? {}) },
-      categories: { ...DEFAULT_PREFERENCES.categories, ...(parsed.categories ?? {}) },
-    }
-  } catch {
-    return DEFAULT_PREFERENCES
+  const parsed = parseJsonField<Partial<NotificationPreferences> | null>(raw, null)
+  if (!parsed) return DEFAULT_PREFERENCES
+  return {
+    ...DEFAULT_PREFERENCES,
+    ...parsed,
+    quietHours: { ...DEFAULT_PREFERENCES.quietHours, ...(parsed.quietHours ?? {}) },
+    categories: { ...DEFAULT_PREFERENCES.categories, ...(parsed.categories ?? {}) },
   }
 }
 

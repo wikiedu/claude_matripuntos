@@ -7,6 +7,7 @@ import { requireAuth } from '../lib/requireAuth.js'
 import { authenticateToken } from '../middleware/auth.js'
 import { readBucket } from '../middleware/rateLimiter.js'
 import prisma from '../lib/prisma.js'
+import { parseJsonField } from '../lib/jsonField.js'
 
 const router = Router()
 router.use(authenticateToken)
@@ -30,8 +31,8 @@ router.get('/completion', readBucket, async (req: Request, res: Response) => {
   if (!user) return res.status(404).json({ error: 'No encontrado' })
 
   const profile = user.profile
-  const lovesArr  = profile?.taskPreferencesLoves    ? JSON.parse(profile.taskPreferencesLoves)    : []
-  const dislikesArr = profile?.taskPreferencesDislikes ? JSON.parse(profile.taskPreferencesDislikes) : []
+  const lovesArr  = parseJsonField<string[]>(profile?.taskPreferencesLoves, [])
+  const dislikesArr = parseJsonField<string[]>(profile?.taskPreferencesDislikes, [])
 
   let percent = 0
   const missing: string[] = []

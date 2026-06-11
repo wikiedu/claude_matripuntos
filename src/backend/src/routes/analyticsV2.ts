@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 import { readBucket } from '../middleware/rateLimiter.js'
 import prisma from '../lib/prisma.js'
+import { parseJsonField } from '../lib/jsonField.js'
 import {
   countEvents, eventsByDay, eventsByWeek, eventsByMonth, eventsByCategory,
   heatmap24x7, balanceByUser, netBalance, equityCurve, equityBand,
@@ -224,7 +225,7 @@ router.get('/insights', readBucket, async (req: Request, res: Response) => {
       kind: c.kind,
       title: c.title,
       body: c.body,
-      payload: JSON.parse(c.payload),
+      payload: parseJsonField(c.payload, null),
       trend: c.trend,
       generatedAt: c.generatedAt.toISOString(),
       validUntil: c.validUntil.toISOString(),

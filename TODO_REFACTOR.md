@@ -39,6 +39,16 @@ perder el contexto. Cada entrada: qué, por qué bloquea, decisión, riesgo.
   `/accept-link-partner`) vía `maybeIssueRefreshPair` (opt-in X-Want-Refresh) +
   bcrypt 10→12 centralizado (`BCRYPT_ROUNDS` en authService, usado también en
   reset-password). Resuelta la NOTA #9. type-check 0 · E2E 4/4 suites, 11 tests.
+- ✅ **T7 helper JSON-en-SQLite** — `src/lib/jsonField.ts` con `parseJsonField`
+  (parse seguro: fallback tipado + warn en JSON corrupto, nunca throw→500) y
+  `stringifyJsonField`. Sustituidos los 36 `JSON.parse` runtime de campos
+  JSON-string en 13 archivos (routes: invitations, ruleProposals, authRoutes,
+  profile, profileCompletion, googleCalendarOauth, journal, gamificationV2,
+  configurationRoutes, analyticsV2; services: achievementCheckService,
+  configurationProposalService, notificationPreferencesService). Los 62
+  `JSON.stringify` de escritura se dejan tal cual a propósito (no pueden
+  throw con datos planos; sustituirlos era churn sin beneficio). type-check 0
+  · E2E 4/4 suites, 11 tests.
 
 **Pendiente (orden sugerido para retomar):**
 1. **#9 Step B — activación final (env, NO código)** — ⏳ acción de Edu en Render:

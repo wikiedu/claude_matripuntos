@@ -8,6 +8,7 @@ import { MOOD_KEYS } from '../data/moodKeys.js'
 const router = Router()
 import prisma from '../lib/prisma.js'
 import { logger } from '../lib/logger.js'
+import { parseJsonField } from '../lib/jsonField.js'
 import { getPreferencesForUser, setPreferencesForUser } from '../services/notificationPreferencesService.js'
 
 // v1.6 — Schema canónico para PUT /me. El test hermético en
@@ -132,9 +133,9 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
     // Parse JSON fields
     const parsedProfile = {
       ...profile,
-      taskPreferencesLoves: JSON.parse(profile.taskPreferencesLoves),
-      taskPreferencesDislikes: JSON.parse(profile.taskPreferencesDislikes),
-      workSchedule: profile.workSchedule ? JSON.parse(profile.workSchedule) : null,
+      taskPreferencesLoves: parseJsonField<string[]>(profile.taskPreferencesLoves, []),
+      taskPreferencesDislikes: parseJsonField<string[]>(profile.taskPreferencesDislikes, []),
+      workSchedule: parseJsonField(profile.workSchedule, null),
     }
 
     res.json(parsedProfile)
@@ -230,8 +231,8 @@ router.get('/couple', async (req: Request, res: Response) => {
     // Parse JSON fields
     const parsedProfile = {
       ...coupleProfile,
-      cohabitation: coupleProfile.cohabitation ? JSON.parse(coupleProfile.cohabitation) : null,
-      externalServices: coupleProfile.externalServices ? JSON.parse(coupleProfile.externalServices) : null,
+      cohabitation: parseJsonField(coupleProfile.cohabitation, null),
+      externalServices: parseJsonField(coupleProfile.externalServices, null),
     }
 
     res.json(parsedProfile)

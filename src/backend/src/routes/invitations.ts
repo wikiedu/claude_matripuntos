@@ -9,6 +9,7 @@ import prisma from '../lib/prisma.js'
 import { signAccessToken, BCRYPT_ROUNDS } from '../services/authService.js'
 import { maybeIssueRefreshPair } from './authRoutes.js'
 import { logger } from '../lib/logger.js'
+import { parseJsonField } from '../lib/jsonField.js'
 
 // STATUS: deprecación aplazada (Sunset vencido pero en uso por Onboarding.tsx /
 // StepJoinAccount.tsx). Retirada y revisión IDOR pospuestas a Fase 1. Ver
@@ -375,9 +376,9 @@ router.post('/register-with-invitation', deprecationMiddleware, async (req: Requ
             users: couple.users,
             configuration: couple.configurations
               ? {
-                  tasksConfig: JSON.parse(couple.configurations.tasksConfig),
-                  multipliersConfig: JSON.parse(couple.configurations.multipliersConfig),
-                  activityTypes: JSON.parse(couple.configurations.activityTypes),
+                  tasksConfig: parseJsonField(couple.configurations.tasksConfig, {}),
+                  multipliersConfig: parseJsonField(couple.configurations.multipliersConfig, {}),
+                  activityTypes: parseJsonField(couple.configurations.activityTypes, {}),
                 }
               : null,
           }

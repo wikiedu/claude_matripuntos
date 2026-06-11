@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 import { readBucket, writeBucket } from '../middleware/rateLimiter.js'
 import prisma from '../lib/prisma.js'
+import { parseJsonField } from '../lib/jsonField.js'
 import { selectPromptForDay, dayKeyUtc } from '../services/journalPromptsService.js'
 import { JOURNAL_PROMPTS } from '../data/journalPrompts.js'
 
@@ -178,7 +179,7 @@ router.get('/retrospectives', readBucket, async (req: Request, res: Response) =>
     orderBy: { generatedAt: 'desc' },
     take: 12,
   })
-  res.json({ retrospectives: retros.map(r => ({ ...r, data: JSON.parse(r.data) })) })
+  res.json({ retrospectives: retros.map(r => ({ ...r, data: parseJsonField(r.data, null) })) })
 })
 
 router.post('/retrospectives/:id/seen', writeBucket, async (req: Request, res: Response) => {

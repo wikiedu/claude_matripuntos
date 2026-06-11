@@ -7,6 +7,7 @@ import { Router, Request, Response } from 'express'
 import { authenticateToken } from '../middleware/auth.js'
 import { readBucket } from '../middleware/rateLimiter.js'
 import prisma from '../lib/prisma.js'
+import { parseJsonField } from '../lib/jsonField.js'
 import { LEVELS, getLevelInfo } from '../services/gamificationService.js'
 import { computeAvailableReplays } from '../services/replayService.js'
 
@@ -83,7 +84,7 @@ router.get('/challenge', readBucket, async (req: Request, res: Response) => {
       goal: challenge.goal,
       rewardXp: challenge.rewardXp,
       weekStart: challenge.weekStart,
-      config: JSON.parse(challenge.config),
+      config: parseJsonField(challenge.config, {}),
     },
   })
 })

@@ -23,6 +23,7 @@ import {
 import { ZodError } from 'zod'
 
 import prisma from '../lib/prisma.js'
+import { parseJsonField } from '../lib/jsonField.js'
 import { normalizeJoinCode } from '../utils/joinCode.js'
 import { demoLogin, isDemoEnabled } from '../services/demoService.js'
 import {
@@ -262,9 +263,9 @@ router.get('/couple', authMiddleware, async (req: Request, res: Response): Promi
           avatarColor: u.profile?.avatarColor ?? null,
         })),
         configuration: couple.configurations ? {
-          tasksConfig: JSON.parse(couple.configurations.tasksConfig),
-          multipliersConfig: JSON.parse(couple.configurations.multipliersConfig),
-          activityTypes: JSON.parse(couple.configurations.activityTypes),
+          tasksConfig: parseJsonField(couple.configurations.tasksConfig, {}),
+          multipliersConfig: parseJsonField(couple.configurations.multipliersConfig, {}),
+          activityTypes: parseJsonField(couple.configurations.activityTypes, {}),
         } : null,
       },
     })
@@ -325,14 +326,14 @@ router.get('/partner-summary', authMiddleware, async (req: Request, res: Respons
 
     // Resumen de reglas: top 3 categorías por puntos base
     const config = couple.configurations
-    const tasksConfig = config ? JSON.parse(config.tasksConfig) : {}
+    const tasksConfig = parseJsonField<Record<string, unknown>>(config?.tasksConfig, {})
     const topRules = Object.entries(tasksConfig)
       .map(([k, v]) => ({ key: k, value: Number(v) }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 3)
 
     // Multipliers activos: weekend bonus, etc.
-    const multConfig = config ? JSON.parse(config.multipliersConfig) : {}
+    const multConfig = parseJsonField<Record<string, any>>(config?.multipliersConfig, {})
     const activeMultipliers: string[] = []
     if (multConfig.franja?.mañana && multConfig.franja.mañana > 1) activeMultipliers.push('Bono mañana')
     if (multConfig.franja?.noche && multConfig.franja.noche > 1) activeMultipliers.push('Bono noche')
