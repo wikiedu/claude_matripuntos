@@ -6,7 +6,8 @@ import { invalidateAuthCache } from '../middleware/authMiddleware.js'
 import crypto from 'crypto'
 import bcryptjs from 'bcryptjs'
 import prisma from '../lib/prisma.js'
-import { signAccessToken } from '../services/authService.js'
+import { signAccessToken, BCRYPT_ROUNDS } from '../services/authService.js'
+import { maybeIssueRefreshPair } from './authRoutes.js'
 import { logger } from '../lib/logger.js'
 
 // STATUS: deprecación aplazada (Sunset vencido pero en uso por Onboarding.tsx /
@@ -311,7 +312,7 @@ router.post('/register-with-invitation', deprecationMiddleware, async (req: Requ
     }
 
     // Hash password
-    const passwordHash = await bcryptjs.hash(password, 10)
+    const passwordHash = await bcryptjs.hash(password, BCRYPT_ROUNDS)
 
     // Bug 2026-04-22: the invitee landed back on StepPair instead of the
     // dashboard because the frontend fired two extra round-trips after
@@ -347,15 +348,16 @@ router.post('/register-with-invitation', deprecationMiddleware, async (req: Requ
       },
     })
 
-    // NOTA #9: estas rutas (deprecadas, Sunset) no emiten refresh-pair aún.
-    // Antes de bajar JWT_ACCESS_EXPIRY a 15m en prod, retirarlas (Fase 1) o
-    // añadirles maybeIssueRefreshPair — si no, sus sesiones expirarían sin
-    // poder renovar. Mientras el default sea 7d, sin impacto.
+    // #9 Step B: estas rutas deprecadas ahora emiten refresh-pair (opt-in vía
+    // X-Want-Refresh, igual que authRoutes) para que sea seguro bajar
+    // JWT_ACCESS_EXPIRY a 15m en prod sin dejar sesiones sin poder renovar.
     const authToken = signAccessToken(newUser.id, newUser.coupleId)
+    const refreshPair = await maybeIssueRefreshPair(newUser.id, req.headers as any)
 
     res.status(201).json({
       message: 'Registration successful',
       token: authToken,
+      ...(refreshPair && { refreshToken: refreshPair.refreshToken, refreshExpiresAt: refreshPair.refreshExpiresAt }),
       user: {
         id: newUser.id,
         email: newUser.email,
@@ -526,16 +528,22 @@ router.post('/accept-link-partner', authenticateToken, async (req: Request, res:
       data: { isRead: true },
     })
 
-    // Issue a new JWT with the updated coupleId (ver NOTA #9 arriba sobre
-    // refresh-pair en rutas deprecadas).
+    // Issue a new JWT with the updated coupleId. #9 Step B: además emite
+    // refresh-pair (opt-in X-Want-Refresh) para soportar JWT corto en prod.
     const newToken = signAccessToken(userId, invitation.coupleId)
+    const refreshPair = await maybeIssueRefreshPair(userId, req.headers as any)
 
     const couple = await prisma.couple.findUnique({
       where: { id: invitation.coupleId! },
       include: { users: { select: { id: true, name: true, email: true } } },
     })
 
-    return res.json({ message: 'Vinculación aceptada', token: newToken, couple })
+    return res.json({
+      message: 'Vinculación aceptada',
+      token: newToken,
+      ...(refreshPair && { refreshToken: refreshPair.refreshToken, refreshExpiresAt: refreshPair.refreshExpiresAt }),
+      couple,
+    })
   } catch (error) {
     logger.error({ err: error }, 'Error accepting link request')
     return res.status(500).json({ error: 'Failed to accept link request' })

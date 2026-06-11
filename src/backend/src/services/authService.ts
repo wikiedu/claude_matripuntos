@@ -19,6 +19,12 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
 export const JWT_ACCESS_EXPIRY = process.env.JWT_ACCESS_EXPIRY ?? '7d'
 const JWT_EXPIRY = JWT_ACCESS_EXPIRY
 
+// Coste de bcrypt para hashear contraseñas (audit §5: subir 10→12, conservador).
+// Punto único para que todos los sitios que hashean usen el mismo coste.
+// bcrypt.compare lee el coste embebido en el hash, así que los hashes antiguos
+// (coste 10) siguen verificando sin migración; solo los nuevos usan 12.
+export const BCRYPT_ROUNDS = 12
+
 /**
  * Firma un access token de sesión con el expiry canónico (JWT_ACCESS_EXPIRY).
  * Punto único de emisión para que acortar el JWT sea un cambio de env.
@@ -32,7 +38,7 @@ export const signAccessToken = (userId: string, coupleId: string | null): string
 
 // Hash password
 export const hashPassword = async (password: string): Promise<string> => {
-  const salt = await bcryptjs.genSalt(10)
+  const salt = await bcryptjs.genSalt(BCRYPT_ROUNDS)
   return bcryptjs.hash(password, salt)
 }
 

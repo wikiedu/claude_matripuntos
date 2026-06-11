@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
-import { signupCouple, loginUser, getUserById, getCoupleData, signupUser, signAccessToken } from '../services/authService.js'
+import { signupCouple, loginUser, getUserById, getCoupleData, signupUser, signAccessToken, BCRYPT_ROUNDS } from '../services/authService.js'
 import {
   createInvitation,
   acceptEmailInvitation,
@@ -690,7 +690,7 @@ router.post('/reset-password', async (req: Request, res: Response): Promise<void
       return
     }
 
-    const passwordHash = await bcrypt.hash(newPassword, 10)
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
     await prisma.$transaction([
       prisma.user.update({
         where: { id: reset.userId },
