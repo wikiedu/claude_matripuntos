@@ -69,6 +69,25 @@ perder el contexto. Cada entrada: qué, por qué bloquea, decisión, riesgo.
   2 lecturas (tasks + logs auto-generados de todas en un `taskId IN`) +
   1 transacción con un `createMany` global y `updateMany` de `occurrenceCount`
   agrupado por incremento. type-check 0 · E2E 4/4 suites, 11 tests.
+- ✅ **T4 PWA Fase 1 (manifest + SW + push)** — commits `3f991dd` + `cdd389f`:
+  - `vite-plugin-pwa` (injectManifest) con SW propio `src/frontend/src/sw.ts`:
+    precache Workbox (48 entries), navigation fallback SPA (denylist `/api`),
+    handlers `push`/`notificationclick` (payload backend `{title,body,url?,icon?,tag?}`).
+  - `manifest.webmanifest` en build (standalone, theme/bg `#0f0a1e`, icons
+    192/512 + maskable). Iconos nuevos en `public/` (icon.svg + PNGs + apple-touch;
+    el `/vite.svg` que referenciaba index.html no existía → favicon real).
+  - `index.html`: `theme-color` + metas `apple-mobile-web-app-*`.
+  - `main.tsx` registra el SW (`virtual:pwa-register`, autoUpdate).
+  - `useWebPush.ts`: `WEB_PUSH_ENABLED=true`; ya no registra `/push-sw.js`,
+    usa `serviceWorker.ready` (timeout 5s para dev sin SW).
+  - Verificación: front tsc 0 + `vite build` OK · backend type-check 0 ·
+    E2E 4/4 suites, 11 tests. **Pendiente manual:** probar instalación +
+    suscripción push en prod (HTTPS) — el hook hoy no tiene consumidores UI;
+    falta un punto de entrada en Settings/Notifications para invocar
+    `subscribe()` (decisión de producto, fuera del alcance T4).
+  - Nota infra: el bug npm `@rollup/rollup-darwin-arm64` que impedía
+    `vite build` en esta máquina (visto en T6) quedó resuelto tras el
+    `npm install` de esta tarea.
 
 **Pendiente (orden sugerido para retomar):**
 1. **#9 Step B — activación final (env, NO código)** — ⏳ acción de Edu en Render:
@@ -137,18 +156,12 @@ onboarding al flujo de join-code de `authRoutes.ts`.
 
 ---
 
-## Fase 1 PWA — reactivar web push (desactivado en Fase 0)
+## Fase 1 PWA — reactivar web push: ✅ HECHO (2026-06-11, T4)
 
-`src/frontend/src/hooks/useWebPush.ts` quedó **desactivado** (flag
-`WEB_PUSH_ENABLED = false`) porque registraba `/push-sw.js`, que **no existe** en
-`public/` → 404 (push roto en prod). El hook ahora es no-op y reporta
-`'unsupported'`; no tiene consumidores en el frontend hoy.
-
-**Acción Fase 1 (PWA):** crear `public/manifest.webmanifest` + service worker real
-(p.ej. con `vite-plugin-pwa`/Workbox) que incluya el handler de push, añadir
-`theme-color` y metas `apple-mobile-web-app-*` en `index.html`, y poner
-`WEB_PUSH_ENABLED = true`. El backend ya tiene la infra (VAPID, `notificationsPush`,
-`webPushService`).
+Cerrado en T4 (ver entrada en "Hecho"). Queda como seguimiento: (1) QA manual
+en prod (instalación PWA iOS/Android + suscripción push end-to-end por HTTPS) y
+(2) decidir el punto de entrada UI que invoque `useWebPush.subscribe()` —
+el hook sigue sin consumidores (candidato: toggle en Settings/Notifications).
 
 ## Fase 1 · Tarea 1 — Harness E2E: HECHO (2026-06-09)
 
