@@ -520,7 +520,7 @@ Roadmap completo: `docs/ROADMAP.md` · Decisiones: `docs/DECISIONS.md` · Spec o
 - **Tipos numéricos:** Usar `Decimal` de `@prisma/client/runtime/library` para puntos
 - **Errores:** `res.status(4xx).json({ error: 'mensaje legible' })`
 - **JSON en SQLite:** negotiationHistory, tasksConfig, etc. son strings. Parsear con `JSON.parse()`/`JSON.stringify()`
-- **V1 vs V2:** Las rutas V1 (MVP básico) y V2 (extended) coexisten en `server.ts`; no eliminar V1
+- **V1 vs V2:** Las rutas V1 (MVP básico) y V2 (extended) coexisten en `server.ts`. **No eliminar V1.** Matiz del refactor `opus-4-8`: la decisión arquitectónica es **retirar las V2 deprecadas** (Sunset vencido), pero **no antes de migrar su consumidor frontend + tener E2E que lo cubra**. Caso concreto: `routes/negotiation.ts` (V2 negociación) sigue **viva y montada** porque `EventNegotiationCard.tsx` la consume; su IDOR ya está cerrado (commit `f8229d7`), así que hoy es **deuda técnica, no riesgo**. Retirada aplazada a Fase 1 (ver `TODO_REFACTOR.md`). Resumen: V1 se queda; V2 deprecada se retira con red de seguridad, no "de paso"
 - **Frontend state:** Zustand para auth/couple global, React Query para datos del servidor
 - **Commits:** `feat:` · `fix:` · `chore:` · `docs:` convencionales
 - **Branches:** `feature/vX.Y-nombre-kebab` (ej: `feature/v1.1-la-chispa`)
