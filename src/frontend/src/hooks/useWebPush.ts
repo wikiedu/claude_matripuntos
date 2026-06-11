@@ -7,14 +7,12 @@
 import { useEffect, useState } from 'react'
 import { apiClient } from '../services/apiClient'
 
-// Fase 0 2026-06-07 — WEB PUSH DESACTIVADO.
-// El service worker `/push-sw.js` no existe en public/, así que registrarlo daba
-// un 404 (push roto en prod). Decisión: no dejar código vivo intentando registrar
-// un SW inexistente. El hook queda como no-op que reporta 'unsupported' y NUNCA
-// llama a navigator.serviceWorker.register.
-// TODO(Fase 1 PWA): crear manifest + service worker real + push, y poner
-// WEB_PUSH_ENABLED = true. Ver TODO_REFACTOR.md.
-const WEB_PUSH_ENABLED: boolean = false
+// Fase 1 PWA (T4) — WEB PUSH REACTIVADO.
+// El SW real (src/sw.ts, via vite-plugin-pwa) lo registra main.tsx con handlers
+// de push/notificationclick incluidos. Este hook ya NO registra ningún SW:
+// espera al registration existente (navigator.serviceWorker.ready). En dev el
+// SW no se registra (devOptions off) → el race con timeout evita colgarse.
+const WEB_PUSH_ENABLED: boolean = true
 
 type State = 'idle' | 'unsupported' | 'denied' | 'subscribing' | 'subscribed' | 'error'
 
@@ -25,7 +23,7 @@ export function useWebPush() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (!WEB_PUSH_ENABLED) {
-      // Push desactivado en Fase 0 — no registramos el SW inexistente.
+      // Kill-switch (no debería activarse desde Fase 1 PWA).
       setState('unsupported')
       return
     }
@@ -43,7 +41,6 @@ export function useWebPush() {
   async function subscribe(): Promise<boolean> {
     setError(null)
     if (!WEB_PUSH_ENABLED) {
-      // No-op mientras no exista el SW real (Fase 1 PWA).
       setState('unsupported')
       return false
     }
@@ -58,8 +55,14 @@ export function useWebPush() {
         return false
       }
 
-      // 2. Service worker
-      const reg = await navigator.serviceWorker.register('/push-sw.js')
+      // 2. Service worker — ya registrado por main.tsx (vite-plugin-pwa).
+      // ready nunca rechaza; si no hay SW (p.ej. dev), cortamos a los 5s.
+      const reg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('service worker no disponible')), 5000),
+        ),
+      ])
 
       // 3. VAPID key del backend
       const r: any = await apiClient.request('/notifications/push/vapid-key')
