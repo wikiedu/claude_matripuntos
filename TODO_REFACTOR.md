@@ -49,6 +49,19 @@ perder el contexto. Cada entrada: qué, por qué bloquea, decisión, riesgo.
   `JSON.stringify` de escritura se dejan tal cual a propósito (no pueden
   throw con datos planos; sustituirlos era churn sin beneficio). type-check 0
   · E2E 4/4 suites, 11 tests.
+- ✅ **T6 partir `apiClient.ts` god-service** (938→63 ln) — transporte HTTP +
+  interceptor JWT/refresh único extraído a `services/api/http.ts` (singleton
+  `http`); 19 namespaces repartidos en 12 módulos de dominio
+  (`services/api/auth|events|tasks|negotiations|points|configuration|
+  notifications|profile|gamification|calendar|analytics|lists.ts`).
+  `apiClient.ts` queda como fachada con la MISMA forma pública (token methods
+  delegados con `.bind(http)`, namespaces, helpers sueltos y tipos
+  re-exportados) → cero cambios en los 58 archivos consumidores. La V2
+  deprecada `negotiation.*` queda marcada en `api/negotiations.ts` para su
+  retirada en T3. type-check 0 (front y back) · E2E 4/4 suites, 11 tests
+  (frontend no cubierto por E2E; verificado vía tsc — `vite build` falla en
+  esta máquina por entorno: falta `@rollup/rollup-darwin-arm64`, bug npm
+  optional-deps pre-existente, no relacionado).
 
 **Pendiente (orden sugerido para retomar):**
 1. **#9 Step B — activación final (env, NO código)** — ⏳ acción de Edu en Render:
