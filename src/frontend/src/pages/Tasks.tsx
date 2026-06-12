@@ -3,7 +3,7 @@
 // AddTaskSheet for task creation, dark-mode Log/Dispute modals.
 // Rendered naked inside AuthedLayout (AppHeader is provided globally).
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { isSheetOpen } from '../lib/sheetLock'
 import { Loader, X, RefreshCw } from 'lucide-react'
@@ -29,6 +29,11 @@ import { HistoryTab } from '../components/v2/tasks/HistoryTab'
 import { TasksWeekView } from '../components/v2/tasks/TasksWeekView'
 import { TASK_CATALOG } from '../components/v2/tasks/taskCatalog'
 import type { Task, TaskLog } from '../components/v2/tasks/taskTypes'
+
+// Referencias estables para los fallbacks de las queries — evitan que un
+// `?? []` fresco por render invalide los useMemo de abajo durante bootstrap.
+const EMPTY_TASKS: Task[] = []
+const EMPTY_LOGS: TaskLog[] = []
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function Tasks() {
@@ -61,8 +66,8 @@ export default function Tasks() {
     refetchInterval: () => (isSheetOpen() ? false : 30_000),
     refetchIntervalInBackground: false,
   })
-  const tasks: Task[] = tasksQuery.data ?? []
-  const allLogs: TaskLog[] = logsQuery.data ?? []
+  const tasks: Task[] = tasksQuery.data ?? EMPTY_TASKS
+  const allLogs: TaskLog[] = logsQuery.data ?? EMPTY_LOGS
   // isLoading sólo en bootstrap (sin data aún) para evitar el flash en
   // refetches background (mismo patrón que useAppStore.isRefreshing).
   const isLoading = (tasksQuery.isLoading && !tasksQuery.data) || (logsQuery.isLoading && !logsQuery.data)
@@ -96,23 +101,23 @@ export default function Tasks() {
   const [view, setView] = useState<'list' | 'week'>(() => {
     try { return (localStorage.getItem('mp.tasks.view') as any) || 'list' } catch { return 'list' }
   })
-  const setViewPersisted = (v: 'list' | 'week') => {
+  const setViewPersisted = useCallback((v: 'list' | 'week') => {
     setView(v)
     try { localStorage.setItem('mp.tasks.view', v) } catch { /* ignore */ }
-  }
+  }, [])
   // v2.3.0 — segment único Mías/Todas/Recurrentes (Claude Design canvas 15).
   // Mapea a `tab` legacy: mine→mis_tareas, all→mis_tareas con personFilter='all',
   // recurring→recurrentes.
   const [filter, setFilter] = useState<FilterValue>(() => {
     try { return (localStorage.getItem('mp.tasks.filter') as FilterValue) || 'mine' } catch { return 'mine' }
   })
-  const setFilterPersisted = (f: FilterValue) => {
+  const setFilterPersisted = useCallback((f: FilterValue) => {
     setFilter(f)
     try { localStorage.setItem('mp.tasks.filter', f) } catch {}
     if (f === 'recurring') setTab('recurrentes')
     else setTab('mis_tareas')
     setPersonFilter(f === 'all' ? 'all' : 'mine')
-  }
+  }, [])
   const [cat, setCat] = useState<string>('all')
   const [personFilter, setPersonFilter] = useState<'all' | 'mine' | 'partner'>('all')
   const [weekStart, setWeekStart] = useState<Date>(() => {
@@ -138,128 +143,170 @@ export default function Tasks() {
   }, [queryClient])
 
   // ─── Derived state ─────────────────────────────────────────────────────────
+  // T2 (refactor opus-4-8): todo el bloque derivado vive en UN useMemo — las
+  // colecciones comparten intermedios (today, weekBounds, taskIdsHiddenFromToday)
+  // y así solo se recalculan cuando cambian datos o filtros, no en cada render
+  // (p.ej. al abrir/cerrar un modal). `today` se computa fuera y entra como dep
+  // para que el memo se invalide en el primer render tras medianoche.
+  const userId = user?.id
   const today = toLocalDateString(new Date())
 
-  const myTodayLogs = allLogs.filter(
-    (l) => l.completedBy?.id === user?.id && l.date?.toString().startsWith(today),
-  )
-  const myTodayLogsByTask = new Map(myTodayLogs.map((l) => [l.taskId, l]))
+  const {
+    myTodayLogs, myTodayLogsByTask, myPendingLogs, partnerPendingLogs,
+    historyLogs, filteredTasks, todayTasks, weekNotTodayTasks,
+    myWeekLogsByTaskId, weekDoneCount, visibleCatalog,
+  } = useMemo(() => {
+    const myTodayLogs = allLogs.filter(
+      (l) => l.completedBy?.id === userId && l.date?.toString().startsWith(today),
+    )
+    const myTodayLogsByTask = new Map(myTodayLogs.map((l) => [l.taskId, l]))
 
-  const myPendingLogs = allLogs.filter(
-    (l) => l.completedBy?.id === user?.id && l.status === 'pending',
-  )
-  const partnerPendingLogs = allLogs.filter(
-    (l) => l.completedBy?.id !== user?.id && l.status === 'pending',
-  )
-  // Quick-win #4 2026-04-22: filtro mías/pareja aplicado al historial para
-  // facilitar repasar rápidamente qué hizo cada uno.
-  const matchesPerson = (l: TaskLog) =>
-    personFilter === 'all'
-      ? true
-      : personFilter === 'mine'
-        ? l.completedBy?.id === user?.id
-        : l.completedBy?.id && l.completedBy.id !== user?.id
-  const historyLogs = allLogs
-    .filter((l) => l.status !== 'pending')
-    .filter(matchesPerson)
+    const myPendingLogs = allLogs.filter(
+      (l) => l.completedBy?.id === userId && l.status === 'pending',
+    )
+    const partnerPendingLogs = allLogs.filter(
+      (l) => l.completedBy?.id !== userId && l.status === 'pending',
+    )
+    // Quick-win #4 2026-04-22: filtro mías/pareja aplicado al historial para
+    // facilitar repasar rápidamente qué hizo cada uno.
+    const matchesPerson = (l: TaskLog) =>
+      personFilter === 'all'
+        ? true
+        : personFilter === 'mine'
+          ? l.completedBy?.id === userId
+          : l.completedBy?.id && l.completedBy.id !== userId
+    const historyLogs = allLogs
+      .filter((l) => l.status !== 'pending')
+      .filter(matchesPerson)
 
-  const filteredTasks = cat === 'all' ? tasks : tasks.filter((t) => t.category?.toLowerCase() === cat)
+    const filteredTasks = cat === 'all' ? tasks : tasks.filter((t) => t.category?.toLowerCase() === cat)
 
-  // A task is "done for now" if anyone in the couple has a log for it
-  // (pending or verified) dated today, or has a pending-verification log from
-  // any recent day. Those logs already surface in the "pendientes de verificación"
-  // widget above; re-listing them in Hoy confuses the user into thinking they
-  // need to redo the task. Once partner verifies/disputes, the task reappears.
-  const taskIdsHiddenFromToday = new Set<string>()
-  for (const l of allLogs) {
-    if (l.date?.toString().startsWith(today)) taskIdsHiddenFromToday.add(l.taskId)
-    if (l.status === 'pending') taskIdsHiddenFromToday.add(l.taskId)
-  }
-  // Bug 2026-04-22: "Hoy" used to require scheduledFor<=today, which meant
-  // catalog-added tasks and puntual custom tasks (both have scheduledFor=null)
-  // were invisible everywhere. Now "Hoy" shows (a) scheduled tasks due
-  // today-or-earlier AND (b) unscheduled tasks the user has in their list —
-  // those are "available whenever" and belong here until the user acts on them.
-  //
-  // Bug 2026-04-23: una recurrente pausada (frequency!=null, isRecurring=false)
-  // seguía apareciendo hoy porque scheduledFor quedaba apuntando a la última
-  // instancia generada. Pause borra las ocurrencias futuras pero no reescribe
-  // scheduledFor del Task row, así que filtramos explícitamente aquí.
-  const todayTasks = filteredTasks
-    .filter((t) => !taskIdsHiddenFromToday.has(t.id))
-    .filter((t) => !(t.frequency && !t.isRecurring))
-    // v1.6.3 fix QA Bug 4: las tasks con isDefault=true son sugerencias del
-    // seed del couple, no tareas activas. Solo deben aparecer en "Hoy" si
-    // tienen scheduledFor o son recurrentes (es decir, el user las activó
-    // explícitamente). Antes contaminaban el listado de cada día con todo
-    // el catálogo.
-    .filter((t) => !t.isDefault || !!t.scheduledFor || t.isRecurring)
-    // v2.0.6 fix bug "tareas que aparecen solas": antes una tarea sin
-    // `scheduledFor` aparecía en "Hoy" para siempre, todos los días, en ambas
-    // cuentas de la pareja. Ahora "Hoy" sólo muestra tareas con scheduledFor
-    // hoy o en el pasado (vencidas). Las no programadas viven en el catálogo y
-    // solo entran a "Hoy" cuando el usuario las programa.
-    .filter((t) => {
+    // A task is "done for now" if anyone in the couple has a log for it
+    // (pending or verified) dated today, or has a pending-verification log from
+    // any recent day. Those logs already surface in the "pendientes de verificación"
+    // widget above; re-listing them in Hoy confuses the user into thinking they
+    // need to redo the task. Once partner verifies/disputes, the task reappears.
+    const taskIdsHiddenFromToday = new Set<string>()
+    for (const l of allLogs) {
+      if (l.date?.toString().startsWith(today)) taskIdsHiddenFromToday.add(l.taskId)
+      if (l.status === 'pending') taskIdsHiddenFromToday.add(l.taskId)
+    }
+    // Bug 2026-04-22: "Hoy" used to require scheduledFor<=today, which meant
+    // catalog-added tasks and puntual custom tasks (both have scheduledFor=null)
+    // were invisible everywhere. Now "Hoy" shows (a) scheduled tasks due
+    // today-or-earlier AND (b) unscheduled tasks the user has in their list —
+    // those are "available whenever" and belong here until the user acts on them.
+    //
+    // Bug 2026-04-23: una recurrente pausada (frequency!=null, isRecurring=false)
+    // seguía apareciendo hoy porque scheduledFor quedaba apuntando a la última
+    // instancia generada. Pause borra las ocurrencias futuras pero no reescribe
+    // scheduledFor del Task row, así que filtramos explícitamente aquí.
+    const todayTasks = filteredTasks
+      .filter((t) => !taskIdsHiddenFromToday.has(t.id))
+      .filter((t) => !(t.frequency && !t.isRecurring))
+      // v1.6.3 fix QA Bug 4: las tasks con isDefault=true son sugerencias del
+      // seed del couple, no tareas activas. Solo deben aparecer en "Hoy" si
+      // tienen scheduledFor o son recurrentes (es decir, el user las activó
+      // explícitamente). Antes contaminaban el listado de cada día con todo
+      // el catálogo.
+      .filter((t) => !t.isDefault || !!t.scheduledFor || t.isRecurring)
+      // v2.0.6 fix bug "tareas que aparecen solas": antes una tarea sin
+      // `scheduledFor` aparecía en "Hoy" para siempre, todos los días, en ambas
+      // cuentas de la pareja. Ahora "Hoy" sólo muestra tareas con scheduledFor
+      // hoy o en el pasado (vencidas). Las no programadas viven en el catálogo y
+      // solo entran a "Hoy" cuando el usuario las programa.
+      .filter((t) => {
+        if (!t.scheduledFor) return false
+        const sf = toLocalDateString(t.scheduledFor)
+        return sf <= today
+      })
+
+    // Week bounds (in local time) — used for the "Esta semana" section
+    const weekBounds = (() => {
+      const start = new Date()
+      start.setHours(0, 0, 0, 0)
+      const day = start.getDay()
+      start.setDate(start.getDate() - (day === 0 ? 6 : day - 1))
+      const end = new Date(start)
+      end.setDate(start.getDate() + 7)
+      return { start, end }
+    })()
+
+    const weekNotTodayTasks = filteredTasks.filter((t) => {
       if (!t.scheduledFor) return false
-      const sf = toLocalDateString(t.scheduledFor)
-      return sf <= today
+      // v1.6.3 fix QA Bug 4: misma lógica que en todayTasks — descartar
+      // sugerencias inactivas del catálogo.
+      if (t.isDefault && !t.scheduledFor && !t.isRecurring) return false
+      const d = new Date(t.scheduledFor)
+      if (isNaN(d.getTime())) return false
+      if (d >= weekBounds.start && d < weekBounds.end) {
+        return toLocalDateString(d) !== today
+      }
+      return false
     })
 
-  // Week bounds (in local time) — used for the "Esta semana" section
-  const weekBounds = (() => {
-    const start = new Date()
-    start.setHours(0, 0, 0, 0)
-    const day = start.getDay()
-    start.setDate(start.getDate() - (day === 0 ? 6 : day - 1))
-    const end = new Date(start)
-    end.setDate(start.getDate() + 7)
-    return { start, end }
-  })()
+    // v2.6.1 audit 05 1.4 — antes mostrábamos `0/{N}` hardcoded en la
+    // sección "Esta semana". Ahora contamos cuántas de esas tareas tienen
+    // un log mío esta semana (status pending/verified, no disputed).
+    const weekStartIso = toLocalDateString(weekBounds.start)
+    const weekEndIso = toLocalDateString(weekBounds.end)
+    const myWeekLogsByTaskId = new Set(
+      allLogs
+        .filter((l) => l.completedBy?.id === userId)
+        .filter((l) => l.status !== 'disputed')
+        .filter((l) => {
+          const d = l.date?.toString().slice(0, 10)
+          return d ? d >= weekStartIso && d < weekEndIso : false
+        })
+        .map((l) => l.taskId),
+    )
+    const weekDoneCount = weekNotTodayTasks.filter((t) =>
+      myWeekLogsByTaskId.has(t.id),
+    ).length
 
-  const weekNotTodayTasks = filteredTasks.filter((t) => {
-    if (!t.scheduledFor) return false
-    // v1.6.3 fix QA Bug 4: misma lógica que en todayTasks — descartar
-    // sugerencias inactivas del catálogo.
-    if (t.isDefault && !t.scheduledFor && !t.isRecurring) return false
-    const d = new Date(t.scheduledFor)
-    if (isNaN(d.getTime())) return false
-    if (d >= weekBounds.start && d < weekBounds.end) {
-      return toLocalDateString(d) !== today
+    // Bug 2026-04-22: el catálogo es un listado fijo de ideas — no se filtra por
+    // lo que ya añadiste. Duplicar es intencional (ej: "Limpiar baño" con dos
+    // baños). Antes escondíamos ítems ya añadidos, lo que hacía que el catálogo
+    // pareciera que "desaparecía" al usarlo.
+    const visibleCatalog = TASK_CATALOG
+      .filter((g) => cat === 'all' || g.category === cat)
+
+    return {
+      myTodayLogs, myTodayLogsByTask, myPendingLogs, partnerPendingLogs,
+      historyLogs, filteredTasks, todayTasks, weekNotTodayTasks,
+      myWeekLogsByTaskId, weekDoneCount, visibleCatalog,
     }
-    return false
-  })
+  }, [allLogs, tasks, userId, cat, personFilter, today])
 
-  // v2.6.1 audit 05 1.4 — antes mostrábamos `0/{N}` hardcoded en la
-  // sección "Esta semana". Ahora contamos cuántas de esas tareas tienen
-  // un log mío esta semana (status pending/verified, no disputed).
-  const weekStartIso = toLocalDateString(weekBounds.start)
-  const weekEndIso = toLocalDateString(weekBounds.end)
-  const myWeekLogsByTaskId = new Set(
-    allLogs
-      .filter((l) => l.completedBy?.id === user?.id)
-      .filter((l) => l.status !== 'disputed')
-      .filter((l) => {
-        const d = l.date?.toString().slice(0, 10)
-        return d ? d >= weekStartIso && d < weekEndIso : false
-      })
-      .map((l) => l.taskId),
+  // Payloads memoizados de props (antes se mapeaban inline en cada render).
+  const verifyBannerLogs = useMemo(
+    () => partnerPendingLogs.map((l) => ({
+      id: l.id,
+      taskId: l.taskId,
+      taskName: l.taskName ?? '',
+      pointsFinal: l.pointsFinal,
+      completedBy: l.completedBy,
+    })),
+    [partnerPendingLogs],
   )
-  const weekDoneCount = weekNotTodayTasks.filter((t) =>
-    myWeekLogsByTaskId.has(t.id),
-  ).length
-
-  // Bug 2026-04-22: el catálogo es un listado fijo de ideas — no se filtra por
-  // lo que ya añadiste. Duplicar es intencional (ej: "Limpiar baño" con dos
-  // baños). Antes escondíamos ítems ya añadidos, lo que hacía que el catálogo
-  // pareciera que "desaparecía" al usarlo.
-  const visibleCatalog = TASK_CATALOG
-    .filter((g) => cat === 'all' || g.category === cat)
+  const existingTasksForSheet = useMemo(
+    () => tasks.map((t) => ({
+      id: t.id,
+      name: t.name,
+      category: t.category ?? '',
+      pointsBase: String(t.pointsBase ?? 0),
+      isDefault: !!t.isDefault,
+    })),
+    [tasks],
+  )
 
   // v2.2.0 — microinteracción +X MP al completar (canvas 13 Claude Design)
   const burst = usePointsBurst()
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
-  const handleLogSuccess = async (loggedPoints?: number) => {
+  // T2 (refactor opus-4-8): todos los handlers en useCallback para que las
+  // secciones extraídas reciban referencias estables entre renders.
+  const handleLogSuccess = useCallback(async (loggedPoints?: number) => {
     if (loggedPoints && loggedPoints > 0) {
       // Anchor: el botón que el user pulsó. Si no lo tenemos, centrado.
       burst.trigger(`+${loggedPoints} MP`, document.activeElement)
@@ -270,9 +317,9 @@ export default function Tasks() {
     queryClient.invalidateQueries({ queryKey: ['gamification', 'status'] })
     queryClient.invalidateQueries({ queryKey: ['achievements', 'map'] })
     await loadData()
-  }
+  }, [burst.trigger, queryClient, loadData])
 
-  const handleVerify = async (log: TaskLog) => {
+  const handleVerify = useCallback(async (log: TaskLog) => {
     setVerifyingId(log.id)
     setError(null)
     try {
@@ -291,9 +338,9 @@ export default function Tasks() {
     } finally {
       setVerifyingId(null)
     }
-  }
+  }, [queryClient, loadData])
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = useCallback(async () => {
     if (!deletingTask) return
     setDeleting(true)
     try {
@@ -307,16 +354,16 @@ export default function Tasks() {
     } finally {
       setDeleting(false)
     }
-  }
+  }, [deletingTask, loadData])
 
-  const handleDisputeSuccess = async () => {
+  const handleDisputeSuccess = useCallback(async () => {
     setDisputingLog(null)
     setSuccess('⚠️ Tarea disputada. Se notificará a tu pareja.')
     setTimeout(() => setSuccess(null), 4000)
     await loadData()
-  }
+  }, [loadData])
 
-  const handleCreateFromCatalog = async (name: string, category: string, pts: number, desc?: string) => {
+  const handleCreateFromCatalog = useCallback(async (name: string, category: string, pts: number, desc?: string) => {
     setAddingFromCatalog(name)
     try {
       await apiClient.tasks.create({ name: name.trim(), category, pointsBase: pts, description: desc?.trim() })
@@ -328,13 +375,31 @@ export default function Tasks() {
     } finally {
       setAddingFromCatalog(null)
     }
-  }
+  }, [loadData])
 
-  const handleAddSheetSaved = async () => {
+  const handleAddSheetSaved = useCallback(async () => {
     setSuccess('✅ Tarea creada')
     setTimeout(() => setSuccess(null), 3000)
     await loadData()
-  }
+  }, [loadData])
+
+  // Micro-handlers inline que antes creaban una lambda nueva por render.
+  const closeLogModal = useCallback(() => setLoggingTask(null), [])
+  const closeDisputeModal = useCallback(() => setDisputingLog(null), [])
+  const closeAddSheet = useCallback(() => setShowAddSheet(false), [])
+  const openCatalogSheet = useCallback(() => setShowCatalogSheet(true), [])
+  const closeCatalogSheet = useCallback(() => setShowCatalogSheet(false), [])
+  const handleCatalogSheetSaved = useCallback(() => {
+    setShowCatalogSheet(false)
+    handleAddSheetSaved()
+  }, [handleAddSheetSaved])
+  const closeDeleteDialog = useCallback(() => {
+    if (!deleting) setDeletingTask(null)
+  }, [deleting])
+  const toggleView = useCallback(
+    () => setViewPersisted(view === 'list' ? 'week' : 'list'),
+    [setViewPersisted, view],
+  )
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
@@ -344,30 +409,24 @@ export default function Tasks() {
 
       {/* Modals */}
       {loggingTask && (
-        <LogTaskModal task={loggingTask} onClose={() => setLoggingTask(null)} onSuccess={handleLogSuccess} />
+        <LogTaskModal task={loggingTask} onClose={closeLogModal} onSuccess={handleLogSuccess} />
       )}
       {disputingLog && (
-        <DisputeModal log={disputingLog} onClose={() => setDisputingLog(null)} onSuccess={handleDisputeSuccess} />
+        <DisputeModal log={disputingLog} onClose={closeDisputeModal} onSuccess={handleDisputeSuccess} />
       )}
       <AddTaskSheet
         open={showAddSheet}
-        onClose={() => setShowAddSheet(false)}
+        onClose={closeAddSheet}
         onSaved={handleAddSheetSaved}
       />
       <AddTaskFromCatalogSheet
         open={showCatalogSheet}
         catalog={TASK_CATALOG}
-        existingTasks={tasks.map((t) => ({
-          id: t.id,
-          name: t.name,
-          category: t.category ?? '',
-          pointsBase: String(t.pointsBase ?? 0),
-          isDefault: !!(t as any).isDefault,
-        }))}
+        existingTasks={existingTasksForSheet}
         partnerName={(useAppStore.getState().couple?.users ?? []).find(u => u.id !== user?.id)?.name ?? 'Tu pareja'}
         meName={user?.name ?? 'Yo'}
-        onClose={() => setShowCatalogSheet(false)}
-        onSaved={() => { setShowCatalogSheet(false); handleAddSheetSaved() }}
+        onClose={closeCatalogSheet}
+        onSaved={handleCatalogSheetSaved}
       />
       <ConfirmDialog
         open={deletingTask !== null}
@@ -381,7 +440,7 @@ export default function Tasks() {
         variant="danger"
         busy={deleting}
         onConfirm={handleConfirmDelete}
-        onClose={() => !deleting && setDeletingTask(null)}
+        onClose={closeDeleteDialog}
       />
 
       {/* v2.3.0 — Refactor canvas 15: top tabs +MP/-MP + pg-h + HeaderStrip
@@ -403,20 +462,14 @@ export default function Tasks() {
         filter={filter}
         onFilterChange={setFilterPersisted}
         view={view}
-        onViewToggle={() => setViewPersisted(view === 'list' ? 'week' : 'list')}
-        onAdd={() => setShowCatalogSheet(true)}
+        onViewToggle={toggleView}
+        onAdd={openCatalogSheet}
       />
 
       {/* v2.3.0 — banner condicional de verificación. Sustituye la inner tab
           'Verificar' que estaba vacía 80% del tiempo. Si no hay nada, 0px. */}
       <VerifyBanner
-        pendingLogs={partnerPendingLogs.map((l) => ({
-          id: l.id,
-          taskId: l.taskId,
-          taskName: l.taskName ?? '',
-          pointsFinal: l.pointsFinal,
-          completedBy: l.completedBy,
-        }))}
+        pendingLogs={verifyBannerLogs}
         onVerify={(log) => handleVerify(log as any)}
       />
 
@@ -469,7 +522,7 @@ export default function Tasks() {
                 pendingThisWeek={weekNotTodayTasks.length}
                 onLog={setLoggingTask}
                 onDelete={setDeletingTask}
-                onOpenCatalog={() => setShowCatalogSheet(true)}
+                onOpenCatalog={openCatalogSheet}
               />
 
               <WeekSection
