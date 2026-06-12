@@ -7,7 +7,7 @@ import { http } from './api/http'
 import { auth, invitations } from './api/auth'
 import { events } from './api/events'
 import { tasks } from './api/tasks'
-import { negotiations, negotiation } from './api/negotiations'
+import { negotiations } from './api/negotiations'
 import { points, pointsV2 } from './api/points'
 import { configuration, categories, rules } from './api/configuration'
 import { notifications } from './api/notifications'
@@ -34,7 +34,6 @@ export const apiClient = {
   events,
   tasks,
   negotiations,
-  negotiation,
   points,
   pointsV2,
   configuration,
