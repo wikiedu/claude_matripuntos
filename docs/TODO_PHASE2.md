@@ -29,7 +29,7 @@
 - [x] **C.2** Achievements V1→V2 *(2026-06-12 — mapeo: frontend solo consume V2 (/achievements/map + /gamification/status + /gamification-v2); 0 consumidores V1. Flag invertido a opt-in (`=== 'true'`, default OFF) en taskRoutes/negotiationRoutes/server.ts. API client frontend: 7 funciones V1 muertas retiradas. ADR + STATUS.md actualizados. E2E nuevo: verify no crea UserAchievement + map V2 responde → baseline 5/18. PENDIENTE MANUAL: `.env.example:55` dice `=true`, bloqueado por permisos — cambiar a `false` a mano)*
 - [x] **C.3** ErrorBoundary global *(2026-06-12 — `components/ErrorBoundary.tsx` nuevo: class boundary + Sentry.captureException (no-op sin DSN) + fallback con recargar/ir al inicio. Montado en App.tsx como `RouteErrorBoundary` keyed por pathname (navegar resetea el error). 3 tests unitarios verdes; suite frontend 161 passed + 8 preexistentes)*
 - [x] **C.4** `any` explícitos en críticos *(2026-06-12 — backend: authRoutes 12→0 (IncomingHttpHeaders, campos User reales, httpStatus tipado), taskRoutes 6→0 (TaskLog, Prisma.TaskLogWhereInput, ReturnType del engine), eventRoutes 4→0 (EventDraftForPoints Pick + cast estrecho, Prisma.EventWhereInput), pointsRoutes 3→0 (PointsTransactionWhereInput, Record), invitations req.headers ×2. Frontend críticos: auth.ts registerWithInvitation tipado, StepJoinAccount res tipado, http.ts import.meta sin cast. pointsCalculator NO TOCADO (sus 6 any quedan). Restantes no-críticos: ~25 backend (configurationProposals 5, analyticsV2 4, telemetry 3…) + ~50 frontend (Settings 7, api/profile 6, api/configuration 6…) — sin riesgo, candidatos a sprint de tipos)*
-- [ ] **C.5** Plan migración `invitations.ts` V2 → doc en bloqueos
+- [x] **C.5** Plan migración `invitations.ts` V2 *(2026-06-12 — mapeo completo en DECISIÓN C.5 abajo: 8 rutas, 2 consumidores reales (StepJoinAccount, flujo email por token), sin equivalente V1; recomendación: declarar canónico el flujo email + decidir con producto las 4 link-partner. Solo doc, sin código)*
 
 ### MÓDULO D — Brainstorming (prioridad 4) ⚠️ SIN CÓDIGO — solo produce docs/PHASE2_FEATURE_PROPOSALS.md
 - [ ] **D.all** Análisis completo D.1-D.8 + propuestas libres + ranking top 5 → `docs/PHASE2_FEATURE_PROPOSALS.md`
@@ -81,6 +81,19 @@
   6. Logout: endpoint que haga `Set-Cookie` con `Max-Age=0` (el frontend ya no puede borrar la cookie).
   7. **Capacitor (G.1):** las cookies httpOnly funcionan en WebView pero con caveats de dominio (capacitor://localhost) — evaluar `CapacitorCookies` o mantener dual-mode header para native. Esto es el mayor riesgo del plan.
 - **Riesgo de no hacerlo:** un XSS roba sesión completa. Mitigantes actuales: CSP, sanitización de inputs, escHtml en emails, JWT corto (15m) + refresh rotation.
+
+### DECISIÓN C.5 — plan de retirada `invitations.ts` V2 (mapeo 2026-06-12, NO implementado)
+- **Inventario (8 rutas, montadas en `/api/auth`):**
+  - Con `deprecationMiddleware` (Sunset vencido): `POST /invite-partner` · `GET /invitation/:token` · `POST /accept-invitation` · `POST /register-with-invitation`
+  - Sin deprecation: `POST /link-partner` · `GET /pending-link-requests` · `POST /accept-link-partner` · `POST /reject-link-partner`
+- **Consumidores frontend reales (solo 2):** `StepJoinAccount.tsx` llama `GET /invitation/:token` (validar token) y `POST /register-with-invitation` (alta del invitee). Es el flujo de **invitación por email** (`/onboarding/join/:token`). Las otras 6 funciones del API client (`invitations.*` en `api/auth.ts`) tienen **0 consumidores**.
+- **Matiz de producto:** `StepPair.tsx` oculta la opción de invitar por email desde 2026-04-22 (flujo join-code la cubre) pero el comentario dice explícitamente que las rutas de email se mantienen montadas **para reactivar sin cambio de schema**. No es dead code accidental: es funcionalidad aparcada.
+- **Equivalentes V1:** NO exactos. `POST /register-with-code` (V1) es por joinCode; el flujo por token de email no tiene equivalente V1. Migrar el consumidor a V1 = eliminar el flujo email, decisión de producto, no técnica.
+- **Plan recomendado (sesión dedicada, no "de paso"):**
+  1. Declarar **canónicas** las 4 rutas del flujo email: quitar `deprecationMiddleware`/header Sunset (la deprecación está vencida y no se va a cumplir — mantenerla es ruido y los clientes podrían respetarla).
+  2. Las 4 rutas link-partner: confirmar con producto si el flujo "vincular usuario existente" se va a usar; si no → retirarlas junto con sus 6 funciones muertas del API client.
+  3. Red de seguridad existente: `invitations.e2e.test.ts` ya cubre 5 de las 8 rutas (capacidad pareja, cross-couple, tokens). Ampliar para las que se toquen.
+- **Riesgo de no hacer nada:** bajo — A.2 ya cerró capacidad-2-usuarios y mount order. Es deuda de claridad (V2 "deprecada" que en realidad es canónica), no riesgo de seguridad.
 
 ### NOTA A.3 — vulns dev-only restantes (sin fix non-breaking)
 - `vitest`/`@vitest/ui` (critical) + `vite`/`esbuild`/`vite-node` (moderate): fix = vite 8 / vitest 4 (semver-major). Solo afectan al dev server/test runner, no al bundle de prod. Programar upgrade de toolchain en sprint propio.
