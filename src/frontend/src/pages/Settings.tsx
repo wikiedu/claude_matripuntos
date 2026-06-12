@@ -21,6 +21,8 @@ import { MyMoodWeek } from '../components/v2/profile/MyMoodWeek'
 import { DeleteAccountWizard } from '../components/v2/wizards/DeleteAccountWizard'
 import { LeaveCoupleWizard } from '../components/v2/wizards/LeaveCoupleWizard'
 import { InstallAppCard } from '../components/v2/settings/InstallAppCard'
+import { useWebPush } from '../hooks/useWebPush'
+import { isIOS, isStandalone } from '../lib/installPrompt'
 import { useConsent } from '../hooks/useConsent'
 import { MOODS } from '../data/moods'
 import { getMoodHistory } from '../services/apiClient'
@@ -491,6 +493,53 @@ const TIERS: Array<{ key: 'critical' | 'digest' | 'off'; label: string; tone: st
   { key: 'off',      label: 'No avisar',    tone: 'bg-surface-muted text-text-tertiary' },
 ]
 
+// E.5 Fase 2 — toggle de suscripción a web push (primer consumidor de
+// useWebPush; el backend VAPID + prefs + digest existen desde v1.7-v2.2.5).
+function PushToggleCard() {
+  const { state, error, subscribe, unsubscribe } = useWebPush()
+
+  // iOS solo soporta push como PWA instalada (16.4+): si no está instalada,
+  // guiar a la instalación en lugar de pedir un permiso que no existe.
+  if (isIOS() && !isStandalone()) {
+    return (
+      <Card className="space-y-1.5">
+        <div className="flex items-center gap-2">
+          <span className="text-base">🔔</span>
+          <p className="text-sm font-bold text-text-primary m-0">Push del navegador</p>
+        </div>
+        <p className="text-[11px] text-text-secondary leading-relaxed m-0">
+          En iPhone/iPad las notificaciones push requieren tener la app instalada:
+          en Safari, <strong>Compartir → “Añadir a pantalla de inicio”</strong> y vuelve aquí.
+        </p>
+      </Card>
+    )
+  }
+
+  if (state === 'unsupported') return null
+
+  return (
+    <Card className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <span className="text-base">🔔</span>
+        <p className="text-sm font-bold text-text-primary flex-1 m-0">Push del navegador</p>
+        <Toggle
+          checked={state === 'subscribed'}
+          disabled={state === 'subscribing' || state === 'denied'}
+          onChange={(on) => { void (on ? subscribe() : unsubscribe()) }}
+        />
+      </div>
+      <p className="text-[11px] text-text-secondary leading-relaxed m-0">
+        {state === 'denied'
+          ? 'Has bloqueado las notificaciones para este sitio. Actívalas en los ajustes del navegador (icono del candado junto a la URL).'
+          : 'Recibe avisos aunque la app esté cerrada: propuestas de tu pareja, tareas por verificar y tu resumen diario.'}
+      </p>
+      {state === 'error' && error && (
+        <p className="text-[11px] text-danger m-0">No se pudo activar: {error}</p>
+      )}
+    </Card>
+  )
+}
+
 function NotificationsSection({ onBack }: { onBack: () => void }) {
   const queryClient = useQueryClient()
   const { data, isLoading } = useQuery<{ preferences: any }>({
@@ -529,6 +578,9 @@ function NotificationsSection({ onBack }: { onBack: () => void }) {
   return (
     <div className="space-y-4">
       <SectionHeader title="Notificaciones" onBack={onBack} />
+
+      {/* E.5 Fase 2 — suscripción push del navegador */}
+      <PushToggleCard />
 
       <Card className="bg-brand-purple/5 border-brand-purple/20">
         <p className="text-[11px] text-text-secondary leading-relaxed">
