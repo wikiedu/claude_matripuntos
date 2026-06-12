@@ -88,6 +88,26 @@ perder el contexto. Cada entrada: qué, por qué bloquea, decisión, riesgo.
   - Nota infra: el bug npm `@rollup/rollup-darwin-arm64` que impedía
     `vite build` en esta máquina (visto en T6) quedó resuelto tras el
     `npm install` de esta tarea.
+- ✅ **T2 descomponer `Tasks.tsx` god-component** (2026-06-12, 3 commits
+  `0528819`+`e76bf6c`+`02b2bc5`) — 1132→563 ln, mismo markup/comportamiento:
+  - **T2a**: LogTaskModal, DisputeModal, Segment, tipos Task/TaskLog
+    (`taskTypes.ts`) y TASK_CATALOG (`taskCatalog.ts`, con tipos
+    CatalogGroup/CatalogTask) extraídos a `components/v2/tasks/`.
+  - **T2b**: las 6 piezas de render a componentes propios:
+    PendingVerificationList, TodaySection (header Hoy + AllDoneCard +
+    lista/empty), WeekSection, CatalogSection (estado `showCatalog` ahora
+    local), HistoryTab (Segment persona + listado), TasksWeekView (nav +
+    WeekStrip + WeeklyTaskView). Tasks.tsx queda como orquestador
+    (queries + estado + handlers + composición).
+  - **T2c**: el bloque derivado completo (11 colecciones que comparten
+    today/weekBounds/taskIdsHiddenFromToday) en UN `useMemo`; fallbacks
+    estables EMPTY_TASKS/EMPTY_LOGS; payloads de props memoizados
+    (VerifyBanner, existingTasks del catalog sheet); 14 handlers a
+    `useCallback`.
+  - Verificación por commit: front tsc 0 + `vite build` OK · backend
+    type-check 0 · E2E 4 suites/11 tests. **UI no cubierta por E2E** —
+    pendiente QA visual manual de la página Tareas (lista/semana/tabs/
+    modales) en la próxima sesión con servidor.
 
 **Pendiente (orden sugerido para retomar):**
 1. **#9 Step B — activación final (env, NO código)** — ⏳ acción de Edu en Render:
@@ -95,13 +115,10 @@ perder el contexto. Cada entrada: qué, por qué bloquea, decisión, riesgo.
    refresh-on-401 funciona end-to-end (login con cliente real → esperar expiry →
    confirmar que el interceptor renueva con el refresh token) **antes** de dejarlo
    permanente. El código ya soporta JWT corto sin dejar sesiones sin renovar.
-2. **#8 Descomponer `Tasks.tsx`** (god-component ~775 ln) + memoizar handlers.
-   Grande, riesgo medio. El harness E2E NO cubre UI; verificar manual o con
-   Playwright (Fase 1.x).
-3. **Retirar rutas V2 negociación** (`negotiation.ts`). Grande: requiere reescribir
+2. **Retirar rutas V2 negociación** (`negotiation.ts`). Grande: requiere reescribir
    `EventNegotiationCard` contra API canónica + reescribir el E2E del flujo #3
    (hoy testea las rutas V2). Ver bloque de abajo.
-4. **#10 Imágenes de prueba a object storage** (sacar base64 de Postgres). Grande,
+3. **#10 Imágenes de prueba a object storage** (sacar base64 de Postgres). Grande,
    necesita infra (Supabase Storage/S3).
 
 **Decisiones arquitectónicas tomadas (de `ESTADO_PRE_REFACTOR.md`):** mantener
