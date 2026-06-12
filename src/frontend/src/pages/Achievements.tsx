@@ -11,6 +11,7 @@ import { AchievementsTabs } from '../components/v2/achievements/AchievementsTabs
 import { AchievementBadgeV2 } from '../components/v2/achievements/AchievementBadgeV2'
 import { RankingTab } from '../components/v2/achievements/RankingTab'
 import { HistoryTab } from '../components/v2/achievements/HistoryTab'
+import { SkeletonList } from '../components/v2/primitives/Skeleton'
 import type { AchievementMapNode } from '../types/index'
 
 // v2.1.0 — sistema unificado de 10 niveles (opción C aprobada).
@@ -112,7 +113,8 @@ export default function Achievements() {
       <AchievementsTabs tab={tab} onTab={changeTab} />
 
       {isLoading && (
-        <p className="mx-4 text-sm text-text-secondary">Cargando logros...</p>
+        /* E.4 Fase 2 — skeleton en lugar de texto plano */
+        <div className="mx-4"><SkeletonList count={3} /></div>
       )}
 
       {!isLoading && tab === 'badges' && (

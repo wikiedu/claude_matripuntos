@@ -10,6 +10,7 @@ import { ActivityActionCard } from '../components/v2/activities/ActivityActionCa
 import { ActivityWaitingCard } from '../components/v2/activities/ActivityWaitingCard'
 import { HistoryFilters, HistoryFilterValues } from '../components/v2/activities/HistoryFilters'
 import { Pill } from '../components/v2/primitives/Pill'
+import { SkeletonList } from '../components/v2/primitives/Skeleton'
 import { ActivityCatalogManager } from '../components/v2/catalog/ActivityCatalogManager'
 import { Plus } from 'lucide-react'
 import { MPTabs } from '../components/v2/tasks/MPTabs'
@@ -187,7 +188,7 @@ function ActiveView({
   onCounter: (id: string) => void
   onOpen: (id: string) => void
 }) {
-  if (isLoading) return <p className="text-center text-text-secondary py-6">Cargando…</p>
+  if (isLoading) return <div className="mx-4"><SkeletonList count={3} /></div>
   if (pending.length === 0 && waiting.length === 0) {
     return (
       <div className="mx-4 text-center py-8">
@@ -256,7 +257,7 @@ function HistoryView({
   setFilters: (v: HistoryFilterValues) => void
   onOpen: (id: string) => void
 }) {
-  if (isLoading) return <p className="text-center text-text-secondary py-6">Cargando…</p>
+  if (isLoading) return <div className="mx-4"><SkeletonList count={3} /></div>
   return (
     <>
       <HistoryFilters partnerName={partnerName} value={filters} onChange={setFilters} />

@@ -6,7 +6,8 @@ import { useCallback, useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { isSheetOpen } from '../lib/sheetLock'
-import { ChevronLeft, ChevronRight, Loader, Plus, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
+import { Skeleton, SkeletonList } from '../components/v2/primitives/Skeleton'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
 import type { Event as AppEvent, TaskLog } from '../types/index'
@@ -307,9 +308,10 @@ export const Calendar: React.FC = () => {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-text-secondary">
-          <Loader className="w-6 h-6 animate-spin mr-2" />
-          <span>Cargando calendario…</span>
+        /* E.4 Fase 2 — skeleton del grid en lugar de spinner */
+        <div className="space-y-3">
+          <Skeleton className="h-[320px] rounded-xl" />
+          <SkeletonList count={2} />
         </div>
       ) : (
         <>

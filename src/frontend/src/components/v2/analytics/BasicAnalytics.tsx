@@ -6,6 +6,7 @@ import { TimeInvestedChart } from './charts/TimeInvestedChart'
 import { fetchAnalytics } from './analyticsUtils'
 import { apiClient } from '../../../services/apiClient'
 import { useAppStore } from '../../../store/useAppStore'
+import { SkeletonList } from '../primitives/Skeleton'
 
 const DOW = ['D', 'L', 'M', 'X', 'J', 'V', 'S']
 
@@ -65,7 +66,7 @@ export function BasicAnalytics() {
   const weekWindow = lastSevenDaysWindow()
   const weekStart = weekWindow[0].iso
   const weekEnd = weekWindow[weekWindow.length - 1].iso
-  const { data: daily }  = useQuery({
+  const { data: daily, isLoading: dailyLoading } = useQuery({
     queryKey: ['a-daily', weekStart, weekEnd],
     queryFn: () => fetchAnalytics(`/analytics/daily-activity?groupByUser=true&startDate=${weekStart}&endDate=${weekEnd}`),
   })
@@ -86,6 +87,10 @@ export function BasicAnalytics() {
 
   const dayList  = normalizeDailySplit(daily, weekWindow)
   const balancePoints = normalizeDailyBalance(balance30)
+
+  // E.4 Fase 2 — skeleton mientras carga la primera query (las 4 llegan casi
+  // a la vez; con una basta como señal de bootstrap).
+  if (dailyLoading) return <SkeletonList count={4} />
 
   return (
     <>
