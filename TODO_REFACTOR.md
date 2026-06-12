@@ -108,6 +108,33 @@ perder el contexto. Cada entrada: qué, por qué bloquea, decisión, riesgo.
     type-check 0 · E2E 4 suites/11 tests. **UI no cubierta por E2E** —
     pendiente QA visual manual de la página Tareas (lista/semana/tabs/
     modales) en la próxima sesión con servidor.
+- ✅ **T3 retirar V2 negociación deprecada** (2026-06-12, 3 commits
+  `e9cfa80`+`5b84768`+`9b7e4fd`):
+  - **T3a**: `EventNegotiationCard.tsx` (Calendar bottom-sheet) migrado de las
+    rutas V2 event-status-based a la API canónica V1 `/api/negotiations`
+    (negotiationId-based), misma semántica que ActivityDetail: useQuery
+    `['events', eventId]` (cache compartida), proponer draft via
+    `negotiations.create`, aceptar/rechazar la ronda `awaiting` via
+    `negotiations.respond`, `isMyTurn` por `proposedBy` de la awaiting.
+    Contraoferta/forzar delegan a `/home/activities/:id`. Retirado el botón
+    "Hablamos en Persona" (`pending_conversation` era exclusivo V2, sin
+    equivalente V1); estados legacy V2 quedan display-only. Retirado el
+    namespace `apiClient.negotiation` (api/negotiations.ts + fachada). UI
+    realineada al design system v2.
+  - **T3b**: E2E flujo #3 reescrito contra V1 (abrir negociación → contraoferta
+    → aceptar → balance + guard 409 ronda obsoleta + aceptación directa) y
+    test NUEVO cross-couple (responder/forzar negociación ajena → 404, evento
+    intacto). **Nueva línea base del harness: 4 suites / 12 tests** (antes 11).
+  - **T3c**: borrados `routes/negotiation.ts` + su `app.use` en `server.ts` y
+    `tests/negotiationIdorContract.test.ts` (importaba el router retirado; su
+    cobertura la sustituye el test cross-couple V1).
+  - **Deuda anotada:** `services/negotiationEngine.ts` queda SIN consumidores
+    (solo lo usaba la ruta V2). No se borró en T3 (lista NO TOCAR del brief
+    §2); candidato a retirarse en una limpieza futura junto con sus tests.
+  - Verificación por commit: backend type-check 0 · E2E 4 suites/12 tests ·
+    front tsc 0 + `vite build` OK. **UI no cubierta por E2E** — pendiente QA
+    visual manual del card de negociación en Calendar (draft→proponer,
+    aceptar/rechazar, historial, enlace a detalle).
 
 **Pendiente (orden sugerido para retomar):**
 1. **#9 Step B — activación final (env, NO código)** — ⏳ acción de Edu en Render:
@@ -115,11 +142,9 @@ perder el contexto. Cada entrada: qué, por qué bloquea, decisión, riesgo.
    refresh-on-401 funciona end-to-end (login con cliente real → esperar expiry →
    confirmar que el interceptor renueva con el refresh token) **antes** de dejarlo
    permanente. El código ya soporta JWT corto sin dejar sesiones sin renovar.
-2. **Retirar rutas V2 negociación** (`negotiation.ts`). Grande: requiere reescribir
-   `EventNegotiationCard` contra API canónica + reescribir el E2E del flujo #3
-   (hoy testea las rutas V2). Ver bloque de abajo.
-3. **#10 Imágenes de prueba a object storage** (sacar base64 de Postgres). Grande,
-   necesita infra (Supabase Storage/S3).
+2. **#10 Imágenes de prueba a object storage** (sacar base64 de Postgres). Grande,
+   necesita infra (Supabase Storage/S3). Preguntar antes a Edu si la feature
+   imagen-prueba se usa de verdad (si no: desactivar flag y cerrar).
 
 **Decisiones arquitectónicas tomadas (de `ESTADO_PRE_REFACTOR.md`):** mantener
 Vite SPA (futuro Capacitor) · mantener polling (Supabase Realtime selectivo
@@ -130,7 +155,11 @@ tokens · retirar V2 deprecadas.
 
 ## Fase 0 (2026-06-07) — retirada de rutas V2 deprecadas: APLAZADA a Fase 1
 
-### `src/backend/src/routes/negotiation.ts` (montado en `/api/events`)
+### `src/backend/src/routes/negotiation.ts` — ✅ CERRADO en T3 (2026-06-12)
+
+> El bloque siguiente se conserva como historia. La "Acción Fase 1" descrita
+> abajo se ejecutó tal cual en T3 (ver entrada en "Hecho"): card migrado a V1,
+> E2E reescrito (4 suites/12 tests) y `negotiation.ts` + `app.use` borrados.
 
 Rutas V2 con `Sunset: 01 Jun 2026` (vencido) que **no se pueden retirar todavía**:
 `POST /:eventId/propose`, `POST /:eventId/respond`, `GET /:eventId/negotiation`,

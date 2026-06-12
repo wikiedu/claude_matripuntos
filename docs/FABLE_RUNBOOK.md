@@ -66,7 +66,7 @@ Reglas (brief §2 y §3, resumidas):
 - Respeta la lista NO TOCAR del brief §2.
 - Una pieza lógica por commit. Antes de CADA commit, en src/backend:
   npx prisma generate && npm run type-check (0 errores) && npm run test:e2e
-  (4 suites / 11 tests verdes). Si tocas frontend, dilo (E2E no cubre UI).
+  (4 suites / 12 tests verdes). Si tocas frontend, dilo (E2E no cubre UI).
 - Si te bloqueas, anota el bloqueo en TODO_REFACTOR.md y para; no improvises
   arquitectura.
 - Al terminar: mueve T7 de Pendiente a Hecho en TODO_REFACTOR.md.

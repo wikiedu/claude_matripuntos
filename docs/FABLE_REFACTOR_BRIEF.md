@@ -75,7 +75,7 @@ la ventana en cada turno. Sesiones cortas y enfocadas con contexto pre-cargado
 cd src/backend
 npx prisma generate          # checkout fresco lo necesita antes del type-check
 npm run type-check           # tsc --noEmit → DEBE dar 0 errores
-npm run test:e2e             # Postgres embebido, sin Docker. DEBE: 4 suites / 11 tests verdes
+npm run test:e2e             # Postgres embebido, sin Docker. DEBE: 4 suites / 12 tests verdes
 ```
 - **Antes de CADA commit:** `type-check` 0 + `test:e2e` verde. Sin excepciones.
 - Si una tarea toca frontend, el E2E NO cubre UI → verificación manual o Playwright;
@@ -98,7 +98,7 @@ npm run test:e2e             # Postgres embebido, sin Docker. DEBE: 4 suites / 1
 |---|---|---|---|---|---|
 | **T1** | Activar refresh + JWT corto (final) | env Render | setear `JWT_ACCESS_EXPIRY=15m` + verificar refresh-on-401 en prod | 1 | 2 |
 | ~~**T2**~~ | ~~Descomponer `Tasks.tsx`~~ ✅ HECHO — 1132→563 ln en 3 commits: modales/Segment/tipos/catálogo + 6 componentes de sección (`components/v2/tasks/`) + derivados en un useMemo y 14 handlers en useCallback. Queda QA visual manual (UI sin E2E) | `src/frontend/src/pages/Tasks.tsx` | extraer lista/filtros/modales a archivos propios + memoizar 10+ handlers inline | 4 | 3 |
-| **T3** | Retirar V2 negociación deprecada | `routes/negotiation.ts`, `EventNegotiationCard.tsx`, `apiClient.ts` (`negotiation.*` 680-700), `Calendar.tsx:450` | migrar el card a API canónica V1 `/api/negotiations` (negotiationId-based) + reescribir E2E flujo #3, LUEGO borrar `negotiation.ts` + su `app.use` en server.ts | 4 | 4 |
+| ~~**T3**~~ | ~~Retirar V2 negociación deprecada~~ ✅ HECHO — card migrado a V1 (useQuery + negotiations.create/respond, contraoferta/forzar delegan a ActivityDetail), E2E flujo #3 reescrito contra V1 + test cross-couple nuevo (línea base ahora **4 suites/12 tests**), `negotiation.ts` + `app.use` + contract test V2 borrados. `negotiationEngine.ts` queda sin consumidores (deuda anotada). Queda QA visual manual del card en Calendar | `routes/negotiation.ts`, `EventNegotiationCard.tsx`, `apiClient.ts` (`negotiation.*` 680-700), `Calendar.tsx:450` | migrar el card a API canónica V1 `/api/negotiations` (negotiationId-based) + reescribir E2E flujo #3, LUEGO borrar `negotiation.ts` + su `app.use` en server.ts | 4 | 4 |
 | ~~**T4**~~ | ~~PWA Fase 1~~ ✅ HECHO — vite-plugin-pwa (injectManifest) + `src/sw.ts` con push, manifest+iconos+metas iOS, `WEB_PUSH_ENABLED=true`. Queda QA manual en prod + UI que invoque `subscribe()` | `public/`, `index.html`, `vite.config`, `hooks/useWebPush.ts` | `vite-plugin-pwa`/Workbox: crear `manifest.webmanifest` + SW real con handler push, metas `apple-mobile-web-app-*` + `theme-color`, flag a `true` | 3 | 2 |
 | **T5** | Imágenes prueba → object storage | `proof/TaskProofUploader.tsx:54,72`, `schema.prisma` (`proofImageUrl`), `routes/taskProof.ts` | sacar base64 de Postgres → Supabase Storage/S3, guardar solo URL. **Confirmar antes si la feature se usa de verdad** (si no, desactivar flag y cerrar) | 4 | 3 |
 | ~~**T6**~~ | ~~God-service `apiClient.ts`~~ ✅ HECHO — core en `services/api/http.ts` + 12 módulos de dominio, fachada intacta | `src/frontend/src/services/apiClient.ts` | dividir por dominio (auth/tasks/events/...) manteniendo el interceptor JWT/refresh único | 3 | 2 |
@@ -130,7 +130,7 @@ Reglas (del brief §2 y §3):
 - Respeta la lista NO TOCAR (§2). No metas RLS, no toques la fórmula de puntos ni
   la concurrencia de negociación, no elimines V1.
 - Una pieza lógica por commit. Antes de cada commit: `npm run type-check` (0) +
-  `npm run test:e2e` (4 suites/11 verdes) en src/backend. Si tocas frontend, dilo
+  `npm run test:e2e` (4 suites/12 verdes) en src/backend. Si tocas frontend, dilo
   (E2E no cubre UI) y verifica a mano.
 - Si te bloqueas, anota el bloqueo en TODO_REFACTOR.md y para — no improvises
   arquitectura.
