@@ -62,8 +62,49 @@
 ### MÓDULO G — Architecture (prioridad 7)
 - [ ] **G.1** Capacitor readiness: APIs web-only, router, deep links
 - [ ] **G.2** Rate limiting audit: forgot-password, login, register, upload
-- [ ] **G.3** [DECISIÓN] Supabase Realtime selectivo — solo si D.5 favorable
+- [ ] **G.3** [DECISIÓN] Supabase Realtime selectivo — *veredicto D.5 (2026-06-12): NO favorable a corto plazo. Push como señal de invalidación + polling fallback. Revisar solo con push activo y quejas de latencia.*
 - [ ] **G.4** [DECISIÓN] httpOnly cookies JWT — solo si A.5 aprobado
+
+> **Módulos H→N**: roadmap derivado del brainstorming (Módulo D, 2026-06-12).
+> Análisis completo en `docs/PHASE2_FEATURE_PROPOSALS.md` · brief de implementación en
+> `docs/PHASE2_MASTERBRIEF.md` §11. Ítems [DECISIÓN]: preguntar al usuario, NO improvisar.
+
+### MÓDULO H — Push activation chain (prioridad 8 — ranking #1 y #3 del brainstorming)
+- [ ] **H.1** Prompt contextual de suscripción push post-acción: tras 1ª negociación enviada o 1ª tarea por verificar, banner "¿Quieres enterarte cuando responda X?" → `useWebPush().subscribe()` *(requiere E.5 hecho — el toggle base vive en E.5)*
+- [ ] **H.2** Resumen semanal push accionable (domingo tarde): saldo semana ambos + equilibrio + reto, con deep-link a Analytics — reusa `digestService`/`notificationDigestService` + `insightsGenerator.ts` *(requiere E.5/H.1: suscriptores)*
+- [ ] **H.3** Nudge de verificación: notif/push al verificador ~20h después del TaskLog pendiente (antes del auto-accept de 24h) — reduce auto-accepts silenciosos
+
+### MÓDULO I — Onboarding data-driven (prioridad 9 — ranking #2)
+- [ ] **I.1** Telemetría de funnel onboarding: evento por step (entered/completed/skipped) + completion final en creador, invitee y catch-up — `pages/onboarding/*` + `packages/shared/telemetry-events.ts` (PostHog ya integrado, hoy 0 eventos)
+- [ ] **I.2** [DECISIÓN previa] StepCategories: hoy obliga a seleccionar pero NO persiste (TODO `Onboarding.tsx:140`). Opciones: (a) retirar del flujo a Settings con hint en StepDone [recomendado], (b) cerrar el TODO y persistir. Preguntar al usuario antes de tocar.
+- [ ] **I.3** [DECISIÓN — solo con 2-4 semanas de datos de I.1] Onboarding rápido 3 pasos (Welcome→Profile→Pair) con Rules/Categories diferidos a checklist post-login
+
+### MÓDULO J — Negociación UX (prioridad 10 — ranking #4)
+- [ ] **J.1** Historial de negociación legible (solo frontend): autor (avatar/nombre) + timestamp relativo por ronda, contador "Ronda X/Y" también en `ActivityDetail` header, renombrar diálogo "Forzar aceptación" → "Cerrar y pagar" — `ActivityDetail.tsx:293-323,436` + `EventNegotiationCard.tsx:295-312`
+- [ ] **J.2** [DECISIÓN política previa] Caducidad suave de negociación: 7d sin respuesta → notif recordatorio + badge "lleva X días"; 14d → estado `stale` con CTA recordar/retirar. NUNCA auto-rechazo. Confirmar política con el usuario antes de implementar.
+
+### MÓDULO K — Gamificación engagement (prioridad 11 — D.2/D.6)
+- [ ] **K.1** Celebración de cierre de reto + racha semanal: card animada estilo `LevelUpModal` + confetti al completar `CoupleChallenge`; cap 1 celebración/día
+- [ ] **K.2** Bonificación de consistencia en XP (NUNCA en MP): N semanas seguidas con ≥X tareas verificadas → bonus XP + achievement nuevo en `achievementCatalog` — no toca `pointsCalculator.ts` ni `PointsTransaction`
+- [ ] **K.3** Meta semanal elegible: lunes la app ofrece 2-3 retos candidatos y la pareja elige 1 (primero fija, el otro puede cambiar hasta martes) — `challengeService.ts` + `CoupleChallenge.config` JSON
+
+### MÓDULO L — Economía: medir antes de tocar (prioridad 12 — D.6)
+- [ ] **L.1** Script de distribución real de MP (solo lectura): MP medios por transacción, saldo medio absoluto, ratio tareas/actividades por pareja → informe D30 en `docs/`. Prerequisito duro de CUALQUIER cambio económico (decaimiento, techo, etc.)
+
+### MÓDULO M — Acuerdos recurrentes (prioridad 13 — ranking #5)
+- [ ] **M.1** [DECISIÓN/SPEC previa] Spec de producto: acuerdo = `ActivityTemplate` + puntos pactados (consenso v2.1.1 ya existe) + auto-creación opcional del evento recurrente. Escribir spec corta y validar con el usuario antes de M.2.
+- [ ] **M.2** Implementación acuerdos recurrentes: schema (campos acuerdo en `ActivityTemplate`), `activityTemplateService`, reuso `recurrenceService`, UI en catálogo + `RequestActivity` — NUNCA tocar `pointsCalculator.ts`
+
+### MÓDULO N — Analytics accionable + backlog D (prioridad 14)
+- [ ] **N.1** Insights accionables: añadir `cta: {label, route}` + causa breve a las 6 reglas de `insightsGenerator.ts` (tono = el de `redBalanceService`, nunca acusatorio)
+- [ ] **N.2** Equity por categoría (gauge desglosado: Hogar 80/20 ⚠️ …) + comparativa mes vs mes anterior lado a lado — `analyticsAggregator` ya agrupa por categoría
+- [ ] **N.3** Modo vacaciones mejorado: congelar expectativas de tareas recurrentes durante `pausedUntil` (v2.2.8 ya pausa streaks/digest)
+- [ ] **N.4** Export CSV de historial (versión barata pre-PDF v3.0)
+- [ ] **N.5** Deep links de invitación: pulir copy email + landing `couple-preview` con datos reales del inviter (momento más crítico del funnel viral)
+- [ ] **N.6** [DECISIÓN producto] Modo solo (sin partner, auto-verificación) — palanca de adquisición; "empezar en solitario" ya existe en StepPair
+- [ ] **N.7** [DECISIÓN producto] Check-in semanal guiado (une H.2 + retro journal + K.3 en un ritual de domingo)
+
+> **Aparcado sin programar** (revisar con masa de usuarios): comparativa parejas anónimas, historial/timeline de pareja, widget nativo (post-Capacitor), categorías custom con pesos, torneos/leaderboards (contradice ADN del producto), re-tuning curva XP (solo con datos I.1/L.1).
 
 ---
 

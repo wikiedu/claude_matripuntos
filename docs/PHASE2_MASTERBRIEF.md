@@ -683,6 +683,107 @@ Verificación: frontend tsc --noEmit + npm run build OK.
 
 ---
 
+## 11. Módulos H→N — roadmap derivado del brainstorming (Módulo D, 2026-06-12)
+
+> Análisis completo con pros/contras/recomendaciones: `docs/PHASE2_FEATURE_PROPOSALS.md`.
+> Aquí solo el brief ejecutable por módulo. Reglas idénticas al resto de la fase:
+> verificación pre-commit de §0, lista NO TOCAR de §1, ítems [DECISIÓN] → preguntar
+> al usuario ANTES de tocar código, nunca improvisar producto.
+
+### Módulo H — Push activation chain (~1-2 sesiones)
+**Contexto clave:** el backend push está completo y sin usuarios — `useWebPush.ts` tiene
+`subscribe()`/`unsubscribe()` con estados (`idle/unsupported/denied/subscribing/subscribed/error`)
+y **0 consumidores**. VAPID (`/api/notifications/push/*`), preferencias 3-tier + quiet hours
+(v2.2.4, `notificationPreferencesService`), digest scheduler (v2.2.5, `notificationDigestService`)
+ya corren en prod. El toggle base en Settings es **E.5** (hacerlo primero).
+
+- **H.1 Prompt contextual:** banner post-acción (1ª negociación enviada en `ActivityDetail.tsx` /
+  1ª tarea pendiente de verificar en `Tasks.tsx`) → `useWebPush().subscribe()`. Estado `denied` →
+  instrucciones de navegador; `unsupported` → no renderizar. iOS: solo PWA instalada (iOS 16.4+)
+  soporta push — si `!navigator.standalone` en iOS, mostrar primero banner de instalación (sinergia E.2).
+  Persistir "ya preguntado" en localStorage para no insistir. Telemetría de aceptación.
+- **H.2 Resumen semanal push:** ampliar `digestService`/`notificationDigestService` con un digest
+  dominical: saldo semanal de ambos + banda de equilibrio + estado del reto, reusando
+  `insightsGenerator.ts` (6 reglas existentes). Deep-link a `/analytics`. Respeta quiet hours y tiers.
+- **H.3 Nudge de verificación:** TaskLog `pending` con ~20h de antigüedad → notif al verificador
+  ("X marcó 'Cocina' — ¿lo confirmas?") antes del auto-accept de 24h. Implementar como check en el
+  cron existente del digest (no crear scheduler nuevo). Categoría `critical` de las prefs v2.2.4.
+
+**Verificación:** frontend `tsc --noEmit` + build; backend type-check + test:e2e. H.2/H.3: test
+unitario del selector de destinatarios (no enviar si 0 actividad / ya verificado).
+
+### Módulo I — Onboarding data-driven (~1 sesión)
+**Contexto clave:** 0 eventos de telemetría en `pages/onboarding/` pese a existir
+`services/telemetry.ts` + catálogo `packages/shared/telemetry-events.ts` (PostHog integrado).
+`StepCategories` obliga a seleccionar pero `finish()` NO persiste (TODO `Onboarding.tsx:140`).
+
+- **I.1 Telemetría funnel:** evento por step `entered/completed/skipped` + `onboarding_completed`
+  en los 3 flujos (creador 5-6 pasos, invitee 3-4, PartnerCatchUp 4). Añadir los eventos al catálogo
+  compartido primero (el backend compila shared antes — §2 CLAUDE.md). Sin PII en payloads.
+- **I.2 [DECISIÓN]:** StepCategories — retirar a Settings (recomendado) o persistir. PREGUNTAR.
+- **I.3 [DECISIÓN]:** onboarding rápido 3 pasos — solo evaluar con 2-4 semanas de datos de I.1.
+
+### Módulo J — Negociación UX (~1-2 sesiones)
+**Contexto clave (D.1):** historial sin autor ni timestamp (`ActivityDetail.tsx:293-323`,
+`EventNegotiationCard.tsx:295-312`); contador "Ronda X/Y" solo en el card
+(`EventNegotiationCard.tsx:201`), falta en ActivityDetail; diálogo "Forzar aceptación"
+(`ActivityDetail.tsx:436`) suena a obligar al partner. Las negociaciones NO expiran nunca y la UI
+no muestra cuánto llevan esperando (`ActivityDetail.tsx:394-402`). `CounterOfferSheet.tsx` existe
+sin uso en ActivityDetail (form inline propio — evaluar consolidar de paso, sin obligación).
+
+- **J.1 (solo frontend):** autor + timestamp relativo por ronda en ambos historiales; "Ronda X/Y"
+  en ActivityDetail header; copy diálogo → "Cerrar y pagar". `Negotiation.proposedBy` ya viene en
+  la respuesta — verificar qué expone la ruta V1 antes de asumir.
+- **J.2 [DECISIÓN política]:** caducidad suave 7d→recordatorio / 14d→`stale` con CTA. Nunca
+  auto-rechazo. Confirmar política. Implementación: check lazy en GET events o pieza del cron
+  digest — NO scheduler nuevo. No tocar rutas V1 (añadir campos derivados es OK, cambiar semántica NO).
+
+### Módulo K — Gamificación engagement (~1-2 sesiones)
+**Contexto clave (D.2):** 5 tipos de reto deterministas (`challengeService.ts:24-68`), streak
+freeze 1×/semana, 30 achievements en `achievementCatalog`, replays pasivos. LevelUpModal +
+PointsBurst son los únicos momentos de celebración.
+
+- **K.1 Celebración reto/racha:** card animada estilo `LevelUpModal` (mismo patrón
+  localStorage-detection) al completar `CoupleChallenge` o cerrar racha semanal. Cap 1/día.
+  Respetar `prefers-reduced-motion`.
+- **K.2 Consistencia en XP:** achievements nuevos tipo "N semanas seguidas con ≥X tareas
+  verificadas" en `achievementCatalog` + lógica en `achievementEngineV2`/`achievementCheckService`.
+  **Regla dura:** bonus SOLO en XP/achievements — `pointsCalculator.ts` y la semántica de
+  `PointsTransaction` (suma ~cero entre pareja) no se tocan jamás.
+- **K.3 Meta elegible:** ofrecer 2-3 retos candidatos el lunes; la pareja elige (primero fija,
+  el otro puede cambiar hasta martes). Persistir elección en `CoupleChallenge.config` (JSON ya
+  existente). La selección determinista actual queda como fallback si nadie elige.
+
+### Módulo L — Economía: medir (~0.5 sesión)
+- **L.1 Script solo-lectura** en `scripts/` (patrón `seed-prod-couple.mjs`): distribución de MP
+  por transacción, saldo medio absoluto por pareja, ratio tareas/actividades, percentiles.
+  Output: `docs/INFORME_DISTRIBUCION_MP.md`. Correr contra dev local; en prod solo si el usuario
+  pasa DATABASE_URL. **Prerequisito duro** de cualquier cambio económico (decaimiento, techos).
+
+### Módulo M — Acuerdos recurrentes (sprint propio, M-L)
+- **M.1 [SPEC previa]:** acuerdo = `ActivityTemplate` + puntos pactados (el consenso
+  `activity_template:<id>:points` de v2.1.1 ya existe) + auto-creación opcional del evento
+  (reusar `recurrenceService`). Escribir spec corta (1 página: schema, flujo UI, edge cases:
+  pausa pareja, cambio de puntos a mitad, cancelación) y validarla con el usuario.
+- **M.2 Implementación** según spec aprobada. Archivos: `schema.prisma` (campos en
+  ActivityTemplate o modelo `RecurringAgreement` — decidir en spec), `activityTemplateService`,
+  UI catálogo + `RequestActivity`. Migración aditiva, nunca tocar `pointsCalculator.ts`.
+
+### Módulo N — Analytics accionable + backlog (~2 sesiones, troceable)
+- **N.1:** `insightsGenerator.ts:31-196` — añadir `cta:{label,route}` + causa breve por regla.
+  Tono no acusatorio (referencia: copy escalado de `redBalanceService`). El frontend
+  (`AnalyticsProSection.tsx:50-68`) renderiza el CTA como botón.
+- **N.2:** equity por categoría (gauge desglosado) + comparativa mes vs mes lado a lado —
+  `analyticsAggregator` ya agrupa por categoría; añadir endpoint o ampliar `/analytics/v2/summary`.
+- **N.3:** tareas recurrentes durante `Couple.pausedUntil`: no generar expectativa/log pendiente
+  (v2.2.8 ya pausa streaks/digest — buscar el patrón en `recurringTaskService`).
+- **N.4:** export CSV de historial (endpoint + botón en Settings; GDPR export `/api/account/export` ya existe como referencia).
+- **N.5:** copy email invitación (`emailService`, plantillas con escHtml) + landing
+  `couple-preview/:code` con datos reales del inviter.
+- **N.6/N.7 [DECISIÓN producto]:** modo solo · check-in semanal — preguntar antes de spec.
+
+---
+
 ## Apéndice: Contexto técnico rápido (no releer CLAUDE.md)
 
 **Imports ESM backend:** extensión `.js` aunque el archivo sea `.ts`.
