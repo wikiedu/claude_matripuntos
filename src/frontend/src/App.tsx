@@ -15,6 +15,7 @@ import { OnboardingLanding } from './pages/onboarding/OnboardingLanding'
 import { AuthedLayout } from './layout/AuthedLayout'
 import { HomeSelector, HomeView } from './components/v2/home/HomeSelector'
 import { CookieConsentBanner } from './components/CookieConsentBanner'
+import { RouteErrorBoundary } from './components/ErrorBoundary'
 // Fase 2 B.1 — code splitting: el resto de páginas se cargan por ruta.
 // Antes: un único chunk de 898KB; ahora chunk principal + uno por página.
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
@@ -332,7 +333,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        <AppRoutes />
+        {/* Fase 2 C.3 — boundary global keyed por pathname: un crash en una
+             página no deja la app en blanco y navegar lo resetea. */}
+        <RouteErrorBoundary>
+          <AppRoutes />
+        </RouteErrorBoundary>
         <CookieConsentBanner />
       </Router>
     </QueryClientProvider>
