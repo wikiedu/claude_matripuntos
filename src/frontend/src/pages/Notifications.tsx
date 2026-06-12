@@ -175,13 +175,24 @@ export default function Notifications() {
           <Loader className="w-5 h-5 animate-spin" />
         </div>
       ) : items.length === 0 ? (
-        <div className="text-center py-12 text-text-tertiary text-sm">
-          <Bell className="w-8 h-8 mx-auto mb-2 opacity-40" />
-          No tienes notificaciones todavía.
+        /* Empty state — patrón Journal v2.7.7 (E.1 Fase 2) */
+        <div className="text-center py-12 px-4 rounded-xl bg-surface-card border border-brd-subtle border-dashed">
+          <Bell className="w-8 h-8 mx-auto mb-3 text-text-tertiary opacity-40" aria-hidden="true" />
+          <p className="text-sm font-semibold text-text-primary mb-1">Todo al día</p>
+          <p className="text-xs text-text-secondary max-w-xs mx-auto leading-relaxed">
+            Aquí aparecerá lo que haga tu pareja: propuestas, tareas por verificar, logros…
+          </p>
         </div>
       ) : visibleItems.length === 0 ? (
-        <div className="text-center py-10 text-text-tertiary text-sm">
-          Ninguna notificación en esta categoría.
+        <div className="text-center py-10 px-4 rounded-xl bg-surface-card border border-brd-subtle border-dashed">
+          <p className="text-sm text-text-secondary mb-3">Ninguna notificación en esta categoría.</p>
+          <button
+            type="button"
+            onClick={() => setFilter('all')}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-purple hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple rounded px-2 py-1"
+          >
+            Ver todas
+          </button>
         </div>
       ) : (
         <ul className="space-y-2">

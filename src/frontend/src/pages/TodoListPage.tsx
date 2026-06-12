@@ -140,8 +140,22 @@ export default function TodoListPage() {
 
           {/* My todos list */}
           {mine.length === 0 ? (
-            <div className="rounded-lg bg-surface-card border border-brd-subtle p-6 text-center">
-              <p className="text-sm text-text-secondary">Sin to-dos — añade el primero</p>
+            /* Empty state — patrón Journal v2.7.7 (E.1 Fase 2) */
+            <div className="text-center py-10 px-4 rounded-xl bg-surface-card border border-brd-subtle border-dashed">
+              <div className="text-4xl mb-3" aria-hidden="true">📝</div>
+              <p className="text-sm font-semibold text-text-primary mb-1">Sin to-dos pendientes</p>
+              <p className="text-xs text-text-secondary mb-4 max-w-xs mx-auto leading-relaxed">
+                Apunta recordatorios rápidos para ti, o márcalos como compartidos para que los veáis los dos.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  document.querySelector<HTMLInputElement>('input[aria-label="Texto del to-do"]')?.focus()
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-amber hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber rounded px-2 py-1"
+              >
+                ➕ Crear el primer to-do
+              </button>
             </div>
           ) : (
             <div className="space-y-1.5">
@@ -167,9 +181,12 @@ export default function TodoListPage() {
         <>
           {/* Shared tab: mine-shared (fully editable) + partner-shared (toggle-only). */}
           {sharedCount === 0 ? (
-            <div className="rounded-lg bg-surface-card border border-brd-subtle p-6 text-center">
-              <p className="text-sm text-text-secondary">
-                Aún no hay to-dos compartidos. Marca uno como “Compartido” al crearlo o editarlo.
+            /* Empty state — patrón Journal v2.7.7 (E.1 Fase 2) */
+            <div className="text-center py-10 px-4 rounded-xl bg-surface-card border border-brd-subtle border-dashed">
+              <div className="text-4xl mb-3" aria-hidden="true">🤝</div>
+              <p className="text-sm font-semibold text-text-primary mb-1">Aún no hay to-dos compartidos</p>
+              <p className="text-xs text-text-secondary max-w-xs mx-auto leading-relaxed">
+                Marca uno como “Compartido” al crearlo o editarlo y aparecerá aquí para los dos.
               </p>
             </div>
           ) : (

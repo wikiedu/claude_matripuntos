@@ -127,10 +127,23 @@ export default function ShoppingListPage() {
       )}
       {!suggestedCategory && <div className="mb-4" />}
 
-      {/* Empty state */}
+      {/* Empty state — patrón Journal v2.7.7 (E.1 Fase 2) */}
       {activeItems.length === 0 && (
-        <div className="rounded-lg bg-surface-card border border-brd-subtle p-6 text-center">
-          <p className="text-sm text-text-secondary">Lista vacía — añade el primer item</p>
+        <div className="text-center py-10 px-4 rounded-xl bg-surface-card border border-brd-subtle border-dashed">
+          <div className="text-4xl mb-3" aria-hidden="true">🛒</div>
+          <p className="text-sm font-semibold text-text-primary mb-1">La lista está vacía</p>
+          <p className="text-xs text-text-secondary mb-4 max-w-xs mx-auto leading-relaxed">
+            Todo lo que añadáis aquí lo veis los dos al momento. Las categorías se detectan solas.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              document.querySelector<HTMLInputElement>('input[aria-label="Añadir item a la lista"]')?.focus()
+            }}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-amber hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber rounded px-2 py-1"
+          >
+            ➕ Añadir el primer item
+          </button>
         </div>
       )}
 

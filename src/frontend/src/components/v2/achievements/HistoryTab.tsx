@@ -23,11 +23,14 @@ export function HistoryTab({ unlocked }: Props) {
     .sort((a, b) => new Date(b.unlockedAt as string).getTime() - new Date(a.unlockedAt as string).getTime())
 
   if (sorted.length === 0) {
+    /* Empty state — patrón Journal v2.7.7 (E.1 Fase 2) */
     return (
       <div className="mx-4">
-        <Card padding="lg" className="text-center">
-          <p className="text-sm text-text-secondary m-0">
-            Aún no has desbloqueado ningún logro 🙌
+        <Card padding="lg" className="text-center border-dashed">
+          <div className="text-4xl mb-3" aria-hidden="true">🏆</div>
+          <p className="text-sm font-semibold text-text-primary mb-1 m-0">Aún no hay logros desbloqueados</p>
+          <p className="text-xs text-text-secondary max-w-xs mx-auto leading-relaxed m-0">
+            Completad tareas y actividades juntos — los primeros logros caen enseguida y aparecerán aquí con su fecha.
           </p>
         </Card>
       </div>
