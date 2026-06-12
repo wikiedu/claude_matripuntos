@@ -25,7 +25,7 @@
 
 ### MÓDULO C — Deuda técnica (prioridad 3)
 - [x] **C.0** (nuevo, hallazgo B.1) `AnalyticsChart.tsx` + `recharts` dead code *(2026-06-12 — componente borrado, recharts desinstalado, CLAUDE.md §2/§3 limpio, tsc + build verdes)*
-- [ ] **C.1** Confirmar 0 consumidores de `negotiationEngine.ts` → borrar archivo + test file
+- [x] **C.1** `negotiationEngine.ts` retirado *(2026-06-12 — 0 consumidores verificados en src/routes/frontend/scripts/packages; borrado servicio + test file con OK explícito del usuario [estaba en lista NO TOCAR]; type-check 0 + e2e 5/17 verdes)*
 - [ ] **C.2** Mapear consumidores achievements V1 vs V2 → plan flag `LEGACY_ACHIEVEMENTS_ENABLED=false`
 - [ ] **C.3** ErrorBoundary global en `App.tsx` o `AuthedLayout.tsx`
 - [ ] **C.4** Remaining explicit `any` en backend + frontend críticos

@@ -132,7 +132,6 @@ services/                   # ~40 servicios (lógica de dominio). Principales:
   authService                # registro/login/JWT · refreshTokenService (rotación) · cryptoService (AES-256-GCM)
   accountDeletionService     # borrado de cuenta con anonimización · coupleLifecycleService (salir/pausar pareja)
   pointsCalculator · taskLogPoints   # fórmula de puntos (pura, testeada) · redBalanceService (saldo en rojo)
-  negotiationEngine          # motor de negociación de eventos
   achievementEngine · achievementEngineV2 · achievementCheckService   # logros (V1 legacy + V2 canónico)
   gamificationService · challengeService · streakService · replayService   # nivel/XP, retos, rachas, replays
   analyticsService · analyticsAggregator · insightHeuristic · insightsGenerator   # analytics + insights server-side
