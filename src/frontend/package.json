@@ -8,9 +8,9 @@
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx",
     "type-check": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:ui": "vitest --ui"
+    "test": "NODE_OPTIONS=--no-experimental-webstorage vitest run",
+    "test:watch": "NODE_OPTIONS=--no-experimental-webstorage vitest",
+    "test:ui": "NODE_OPTIONS=--no-experimental-webstorage vitest --ui"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
