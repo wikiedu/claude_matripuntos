@@ -32,7 +32,7 @@
 - [x] **C.5** Plan migración `invitations.ts` V2 *(2026-06-12 — mapeo completo en DECISIÓN C.5 abajo: 8 rutas, 2 consumidores reales (StepJoinAccount, flujo email por token), sin equivalente V1; recomendación: declarar canónico el flujo email + decidir con producto las 4 link-partner. Solo doc, sin código)*
 
 ### MÓDULO D — Brainstorming (prioridad 4) ⚠️ SIN CÓDIGO — solo produce docs/PHASE2_FEATURE_PROPOSALS.md
-- [ ] **D.all** Análisis completo D.1-D.8 + propuestas libres + ranking top 5 → `docs/PHASE2_FEATURE_PROPOSALS.md`
+- [x] **D.all** Análisis completo D.1-D.8 + propuestas libres + ranking top 5 → `docs/PHASE2_FEATURE_PROPOSALS.md` *(2026-06-12 — doc completo: 8 análisis con situación/problema/propuestas S-M-L/recomendación, 3 propuestas libres (nudge verificación, check-in semanal, deep links invitación), ranking top 5. Hallazgos clave: useWebPush.subscribe() con 0 consumidores [push backend al 95% rindiendo 0%], StepCategories no persiste [TODO Onboarding.tsx:140], 0 telemetría de funnel onboarding, achievementEngineV2 aislado. Veredictos para G: D.5→G.3 Realtime NO favorable a corto plazo; quedan 5 decisiones de producto listadas al final del doc)*
   - D.1 Flujo de negociación (UX, wizard, historial)
   - D.2 Gamificación engagement (retos, streaks, celebraciones)
   - D.3 Push notifications strategy (UI suscripción, eventos, iOS)
@@ -114,6 +114,7 @@
 
 - **2026-06-12 — MÓDULO A completo (Seguridad)**: A.1a/b/c (crypto), A.2 (IDOR audit + capacidad pareja + mount fix de prod), A.3 (npm audit fix runtime), A.4 (seed passwords), A.5 (plan httpOnly cookies documentado). Commits: 3908f91 · 5588143 · 98e111b · 31aa93f. Baseline E2E ahora **5 suites / 17 tests**.
 - **2026-06-12 — MÓDULO B completo (Performance)**: B.1 code splitting (898KB→195KB main), B.2 indexes hot-path, B.3 N+1 analytics, B.4 fuentes. Commits: d416064 · ccfd787 · 9d27c4f · ffa4ce9 · 8922f71. Bonus: fix Node 26 webstorage (vitest 166 fallos→8 preexistentes).
+- **2026-06-12 — MÓDULO D completo (Brainstorming)**: D.all → `docs/PHASE2_FEATURE_PROPOSALS.md` v1. Sin código. Top 5: (1) activar push [toggle+prompt contextual, S], (2) telemetría onboarding + fix StepCategories [S], (3) resumen semanal push accionable [S-M], (4) negociación historial legible + caducidad [S/M], (5) acuerdos recurrentes [M-L]. G.3 (Realtime) → veredicto NO favorable: usar push como señal de invalidación.
 - **2026-06-12 — MÓDULO C completo (Deuda técnica)**: C.0 recharts+AnalyticsChart retirados (−444 líneas), C.1 negotiationEngine retirado con OK del usuario (−749 líneas), C.2 achievements V1 apagado por defecto (flag opt-in + E2E nuevo), C.3 ErrorBoundary global keyed por ruta (+3 tests), C.4 any críticos eliminados (auth/tasks/events/points/invitations + frontend auth), C.5 plan invitations.ts documentado. Commits: ddb59df · a2e8bb3 · 2bf7423 · cd1e33f · 7f48ef4 · a289208. Baseline E2E ahora **5 suites / 18 tests**. Pendiente manual: `.env.example` LEGACY_ACHIEVEMENTS_ENABLED=true→false (bloqueado por permisos).
 
 ### NOTA F.4 (adelantada) — tests en rojo esperables en local
