@@ -39,6 +39,22 @@ const deprecationMiddleware = (_req: Request, res: Response, next: Function) => 
   next()
 }
 
+// Fase 2 A.2 (audit IDOR/integridad) — invariante de la app: una pareja tiene
+// como máximo 2 usuarios. Ninguno de los 4 puntos de entrada a una pareja
+// (invite-partner, accept-invitation, register-with-invitation,
+// accept-link-partner) re-validaba la capacidad en el momento de unirse, así
+// que dos invitaciones aceptadas en paralelo podían crear una pareja de 3.
+// `excludeUserId` excluye al caller del conteo (para no contarse a sí mismo).
+async function coupleMemberCount(coupleId: string, excludeUserId?: string): Promise<number> {
+  return prisma.user.count({
+    where: {
+      coupleId,
+      deletedAt: null,
+      ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
+    },
+  })
+}
+
 /**
  * Generate invitation token for partner
  * POST /api/auth/invite-partner
@@ -67,6 +83,12 @@ router.post('/invite-partner', deprecationMiddleware, authenticateToken, async (
     }
 
     const coupleId = user.coupleId
+
+    // Fase 2 A.2 — si ya hay otro miembro en mi pareja, no emitir más
+    // invitaciones de unión (la pareja está completa).
+    if (coupleId && (await coupleMemberCount(coupleId, userId)) >= 1) {
+      return res.status(400).json({ error: 'Ya tienes una pareja vinculada.' })
+    }
 
     // Check if invitation already exists
     const existingInvitation = await prisma.invitation.findFirst({
@@ -221,6 +243,12 @@ router.post('/accept-invitation', deprecationMiddleware, authenticateToken, asyn
       return res.status(400).json({ error: 'Email does not match invitation' })
     }
 
+    // Fase 2 A.2 — re-validar capacidad en el momento de aceptar: la pareja
+    // destino puede haberse completado desde que se emitió la invitación.
+    if ((await coupleMemberCount(invitation.coupleId!, userId)) >= 2) {
+      return res.status(409).json({ error: 'Esa pareja ya está completa.' })
+    }
+
     // Update user's couple ID
     await prisma.user.update({
       where: { id: userId },
@@ -310,6 +338,12 @@ router.post('/register-with-invitation', deprecationMiddleware, async (req: Requ
 
     if (existingUser) {
       return res.status(400).json({ error: 'Email already registered' })
+    }
+
+    // Fase 2 A.2 — re-validar capacidad de la pareja destino antes de crear
+    // el usuario dentro de ella (misma race que en /accept-invitation).
+    if ((await coupleMemberCount(invitation.coupleId!)) >= 2) {
+      return res.status(409).json({ error: 'Esa pareja ya está completa.' })
     }
 
     // Hash password
@@ -513,6 +547,24 @@ router.post('/accept-link-partner', authenticateToken, async (req: Request, res:
     })
     if (!invitation) return res.status(404).json({ error: 'Solicitud no encontrada o ya procesada.' })
     if (new Date() > invitation.expiresAt) return res.status(410).json({ error: 'La solicitud ha caducado.' })
+
+    // Fase 2 A.2 — los checks de /link-partner ("ninguno de los dos tiene
+    // pareja") se hicieron al CREAR la solicitud; aquí pueden haber caducado.
+    // Re-validar ambos lados antes de mover al usuario:
+    // 1. la pareja del solicitante no se ha completado mientras tanto
+    if ((await coupleMemberCount(invitation.coupleId!, userId)) >= 2) {
+      return res.status(409).json({ error: 'Esa pareja ya está completa.' })
+    }
+    // 2. yo no he vinculado otra pareja mientras tanto (me iría abandonándola)
+    const me = await prisma.user.findUnique({ where: { id: userId } })
+    if (me?.coupleId) {
+      const myPartners = await prisma.user.count({
+        where: { coupleId: me.coupleId, deletedAt: null, id: { not: userId } },
+      })
+      if (myPartners >= 1) {
+        return res.status(409).json({ error: 'Ya tienes una pareja vinculada.' })
+      }
+    }
 
     // Move me to the requester's couple
     await prisma.user.update({ where: { id: userId }, data: { coupleId: invitation.coupleId! } })

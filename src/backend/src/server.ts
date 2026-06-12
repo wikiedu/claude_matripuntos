@@ -207,6 +207,13 @@ app.get('/api/health', async (req, res) => {
 // Composición: ambos en cadena, el más restrictivo (authBucket: 10/min IP) gana.
 // Cuando confiemos en el nuevo, el legacy puede retirarse en sesión próxima.
 app.use('/api/auth', authLimiter, v161AuthBucket, authRoutes)
+// Fase 2 A.2 — invitationRoutes DEBE montarse antes que familyRoutes:
+// family.ts hace `router.use(authenticateToken)` montado en `/api`, así que
+// intercepta con 401 cualquier /api/* no matcheado antes. Con el mount
+// original (tras family) los endpoints públicos de invitations
+// (GET /invitation/:token, POST /register-with-invitation) devolvían 401.
+// Mismos rate limiters que authRoutes (comparten prefijo /api/auth).
+app.use('/api/auth', authLimiter, v161AuthBucket, invitationRoutes)
 app.use('/api/events', writeBucket, eventRoutes)
 app.use('/api/tasks', writeBucket, taskRoutes)
 app.use('/api/negotiations', negotiationRoutes)
@@ -263,8 +270,8 @@ app.use('/api/analytics', analyticsRoutes)
 // Activity Routes
 app.use('/api/recent-activity', activityRoutes)
 
-// Invitation + partner linking routes
-app.use('/api/auth', invitationRoutes)
+// Invitation + partner linking routes — movido arriba (Fase 2 A.2), ver
+// comentario junto a authRoutes.
 
 // Rule Proposals Routes
 app.use('/api/rules', ruleProposalRoutes)
