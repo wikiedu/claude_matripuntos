@@ -20,7 +20,6 @@ import profileRoutes from './routes/profile.js'
 import familyRoutes from './routes/family.js'
 import categoryRoutes from './routes/categories.js'
 import pointsV2Routes from './routes/pointsV2.js'
-import negotiationV2Routes from './routes/negotiation.js'
 import achievementRoutes from './routes/achievements.js'
 import gamificationRoutes from './routes/gamification.js'
 import calendarRoutes from './routes/calendar.js'
@@ -222,7 +221,8 @@ app.use('/api/profile', profileRoutes)
 app.use('/api', familyRoutes)
 app.use('/api/categories', categoryRoutes)
 app.use('/api/points', pointsV2Routes)
-app.use('/api/events', negotiationV2Routes)
+// T3 — retiradas las rutas V2 de negociación (routes/negotiation.ts, Sunset
+// vencido): el frontend usa la API canónica V1 /api/negotiations.
 
 // Gamification Routes (FASE 4)
 app.use('/api/achievements', achievementRoutes)
