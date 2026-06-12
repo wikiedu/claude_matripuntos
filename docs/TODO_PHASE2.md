@@ -9,13 +9,13 @@
 ## COLA DE TRABAJO (en orden — el modelo siempre coge el primero sin [x])
 
 ### MÓDULO A — Seguridad (prioridad 1)
-- [ ] **A.1a** `account.ts:35` — Math.random() → `crypto.randomInt(100000, 1000000)`
-- [ ] **A.1b** `invitationService.ts:56,159` — Math.random() → `crypto.randomBytes(16).toString('hex')` en secretKey
-- [ ] **A.1c** `emailService.ts:49` — Math.random() → `crypto.getRandomValues` en jitter (low priority)
-- [ ] **A.2** IDOR audit `invitations.ts` V2 — leer completo, guards por coupleId, test cross-couple
-- [ ] **A.3** `npm audit fix` axios en frontend + backend
-- [ ] **A.4** `prisma/seed.ts` — verificar/reemplazar credenciales hardcoded
-- [ ] **A.5** [DECISIÓN — solo doc] localStorage JWT → httpOnly cookies: escribir plan en bloqueos al final de este archivo
+- [x] **A.1a** `account.ts:35` — Math.random() → `crypto.randomInt(100000, 1000000)` *(2026-06-12, commit 3908f91)*
+- [x] **A.1b** `invitationService.ts:56,159` — Math.random() → `crypto.randomBytes(16).toString('hex')` en secretKey *(2026-06-12, commit 3908f91)*
+- [x] **A.1c** `emailService.ts:49` — Math.random() → `crypto.getRandomValues` en jitter *(2026-06-12, commit 3908f91)*
+- [x] **A.2** IDOR audit `invitations.ts` V2 *(2026-06-12, commit 5588143 — sin IDOR directo; cerrado gap de capacidad 2-usuarios en 4 entry points + bug de prod: mount order dejaba los endpoints públicos detrás del 401 de family.ts. Suite E2E nueva: baseline pasa de 4/12 a 5/17)*
+- [x] **A.3** `npm audit fix` axios en frontend + backend *(2026-06-12, commit 98e111b — axios 1.17.0, react-router-dom 6.30.4, ws, qs/express. Quedan dev-only semver-major: vitest/vite/esbuild + cadena @typescript-eslint 6.x — ver BLOQUEOS)*
+- [x] **A.4** seed audit *(2026-06-12, commit 31aa93f — prisma/seed.ts limpio; seed-prod-couple.mjs password hardcoded → aleatoria por ejecución)*
+- [x] **A.5** [DECISIÓN — solo doc] localStorage JWT → httpOnly cookies *(2026-06-12 — plan escrito en BLOQUEOS/DECISIONES abajo; NO implementado)*
 
 ### MÓDULO B — Performance (prioridad 2)
 - [ ] **B.1** Code splitting + React.lazy en `App.tsx` + manualChunks en `vite.config.ts` (bundle 898KB → ~200KB)
@@ -66,9 +66,24 @@
 
 ---
 
-## BLOQUEOS
+## BLOQUEOS / DECISIONES
 
-*(vacío — añadir aquí si el modelo se bloquea en algún ítem)*
+### DECISIÓN A.5 — localStorage JWT → httpOnly cookies (plan, NO implementado)
+- **Qué:** `auth_token` y `refresh_token` viven en localStorage (`src/frontend/src/services/api/http.ts:28,36`). Un XSS puede exfiltrarlos.
+- **Por qué no se hace ahora:** migración transversal backend+frontend+CORS+CSRF. Requiere sesión dedicada (G.4) — hacerlo "de paso" rompería login/refresh en prod.
+- **Plan de implementación (cuando se apruebe G.4):**
+  1. Backend `POST /auth/login|refresh|register*`: emitir `Set-Cookie: auth_token=...; HttpOnly; Secure; SameSite=Lax; Path=/api` (+ refresh con `Path=/api/auth/refresh`). Mantener respuesta JSON con token durante el periodo de transición (dual-mode con flag `COOKIE_AUTH_ENABLED`).
+  2. Backend `authenticateToken`: aceptar token desde cookie si no hay header Bearer (orden: header > cookie). Añadir `cookie-parser`.
+  3. CSRF: con `SameSite=Lax` las mutaciones cross-site quedan bloqueadas, pero añadir double-submit token (`X-CSRF-Token` emitido en login, validado en POST/PUT/DELETE) para defensa en profundidad.
+  4. CORS: `credentials: true` en cors() del backend + `withCredentials: true` en axios. Verificar FRONTEND_URL exacto (no wildcard con credentials).
+  5. Frontend `http.ts`: eliminar lectura/escritura localStorage; el interceptor de refresh pasa a llamar `/auth/refresh` confiando en la cookie.
+  6. Logout: endpoint que haga `Set-Cookie` con `Max-Age=0` (el frontend ya no puede borrar la cookie).
+  7. **Capacitor (G.1):** las cookies httpOnly funcionan en WebView pero con caveats de dominio (capacitor://localhost) — evaluar `CapacitorCookies` o mantener dual-mode header para native. Esto es el mayor riesgo del plan.
+- **Riesgo de no hacerlo:** un XSS roba sesión completa. Mitigantes actuales: CSP, sanitización de inputs, escHtml en emails, JWT corto (15m) + refresh rotation.
+
+### NOTA A.3 — vulns dev-only restantes (sin fix non-breaking)
+- `vitest`/`@vitest/ui` (critical) + `vite`/`esbuild`/`vite-node` (moderate): fix = vite 8 / vitest 4 (semver-major). Solo afectan al dev server/test runner, no al bundle de prod. Programar upgrade de toolchain en sprint propio.
+- Cadena `@typescript-eslint` 6.x (minimatch ReDoS, high): fix = major bump del plugin (v8). Solo lint. Mismo sprint de toolchain.
 
 **Formato:**
 ```
@@ -83,4 +98,4 @@
 
 ## HECHO
 
-*(vacío — mover ítems aquí cuando estén completados con fecha)*
+- **2026-06-12 — MÓDULO A completo (Seguridad)**: A.1a/b/c (crypto), A.2 (IDOR audit + capacidad pareja + mount fix de prod), A.3 (npm audit fix runtime), A.4 (seed passwords), A.5 (plan httpOnly cookies documentado). Commits: 3908f91 · 5588143 · 98e111b · 31aa93f. Baseline E2E ahora **5 suites / 17 tests**.
