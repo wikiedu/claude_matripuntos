@@ -1,37 +1,51 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { useAppStore } from './store/useAppStore'
 import { apiClient } from './services/apiClient'
 import { useActivities } from './hooks/useActivities'
+// Eager: pantallas críticas para LCP (login/signup/landing) + destino
+// post-login ("/" → /dashboard) + shell autenticado.
 import Login from './pages/Login'
 import Signup from './pages/Signup'
-import ForgotPassword from './pages/ForgotPassword'
-import ResetPassword from './pages/ResetPassword'
-import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
-import RequestActivity from './pages/RequestActivity'
-import Activities from './pages/Activities'
-import ActivityDetail from './pages/ActivityDetail'
-import Tasks from './pages/Tasks'
-import Settings from './pages/Settings'
-import Analytics from './pages/Analytics'
-import { Calendar } from './pages/Calendar'
-import Journal from './pages/Journal'
-import Achievements from './pages/Achievements'
-import ShoppingListPage from './pages/ShoppingListPage'
-import TodoListPage from './pages/TodoListPage'
-import Notifications from './pages/Notifications'
-import NotFound from './pages/NotFound'
 import Home from './pages/Home'
+import NotFound from './pages/NotFound'
 import { OnboardingLanding } from './pages/onboarding/OnboardingLanding'
 import { AuthedLayout } from './layout/AuthedLayout'
 import { HomeSelector, HomeView } from './components/v2/home/HomeSelector'
-import PrivacyPage from './pages/legal/Privacy'
-import TermsPage from './pages/legal/Terms'
-import CookiesPage from './pages/legal/Cookies'
 import { CookieConsentBanner } from './components/CookieConsentBanner'
+// Fase 2 B.1 — code splitting: el resto de páginas se cargan por ruta.
+// Antes: un único chunk de 898KB; ahora chunk principal + uno por página.
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
+const ResetPassword = lazy(() => import('./pages/ResetPassword'))
+const Onboarding = lazy(() => import('./pages/Onboarding'))
+const RequestActivity = lazy(() => import('./pages/RequestActivity'))
+const Activities = lazy(() => import('./pages/Activities'))
+const ActivityDetail = lazy(() => import('./pages/ActivityDetail'))
+const Tasks = lazy(() => import('./pages/Tasks'))
+const Settings = lazy(() => import('./pages/Settings'))
+const Analytics = lazy(() => import('./pages/Analytics'))
+const Calendar = lazy(() => import('./pages/Calendar').then(m => ({ default: m.Calendar })))
+const Journal = lazy(() => import('./pages/Journal'))
+const Achievements = lazy(() => import('./pages/Achievements'))
+const ShoppingListPage = lazy(() => import('./pages/ShoppingListPage'))
+const TodoListPage = lazy(() => import('./pages/TodoListPage'))
+const Notifications = lazy(() => import('./pages/Notifications'))
+const PrivacyPage = lazy(() => import('./pages/legal/Privacy'))
+const TermsPage = lazy(() => import('./pages/legal/Terms'))
+const CookiesPage = lazy(() => import('./pages/legal/Cookies'))
 import './App.css'
+
+// Fallback de Suspense mientras carga el chunk de una ruta — mismo patrón
+// visual que el estado isLoading de ProtectedRoute.
+function RouteFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+      <div className="text-gray-500 text-sm">Cargando...</div>
+    </div>
+  )
+}
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -136,6 +150,7 @@ function AppRoutes() {
   }, [isAuthenticated, loadUserData])
 
   return (
+    <Suspense fallback={<RouteFallback />}>
     <Routes>
       {/* Cold screens — no AuthedLayout */}
       <Route path="/login" element={<Login />} />
@@ -309,6 +324,7 @@ function AppRoutes() {
       />
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </Suspense>
   )
 }
 
