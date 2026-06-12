@@ -3,6 +3,7 @@
 // delete confirma con password + code y dispara accountDeletionService.
 
 import { Router, Request, Response } from 'express'
+import { randomInt } from 'crypto'
 import { requireAuth } from '../lib/requireAuth.js'
 import bcrypt from 'bcryptjs'
 import { authenticateToken } from '../middleware/auth.js'
@@ -32,7 +33,8 @@ router.post('/delete-request', criticalBucket, async (req: Request, res: Respons
   const ok = await bcrypt.compare(parsed.data.password, user.passwordHash)
   if (!ok) return res.status(401).json({ error: 'Contraseña incorrecta' })
 
-  const code = String(Math.floor(100000 + Math.random() * 900000))
+  // Fase 2 A.1a (S0-1) — randomInt criptográfico, no Math.random predecible
+  const code = String(randomInt(100000, 1000000))
   deleteCodes.set(userId, { code, expiresAt: Date.now() + 15 * 60 * 1000 })
 
   const isDev = process.env.NODE_ENV !== 'production'

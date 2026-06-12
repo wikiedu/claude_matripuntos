@@ -53,7 +53,7 @@ export async function acceptEmailInvitation(token: string, newUserId: string) {
   // Create couple linking both users
   const couple = await prisma.couple.create({
     data: {
-      secretKey: `couple_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      secretKey: `couple_${crypto.randomBytes(16).toString('hex')}`,
       language: 'es',
       users: {
         connect: [
@@ -156,7 +156,7 @@ export async function acceptProposal(invitationId: string) {
   // Create couple
   const couple = await prisma.couple.create({
     data: {
-      secretKey: `couple_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      secretKey: `couple_${crypto.randomBytes(16).toString('hex')}`,
       language: 'es',
       users: {
         connect: [

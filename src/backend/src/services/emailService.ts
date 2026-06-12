@@ -46,7 +46,10 @@ const MAX_ATTEMPTS = 3
 const RETRY_DELAYS_MS = [200, 600, 1800]
 
 function jitter(ms: number): number {
-  return Math.round(ms * (0.75 + Math.random() * 0.5))
+  // Fase 2 A.1c — crypto.getRandomValues en vez de Math.random (anti-pattern)
+  const buf = new Uint8Array(1)
+  globalThis.crypto.getRandomValues(buf)
+  return Math.round(ms * (0.75 + (buf[0] / 255) * 0.5))
 }
 
 async function sendEmailOnce(params: SendEmailParams): Promise<{ ok: boolean; id?: string; status?: number; error?: string; transient: boolean }> {
