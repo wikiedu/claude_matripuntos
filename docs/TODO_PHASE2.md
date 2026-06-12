@@ -114,6 +114,7 @@
 
 - **2026-06-12 — MÓDULO A completo (Seguridad)**: A.1a/b/c (crypto), A.2 (IDOR audit + capacidad pareja + mount fix de prod), A.3 (npm audit fix runtime), A.4 (seed passwords), A.5 (plan httpOnly cookies documentado). Commits: 3908f91 · 5588143 · 98e111b · 31aa93f. Baseline E2E ahora **5 suites / 17 tests**.
 - **2026-06-12 — MÓDULO B completo (Performance)**: B.1 code splitting (898KB→195KB main), B.2 indexes hot-path, B.3 N+1 analytics, B.4 fuentes. Commits: d416064 · ccfd787 · 9d27c4f · ffa4ce9 · 8922f71. Bonus: fix Node 26 webstorage (vitest 166 fallos→8 preexistentes).
+- **2026-06-12 — MÓDULO C completo (Deuda técnica)**: C.0 recharts+AnalyticsChart retirados (−444 líneas), C.1 negotiationEngine retirado con OK del usuario (−749 líneas), C.2 achievements V1 apagado por defecto (flag opt-in + E2E nuevo), C.3 ErrorBoundary global keyed por ruta (+3 tests), C.4 any críticos eliminados (auth/tasks/events/points/invitations + frontend auth), C.5 plan invitations.ts documentado. Commits: ddb59df · a2e8bb3 · 2bf7423 · cd1e33f · 7f48ef4 · a289208. Baseline E2E ahora **5 suites / 18 tests**. Pendiente manual: `.env.example` LEGACY_ACHIEVEMENTS_ENABLED=true→false (bloqueado por permisos).
 
 ### NOTA F.4 (adelantada) — tests en rojo esperables en local
 - Backend: suites DB-bound (analyticsService.test.ts, etc.) fallan sin Postgres local — el gate canónico es `npm run test:e2e` (postgres embebido).
