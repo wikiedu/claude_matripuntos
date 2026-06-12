@@ -1,16 +1,15 @@
 // Fase 1 — E2E flujo crítico #3 (ESTADO_PRE_REFACTOR): negociación de una
-// actividad. User A crea un evento (draft) → lo propone → user B contraoferta →
-// se acepta al precio contraofertado → el saldo del proponente baja por el
-// importe acordado. Se ejercita la app real + Postgres de test contra las rutas
-// V2 de negotiation.ts TAL CUAL están hoy (deprecación aplazada, ver
-// TODO_REFACTOR.md) — sin tocar la lógica de negociación.
+// actividad. Reescrito en T3 contra la API canónica V1 (/api/negotiations,
+// negotiationId-based) para poder retirar las rutas V2 deprecadas de
+// negotiation.ts (event-status-based). Flujo V1: user A crea un evento (draft)
+// → A abre la negociación (POST /api/negotiations, ronda 1 awaiting) → user B
+// contraoferta (ronda 2 awaiting) → A acepta la contraoferta → el saldo del
+// proponente (A) baja por el importe acordado.
 //
-// NOTA sobre quién acepta: la ruta POST /:eventId/respond bloquea al creador
-// ("Creator cannot respond to own proposal", 403). El flujo real (y el que
-// renderiza EventNegotiationCard) es que el RESPONDER conduce todo: contraoferta
-// y, una vez en counter_proposal, acepta su propia contraoferta. El plan asumía
-// "user A acepta", pero eso da 403 contra el código actual; este test fija el
-// comportamiento verdadero y lo documenta con un assert explícito del 403.
+// NOTA sobre turnos: en V1 el turno lo marca el `proposedBy` de la ronda
+// 'awaiting' (mismo criterio que ActivityDetail/EventNegotiationCard): quien
+// propuso la ronda espera; el otro responde. A diferencia de la V2 retirada,
+// el creador SÍ responde a la contraoferta de su partner (rondas alternas).
 import { describe, it, expect, beforeEach, afterAll } from '@jest/globals'
 import request from 'supertest'
 import { app } from '../../src/server.js'
@@ -44,47 +43,81 @@ async function createDraftEvent(token: string) {
   }
 }
 
-describe('E2E flujo #3 — proponer → contraoferta → aceptar → balance', () => {
+// Helper: abre la negociación (ronda 1) sobre un evento draft. Devuelve el
+// negotiationId de la ronda 1 (queda 'awaiting' para el partner).
+async function openNegotiation(token: string, eventId: string, pointsProposed: number) {
+  const res = await request(app)
+    .post('/api/negotiations')
+    .set(authHeader(token))
+    .send({ eventId, pointsProposed, message: 'Te propongo esta actividad' })
+  expect(res.status).toBe(201)
+  expect(res.body.negotiation.responseType).toBe('awaiting')
+  return res.body.negotiation.id as string
+}
+
+// Helper: ronda 'awaiting' actual del evento según la API (GET /event/:id).
+async function getAwaitingNegotiation(token: string, eventId: string) {
+  const res = await request(app)
+    .get(`/api/negotiations/event/${eventId}`)
+    .set(authHeader(token))
+  expect(res.status).toBe(200)
+  const negs: Array<{ id: string; responseType: string; roundNumber: number }> = res.body.negotiations
+  return negs.filter((n) => n.responseType === 'awaiting').pop()
+}
+
+describe('E2E flujo #3 (V1) — proponer → contraoferta → aceptar → balance', () => {
   it('aplica los puntos acordados (contraoferta) al saldo del proponente', async () => {
     const { userA, userB } = couple
 
-    // 1) User A crea el evento y lo propone (ronda 1 = pointsCalculated).
+    // 1) User A crea el evento y abre la negociación (ronda 1 = pointsCalculated).
     const { id: eventId, pointsCalculated } = await createDraftEvent(userA.token)
     expect(pointsCalculated).toBeGreaterThan(0)
 
-    const proposeRes = await request(app)
-      .post(`/api/events/${eventId}/propose`)
+    const round1Id = await openNegotiation(userA.token, eventId, pointsCalculated)
+
+    // El evento pasa a 'pending' con la ronda 1 en awaiting.
+    const evAfterPropose = await request(app)
+      .get(`/api/events/${eventId}`)
       .set(authHeader(userA.token))
-      .send({ message: 'Te propongo esta cena' })
-    expect(proposeRes.status).toBe(200)
-    expect(proposeRes.body.event.status).toBe('proposed')
+    expect(evAfterPropose.body.event.status).toBe('pending')
+    expect(evAfterPropose.body.event.negotiationRound).toBe(1)
 
     // 2) User B contraoferta con un importe DISTINTO del calculado, para probar
     //    que es el valor acordado (no el original) el que afecta al saldo.
+    //    Responde sobre la ronda 1 → se crea la ronda 2 (awaiting, proposedBy B).
     const counterPoints = pointsCalculated + 7
     const counterRes = await request(app)
-      .post(`/api/events/${eventId}/respond`)
+      .put(`/api/negotiations/${round1Id}/respond`)
       .set(authHeader(userB.token))
-      .send({ action: 'counter_propose', pointsProposed: counterPoints, message: 'Mejor estos puntos' })
+      .send({ responseType: 'counter_proposed', pointsProposed: counterPoints, message: 'Mejor estos puntos' })
     expect(counterRes.status).toBe(200)
-    expect(counterRes.body.event.status).toBe('counter_proposal')
 
-    // 2b) El creador NO puede responder a su propia negociación (guard real de
-    //     la ruta). Documenta que el "user A acepta" del plan da 403 hoy.
-    const creatorAccept = await request(app)
-      .post(`/api/events/${eventId}/respond`)
+    const awaiting = await getAwaitingNegotiation(userA.token, eventId)
+    expect(awaiting).toBeDefined()
+    expect(awaiting!.roundNumber).toBe(2)
+
+    // 2b) La ronda 1 ya está respondida: responder de nuevo sobre ella da 409
+    //     con puntero a la ronda awaiting vigente (guard real de la ruta).
+    const staleRes = await request(app)
+      .put(`/api/negotiations/${round1Id}/respond`)
       .set(authHeader(userA.token))
-      .send({ action: 'accept' })
-    expect(creatorAccept.status).toBe(403)
+      .send({ responseType: 'accepted' })
+    expect(staleRes.status).toBe(409)
+    expect(staleRes.body.awaitingNegotiationId).toBe(awaiting!.id)
 
-    // 3) El responder (B) acepta la contraoferta → evento accepted.
+    // 3) El creador (A) acepta la contraoferta de B → evento accepted al precio
+    //    de la ronda 2.
     const acceptRes = await request(app)
-      .post(`/api/events/${eventId}/respond`)
-      .set(authHeader(userB.token))
-      .send({ action: 'accept' })
+      .put(`/api/negotiations/${awaiting!.id}/respond`)
+      .set(authHeader(userA.token))
+      .send({ responseType: 'accepted' })
     expect(acceptRes.status).toBe(200)
-    expect(acceptRes.body.event.status).toBe('accepted')
-    expect(Number(acceptRes.body.event.pointsAgreed)).toBeCloseTo(counterPoints, 5)
+
+    const evFinal = await request(app)
+      .get(`/api/events/${eventId}`)
+      .set(authHeader(userA.token))
+    expect(evFinal.body.event.status).toBe('accepted')
+    expect(Number(evFinal.body.event.pointsAgreed)).toBeCloseTo(counterPoints, 5)
 
     // 4) El proponente (A) "paga" los puntos acordados → saldo negativo por
     //    counterPoints; el responder (B) no se mueve.
@@ -111,22 +144,52 @@ describe('E2E flujo #3 — proponer → contraoferta → aceptar → balance', (
     const { userA, userB } = couple
 
     const { id: eventId, pointsCalculated } = await createDraftEvent(userA.token)
-
-    await request(app)
-      .post(`/api/events/${eventId}/propose`)
-      .set(authHeader(userA.token))
-      .send({ message: 'Propuesta directa' })
-      .expect(200)
+    const round1Id = await openNegotiation(userA.token, eventId, pointsCalculated)
 
     // B acepta sin contraofertar → se cobra el valor de la ronda 1 (calculado).
     const acceptRes = await request(app)
-      .post(`/api/events/${eventId}/respond`)
+      .put(`/api/negotiations/${round1Id}/respond`)
       .set(authHeader(userB.token))
-      .send({ action: 'accept' })
+      .send({ responseType: 'accepted' })
     expect(acceptRes.status).toBe(200)
-    expect(acceptRes.body.event.status).toBe('accepted')
+
+    const evFinal = await request(app)
+      .get(`/api/events/${eventId}`)
+      .set(authHeader(userA.token))
+    expect(evFinal.body.event.status).toBe('accepted')
 
     const balA = await request(app).get('/api/points/balance').set(authHeader(userA.token))
     expect(balA.body.you.balance).toBeCloseTo(-pointsCalculated, 5)
+  })
+
+  // Sustituye al contract test del IDOR V2 (negotiationIdorContract.test.ts,
+  // retirado junto con routes/negotiation.ts): la ruta canónica V1 scopa la
+  // negociación por coupleId del evento → un usuario de OTRA pareja no puede
+  // responder ni forzar una negociación ajena (404, nunca 2xx).
+  it('cross-couple: un usuario de otra pareja no puede responder ni forzar (404)', async () => {
+    const { userA } = couple
+    const intruder = (await registerCouple(app)).userA
+
+    const { id: eventId, pointsCalculated } = await createDraftEvent(userA.token)
+    const round1Id = await openNegotiation(userA.token, eventId, pointsCalculated)
+
+    const respondRes = await request(app)
+      .put(`/api/negotiations/${round1Id}/respond`)
+      .set(authHeader(intruder.token))
+      .send({ responseType: 'accepted' })
+    expect(respondRes.status).toBe(404)
+
+    const forceRes = await request(app)
+      .post(`/api/negotiations/${round1Id}/force`)
+      .set(authHeader(intruder.token))
+    expect(forceRes.status).toBe(404)
+
+    // El evento ajeno sigue intacto y sin transacciones.
+    const ev = await request(app).get(`/api/events/${eventId}`).set(authHeader(userA.token))
+    expect(ev.body.event.status).toBe('pending')
+    const txs = await prisma.pointsTransaction.findMany({
+      where: { relatedEventId: eventId },
+    })
+    expect(txs).toHaveLength(0)
   })
 })
