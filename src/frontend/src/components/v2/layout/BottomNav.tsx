@@ -44,7 +44,7 @@ export function BottomNav({ onFab }: Props) {
       <button
         onClick={onFab}
         aria-label="Añadir"
-        className="w-11 h-11 rounded-full bg-grad-cta text-white text-2xl -mt-5 shadow-lg shadow-brand-amber/40 flex items-center justify-center"
+        className="w-11 h-11 rounded-full bg-grad-cta text-white text-2xl -mt-5 shadow-lg shadow-brand-amber/40 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
       >
         <Plus size={22} strokeWidth={3} />
       </button>

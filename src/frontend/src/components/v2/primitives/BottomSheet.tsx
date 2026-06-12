@@ -35,9 +35,10 @@ export function BottomSheet({ open, onClose, title, children }: Props) {
       <div
         role="dialog"
         aria-modal="true"
+        aria-labelledby={title ? 'bottom-sheet-title' : undefined}
         className="fixed left-0 right-0 bottom-0 z-[81] max-w-[500px] mx-auto bg-surface-elevated border-t border-brd-purple rounded-t-xl p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom duration-200"
       >
-        {title && <h3 className="text-base font-bold text-text-primary mb-3">{title}</h3>}
+        {title && <h3 id="bottom-sheet-title" className="text-base font-bold text-text-primary mb-3">{title}</h3>}
         {children}
       </div>
     </>

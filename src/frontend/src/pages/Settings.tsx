@@ -120,8 +120,13 @@ function DoubleConfirmModal({
   return (
     <>
       <div className="fixed inset-0 bg-black/55 backdrop-blur-sm z-[80]" onClick={onCancel} />
-      <div className="fixed left-0 right-0 bottom-0 z-[81] max-w-[500px] mx-auto bg-surface-elevated border-t border-brd-purple rounded-t-xl p-4 pb-6">
-        <h3 className="text-base font-extrabold text-text-primary mb-2">{title}</h3>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="double-confirm-title"
+        className="fixed left-0 right-0 bottom-0 z-[81] max-w-[500px] mx-auto bg-surface-elevated border-t border-brd-purple rounded-t-xl p-4 pb-6"
+      >
+        <h3 id="double-confirm-title" className="text-base font-extrabold text-text-primary mb-2">{title}</h3>
         <p className="text-sm text-text-secondary mb-4">{msg}</p>
         <div className="flex gap-2">
           <Button variant="ghost" fullWidth onClick={onCancel}>Cancelar</Button>
@@ -1062,8 +1067,13 @@ function ChildFormModal({
   return (
     <>
       <div className="fixed inset-0 bg-black/55 backdrop-blur-sm z-[80]" onClick={onCancel} />
-      <div className="fixed left-0 right-0 bottom-0 z-[81] max-w-[500px] mx-auto bg-surface-elevated border-t border-brd-purple rounded-t-xl p-4 pb-6">
-        <h3 className="text-base font-extrabold text-text-primary mb-3">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="child-form-title"
+        className="fixed left-0 right-0 bottom-0 z-[81] max-w-[500px] mx-auto bg-surface-elevated border-t border-brd-purple rounded-t-xl p-4 pb-6"
+      >
+        <h3 id="child-form-title" className="text-base font-extrabold text-text-primary mb-3">
           {initial ? 'Editar hijo/a' : 'Añadir hijo/a'}
         </h3>
         {err && <Banner type="error" message={err} />}

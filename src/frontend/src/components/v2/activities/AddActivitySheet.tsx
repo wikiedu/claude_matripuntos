@@ -84,11 +84,14 @@ export function AddActivitySheet({ open, onClose }: Props) {
       {/* v2.7.7 audit 09 S1-U-2 — safe-area-inset-bottom para iPhone notch.
            sm:rounded-2xl + sm:p-4 al desktop reset el padding bottom inheritor. */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-activity-title"
         className="w-full sm:max-w-lg bg-surface-card border border-brd-subtle rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 max-h-[92vh] overflow-y-auto"
         style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
       >
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-bold text-text-primary flex-1">
+          <h2 id="add-activity-title" className="text-base font-bold text-text-primary flex-1">
             Nueva actividad
             <span className="ml-2 text-[10px] font-medium text-text-tertiary">{templates.length} ideas</span>
           </h2>

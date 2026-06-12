@@ -44,6 +44,7 @@ export function HeaderMenu({ open, onClose, unlockedCount = 0, totalAchievements
         {items.map((it, i) => (
           <button
             key={it.id}
+            role="menuitem"
             onClick={() => go(it.to)}
             className={`flex items-center gap-2.5 w-full px-3 py-3 text-left hover:bg-surface-muted transition ${i > 0 ? 'border-t border-brd-subtle' : ''}`}
           >
@@ -56,6 +57,7 @@ export function HeaderMenu({ open, onClose, unlockedCount = 0, totalAchievements
           </button>
         ))}
         <button
+          role="menuitem"
           onClick={() => { onLogout(); onClose() }}
           className="flex items-center gap-2.5 w-full px-3 py-3 bg-danger/10 border-t border-danger/20 text-left hover:bg-danger/20 transition"
         >

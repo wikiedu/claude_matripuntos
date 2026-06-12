@@ -110,10 +110,13 @@ export function AddActivityTemplateSheet({ open, initial, onClose, onSaved }: Pr
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center sm:p-4">
       <form
         onSubmit={handleSave}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-template-title"
         className="w-full sm:max-w-lg bg-surface-card border border-brd-subtle rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 space-y-3 max-h-[92vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-text-primary">
+          <h2 id="add-template-title" className="text-base font-bold text-text-primary">
             {editing ? 'Editar plantilla' : 'Nueva plantilla del catálogo'}
           </h2>
           <button type="button" onClick={onClose} aria-label="Cerrar"

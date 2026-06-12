@@ -202,8 +202,13 @@ export function ActivityCatalogManager() {
 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-surface-card border border-brd-subtle rounded-2xl p-5 max-w-sm w-full">
-            <h3 className="text-base font-bold text-text-primary mb-2">¿Eliminar "{confirmDelete.name}"?</h3>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="catalog-delete-title"
+            className="bg-surface-card border border-brd-subtle rounded-2xl p-5 max-w-sm w-full"
+          >
+            <h3 id="catalog-delete-title" className="text-base font-bold text-text-primary mb-2">¿Eliminar "{confirmDelete.name}"?</h3>
             <p className="text-sm text-text-secondary mb-4">
               Las actividades ya creadas con esta plantilla siguen tal cual. Sólo desaparece del catálogo.
             </p>

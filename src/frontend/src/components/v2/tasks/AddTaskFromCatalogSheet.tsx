@@ -235,6 +235,9 @@ export function AddTaskFromCatalogSheet({
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center sm:p-4">
       {/* v2.7.7 audit 09 S1-U-2 — safe-area-inset-bottom. */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Añadir tarea"
         className="w-full sm:max-w-lg bg-surface-card border border-brd-subtle rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 max-h-[92vh] overflow-y-auto"
         style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
       >
