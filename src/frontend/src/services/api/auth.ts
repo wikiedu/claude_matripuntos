@@ -102,7 +102,7 @@ export const invitations = {
       body: JSON.stringify({ token }),
     }),
 
-  registerWithInvitation: (data: any) =>
+  registerWithInvitation: (data: { token: string; email: string; password: string; name: string }) =>
     http.request('/auth/register-with-invitation', {
       method: 'POST',
       body: JSON.stringify(data),

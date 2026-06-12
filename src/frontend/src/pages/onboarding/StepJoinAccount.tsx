@@ -4,6 +4,7 @@ import { Button } from '../../components/v2/primitives/Button'
 import { Input } from '../../components/v2/primitives/Input'
 import { apiClient } from '../../services/apiClient'
 import { useAppStore } from '../../store/useAppStore'
+import type { User, Couple } from '../../types'
 
 interface Props {
   token: string
@@ -74,12 +75,14 @@ export function StepJoinAccount({ token, onAfterRegister }: Props) {
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const res: any = await apiClient.invitations.registerWithInvitation({
-        token,
-        email: info.inviteeEmail,
-        password,
-        name: name.trim(),
-      })
+      // Shape de /auth/register-with-invitation (http.request devuelve any).
+      const res: { token?: string; refreshToken?: string; user?: User; couple?: Couple } =
+        await apiClient.invitations.registerWithInvitation({
+          token,
+          email: info.inviteeEmail,
+          password,
+          name: name.trim(),
+        })
       // v2.7.5 — Save the JWT (+ refresh si vino) para subsequent calls authed
       apiClient.setTokensFromAuthResponse(res)
       // Populate the store directly from the register response. This replaces

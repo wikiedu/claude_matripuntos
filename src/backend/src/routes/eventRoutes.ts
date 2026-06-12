@@ -1,8 +1,17 @@
 import express, { Request, Response } from 'express'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
+import type { Event, Prisma } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
 import { pointsCalculator } from '../services/pointsCalculator.js'
+
+// Fase 2 C.4 — el calculator solo lee estos campos del Event; su firma
+// (NO TOCAR) exige el Event completo, así que tipamos el draft con Pick
+// y hacemos un único cast estrecho en la llamada.
+type EventDraftForPoints = Pick<
+  Event,
+  'coupleId' | 'type' | 'dateStart' | 'dateEnd' | 'hasChildren' | 'numChildren' | 'pointsBase' | 'compensationDiscount'
+>
 
 const router = express.Router()
 import prisma from '../lib/prisma.js'
@@ -64,7 +73,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
     // (tipo × franja × duración × hijos) sin efecto en la ruta V1.
     // v2.4 fix audit 08 S0-2: incluimos compensationDiscount en el draft para
     // que el calculator lo aplique también en la creación (no sólo al accept).
-    const draftEvent = {
+    const draftEvent: EventDraftForPoints = {
       coupleId: req.coupleId,
       type: data.type,
       dateStart: new Date(data.dateStart),
@@ -73,8 +82,8 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
       numChildren: data.numChildren,
       pointsBase: new Decimal(data.pointsBase),
       compensationDiscount: new Decimal(data.compensationDiscount),
-    } as any
-    const pointsCalculated = await pointsCalculator.calculateEventPoints(draftEvent, null)
+    }
+    const pointsCalculated = await pointsCalculator.calculateEventPoints(draftEvent as Event, null)
 
     const event = await prisma.event.create({
       data: {
@@ -137,7 +146,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
     }
 
     const status = req.query.status as string | undefined
-    const where: any = { coupleId: req.coupleId }
+    const where: Prisma.EventWhereInput = { coupleId: req.coupleId }
     if (status) where.status = status
 
     const events = await prisma.event.findMany({
@@ -173,7 +182,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
           id: e.creator.id,
           name: e.creator.name,
         } : null,
-        negotiations: (e.negotiations || []).map((n: any) => ({
+        negotiations: (e.negotiations || []).map((n) => ({
           id: n.id,
           roundNumber: n.roundNumber,
           pointsProposed: n.pointsProposed.toString(),
@@ -295,7 +304,7 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response): Promise<
     // perdiendo la fórmula.
     // v2.4 fix audit 08 S0-2: incluimos compensationDiscount en merged para
     // que ediciones de compensación reflejen los puntos correctamente.
-    const merged = {
+    const merged: EventDraftForPoints = {
       coupleId: event.coupleId,
       type: data.type ?? event.type,
       dateStart: data.dateStart ? new Date(data.dateStart) : event.dateStart,
@@ -306,8 +315,8 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response): Promise<
       compensationDiscount: data.compensationDiscount !== undefined
         ? new Decimal(data.compensationDiscount)
         : event.compensationDiscount,
-    } as any
-    const recalculated = await pointsCalculator.calculateEventPoints(merged, null)
+    }
+    const recalculated = await pointsCalculator.calculateEventPoints(merged as Event, null)
 
     // v2.5.9 audit 01 S1-R-5 — `data.x && {…}` rechazaba strings vacíos y
     // ceros, así que el partner no podía limpiar `title`/`description`/

@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express'
+import type { Prisma } from '@prisma/client'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
 
@@ -26,7 +27,7 @@ router.get('/history', authMiddleware, async (req: Request, res: Response): Prom
 
     const { startDate, endDate, type, userId, limit, offset } = historyFilterSchema.parse(req.query)
 
-    const where: any = {
+    const where: Prisma.PointsTransactionWhereInput = {
       coupleId: req.coupleId,
     }
 
@@ -183,8 +184,9 @@ router.get('/chart-data', authMiddleware, async (req: Request, res: Response): P
       else if (partner && t.userId === partner.id) partnerDelta[key] = (partnerDelta[key] || 0) + Number(t.amount)
     }
 
-    // Generate one entry per day using local date keys
-    const chartData: any[] = []
+    // Generate one entry per day using local date keys. Las keys dinámicas
+    // son los nombres de los usuarios (consumido así por el chart del front).
+    const chartData: Array<Record<string, string | number>> = []
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date()
       d.setDate(d.getDate() - i)
@@ -192,7 +194,7 @@ router.get('/chart-data', authMiddleware, async (req: Request, res: Response): P
       const key = localDateKey(d)
       youRunning += youDelta[key] || 0
       partnerRunning += partnerDelta[key] || 0
-      const entry: any = {
+      const entry: Record<string, string | number> = {
         idx: days - 1 - i,
         date: i === 0 ? 'Hoy' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
         [you.name]: Math.round(youRunning),

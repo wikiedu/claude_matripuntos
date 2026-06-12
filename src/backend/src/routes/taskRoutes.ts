@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express'
-import type { Prisma } from '@prisma/client'
+import type { Prisma, TaskLog } from '@prisma/client'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
 import { Decimal } from '@prisma/client/runtime/library'
@@ -301,8 +301,8 @@ router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response):
     const couple = await prisma.couple.findUnique({
       where: { id: req.coupleId },
     })
-    const streakDays = (couple as any)?.dailyStreakDays || 0
-    const streakWeeks = (couple as any)?.weeklyStreakWeeks || 0
+    const streakDays = couple?.dailyStreakDays || 0
+    const streakWeeks = couple?.weeklyStreakWeeks || 0
     const factorMascotas = await getFactorMascotas(req.coupleId)
 
     const { modifierName, modifierValue, pointsFinal: rawPointsFinal } = calculateTaskLogPoints({
@@ -345,7 +345,7 @@ router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response):
       orderBy: { scheduledFor: 'asc' },
     })
 
-    let taskLog: any = null
+    let taskLog: TaskLog | null = null
     if (placeholder) {
       const flipResult = await prisma.taskLog.updateMany({
         where: { id: placeholder.id, completedBy: null },
@@ -430,7 +430,7 @@ router.get('/:taskId/logs', authMiddleware, async (req: Request, res: Response):
     const startDate = req.query.startDate as string | undefined
     const endDate = req.query.endDate as string | undefined
 
-    const where: any = {
+    const where: Prisma.TaskLogWhereInput = {
       taskId: req.params.taskId,
       coupleId: req.coupleId,
     }
@@ -550,7 +550,7 @@ router.put('/:taskId/logs/:logId/verify', authMiddleware, async (req: Request, r
     // (achievementCheckService + achievementEngineV2 catalog-based) y el
     // frontend ya no lee /api/achievements/user. Rollback: setear
     // LEGACY_ACHIEVEMENTS_ENABLED=true en Render.
-    let newAchievements: any[] = []
+    let newAchievements: Awaited<ReturnType<typeof achievementEngine.checkAchievements>> = []
     if (taskLog.completedBy && process.env.LEGACY_ACHIEVEMENTS_ENABLED === 'true') {
       newAchievements = await achievementEngine.checkAchievements(
         taskLog.completedBy,
@@ -575,7 +575,7 @@ router.put('/:taskId/logs/:logId/verify', authMiddleware, async (req: Request, r
         status: updated.status,
         verifiedAt: updated.verifiedAt,
       },
-      newAchievements: newAchievements.map((a: any) => ({ name: a.name, rarity: a.rarity })),
+      newAchievements: newAchievements.map((a) => ({ name: a.name, rarity: a.rarity })),
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to verify task log'

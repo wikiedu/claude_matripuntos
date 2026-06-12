@@ -387,7 +387,7 @@ router.post('/register-with-invitation', deprecationMiddleware, async (req: Requ
     // X-Want-Refresh, igual que authRoutes) para que sea seguro bajar
     // JWT_ACCESS_EXPIRY a 15m en prod sin dejar sesiones sin poder renovar.
     const authToken = signAccessToken(newUser.id, newUser.coupleId)
-    const refreshPair = await maybeIssueRefreshPair(newUser.id, req.headers as any)
+    const refreshPair = await maybeIssueRefreshPair(newUser.id, req.headers)
 
     res.status(201).json({
       message: 'Registration successful',
@@ -584,7 +584,7 @@ router.post('/accept-link-partner', authenticateToken, async (req: Request, res:
     // Issue a new JWT with the updated coupleId. #9 Step B: además emite
     // refresh-pair (opt-in X-Want-Refresh) para soportar JWT corto en prod.
     const newToken = signAccessToken(userId, invitation.coupleId)
-    const refreshPair = await maybeIssueRefreshPair(userId, req.headers as any)
+    const refreshPair = await maybeIssueRefreshPair(userId, req.headers)
 
     const couple = await prisma.couple.findUnique({
       where: { id: invitation.coupleId! },

@@ -3,8 +3,8 @@
 // viven en los módulos hermanos (auth.ts, tasks.ts, ...) y la fachada pública
 // sigue siendo `services/apiClient.ts` (T6 — partición del god-service).
 
-export const API_BASE_URL = (import.meta as any).env.VITE_API_URL ?? (
-  (import.meta as any).env.MODE === 'production'
+export const API_BASE_URL = import.meta.env.VITE_API_URL ?? (
+  import.meta.env.MODE === 'production'
     ? 'https://matripuntos-api.onrender.com/api'
     : 'http://localhost:3000/api'
 )

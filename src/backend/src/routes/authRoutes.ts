@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express'
+import type { IncomingHttpHeaders } from 'http'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
@@ -89,7 +90,7 @@ router.post('/signup', async (req: Request, res: Response): Promise<void> => {
     const validated = signupUserSchema.parse(req.body)
     const user = await signupUser(validated.email, validated.password, validated.name, validated.language)
     const token = signAccessToken(user.id, user.coupleId)
-    const refreshPair = await maybeIssueRefreshPair(user.id, req.headers as any)
+    const refreshPair = await maybeIssueRefreshPair(user.id, req.headers)
     res.status(201).json({
       message: 'Account created',
       user,
@@ -116,7 +117,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     // envían `X-Want-Refresh: 1` y reciben además un refreshToken. Sin
     // header se devuelve solo `token` legacy para no romper sesiones
     // existentes.
-    const refreshPair = await maybeIssueRefreshPair(result.user.id, req.headers as any)
+    const refreshPair = await maybeIssueRefreshPair(result.user.id, req.headers)
 
     res.json({
       message: 'Login successful',
@@ -188,7 +189,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response): Promise<v
         where: { id: user.coupleId },
         include: { users: { include: { profile: { select: { currentMood: true, moodUpdatedAt: true } } } } },
       })
-      const partner = couple?.users.find((u: any) => u.id !== req.userId)
+      const partner = couple?.users.find((u) => u.id !== req.userId)
       if (partner) {
         partnerName = partner.name
         // Only show mood if updated today
@@ -207,10 +208,10 @@ router.get('/me', authMiddleware, async (req: Request, res: Response): Promise<v
         name: user.name,
         coupleId: user.coupleId,
         roleInHome: user.roleInHome,
-        timezone: (user as any).timezone,
-        notificationsPush: (user as any).notificationsPush,
-        notificationsEmail: (user as any).notificationsEmail,
-        hasCompletedOnboarding: (user as any).hasCompletedOnboarding,
+        timezone: user.timezone,
+        notificationsPush: user.notificationsPush,
+        notificationsEmail: user.notificationsEmail,
+        hasCompletedOnboarding: user.hasCompletedOnboarding,
         // Profile fields
         avatarEmoji: myProfile?.avatarEmoji ?? '🐼',
         avatarColor: myProfile?.avatarColor ?? '#7c3aed',
@@ -248,7 +249,7 @@ router.get('/couple', authMiddleware, async (req: Request, res: Response): Promi
         numChildren: couple.numChildren,
         language: couple.language,
         notificationsEnabled: couple.notificationsEnabled,
-        users: couple.users.map((u: any) => ({
+        users: couple.users.map((u) => ({
           id: u.id,
           email: u.email,
           name: u.name,
@@ -293,7 +294,7 @@ router.get('/partner-summary', authMiddleware, async (req: Request, res: Respons
     }
 
     const couple = await getCoupleData(req.coupleId)
-    const partner = couple.users.find((u: any) => u.id !== req.userId)
+    const partner = couple.users.find((u) => u.id !== req.userId)
     if (!partner) {
       res.json({ summary: null })
       return
@@ -392,7 +393,7 @@ router.post('/accept-invite', async (req: Request, res: Response): Promise<void>
     const newUser = await signupUser(validated.email, validated.password, validated.name, validated.language)
     const couple = await prisma.couple.findUnique({ where: { id: newUser.coupleId! }, include: { users: true } })
     const token = signAccessToken(newUser.id, newUser.coupleId!)
-    const refreshPair = await maybeIssueRefreshPair(newUser.id, req.headers as any)
+    const refreshPair = await maybeIssueRefreshPair(newUser.id, req.headers)
     res.status(201).json({
       message: 'Account created and linked',
       couple,
@@ -600,13 +601,14 @@ router.post('/register-with-code', async (req: Request, res: Response): Promise<
         }
       })
     } catch (txErr) {
-      const status = (txErr as any)?.httpStatus ?? 400
+      // Los throws del $transaction adjuntan httpStatus via Object.assign.
+      const status = (txErr as { httpStatus?: number } | null)?.httpStatus ?? 400
       res.status(status).json({ error: txErr instanceof Error ? txErr.message : 'Error' })
       return
     }
 
     const token = signAccessToken(txResult.user.id, txResult.coupleId)
-    const refreshPair = await maybeIssueRefreshPair(txResult.user.id, req.headers as any)
+    const refreshPair = await maybeIssueRefreshPair(txResult.user.id, req.headers)
 
     res.status(201).json({
       message: 'Account created and linked',
@@ -800,7 +802,7 @@ router.post('/logout', authMiddleware, async (req: Request, res: Response): Prom
 // progresiva (clientes nuevos opt-in, clientes legacy ignoran).
 export async function maybeIssueRefreshPair(
   userId: string,
-  reqHeaders: Record<string, string | string[] | undefined>,
+  reqHeaders: IncomingHttpHeaders,
 ): Promise<{ refreshToken: string; refreshExpiresAt: string } | null> {
   const want = reqHeaders['x-want-refresh']
   if (want !== '1' && want !== 'true') return null
