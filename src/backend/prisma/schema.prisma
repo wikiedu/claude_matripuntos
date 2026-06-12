@@ -304,6 +304,9 @@ model Event {
   // v2.5.6 audit 03 S1 — composite para queries hot-path:
   // GET /events?status=pending&limit=20 ordenado por dateStart.
   @@index([coupleId, status, dateStart])
+  // Fase 2 B.2 — analyticsService consulta rangos {coupleId, dateStart gte/lte}
+  // sin status (6+ call sites); el composite anterior no sirve para ese scan.
+  @@index([coupleId, dateStart])
 }
 
 // Tasks - Tareas recurrentes diarias
@@ -538,6 +541,9 @@ model Notification {
   // v2.5.6 audit 03 S1 — composite para badge y panel notif:
   // GET /notifications?unread=true filtrado por user.
   @@index([userId, isRead])
+  // Fase 2 B.2 — GET /notifications lista por user ordenado createdAt desc
+  // con paginación; evita el sort tras el index scan de [userId].
+  @@index([userId, createdAt])
 }
 
 // Subscriptions - Plan premium
