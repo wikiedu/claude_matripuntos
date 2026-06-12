@@ -15,15 +15,20 @@ const DAYS_BACK = 75  // ~2.5 months
 const TASKS_PER_DAY = 3
 
 // ── Test couple identity (timestamp so re-runs don't clash on email-unique) ──
+// Fase 2 A.4 — la password ya no va hardcoded en git (creaba cuentas reales en
+// prod con credencial pública). Se genera aleatoria por ejecución y se imprime
+// al final junto con los emails.
+import { randomBytes } from 'node:crypto'
 const stamp = Date.now().toString(36).slice(-6)
+const PASSWORD = `Test-${randomBytes(9).toString('base64url')}`
 const USER_A = {
   email:    `test.ana.${stamp}@matripuntos.test`,
-  password: 'TestPassword2026!',
+  password: PASSWORD,
   name:     'Ana (test)',
 }
 const USER_B = {
   email:    `test.bruno.${stamp}@matripuntos.test`,
-  password: 'TestPassword2026!',
+  password: PASSWORD,
   name:     'Bruno (test)',
 }
 
