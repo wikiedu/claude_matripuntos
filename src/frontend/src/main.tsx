@@ -6,8 +6,13 @@ import { initSentry } from './lib/sentry'
 import { telemetry } from './services/telemetry'
 import { readConsent } from './services/consent'
 import { registerSW } from 'virtual:pwa-register'
+import { initInstallPrompt } from './lib/installPrompt'
 
 initSentry()
+
+// E.2 Fase 2 — capturar beforeinstallprompt ANTES de montar React (el
+// navegador puede dispararlo durante la carga; sin listener se pierde).
+initInstallPrompt()
 
 // Fase 1 PWA — registra el service worker (src/sw.ts via vite-plugin-pwa).
 // autoUpdate: el SW nuevo hace skipWaiting+claim; immediate evita esperar

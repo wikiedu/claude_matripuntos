@@ -20,6 +20,7 @@ import { AlertDialog } from '../components/v2/primitives/AlertDialog'
 import { MyMoodWeek } from '../components/v2/profile/MyMoodWeek'
 import { DeleteAccountWizard } from '../components/v2/wizards/DeleteAccountWizard'
 import { LeaveCoupleWizard } from '../components/v2/wizards/LeaveCoupleWizard'
+import { InstallAppCard } from '../components/v2/settings/InstallAppCard'
 import { useConsent } from '../hooks/useConsent'
 import { MOODS } from '../data/moods'
 import { getMoodHistory } from '../services/apiClient'
@@ -187,6 +188,9 @@ function SettingsIndex() {
           )}
         </div>
       </div>
+
+      {/* E.2 Fase 2 — instalar PWA (solo si no está instalada ya) */}
+      <InstallAppCard />
 
       {/* 7 Section rows */}
       <div className="space-y-2">
