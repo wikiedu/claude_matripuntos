@@ -78,25 +78,31 @@ export async function getCoupleAnalytics(
   // Solo contamos eventos que realmente generaron puntos — antes se mezclaban
   // draft/pending/rejected y los KPIs inflaban el total con eventos que nadie
   // aceptó.
-  const events = await prisma.event.findMany({
-    where: {
-      coupleId,
-      dateStart: { gte: startDate, lte: endDate },
-      status: { in: ['accepted', 'forced'] },
-    },
-  })
-
-  const negotiations = await prisma.negotiation.findMany({
-    where: {
-      event: { coupleId, dateStart: { gte: startDate, lte: endDate } },
-    },
-  })
-
-  const achievements = await prisma.userAchievement.findMany({
-    where: {
-      unlockedAt: { gte: startDate, lte: endDate },
-    },
-  })
+  // Fase 2 B.3 — queries independientes en paralelo (antes 4 awaits en serie).
+  const [events, negotiations, achievements, latest] = await Promise.all([
+    prisma.event.findMany({
+      where: {
+        coupleId,
+        dateStart: { gte: startDate, lte: endDate },
+        status: { in: ['accepted', 'forced'] },
+      },
+    }),
+    prisma.negotiation.findMany({
+      where: {
+        event: { coupleId, dateStart: { gte: startDate, lte: endDate } },
+      },
+    }),
+    prisma.userAchievement.findMany({
+      where: {
+        unlockedAt: { gte: startDate, lte: endDate },
+      },
+    }),
+    // B6: equity gauge — el coupleScore más reciente, en el mismo batch.
+    prisma.coupleScore.findFirst({
+      where: { coupleId },
+      orderBy: { weekStartDate: 'desc' },
+    }),
+  ])
 
   const totalPoints = events.reduce((sum, e) => sum + Number(e.pointsCalculated), 0)
   const acceptedEvents = events.filter(e => e.status === 'accepted').length
@@ -119,10 +125,6 @@ export async function getCoupleAnalytics(
 
   // B6: include equity gauge data from the CoupleScore table so the Advanced
   // Analytics "Índice de Equidad" gauge has something to render.
-  const latest = await prisma.coupleScore.findFirst({
-    where: { coupleId },
-    orderBy: { weekStartDate: 'desc' },
-  })
   const previous = latest
     ? await prisma.coupleScore.findFirst({
         where: { coupleId, weekStartDate: { lt: latest.weekStartDate } },
@@ -211,22 +213,24 @@ export async function getDailyActivityAnalytics(
   startDate: Date,
   endDate: Date
 ): Promise<EventAnalytics[]> {
-  const events = await prisma.event.findMany({
-    where: {
-      coupleId,
-      dateStart: { gte: startDate, lte: endDate },
-      status: { in: ['accepted', 'forced'] },
-    },
-  })
-
-  const logs = await prisma.taskLog.findMany({
-    where: {
-      coupleId,
-      status: 'verified',
-      date: { gte: startDate, lte: endDate },
-    },
-    include: { task: true },
-  })
+  // Fase 2 B.3 — eventos y logs en paralelo.
+  const [events, logs] = await Promise.all([
+    prisma.event.findMany({
+      where: {
+        coupleId,
+        dateStart: { gte: startDate, lte: endDate },
+        status: { in: ['accepted', 'forced'] },
+      },
+    }),
+    prisma.taskLog.findMany({
+      where: {
+        coupleId,
+        status: 'verified',
+        date: { gte: startDate, lte: endDate },
+      },
+      include: { task: true },
+    }),
+  ])
 
   const grouped: Record<string, EventAnalytics> = {}
   const ensure = (dateStr: string) => {
@@ -268,21 +272,23 @@ export async function getDailyActivityGrouped(
   startDate: Date,
   endDate: Date
 ): Promise<Array<{ date: string; you: number; partner: number }>> {
-  const events = await prisma.event.findMany({
-    where: {
-      coupleId,
-      dateStart: { gte: startDate, lte: endDate },
-      status: { in: ['accepted', 'forced'] },
-    },
-  })
-
-  const logs = await prisma.taskLog.findMany({
-    where: {
-      coupleId,
-      status: 'verified',
-      date: { gte: startDate, lte: endDate },
-    },
-  })
+  // Fase 2 B.3 — eventos y logs en paralelo.
+  const [events, logs] = await Promise.all([
+    prisma.event.findMany({
+      where: {
+        coupleId,
+        dateStart: { gte: startDate, lte: endDate },
+        status: { in: ['accepted', 'forced'] },
+      },
+    }),
+    prisma.taskLog.findMany({
+      where: {
+        coupleId,
+        status: 'verified',
+        date: { gte: startDate, lte: endDate },
+      },
+    }),
+  ])
 
   const buckets: Record<string, { you: number; partner: number }> = {}
   const ensure = (dateStr: string) => {
@@ -323,21 +329,23 @@ export async function getNegotiationAnalytics(
   startDate: Date,
   endDate: Date
 ): Promise<NegotiationAnalytics> {
-  const negotiations = await prisma.negotiation.findMany({
-    where: {
-      event: {
+  // Fase 2 B.3 — negociaciones y eventos en paralelo.
+  const [negotiations, events] = await Promise.all([
+    prisma.negotiation.findMany({
+      where: {
+        event: {
+          coupleId,
+          dateStart: { gte: startDate, lte: endDate },
+        },
+      },
+    }),
+    prisma.event.findMany({
+      where: {
         coupleId,
         dateStart: { gte: startDate, lte: endDate },
       },
-    },
-  })
-
-  const events = await prisma.event.findMany({
-    where: {
-      coupleId,
-      dateStart: { gte: startDate, lte: endDate },
-    },
-  })
+    }),
+  ])
 
   const accepted = events.filter(e => e.status === 'accepted').length
   const rejected = events.filter(e => e.status === 'rejected').length
@@ -436,22 +444,36 @@ export async function getWeeklyTrends(
   numberOfWeeks: number = 8
 ): Promise<Array<{ label: string; events: number; points: number }>> {
   const today = new Date()
-  const trends: Array<{ label: string; events: number; points: number }> = []
 
+  // Fase 2 B.3 — antes: 1 query por semana (N+1, 8 queries). Ahora: las
+  // ventanas se precomputan, una sola query cubre todo el rango y se bucketiza
+  // en JS comparando contra los mismos límites exactos de cada ventana.
+  const windows: Array<{ start: Date; end: Date; label: string }> = []
   for (let i = numberOfWeeks - 1; i >= 0; i--) {
     const weekEnd = new Date(today)
     weekEnd.setDate(today.getDate() - (i * 7))
     const weekStart = new Date(weekEnd)
     weekStart.setDate(weekEnd.getDate() - 6)
-
-    const events = await prisma.event.findMany({
-      where: {
-        coupleId,
-        dateStart: { gte: weekStart, lte: weekEnd },
-        status: { in: ['accepted', 'forced'] },
-      },
+    windows.push({
+      start: weekStart,
+      end: weekEnd,
+      label: weekStart.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
     })
+  }
 
+  const allEvents = await prisma.event.findMany({
+    where: {
+      coupleId,
+      dateStart: { gte: windows[0].start, lte: windows[windows.length - 1].end },
+      status: { in: ['accepted', 'forced'] },
+    },
+    select: { dateStart: true, pointsAgreed: true, pointsCalculated: true },
+  })
+
+  return windows.map(w => {
+    const events = allEvents.filter(
+      e => e.dateStart >= w.start && e.dateStart <= w.end,
+    )
     // Usa pointsAgreed si el evento se cerró por negociación, si no cae al
     // pointsCalculated. Antes contaba pointsCalculated a secas y perdía el
     // ajuste de rondas de negociación.
@@ -459,16 +481,8 @@ export async function getWeeklyTrends(
       (sum, e) => sum + Number(e.pointsAgreed ?? e.pointsCalculated ?? 0),
       0,
     )
-    const label = weekStart.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
-
-    trends.push({
-      label,
-      events: events.length,
-      points,
-    })
-  }
-
-  return trends
+    return { label: w.label, events: events.length, points }
+  })
 }
 
 /**
@@ -489,42 +503,37 @@ export async function getMonthlySummary(
   const startDate = new Date(year, month - 1, 1)
   const endDate = new Date(year, month, 0, 23, 59, 59)
 
-  const events = await prisma.event.count({
-    where: {
-      coupleId,
-      dateStart: { gte: startDate, lte: endDate },
-    },
-  })
-
-  const pointsData = await prisma.event.findMany({
-    where: {
-      coupleId,
-      dateStart: { gte: startDate, lte: endDate },
-    },
-    select: { pointsCalculated: true },
-  })
-
-  const points = pointsData.reduce((sum, e) => sum + Number(e.pointsCalculated), 0)
-
-  const negotiations = await prisma.negotiation.count({
-    where: {
-      event: {
+  // Fase 2 B.3 — antes 4 queries en serie (y count + findMany sobre el mismo
+  // where duplicados). Ahora 3 en paralelo; events = pointsData.length.
+  const [pointsData, negotiations, achievements] = await Promise.all([
+    prisma.event.findMany({
+      where: {
         coupleId,
         dateStart: { gte: startDate, lte: endDate },
       },
-    },
-  })
+      select: { pointsCalculated: true },
+    }),
+    prisma.negotiation.count({
+      where: {
+        event: {
+          coupleId,
+          dateStart: { gte: startDate, lte: endDate },
+        },
+      },
+    }),
+    prisma.userAchievement.count({
+      where: {
+        unlockedAt: { gte: startDate, lte: endDate },
+      },
+    }),
+  ])
 
-  const achievements = await prisma.userAchievement.count({
-    where: {
-      unlockedAt: { gte: startDate, lte: endDate },
-    },
-  })
+  const points = pointsData.reduce((sum, e) => sum + Number(e.pointsCalculated), 0)
 
   return {
     month,
     year,
-    events,
+    events: pointsData.length,
     points,
     negotiations,
     achievements,
@@ -535,12 +544,10 @@ export async function getMonthlySummary(
  * Get year overview
  */
 export async function getYearOverview(coupleId: string, year: number) {
-  const months: Awaited<ReturnType<typeof getMonthlySummary>>[] = []
-
-  for (let month = 1; month <= 12; month++) {
-    const summary = await getMonthlySummary(coupleId, year, month)
-    months.push(summary)
-  }
+  // Fase 2 B.3 — antes 12 meses en serie (36 queries secuenciales).
+  const months = await Promise.all(
+    Array.from({ length: 12 }, (_, i) => getMonthlySummary(coupleId, year, i + 1))
+  )
 
   return {
     year,
@@ -645,20 +652,23 @@ export async function getTimeInvested(coupleId: string, range: 'week' | 'month')
   const since = new Date()
   since.setDate(since.getDate() - days)
 
-  const couple = await prisma.couple.findUnique({
-    where: { id: coupleId },
-    include: { users: true },
-  })
+  // Fase 2 B.3 — las 3 queries son independientes; en paralelo.
+  const [couple, logs, events] = await Promise.all([
+    prisma.couple.findUnique({
+      where: { id: coupleId },
+      include: { users: true },
+    }),
+    prisma.taskLog.findMany({
+      where: { coupleId, date: { gte: since }, status: 'verified' },
+      include: { task: true },
+    }),
+    prisma.event.findMany({
+      where: { coupleId, dateStart: { gte: since }, status: { in: ['accepted', 'forced'] } },
+    }),
+  ])
   if (!couple || couple.users.length === 0) return { you: { hours: 0 }, partner: { hours: 0 } }
 
   const [user1, user2] = couple.users
-  const logs = await prisma.taskLog.findMany({
-    where: { coupleId, date: { gte: since }, status: 'verified' },
-    include: { task: true },
-  })
-  const events = await prisma.event.findMany({
-    where: { coupleId, dateStart: { gte: since }, status: { in: ['accepted', 'forced'] } },
-  })
 
   // Cap per-event coverage to ~10h so a 3-day trip doesn't report 72h of
   // "invested time" — the partner was sleeping/working for most of that. We
@@ -709,12 +719,15 @@ export async function getHeatmap(coupleId: string, weeks: number = 4) {
   const since = new Date()
   since.setDate(since.getDate() - weeks * 7)
 
-  const logs = await prisma.taskLog.findMany({
-    where: { coupleId, date: { gte: since } },
-  })
-  const events = await prisma.event.findMany({
-    where: { coupleId, dateStart: { gte: since }, status: { in: ['accepted', 'forced'] } },
-  })
+  // Fase 2 B.3 — logs y eventos en paralelo.
+  const [logs, events] = await Promise.all([
+    prisma.taskLog.findMany({
+      where: { coupleId, date: { gte: since } },
+    }),
+    prisma.event.findMany({
+      where: { coupleId, dateStart: { gte: since }, status: { in: ['accepted', 'forced'] } },
+    }),
+  ])
 
   // key = `${dow}-${bucket}`, value = count
   const map = new Map<string, number>()
@@ -766,20 +779,28 @@ export async function getCompletionRate(coupleId: string, range: 'week' | 'month
 
   const [user1, user2] = couple.users
 
+  // Fase 2 B.3 — antes hasta 4 counts en serie (2 por user); en paralelo.
   async function rateFor(userId: string) {
-    const total = await prisma.taskLog.count({
-      where: { coupleId, completedBy: userId, date: { gte: since } },
-    })
+    const [total, verified] = await Promise.all([
+      prisma.taskLog.count({
+        where: { coupleId, completedBy: userId, date: { gte: since } },
+      }),
+      prisma.taskLog.count({
+        where: { coupleId, completedBy: userId, date: { gte: since }, status: 'verified' },
+      }),
+    ])
     if (total === 0) return 0
-    const verified = await prisma.taskLog.count({
-      where: { coupleId, completedBy: userId, date: { gte: since }, status: 'verified' },
-    })
     return Math.round((verified / total) * 100)
   }
 
+  const [pctUser1, pctUser2] = await Promise.all([
+    rateFor(user1.id),
+    user2 ? rateFor(user2.id) : Promise.resolve(0),
+  ])
+
   return {
-    you:     { id: user1.id, name: user1.name, pct: await rateFor(user1.id) },
-    partner: user2 ? { id: user2.id, name: user2.name, pct: await rateFor(user2.id) } : null,
+    you:     { id: user1.id, name: user1.name, pct: pctUser1 },
+    partner: user2 ? { id: user2.id, name: user2.name, pct: pctUser2 } : null,
   }
 }
 
@@ -818,27 +839,29 @@ export async function getMonthlyInsight(coupleId: string, month: number, year: n
     return sorted[0] ? { name: sorted[0][0], count: sorted[0][1] } : null
   }
 
-  // Time split
-  const time = await getTimeInvested(coupleId, 'month')
+  // Fase 2 B.3 — time split, equity (curr/prev), worst-category y top-cat por
+  // user son independientes entre sí; antes corrían en serie (6+ queries).
+  const [time, curr, prev, allLogs, topCatU1, topCatU2] = await Promise.all([
+    getTimeInvested(coupleId, 'month'),
+    prisma.coupleScore.findFirst({
+      where: { coupleId, weekStartDate: { gte: start, lt: end } },
+      orderBy: { weekStartDate: 'desc' },
+    }),
+    prisma.coupleScore.findFirst({
+      where: { coupleId, weekStartDate: { gte: prevStart, lt: prevEnd } },
+      orderBy: { weekStartDate: 'desc' },
+    }),
+    prisma.taskLog.findMany({
+      where: { coupleId, date: { gte: start, lt: end } },
+      include: { task: true },
+    }),
+    topCat(u1.id),
+    u2 ? topCat(u2.id) : Promise.resolve(null),
+  ])
+
   const totalH = (time.you?.hours ?? 0) + (time.partner?.hours ?? 0)
   const timePctUser1 = totalH > 0 ? Math.round(((time.you?.hours ?? 0) / totalH) * 100) : 50
-
-  // Equity current vs prev
-  const curr = await prisma.coupleScore.findFirst({
-    where: { coupleId, weekStartDate: { gte: start, lt: end } },
-    orderBy: { weekStartDate: 'desc' },
-  })
-  const prev = await prisma.coupleScore.findFirst({
-    where: { coupleId, weekStartDate: { gte: prevStart, lt: prevEnd } },
-    orderBy: { weekStartDate: 'desc' },
-  })
   const equityDelta = curr && prev ? Math.round(Number(curr.equilibrium) - Number(prev.equilibrium)) : 0
-
-  // Worst category
-  const allLogs = await prisma.taskLog.findMany({
-    where: { coupleId, date: { gte: start, lt: end } },
-    include: { task: true },
-  })
   const byCat = new Map<string, { u1: number; u2: number }>()
   allLogs.forEach(l => {
     const cur = byCat.get(l.task.category) ?? { u1: 0, u2: 0 }
@@ -857,8 +880,8 @@ export async function getMonthlyInsight(coupleId: string, month: number, year: n
   const result = generateInsight({
     user1Name: u1.name,
     user2Name: u2?.name ?? 'tu pareja',
-    topCategoryUser1: await topCat(u1.id),
-    topCategoryUser2: u2 ? await topCat(u2.id) : null,
+    topCategoryUser1: topCatU1,
+    topCategoryUser2: topCatU2,
     timePctUser1,
     equityDelta,
     worstCategory: worst,
