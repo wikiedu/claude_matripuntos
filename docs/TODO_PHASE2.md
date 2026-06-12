@@ -18,12 +18,13 @@
 - [x] **A.5** [DECISIÓN — solo doc] localStorage JWT → httpOnly cookies *(2026-06-12 — plan escrito en BLOQUEOS/DECISIONES abajo; NO implementado)*
 
 ### MÓDULO B — Performance (prioridad 2)
-- [ ] **B.1** Code splitting + React.lazy en `App.tsx` + manualChunks en `vite.config.ts` (bundle 898KB → ~200KB)
-- [ ] **B.2** DB indexes en `schema.prisma`: Event, TaskLog, Notification, CalendarEntry, MoodLog, JournalEntry
-- [ ] **B.3** N+1 analytics/calendar — Promise.all en `analyticsService.ts` y `calendarService.ts`
-- [ ] **B.4** Fuentes Inter: restringir a latin+latin-ext en `main.tsx`/`index.css`
+- [x] **B.1** Code splitting + React.lazy + manualChunks *(2026-06-12, commit d416064 — index 898KB→195KB + vendor-react 156KB + vendor-query 49KB + ~18 chunks por página. Bonus ccfd787: fix Node 26 webstorage que rompía 166 tests de vitest. Hallazgo: recharts es dead code — AnalyticsChart.tsx sin importadores, anotar en C)*
+- [x] **B.2** DB indexes *(2026-06-12, commit 9d27c4f — la mayoría ya existían de Sprint 12; añadidos los 2 que faltaban con queries hot-path reales: Event(coupleId,dateStart) y Notification(userId,createdAt). Migración 20261212000000)*
+- [x] **B.3** N+1 analytics/calendar *(2026-06-12, commit ffa4ce9 — getWeeklyTrends 8 queries→1, getYearOverview 12 meses→Promise.all, +8 funciones paralelizadas. calendarService ya estaba batcheado)*
+- [x] **B.4** Fuentes Inter latin+latin-ext *(2026-06-12, commit 8922f71 — 35 woff2→10, precache 1549→1361 KiB)*
 
 ### MÓDULO C — Deuda técnica (prioridad 3)
+- [ ] **C.0** (nuevo, hallazgo B.1) `AnalyticsChart.tsx` + dependencia `recharts` son dead code — 0 importadores. Borrar componente + `npm uninstall recharts` + quitar de CLAUDE.md §2
 - [ ] **C.1** Confirmar 0 consumidores de `negotiationEngine.ts` → borrar archivo + test file
 - [ ] **C.2** Mapear consumidores achievements V1 vs V2 → plan flag `LEGACY_ACHIEVEMENTS_ENABLED=false`
 - [ ] **C.3** ErrorBoundary global en `App.tsx` o `AuthedLayout.tsx`
@@ -99,3 +100,8 @@
 ## HECHO
 
 - **2026-06-12 — MÓDULO A completo (Seguridad)**: A.1a/b/c (crypto), A.2 (IDOR audit + capacidad pareja + mount fix de prod), A.3 (npm audit fix runtime), A.4 (seed passwords), A.5 (plan httpOnly cookies documentado). Commits: 3908f91 · 5588143 · 98e111b · 31aa93f. Baseline E2E ahora **5 suites / 17 tests**.
+- **2026-06-12 — MÓDULO B completo (Performance)**: B.1 code splitting (898KB→195KB main), B.2 indexes hot-path, B.3 N+1 analytics, B.4 fuentes. Commits: d416064 · ccfd787 · 9d27c4f · ffa4ce9 · 8922f71. Bonus: fix Node 26 webstorage (vitest 166 fallos→8 preexistentes).
+
+### NOTA F.4 (adelantada) — tests en rojo esperables en local
+- Backend: suites DB-bound (analyticsService.test.ts, etc.) fallan sin Postgres local — el gate canónico es `npm run test:e2e` (postgres embebido).
+- Frontend: 8 fallos preexistentes en Activities/ActivityDetail/ActivityActionCard/BottomNav (4 archivos) — ya fallaban antes de Fase 2, pendiente diagnóstico en F.4.
