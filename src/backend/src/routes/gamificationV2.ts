@@ -7,6 +7,7 @@ import { Router, Request, Response } from 'express'
 import { authenticateToken } from '../middleware/auth.js'
 import { readBucket } from '../middleware/rateLimiter.js'
 import prisma from '../lib/prisma.js'
+import { parseJsonField } from '../lib/jsonField.js'
 import { LEVELS, getLevelInfo } from '../services/gamificationService.js'
 import { computeAvailableReplays } from '../services/replayService.js'
 
@@ -26,7 +27,7 @@ router.use((_req, res, next) => {
 // v2.1.0 — devuelve el nivel del sistema unificado de 10 niveles
 // (Encuentro/Confianza/...). Ya no usa CoupleLevel separado: lee Couple.xp.
 router.get('/level', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const couple = await prisma.couple.findUnique({
@@ -51,7 +52,7 @@ router.get('/level', readBucket, async (req: Request, res: Response) => {
 
 // GET /api/gamification-v2/streak
 router.get('/streak', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const row = await prisma.coupleStreak.findUnique({ where: { coupleId } })
@@ -66,7 +67,7 @@ router.get('/streak', readBucket, async (req: Request, res: Response) => {
 
 // GET /api/gamification-v2/challenge
 router.get('/challenge', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const challenge = await prisma.coupleChallenge.findFirst({
@@ -83,14 +84,14 @@ router.get('/challenge', readBucket, async (req: Request, res: Response) => {
       goal: challenge.goal,
       rewardXp: challenge.rewardXp,
       weekStart: challenge.weekStart,
-      config: JSON.parse(challenge.config),
+      config: parseJsonField(challenge.config, {}),
     },
   })
 })
 
 // GET /api/gamification-v2/replay
 router.get('/replay', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const todayUtc = new Date()
@@ -130,7 +131,7 @@ router.get('/replay', readBucket, async (req: Request, res: Response) => {
 const REPLAY_KEY_RE = /^[a-z0-9_-]{1,40}$/
 
 router.post('/replay/:key/seen', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const replayKey = req.params.key
 

@@ -12,6 +12,7 @@ import { calculateTaskLogPoints, TASK_MODIFIER_VALUES } from '../services/taskLo
 
 const router = express.Router()
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 const achievementEngine = new AchievementEngine(prisma)
 
 // Validation schemas
@@ -237,7 +238,7 @@ router.get('/all-logs', authMiddleware, async (req: Request, res: Response): Pro
       },
     })
   } catch (error) {
-    console.error('[all-logs]', error)
+    logger.error({ err: error }, '[all-logs]')
     res.status(500).json({ error: 'Failed to fetch task logs' })
   }
 })
@@ -392,7 +393,7 @@ router.post('/:taskId/log', authMiddleware, async (req: Request, res: Response):
       await calculateAndSaveXP(req.coupleId)
       await checkAllAchievements(req.coupleId)
     } catch (gamErr) {
-      console.error('Gamification update error (non-fatal):', gamErr)
+      logger.error({ err: gamErr }, 'Gamification update error (non-fatal)')
     }
 
     res.status(201).json({
@@ -564,7 +565,7 @@ router.put('/:taskId/logs/:logId/verify', authMiddleware, async (req: Request, r
       await calculateAndSaveXP(req.coupleId)
       await checkAllAchievements(req.coupleId)
     } catch (gamErr) {
-      console.error('Gamification update error (non-fatal):', gamErr)
+      logger.error({ err: gamErr }, 'Gamification update error (non-fatal)')
     }
 
     res.json({
@@ -708,7 +709,7 @@ router.post('/:id/schedule', authMiddleware, async (req: Request, res: Response)
     res.json(updated)
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ error: err.errors[0].message }); return }
-    console.error('POST /tasks/:id/schedule error:', err)
+    logger.error({ err }, 'POST /tasks/:id/schedule error')
     res.status(500).json({ error: 'Error al programar tarea' })
   }
 })
@@ -737,7 +738,7 @@ router.delete('/:id', authMiddleware, async (req: Request, res: Response): Promi
 
     res.json({ success: true })
   } catch (err) {
-    console.error('DELETE /tasks/:id error:', err)
+    logger.error({ err }, 'DELETE /tasks/:id error')
     res.status(500).json({ error: 'Error al borrar tarea' })
   }
 })
@@ -812,7 +813,7 @@ router.get('/recurring', authMiddleware, async (req: Request, res: Response): Pr
 
     res.json({ tasks: enriched })
   } catch (err) {
-    console.error('GET /tasks/recurring error:', err)
+    logger.error({ err }, 'GET /tasks/recurring error')
     res.status(500).json({ error: 'Error cargando tareas recurrentes' })
   }
 })
@@ -852,7 +853,7 @@ router.post('/:id/pause', authMiddleware, async (req: Request, res: Response): P
       task: { id: updated.id, isActive: updated.isRecurring },
     })
   } catch (err) {
-    console.error('POST /tasks/:id/pause error:', err)
+    logger.error({ err }, 'POST /tasks/:id/pause error')
     res.status(500).json({ error: 'Error al pausar la tarea recurrente' })
   }
 })
@@ -883,7 +884,7 @@ router.post('/:id/resume', authMiddleware, async (req: Request, res: Response): 
 
     res.json({ success: true, task: { id: updated.id, isActive: updated.isRecurring } })
   } catch (err) {
-    console.error('POST /tasks/:id/resume error:', err)
+    logger.error({ err }, 'POST /tasks/:id/resume error')
     res.status(500).json({ error: 'Error al reactivar la tarea recurrente' })
   }
 })

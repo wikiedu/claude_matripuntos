@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 const router = express.Router()
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 // Validation schemas
 const historyFilterSchema = z.object({
@@ -183,7 +184,7 @@ router.get('/chart-data', authMiddleware, async (req: Request, res: Response): P
     }
 
     // Generate one entry per day using local date keys
-    const chartData = []
+    const chartData: any[] = []
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date()
       d.setDate(d.getDate() - i)
@@ -468,7 +469,7 @@ router.post('/reset-request', authMiddleware, async (req: Request, res: Response
       status: 'pending',
     })
   } catch (error) {
-    console.error('[reset-request]', error)
+    logger.error({ err: error }, '[reset-request]')
     res.status(500).json({ error: 'Failed to request reset' })
   }
 })
@@ -565,7 +566,7 @@ router.post('/reset-confirm', authMiddleware, async (req: Request, res: Response
       transactionsDeleted: countBefore,
     })
   } catch (error) {
-    console.error('[reset-confirm]', error)
+    logger.error({ err: error }, '[reset-confirm]')
     res.status(500).json({ error: 'Failed to confirm reset' })
   }
 })
@@ -583,7 +584,7 @@ router.get('/red-balance', authMiddleware, async (req: Request, res: Response): 
     const status = await computeRedBalance(req.coupleId, req.userId)
     res.json({ status })
   } catch (error) {
-    console.error('[red-balance]', error)
+    logger.error({ err: error }, '[red-balance]')
     res.status(500).json({ error: 'Failed to compute red balance' })
   }
 })

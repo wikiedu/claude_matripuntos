@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { logger } from '../lib/logger.js'
 
 const prisma = new PrismaClient()
 
@@ -117,7 +118,7 @@ async function seedAchievements() {
     })
 
     if (existingCount === 0) {
-      console.log(`Seeding achievements for couple ${couple.id}...`)
+      logger.info(`Seeding achievements for couple ${couple.id}...`)
 
       for (const ach of ACHIEVEMENTS) {
         await prisma.achievement.create({
@@ -133,18 +134,18 @@ async function seedAchievements() {
         })
       }
 
-      console.log(`✓ Seeded 12 achievements for couple ${couple.id}`)
+      logger.info(`✓ Seeded 12 achievements for couple ${couple.id}`)
     } else {
-      console.log(`Achievements already exist for couple ${couple.id}, skipping`)
+      logger.info(`Achievements already exist for couple ${couple.id}, skipping`)
     }
   }
 
-  console.log('✓ Achievement seeding complete')
+  logger.info('✓ Achievement seeding complete')
 }
 
 seedAchievements()
   .catch(e => {
-    console.error('Seed error:', e)
+    logger.error({ err: e }, 'Seed error')
     process.exit(1)
   })
   .finally(async () => {

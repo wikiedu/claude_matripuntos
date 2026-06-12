@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 const router = express.Router()
 
@@ -39,7 +40,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
 
     res.json({ active, history })
   } catch (err) {
-    console.error('GET /shopping error:', err)
+    logger.error({ err }, 'GET /shopping error')
     res.status(500).json({ error: 'Error al cargar la lista de la compra' })
   }
 })
@@ -61,7 +62,7 @@ router.post('/items', authMiddleware, async (req: Request, res: Response): Promi
     res.status(201).json(item)
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ error: err.errors[0].message }); return }
-    console.error('POST /shopping/items error:', err)
+    logger.error({ err }, 'POST /shopping/items error')
     res.status(500).json({ error: 'Error al añadir item' })
   }
 })

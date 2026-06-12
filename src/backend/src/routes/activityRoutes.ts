@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { getRecentActivity } from '../services/activityService.js'
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 const router = express.Router()
 
@@ -22,7 +23,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
     const activities = await getRecentActivity(prisma, coupleId)
     res.json(activities)
   } catch (error) {
-    console.error('Error fetching recent activity:', error)
+    logger.error({ err: error }, 'Error fetching recent activity')
     const message = error instanceof Error ? error.message : 'Failed to fetch recent activity'
     res.status(500).json({ error: message })
   }

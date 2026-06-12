@@ -40,7 +40,7 @@ const listQuerySchema = z.object({
 })
 
 router.get('/entries', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const parsed = listQuerySchema.safeParse(req.query)
   if (!parsed.success) return res.status(400).json({ error: 'Bad query' })
@@ -64,7 +64,7 @@ router.get('/entries', readBucket, async (req: Request, res: Response) => {
 })
 
 router.post('/entries', writeBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const parsed = entryCreateSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Datos inválidos', issues: parsed.error.issues })
@@ -90,7 +90,7 @@ router.post('/entries', writeBucket, async (req: Request, res: Response) => {
 })
 
 router.put('/entries/:id', writeBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const parsed = entryUpdateSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Datos inválidos' })
@@ -111,7 +111,7 @@ router.put('/entries/:id', writeBucket, async (req: Request, res: Response) => {
 })
 
 router.delete('/entries/:id', writeBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const existing = await prisma.calendarEntry.findFirst({ where: { id: req.params.id, coupleId } })
   if (!existing) return res.status(404).json({ error: 'Not found' })
@@ -133,14 +133,14 @@ const providerSchema = z.object({
 })
 
 router.get('/service-providers', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const list = await prisma.serviceProvider.findMany({ where: { coupleId } })
   res.json({ providers: list })
 })
 
 router.post('/service-providers', writeBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const parsed = providerSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Datos inválidos' })
@@ -159,7 +159,7 @@ router.post('/service-providers', writeBucket, async (req: Request, res: Respons
 })
 
 router.put('/service-providers/:id', writeBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const parsed = providerSchema.partial().safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Datos inválidos' })
@@ -170,7 +170,7 @@ router.put('/service-providers/:id', writeBucket, async (req: Request, res: Resp
 })
 
 router.delete('/service-providers/:id', writeBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const existing = await prisma.serviceProvider.findFirst({ where: { id: req.params.id, coupleId } })
   if (!existing) return res.status(404).json({ error: 'Not found' })

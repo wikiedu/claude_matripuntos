@@ -3,6 +3,7 @@
 // delete confirma con password + code y dispara accountDeletionService.
 
 import { Router, Request, Response } from 'express'
+import { requireAuth } from '../lib/requireAuth.js'
 import bcrypt from 'bcryptjs'
 import { authenticateToken } from '../middleware/auth.js'
 import { criticalBucket, readBucket } from '../middleware/rateLimiter.js'
@@ -11,6 +12,7 @@ import prisma from '../lib/prisma.js'
 import { deleteAccount } from '../services/accountDeletionService.js'
 import { telemetryBackend } from '../services/telemetry.js'
 import { sendEmail, deleteAccountCodeEmail } from '../services/emailService.js'
+import { logger } from '../lib/logger.js'
 
 const router = Router()
 router.use(authenticateToken)
@@ -20,7 +22,7 @@ router.use(authenticateToken)
 const deleteCodes = new Map<string, { code: string; expiresAt: number }>()
 
 router.post('/delete-request', criticalBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user.id
+  const userId = requireAuth(req).userId
   const parsed = accountDeleteRequestSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Datos inválidos' })
 
@@ -35,7 +37,7 @@ router.post('/delete-request', criticalBucket, async (req: Request, res: Respons
 
   const isDev = process.env.NODE_ENV !== 'production'
   if (isDev) {
-    console.log(`[DELETE-CODE] user=${userId} code=${code}`)
+    logger.info(`[DELETE-CODE] user=${userId} code=${code}`)
     return res.json({ ok: true, codeViaConsole: true, code })  // exposed only in dev
   }
 
@@ -53,7 +55,7 @@ router.post('/delete-request', criticalBucket, async (req: Request, res: Respons
     tags: [{ name: 'type', value: 'delete_account' }],
   })
   if (!result.ok) {
-    console.error('[delete-request] email send failed:', result.error)
+    logger.error({ sendError: result.error }, '[delete-request] email send failed')
     return res.status(503).json({ error: 'No pudimos enviar el código. Inténtalo más tarde.' })
   }
 
@@ -61,7 +63,7 @@ router.post('/delete-request', criticalBucket, async (req: Request, res: Respons
 })
 
 router.post('/delete', criticalBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user.id
+  const userId = requireAuth(req).userId
   const parsed = accountDeleteSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Datos inválidos' })
 
@@ -86,7 +88,7 @@ router.post('/delete', criticalBucket, async (req: Request, res: Response) => {
 // Devuelve un bundle JSON con todos los datos del usuario en formato
 // estructurado y legible por máquina. Headers indican download.
 router.get('/export', readBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user.id
+  const userId = requireAuth(req).userId
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {

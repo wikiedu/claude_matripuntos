@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 import { readBucket } from '../middleware/rateLimiter.js'
 import prisma from '../lib/prisma.js'
+import { parseJsonField } from '../lib/jsonField.js'
 import {
   countEvents, eventsByDay, eventsByWeek, eventsByMonth, eventsByCategory,
   heatmap24x7, balanceByUser, netBalance, equityCurve, equityBand,
@@ -74,7 +75,7 @@ function toNum(x: any): number {
 
 // GET /summary — números agregados consistentes con el resto de endpoints.
 router.get('/summary', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const { from, to } = parseRange(req)
 
@@ -129,7 +130,7 @@ router.get('/summary', readBucket, async (req: Request, res: Response) => {
 
 // GET /heatmap — 7×24 grid.
 router.get('/heatmap', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const { from, to } = parseRange(req, 90)
 
@@ -147,7 +148,7 @@ router.get('/heatmap', readBucket, async (req: Request, res: Response) => {
 
 // GET /equity-curve — saldo neto cumulative por día.
 router.get('/equity-curve', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const { from, to } = parseRange(req, 90)
 
@@ -167,7 +168,7 @@ router.get('/equity-curve', readBucket, async (req: Request, res: Response) => {
 
 // GET /mood-timeline
 router.get('/mood-timeline', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const { from, to } = parseRange(req, 90)
 
@@ -183,7 +184,7 @@ router.get('/mood-timeline', readBucket, async (req: Request, res: Response) => 
 
 // GET /compare?period=month — current vs previous month.
 router.get('/compare', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const period = (req.query.period as string) === 'week' ? 'week' : 'month'
@@ -208,7 +209,7 @@ router.get('/compare', readBucket, async (req: Request, res: Response) => {
 
 // GET /insights — cards rotativas activas (no expiradas).
 router.get('/insights', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const now = new Date()
 
@@ -224,7 +225,7 @@ router.get('/insights', readBucket, async (req: Request, res: Response) => {
       kind: c.kind,
       title: c.title,
       body: c.body,
-      payload: JSON.parse(c.payload),
+      payload: parseJsonField(c.payload, null),
       trend: c.trend,
       generatedAt: c.generatedAt.toISOString(),
       validUntil: c.validUntil.toISOString(),
@@ -234,7 +235,7 @@ router.get('/insights', readBucket, async (req: Request, res: Response) => {
 
 // POST /insights/regenerate — fuerza regen para QA + diagnostico.
 router.post('/insights/regenerate', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const now = new Date()
 
@@ -307,8 +308,8 @@ router.post('/insights/regenerate', readBucket, async (req: Request, res: Respon
 
 // POST /insights/:id/seen
 router.post('/insights/:id/seen', readBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const userId = req.user?.id as string
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   // v2.7.1 audit 01 S2-R-20 — IDOR fix. Antes hacíamos `update` por id

@@ -1,10 +1,12 @@
 import { Router, Request, Response } from 'express'
+import { requireAuth } from '../lib/requireAuth.js'
 import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 import { createNotification } from '../services/notificationService.js'
 
 const router = Router()
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 // v2.4 audit 01 S0-R-3 — schema estricto para propose-change. Antes el
 // endpoint hacía `const { comment, ...fields } = req.body` y guardaba
@@ -48,7 +50,7 @@ router.use(authenticateToken)
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -60,7 +62,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     const categories = await prisma.category.findMany({
       where: {
-        coupleId: user.coupleId,
+        coupleId: requireAuth(req).coupleId,
         isActive: true,
       },
       include: {
@@ -78,7 +80,7 @@ router.get('/', async (req: Request, res: Response) => {
       })),
     })))
   } catch (error) {
-    console.error('Error fetching categories:', error)
+    logger.error({ err: error }, 'Error fetching categories')
     res.status(500).json({ error: 'Failed to fetch categories' })
   }
 })
@@ -89,7 +91,7 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.get('/default', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -101,7 +103,7 @@ router.get('/default', async (req: Request, res: Response) => {
 
     const baseCategories = await prisma.category.findMany({
       where: {
-        coupleId: user.coupleId,
+        coupleId: requireAuth(req).coupleId,
         isCustom: false,
         isActive: true,
       },
@@ -120,7 +122,7 @@ router.get('/default', async (req: Request, res: Response) => {
       })),
     })))
   } catch (error) {
-    console.error('Error fetching base categories:', error)
+    logger.error({ err: error }, 'Error fetching base categories')
     res.status(500).json({ error: 'Failed to fetch categories' })
   }
 })
@@ -131,7 +133,7 @@ router.get('/default', async (req: Request, res: Response) => {
  */
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user?.coupleId as string | undefined
+    const coupleId = req.user?.coupleId as string | undefined
     if (!coupleId) {
       return res.status(401).json({ error: 'Authentication required' })
     }
@@ -174,7 +176,7 @@ router.post('/', async (req: Request, res: Response) => {
       category,
     })
   } catch (error) {
-    console.error('Error creating category:', error)
+    logger.error({ err: error }, 'Error creating category')
     res.status(500).json({ error: 'Failed to create category' })
   }
 })
@@ -185,7 +187,7 @@ router.post('/', async (req: Request, res: Response) => {
  */
 router.put('/:categoryId', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user?.coupleId as string | undefined
+    const coupleId = req.user?.coupleId as string | undefined
     const { categoryId } = req.params
     const { name, emoji, type, basePoints, description } = req.body
 
@@ -231,7 +233,7 @@ router.put('/:categoryId', async (req: Request, res: Response) => {
       category: updated,
     })
   } catch (error) {
-    console.error('Error updating category:', error)
+    logger.error({ err: error }, 'Error updating category')
     res.status(500).json({ error: 'Failed to update category' })
   }
 })
@@ -242,7 +244,7 @@ router.put('/:categoryId', async (req: Request, res: Response) => {
  */
 router.delete('/:categoryId', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user?.coupleId as string | undefined
+    const coupleId = req.user?.coupleId as string | undefined
     const { categoryId } = req.params
 
     // v2.5.9 audit 01 S1-R-14 — scope por coupleId del JWT.
@@ -272,7 +274,7 @@ router.delete('/:categoryId', async (req: Request, res: Response) => {
 
     res.json({ message: 'Category deleted successfully' })
   } catch (error) {
-    console.error('Error deleting category:', error)
+    logger.error({ err: error }, 'Error deleting category')
     res.status(500).json({ error: 'Failed to delete category' })
   }
 })
@@ -283,7 +285,7 @@ router.delete('/:categoryId', async (req: Request, res: Response) => {
  */
 router.get('/:categoryId', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user?.coupleId as string | undefined
+    const coupleId = req.user?.coupleId as string | undefined
     const { categoryId } = req.params
 
     // v2.5.9 audit 01 S1-R-14 — scope por coupleId del JWT.
@@ -311,7 +313,7 @@ router.get('/:categoryId', async (req: Request, res: Response) => {
       })),
     })
   } catch (error) {
-    console.error('Error fetching category:', error)
+    logger.error({ err: error }, 'Error fetching category')
     res.status(500).json({ error: 'Failed to fetch category' })
   }
 })
@@ -322,7 +324,7 @@ router.get('/:categoryId', async (req: Request, res: Response) => {
  */
 router.post('/:categoryId/subcategories', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
     const { categoryId } = req.params
     // v2.7.1 audit 01 S2-R-3 — zod schema estricto para subcategorías.
     const parsed = subcategorySchema.safeParse(req.body)
@@ -332,7 +334,7 @@ router.post('/:categoryId/subcategories', async (req: Request, res: Response) =>
     const { name, basePointsModifier } = parsed.data
 
     // v2.5.9 audit 01 S1-R-14 — scope por coupleId del JWT.
-    const coupleId = (req as any).user?.coupleId as string | undefined
+    const coupleId = req.user?.coupleId as string | undefined
     if (!coupleId) {
       return res.status(401).json({ error: 'Authentication required' })
     }
@@ -365,7 +367,7 @@ router.post('/:categoryId/subcategories', async (req: Request, res: Response) =>
       subcategory,
     })
   } catch (error) {
-    console.error('Error adding subcategory:', error)
+    logger.error({ err: error }, 'Error adding subcategory')
     res.status(500).json({ error: 'Failed to add subcategory' })
   }
 })
@@ -413,7 +415,7 @@ router.post('/propose', async (req: Request, res: Response): Promise<void> => {
     }
     res.status(201).json(proposal)
   } catch (error) {
-    console.error('Error proposing category:', error)
+    logger.error({ err: error }, 'Error proposing category')
     res.status(500).json({ error: 'Failed to propose category' })
   }
 })
@@ -452,7 +454,7 @@ router.put('/:id/propose-change', async (req: Request, res: Response): Promise<v
     })
     res.status(201).json(proposal)
   } catch (error) {
-    console.error('Error proposing category change:', error)
+    logger.error({ err: error }, 'Error proposing category change')
     res.status(500).json({ error: 'Failed to propose category change' })
   }
 })

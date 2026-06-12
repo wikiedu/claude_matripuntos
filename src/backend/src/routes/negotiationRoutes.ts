@@ -9,6 +9,7 @@ import { notifyEventResponded } from '../services/notificationService.js'
 
 const router = express.Router()
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 const achievementEngine = new AchievementEngine(prisma)
 
 // Sentinel error used inside $transaction blocks to roll back with a specific
@@ -319,7 +320,7 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
             { type: 'event_accepted', eventId: negotiation.eventId }
           )
         } catch (achErr) {
-          console.error('Achievement check error (non-fatal):', achErr)
+          logger.error({ err: achErr }, 'Achievement check error (non-fatal)')
         }
       }
       try {
@@ -327,7 +328,7 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
         await calculateAndSaveXP(req.coupleId)
         await checkAllAchievements(req.coupleId)
       } catch (gamErr) {
-        console.error('Gamification update error (non-fatal):', gamErr)
+        logger.error({ err: gamErr }, 'Gamification update error (non-fatal)')
       }
     }
 
@@ -342,7 +343,7 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
       )
     } catch (notifError) {
       // Non-fatal: log but don't fail the request
-      console.error('Failed to send response notification:', notifError)
+      logger.error({ err: notifError }, 'Failed to send response notification')
     }
 
     res.json({

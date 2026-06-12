@@ -9,8 +9,20 @@
          dinámicos (Tailwind genera bundle, pero algunos componentes
          inyectan style runtime). -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://*.posthog.com https://*.sentry.io; connect-src 'self' https://matripuntos-api.onrender.com https://api.matripuntos.com https://*.posthog.com https://*.sentry.io https://*.supabase.co; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self';">
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Fase 1 PWA — icono real (el /vite.svg anterior no existía en public/),
+         theme-color y metas apple-mobile-web-app-* para instalación iOS.
+         El <link rel="manifest"> lo inyecta vite-plugin-pwa en build. -->
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#0f0a1e" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Matripuntos" />
+    <!-- viewport-fit=cover (Fase 0 2026-06-07): sin esto env(safe-area-inset-*)
+         devuelve 0 en iPhone con notch y todo el CSS de safe-area ya escrito
+         (BottomNav, BottomSheet, sheets) quedaba inerte. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Matripuntos - Gamifica la equidad en tu pareja</title>
   </head>
   <body>

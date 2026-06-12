@@ -1,11 +1,19 @@
 import { Router, Request, Response } from 'express'
+import { requireAuth } from '../lib/requireAuth.js'
 import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 import { invalidateAuthCache } from '../middleware/authMiddleware.js'
 import crypto from 'crypto'
 import bcryptjs from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import prisma from '../lib/prisma.js'
+import { signAccessToken, BCRYPT_ROUNDS } from '../services/authService.js'
+import { maybeIssueRefreshPair } from './authRoutes.js'
+import { logger } from '../lib/logger.js'
+import { parseJsonField } from '../lib/jsonField.js'
+
+// STATUS: deprecación aplazada (Sunset vencido pero en uso por Onboarding.tsx /
+// StepJoinAccount.tsx). Retirada y revisión IDOR pospuestas a Fase 1. Ver
+// TODO_REFACTOR.md.
 
 // Single source of truth for the signing secret. authService.ts already
 // validates length >= 32 on boot, so the env var is guaranteed set here.
@@ -38,7 +46,7 @@ const deprecationMiddleware = (_req: Request, res: Response, next: Function) => 
  */
 router.post('/invite-partner', deprecationMiddleware, authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
     const { inviteeEmail } = req.body
 
     // v2.7.1 audit 01 S2-R-12 — antes solo verificábamos string truthy.
@@ -107,7 +115,7 @@ router.post('/invite-partner', deprecationMiddleware, authenticateToken, async (
       },
     })
   } catch (error) {
-    console.error('Error creating invitation:', error)
+    logger.error({ err: error }, 'Error creating invitation')
     res.status(500).json({ error: 'Failed to create invitation' })
   }
 })
@@ -155,13 +163,13 @@ router.get('/invitation/:token', deprecationMiddleware, async (req: Request, res
       invitation: {
         id: invitation.id,
         inviteeEmail: invitation.toEmail,
-        inviterName: invitation.fromUser.name,
+        inviterName: invitation.fromUser?.name ?? null,
         coupleId: invitation.coupleId,
         expiresAt: invitation.expiresAt,
       },
     })
   } catch (error) {
-    console.error('Error validating invitation:', error)
+    logger.error({ err: error }, 'Error validating invitation')
     res.status(500).json({ error: 'Failed to validate invitation' })
   }
 })
@@ -173,7 +181,7 @@ router.get('/invitation/:token', deprecationMiddleware, async (req: Request, res
  */
 router.post('/accept-invitation', deprecationMiddleware, authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
     const { token } = req.body
 
     if (!token) {
@@ -235,7 +243,7 @@ router.post('/accept-invitation', deprecationMiddleware, authenticateToken, asyn
 
     // Get updated couple data
     const couple = await prisma.couple.findUnique({
-      where: { id: invitation.coupleId },
+      where: { id: invitation.coupleId! },
       include: {
         users: {
           select: {
@@ -252,7 +260,7 @@ router.post('/accept-invitation', deprecationMiddleware, authenticateToken, asyn
       couple,
     })
   } catch (error) {
-    console.error('Error accepting invitation:', error)
+    logger.error({ err: error }, 'Error accepting invitation')
     res.status(500).json({ error: 'Failed to accept invitation' })
   }
 })
@@ -305,7 +313,7 @@ router.post('/register-with-invitation', deprecationMiddleware, async (req: Requ
     }
 
     // Hash password
-    const passwordHash = await bcryptjs.hash(password, 10)
+    const passwordHash = await bcryptjs.hash(password, BCRYPT_ROUNDS)
 
     // Bug 2026-04-22: the invitee landed back on StepPair instead of the
     // dashboard because the frontend fired two extra round-trips after
@@ -334,22 +342,23 @@ router.post('/register-with-invitation', deprecationMiddleware, async (req: Requ
     })
 
     const couple = await prisma.couple.findUnique({
-      where: { id: invitation.coupleId },
+      where: { id: invitation.coupleId! },
       include: {
         users: { select: { id: true, email: true, name: true, coupleId: true } },
         configurations: true,
       },
     })
 
-    const authToken = jwt.sign(
-      { userId: newUser.id, coupleId: newUser.coupleId },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    )
+    // #9 Step B: estas rutas deprecadas ahora emiten refresh-pair (opt-in vía
+    // X-Want-Refresh, igual que authRoutes) para que sea seguro bajar
+    // JWT_ACCESS_EXPIRY a 15m en prod sin dejar sesiones sin poder renovar.
+    const authToken = signAccessToken(newUser.id, newUser.coupleId)
+    const refreshPair = await maybeIssueRefreshPair(newUser.id, req.headers as any)
 
     res.status(201).json({
       message: 'Registration successful',
       token: authToken,
+      ...(refreshPair && { refreshToken: refreshPair.refreshToken, refreshExpiresAt: refreshPair.refreshExpiresAt }),
       user: {
         id: newUser.id,
         email: newUser.email,
@@ -367,16 +376,16 @@ router.post('/register-with-invitation', deprecationMiddleware, async (req: Requ
             users: couple.users,
             configuration: couple.configurations
               ? {
-                  tasksConfig: JSON.parse(couple.configurations.tasksConfig),
-                  multipliersConfig: JSON.parse(couple.configurations.multipliersConfig),
-                  activityTypes: JSON.parse(couple.configurations.activityTypes),
+                  tasksConfig: parseJsonField(couple.configurations.tasksConfig, {}),
+                  multipliersConfig: parseJsonField(couple.configurations.multipliersConfig, {}),
+                  activityTypes: parseJsonField(couple.configurations.activityTypes, {}),
                 }
               : null,
           }
         : null,
     })
   } catch (error) {
-    console.error('Error registering with invitation:', error)
+    logger.error({ err: error }, 'Error registering with invitation')
     res.status(500).json({ error: 'Failed to register' })
   }
 })
@@ -388,7 +397,7 @@ router.post('/register-with-invitation', deprecationMiddleware, async (req: Requ
  */
 router.post('/link-partner', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
     const { partnerEmail } = req.body
 
     if (!partnerEmail || typeof partnerEmail !== 'string') {
@@ -458,7 +467,7 @@ router.post('/link-partner', authenticateToken, async (req: Request, res: Respon
 
     return res.json({ message: 'Solicitud enviada. Tu pareja recibirá una notificación para aceptar.' })
   } catch (error) {
-    console.error('Error sending link request:', error)
+    logger.error({ err: error }, 'Error sending link request')
     return res.status(500).json({ error: 'Failed to send link request' })
   }
 })
@@ -469,7 +478,7 @@ router.post('/link-partner', authenticateToken, async (req: Request, res: Respon
  */
 router.get('/pending-link-requests', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
     const requests = await prisma.invitation.findMany({
       where: {
         toUserId: userId,
@@ -494,7 +503,7 @@ router.get('/pending-link-requests', authenticateToken, async (req: Request, res
  */
 router.post('/accept-link-partner', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
     const { invitationId } = req.body
 
     if (!invitationId) return res.status(400).json({ error: 'invitationId is required' })
@@ -520,22 +529,24 @@ router.post('/accept-link-partner', authenticateToken, async (req: Request, res:
       data: { isRead: true },
     })
 
-    // Issue a new JWT with the updated coupleId
-    const jwt = await import('jsonwebtoken')
-    const newToken = jwt.default.sign(
-      { userId, coupleId: invitation.coupleId },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    )
+    // Issue a new JWT with the updated coupleId. #9 Step B: además emite
+    // refresh-pair (opt-in X-Want-Refresh) para soportar JWT corto en prod.
+    const newToken = signAccessToken(userId, invitation.coupleId)
+    const refreshPair = await maybeIssueRefreshPair(userId, req.headers as any)
 
     const couple = await prisma.couple.findUnique({
       where: { id: invitation.coupleId! },
       include: { users: { select: { id: true, name: true, email: true } } },
     })
 
-    return res.json({ message: 'Vinculación aceptada', token: newToken, couple })
+    return res.json({
+      message: 'Vinculación aceptada',
+      token: newToken,
+      ...(refreshPair && { refreshToken: refreshPair.refreshToken, refreshExpiresAt: refreshPair.refreshExpiresAt }),
+      couple,
+    })
   } catch (error) {
-    console.error('Error accepting link request:', error)
+    logger.error({ err: error }, 'Error accepting link request')
     return res.status(500).json({ error: 'Failed to accept link request' })
   }
 })
@@ -547,7 +558,7 @@ router.post('/accept-link-partner', authenticateToken, async (req: Request, res:
  */
 router.post('/reject-link-partner', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
     const { invitationId } = req.body
 
     await prisma.invitation.updateMany({

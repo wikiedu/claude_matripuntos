@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { z } from 'zod'
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 const router = express.Router()
 
@@ -49,7 +50,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
 
     res.json({ mine, partnerShared })
   } catch (err) {
-    console.error('GET /todos error:', err)
+    logger.error({ err }, 'GET /todos error')
     res.status(500).json({ error: 'Error al cargar to-dos' })
   }
 })

@@ -6,6 +6,7 @@ import { updateWeeklyStreak } from '../services/gamificationService.js'
 
 const router = express.Router()
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 /**
  * GET /api/achievements
@@ -54,7 +55,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response): Promise<
       }
     })
   } catch (error) {
-    console.error('Error getting achievements:', error)
+    logger.error({ err: error }, 'Error getting achievements')
     res.status(500).json({
       error: 'Failed to get achievements',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -107,7 +108,7 @@ router.get('/user', authenticateToken, async (req: Request, res: Response): Prom
       }
     })
   } catch (error) {
-    console.error('Error getting user achievements:', error)
+    logger.error({ err: error }, 'Error getting user achievements')
     res.status(500).json({
       error: 'Failed to get user achievements',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -151,7 +152,7 @@ router.post('/check', authenticateToken, async (req: Request, res: Response): Pr
       totalUnlocked
     })
   } catch (error) {
-    console.error('Error checking achievements:', error)
+    logger.error({ err: error }, 'Error checking achievements')
     res.status(500).json({
       error: 'Failed to check achievements',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -190,7 +191,7 @@ router.get('/couple-score', authenticateToken, async (req: Request, res: Respons
         }
       })
       // Non-fatal: update weekly streak based on last week's equilibrium
-      updateWeeklyStreak(req.coupleId).catch(err => console.error('updateWeeklyStreak error:', err))
+      updateWeeklyStreak(req.coupleId).catch(err => logger.error({ err }, 'updateWeeklyStreak error'))
     }
 
     res.json({
@@ -206,7 +207,7 @@ router.get('/couple-score', authenticateToken, async (req: Request, res: Respons
       }
     })
   } catch (error) {
-    console.error('Error getting couple score:', error)
+    logger.error({ err: error }, 'Error getting couple score')
     res.status(500).json({
       error: 'Failed to get couple score',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -233,7 +234,7 @@ router.get('/map', authenticateToken, async (req: Request, res: Response): Promi
     const map = await getAchievementsMap(req.coupleId)
     res.json(map)
   } catch (error) {
-    console.error('Error getting achievements map:', error)
+    logger.error({ err: error }, 'Error getting achievements map')
     res.status(500).json({ error: 'Failed to get achievements map' })
   }
 })

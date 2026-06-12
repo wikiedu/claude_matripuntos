@@ -21,6 +21,7 @@
 import { Decimal } from '@prisma/client/runtime/library'
 import type { PrismaClient } from '@prisma/client'
 import prismaClient from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 // BLOCKER 1: Define interfaces
 interface Achievement {
@@ -91,7 +92,7 @@ export class AchievementEngine {
       }
       return newAchievements
     } catch (error) {
-      console.error('Error checking achievements:', error)
+      logger.error({ err: error }, 'Error checking achievements')
       return [] // Don't crash, return empty
     }
   }

@@ -1,9 +1,8 @@
 import express, { Request, Response } from 'express'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import { z } from 'zod'
-import { signupCouple, loginUser, getUserById, getCoupleData, signupUser } from '../services/authService.js'
+import { signupCouple, loginUser, getUserById, getCoupleData, signupUser, signAccessToken, BCRYPT_ROUNDS } from '../services/authService.js'
 import {
   createInvitation,
   acceptEmailInvitation,
@@ -24,6 +23,7 @@ import {
 import { ZodError } from 'zod'
 
 import prisma from '../lib/prisma.js'
+import { parseJsonField } from '../lib/jsonField.js'
 import { normalizeJoinCode } from '../utils/joinCode.js'
 import { demoLogin, isDemoEnabled } from '../services/demoService.js'
 import {
@@ -31,6 +31,7 @@ import {
   rotateRefresh,
   revokeAllForUser,
 } from '../services/refreshTokenService.js'
+import { logger } from '../lib/logger.js'
 
 const router = express.Router()
 
@@ -87,8 +88,14 @@ router.post('/signup', async (req: Request, res: Response): Promise<void> => {
   try {
     const validated = signupUserSchema.parse(req.body)
     const user = await signupUser(validated.email, validated.password, validated.name, validated.language)
-    const token = jwt.sign({ userId: user.id, coupleId: user.coupleId }, process.env.JWT_SECRET!, { expiresIn: '7d' })
-    res.status(201).json({ message: 'Account created', user, token })
+    const token = signAccessToken(user.id, user.coupleId)
+    const refreshPair = await maybeIssueRefreshPair(user.id, req.headers as any)
+    res.status(201).json({
+      message: 'Account created',
+      user,
+      token,
+      ...(refreshPair && { refreshToken: refreshPair.refreshToken, refreshExpiresAt: refreshPair.refreshExpiresAt }),
+    })
   } catch (error) {
     if (error instanceof ZodError) {
       res.status(400).json({ error: 'Validation error', details: error.errors })
@@ -256,9 +263,9 @@ router.get('/couple', authMiddleware, async (req: Request, res: Response): Promi
           avatarColor: u.profile?.avatarColor ?? null,
         })),
         configuration: couple.configurations ? {
-          tasksConfig: JSON.parse(couple.configurations.tasksConfig),
-          multipliersConfig: JSON.parse(couple.configurations.multipliersConfig),
-          activityTypes: JSON.parse(couple.configurations.activityTypes),
+          tasksConfig: parseJsonField(couple.configurations.tasksConfig, {}),
+          multipliersConfig: parseJsonField(couple.configurations.multipliersConfig, {}),
+          activityTypes: parseJsonField(couple.configurations.activityTypes, {}),
         } : null,
       },
     })
@@ -319,14 +326,14 @@ router.get('/partner-summary', authMiddleware, async (req: Request, res: Respons
 
     // Resumen de reglas: top 3 categorías por puntos base
     const config = couple.configurations
-    const tasksConfig = config ? JSON.parse(config.tasksConfig) : {}
+    const tasksConfig = parseJsonField<Record<string, unknown>>(config?.tasksConfig, {})
     const topRules = Object.entries(tasksConfig)
       .map(([k, v]) => ({ key: k, value: Number(v) }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 3)
 
     // Multipliers activos: weekend bonus, etc.
-    const multConfig = config ? JSON.parse(config.multipliersConfig) : {}
+    const multConfig = parseJsonField<Record<string, any>>(config?.multipliersConfig, {})
     const activeMultipliers: string[] = []
     if (multConfig.franja?.mañana && multConfig.franja.mañana > 1) activeMultipliers.push('Bono mañana')
     if (multConfig.franja?.noche && multConfig.franja.noche > 1) activeMultipliers.push('Bono noche')
@@ -356,7 +363,7 @@ router.get('/partner-summary', authMiddleware, async (req: Request, res: Respons
       },
     })
   } catch (error) {
-    console.error('[partner-summary] error:', error)
+    logger.error({ err: error }, '[partner-summary] error')
     res.status(500).json({ error: 'Failed to fetch partner summary' })
   }
 })
@@ -384,8 +391,14 @@ router.post('/accept-invite', async (req: Request, res: Response): Promise<void>
     // signupUser now detects pending invites and auto-links to the inviter's couple.
     const newUser = await signupUser(validated.email, validated.password, validated.name, validated.language)
     const couple = await prisma.couple.findUnique({ where: { id: newUser.coupleId! }, include: { users: true } })
-    const token = jwt.sign({ userId: newUser.id, coupleId: newUser.coupleId! }, process.env.JWT_SECRET!, { expiresIn: '7d' })
-    res.status(201).json({ message: 'Account created and linked', couple, token })
+    const token = signAccessToken(newUser.id, newUser.coupleId!)
+    const refreshPair = await maybeIssueRefreshPair(newUser.id, req.headers as any)
+    res.status(201).json({
+      message: 'Account created and linked',
+      couple,
+      token,
+      ...(refreshPair && { refreshToken: refreshPair.refreshToken, refreshExpiresAt: refreshPair.refreshExpiresAt }),
+    })
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : 'Failed' })
   }
@@ -415,7 +428,7 @@ router.post('/propose-partner', authMiddleware, async (req: Request, res: Respon
       try {
         await proposePartner(req.userId, partner.id)
       } catch (inner) {
-        console.error('[propose-partner] silent failure:', inner)
+        logger.error({ err: inner }, '[propose-partner] silent failure')
       }
     }
     res.json({ message: 'Si la cuenta existe, la propuesta fue enviada' })
@@ -592,17 +605,15 @@ router.post('/register-with-code', async (req: Request, res: Response): Promise<
       return
     }
 
-    const token = jwt.sign(
-      { userId: txResult.user.id, coupleId: txResult.coupleId },
-      process.env.JWT_SECRET!,
-      { expiresIn: '7d' }
-    )
+    const token = signAccessToken(txResult.user.id, txResult.coupleId)
+    const refreshPair = await maybeIssueRefreshPair(txResult.user.id, req.headers as any)
 
     res.status(201).json({
       message: 'Account created and linked',
       token,
       user: txResult.user,
       coupleId: txResult.coupleId,
+      ...(refreshPair && { refreshToken: refreshPair.refreshToken, refreshExpiresAt: refreshPair.refreshExpiresAt }),
     })
   } catch (error) {
     if (error instanceof ZodError) {
@@ -651,7 +662,7 @@ router.post('/forgot-password', async (req: Request, res: Response): Promise<voi
         const { sendPasswordResetEmail } = await import('../services/emailService.js')
         await sendPasswordResetEmail(user.email, user.name, tokenPlaintext)
       } catch (e) {
-        console.error('[forgot-password] email send failed', e)
+        logger.error({ err: e }, '[forgot-password] email send failed')
         // No fallamos la request — el usuario debe poder reintentar sin
         // enterarse de problemas internos de email.
       }
@@ -664,7 +675,7 @@ router.post('/forgot-password', async (req: Request, res: Response): Promise<voi
       res.status(400).json({ error: 'Validation error', details: error.errors })
       return
     }
-    console.error('[forgot-password]', error)
+    logger.error({ err: error }, '[forgot-password]')
     res.status(500).json({ error: 'Failed to process request' })
   }
 })
@@ -680,7 +691,7 @@ router.post('/reset-password', async (req: Request, res: Response): Promise<void
       return
     }
 
-    const passwordHash = await bcrypt.hash(newPassword, 10)
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
     await prisma.$transaction([
       prisma.user.update({
         where: { id: reset.userId },
@@ -706,7 +717,7 @@ router.post('/reset-password', async (req: Request, res: Response): Promise<void
       res.status(400).json({ error: 'Validation error', details: error.errors })
       return
     }
-    console.error('[reset-password]', error)
+    logger.error({ err: error }, '[reset-password]')
     res.status(500).json({ error: 'Failed to reset password' })
   }
 })
@@ -747,11 +758,9 @@ router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
       return
     }
 
-    const accessToken = jwt.sign(
-      { userId: user.id, coupleId: user.coupleId },
-      process.env.JWT_SECRET!,
-      { expiresIn: '7d' }, // mantenemos 7d hasta que el frontend integre rotación.
-    )
+    // Respeta JWT_ACCESS_EXPIRY (default 7d). El frontend ya integra rotación
+    // (apiClient.tryRefresh en 401), así que bajar a 15m es solo setear la env.
+    const accessToken = signAccessToken(user.id, user.coupleId)
 
     res.json({
       accessToken,
@@ -764,7 +773,7 @@ router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ error: 'Validation error', details: error.errors })
       return
     }
-    console.error('[refresh]', error)
+    logger.error({ err: error }, '[refresh]')
     res.status(500).json({ error: 'Failed to refresh token' })
   }
 })
@@ -781,7 +790,7 @@ router.post('/logout', authMiddleware, async (req: Request, res: Response): Prom
     // tendría que esperar a la rotación / re-login.
     res.json({ message: 'Logged out', revokedRefreshTokens: revokedCount })
   } catch (error) {
-    console.error('[logout]', error)
+    logger.error({ err: error }, '[logout]')
     res.status(500).json({ error: 'Failed to logout' })
   }
 })

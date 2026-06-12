@@ -1,5 +1,6 @@
 
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 export interface CreateNotificationParams {
   coupleId: string
@@ -29,7 +30,7 @@ export async function createNotification(params: CreateNotificationParams): Prom
       },
     })
   } catch (error) {
-    console.error('Error creating notification:', error)
+    logger.error({ err: error }, 'Error creating notification')
   }
 }
 
@@ -71,7 +72,7 @@ export async function createCoupleNotification(
       )
     )
   } catch (error) {
-    console.error('Error creating couple notification:', error)
+    logger.error({ err: error }, 'Error creating couple notification')
   }
 }
 

@@ -2,6 +2,7 @@ import { PrismaClient, Event, Negotiation } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
 
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 /**
  * Negotiation Engine Service
@@ -107,7 +108,7 @@ export class NegotiationEngine {
 
       return updatedEvent
     } catch (error) {
-      console.error('Error proposing event:', error)
+      logger.error({ err: error }, 'Error proposing event')
       throw error
     }
   }
@@ -326,7 +327,7 @@ export class NegotiationEngine {
 
       return updatedEvent
     } catch (error) {
-      console.error('Error responding to proposal:', error)
+      logger.error({ err: error }, 'Error responding to proposal')
       throw error
     }
   }
@@ -351,7 +352,7 @@ export class NegotiationEngine {
 
       return negotiations
     } catch (error) {
-      console.error('Error getting negotiation history:', error)
+      logger.error({ err: error }, 'Error getting negotiation history')
       throw error
     }
   }
@@ -386,7 +387,7 @@ export class NegotiationEngine {
           event.status === 'pending_conversation',
       }
     } catch (error) {
-      console.error('Error getting negotiation status:', error)
+      logger.error({ err: error }, 'Error getting negotiation status')
       throw error
     }
   }

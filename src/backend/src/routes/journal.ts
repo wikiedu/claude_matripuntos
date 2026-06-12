@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 import { readBucket, writeBucket } from '../middleware/rateLimiter.js'
 import prisma from '../lib/prisma.js'
+import { parseJsonField } from '../lib/jsonField.js'
 import { selectPromptForDay, dayKeyUtc } from '../services/journalPromptsService.js'
 import { JOURNAL_PROMPTS } from '../data/journalPrompts.js'
 
@@ -36,8 +37,8 @@ const reactSchema = z.object({
 })
 
 router.get('/entries', readBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const userId = req.user?.id as string
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   // v2.5.9 audit 01 S1-R-11 — filtrar entries cuyo autor está soft-deleted
@@ -59,8 +60,8 @@ router.get('/entries', readBucket, async (req: Request, res: Response) => {
 })
 
 router.post('/entries', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const userId = req.user?.id as string
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const parsed = entryCreateSchema.safeParse(req.body)
@@ -95,7 +96,7 @@ router.post('/entries', writeBucket, async (req: Request, res: Response) => {
 })
 
 router.put('/entries/:id', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
+  const userId = req.user?.id as string
   const existing = await prisma.journalEntry.findFirst({
     where: { id: req.params.id, authorId: userId },
   })
@@ -112,7 +113,7 @@ router.put('/entries/:id', writeBucket, async (req: Request, res: Response) => {
 })
 
 router.delete('/entries/:id', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
+  const userId = req.user?.id as string
   const existing = await prisma.journalEntry.findFirst({
     where: { id: req.params.id, authorId: userId },
   })
@@ -122,8 +123,8 @@ router.delete('/entries/:id', writeBucket, async (req: Request, res: Response) =
 })
 
 router.post('/entries/:id/react', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const userId = req.user?.id as string
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const entry = await prisma.journalEntry.findFirst({ where: { id: req.params.id, coupleId } })
@@ -142,7 +143,7 @@ router.post('/entries/:id/react', writeBucket, async (req: Request, res: Respons
 })
 
 router.delete('/entries/:id/react', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
+  const userId = req.user?.id as string
   const emoji = String(req.query.emoji ?? '')
   if (!emoji) return res.status(400).json({ error: 'emoji query param required' })
 
@@ -153,7 +154,7 @@ router.delete('/entries/:id/react', writeBucket, async (req: Request, res: Respo
 })
 
 router.get('/prompts/today', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const today = dayKeyUtc(new Date())
 
@@ -170,7 +171,7 @@ router.get('/prompts/today', readBucket, async (req: Request, res: Response) => 
 })
 
 router.get('/retrospectives', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const retros = await prisma.journalRetrospective.findMany({
@@ -178,12 +179,12 @@ router.get('/retrospectives', readBucket, async (req: Request, res: Response) =>
     orderBy: { generatedAt: 'desc' },
     take: 12,
   })
-  res.json({ retrospectives: retros.map(r => ({ ...r, data: JSON.parse(r.data) })) })
+  res.json({ retrospectives: retros.map(r => ({ ...r, data: parseJsonField(r.data, null) })) })
 })
 
 router.post('/retrospectives/:id/seen', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const userId = req.user?.id as string
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const couple = await prisma.couple.findUnique({

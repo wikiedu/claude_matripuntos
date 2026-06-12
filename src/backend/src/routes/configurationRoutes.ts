@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 const router = express.Router()
 import prisma from '../lib/prisma.js'
+import { parseJsonField } from '../lib/jsonField.js'
 
 // Audit v1.4 P2-D: `z.record(z.any())` let the client send any JSON shape,
 // which got serialized into SQLite verbatim. We now constrain the multiplier
@@ -104,9 +105,9 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
       configuration: {
         id: config.id,
         coupleId: config.coupleId,
-        tasksConfig: JSON.parse(config.tasksConfig || '{}'),
-        multipliersConfig: JSON.parse(config.multipliersConfig || '{}'),
-        activityTypes: JSON.parse(config.activityTypes || '{}'),
+        tasksConfig: parseJsonField(config.tasksConfig, {}),
+        multipliersConfig: parseJsonField(config.multipliersConfig, {}),
+        activityTypes: parseJsonField(config.activityTypes, {}),
         createdAt: config.createdAt,
         updatedAt: config.updatedAt,
       },
@@ -157,9 +158,9 @@ router.put('/', authMiddleware, async (req: Request, res: Response): Promise<voi
       configuration: {
         id: config.id,
         coupleId: config.coupleId,
-        tasksConfig: JSON.parse(config.tasksConfig || '{}'),
-        multipliersConfig: JSON.parse(config.multipliersConfig || '{}'),
-        activityTypes: JSON.parse(config.activityTypes || '{}'),
+        tasksConfig: parseJsonField(config.tasksConfig, {}),
+        multipliersConfig: parseJsonField(config.multipliersConfig, {}),
+        activityTypes: parseJsonField(config.activityTypes, {}),
         updatedAt: config.updatedAt,
       },
     })
@@ -255,9 +256,9 @@ router.post('/reset', authMiddleware, async (req: Request, res: Response): Promi
       configuration: {
         id: config.id,
         coupleId: config.coupleId,
-        tasksConfig: JSON.parse(config.tasksConfig),
-        multipliersConfig: JSON.parse(config.multipliersConfig),
-        activityTypes: JSON.parse(config.activityTypes),
+        tasksConfig: parseJsonField(config.tasksConfig, {}),
+        multipliersConfig: parseJsonField(config.multipliersConfig, {}),
+        activityTypes: parseJsonField(config.activityTypes, {}),
       },
     })
   } catch (error) {

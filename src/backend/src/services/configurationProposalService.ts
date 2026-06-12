@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma.js'
+import { parseJsonField } from '../lib/jsonField.js'
 
 /**
  * v2.0.4 — ConfigurationProposal service
@@ -152,8 +153,8 @@ export class ConfigurationProposalService {
     if (tasksMatch || multMatch) {
       const config = await prisma.configuration.findUnique({ where: { coupleId } })
       if (config) {
-        const tasksConfig = JSON.parse(config.tasksConfig || '{}')
-        const multipliersConfig = JSON.parse(config.multipliersConfig || '{}')
+        const tasksConfig = parseJsonField<Record<string, any>>(config.tasksConfig, {})
+        const multipliersConfig = parseJsonField<Record<string, any>>(config.multipliersConfig, {})
         const newNum = Number(proposal.newValue)
 
         if (tasksMatch && !Number.isNaN(newNum)) {

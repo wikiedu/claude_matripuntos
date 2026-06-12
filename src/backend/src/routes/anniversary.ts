@@ -20,7 +20,7 @@ router.use((_req, res, next) => {
 })
 
 router.get('/', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const couple = await prisma.couple.findUnique({
@@ -39,7 +39,7 @@ const setSchema = z.object({
 })
 
 router.put('/', writeBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const parsed = setSchema.safeParse(req.body)
@@ -60,7 +60,7 @@ router.put('/', writeBucket, async (req: Request, res: Response) => {
 })
 
 router.delete('/', writeBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   await prisma.couple.update({

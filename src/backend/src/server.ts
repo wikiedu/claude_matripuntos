@@ -8,6 +8,7 @@ import {
   mountSentryRequestHandler,
   mountSentryErrorHandler,
 } from './lib/sentry.js'
+import { logger } from './lib/logger.js'
 import authRoutes from './routes/authRoutes.js'
 import eventRoutes from './routes/eventRoutes.js'
 import taskRoutes from './routes/taskRoutes.js'
@@ -19,7 +20,6 @@ import profileRoutes from './routes/profile.js'
 import familyRoutes from './routes/family.js'
 import categoryRoutes from './routes/categories.js'
 import pointsV2Routes from './routes/pointsV2.js'
-import negotiationV2Routes from './routes/negotiation.js'
 import achievementRoutes from './routes/achievements.js'
 import gamificationRoutes from './routes/gamification.js'
 import calendarRoutes from './routes/calendar.js'
@@ -70,17 +70,17 @@ function validateEnv(): void {
   const required = ['JWT_SECRET', 'DATABASE_URL']
   const missing = required.filter((k) => !process.env[k] || process.env[k] === '')
   if (missing.length > 0) {
-    console.error(`[boot] FATAL: env vars requeridas no definidas: ${missing.join(', ')}`)
+    logger.fatal({ missing }, '[boot] env vars requeridas no definidas')
     process.exit(1)
   }
   // JWT_SECRET tiene mínimo 32 chars (defensivo).
   if ((process.env.JWT_SECRET ?? '').length < 32) {
-    console.error('[boot] FATAL: JWT_SECRET debe tener al menos 32 caracteres.')
+    logger.fatal('[boot] JWT_SECRET debe tener al menos 32 caracteres')
     process.exit(1)
   }
   // En production exigimos NODE_ENV explícito (S0-R-4 audit pre-v1.7).
   if (process.env.RENDER && process.env.NODE_ENV !== 'production') {
-    console.warn('[boot] WARNING: corriendo en Render sin NODE_ENV=production. Algunas defensas relajan reglas (delete-account code en respuesta, etc).')
+    logger.warn('[boot] corriendo en Render sin NODE_ENV=production. Algunas defensas relajan reglas (delete-account code en respuesta, etc).')
   }
 }
 validateEnv()
@@ -89,15 +89,20 @@ validateEnv()
 // Cuando el frontend deje de leer /api/achievements (V1), se podrá
 // setear LEGACY_ACHIEVEMENTS_ENABLED=false y este log lo confirmará.
 if (process.env.LEGACY_ACHIEVEMENTS_ENABLED === 'false') {
-  console.log('[boot] legacy V1 achievementEngine OFF — solo V2 (CoupleAchievement) activo.')
+  logger.info('[boot] legacy V1 achievementEngine OFF — solo V2 (CoupleAchievement) activo.')
 } else {
-  console.log('[boot] legacy V1 achievementEngine activo (en paralelo a V2). Set LEGACY_ACHIEVEMENTS_ENABLED=false para apagarlo cuando el frontend migre.')
+  logger.info('[boot] legacy V1 achievementEngine activo (en paralelo a V2). Set LEGACY_ACHIEVEMENTS_ENABLED=false para apagarlo cuando el frontend migre.')
 }
 
 initSentry()
 
 const app = express()
 const PORT = process.env.PORT || 3000
+
+// Fase 1 (harness E2E): en tests importamos `app` con supertest. No queremos que
+// el import arranque el listener ni registre cron jobs (timers en segundo plano
+// que tocarían la DB a mitad de un test). Solo se activan fuera de NODE_ENV=test.
+const RUN_BACKGROUND_JOBS = process.env.NODE_ENV !== 'test'
 
 // Sentry request handler must run before any other middleware/routes so
 // every request is traced. No-op when SENTRY_DSN is missing.
@@ -140,6 +145,7 @@ const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
   message: { error: 'Too many requests, please try again later' },
+  skip: () => process.env.NODE_ENV === 'test', // Fase 1: sin rate-limit en E2E
   standardHeaders: true,
   legacyHeaders: false,
 })
@@ -151,6 +157,7 @@ const resetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
   message: { error: 'Demasiadas solicitudes de reseteo. Inténtalo en 1 hora.' },
+  skip: () => process.env.NODE_ENV === 'test', // Fase 1: sin rate-limit en E2E
   standardHeaders: true,
   legacyHeaders: false,
 })
@@ -214,7 +221,8 @@ app.use('/api/profile', profileRoutes)
 app.use('/api', familyRoutes)
 app.use('/api/categories', categoryRoutes)
 app.use('/api/points', pointsV2Routes)
-app.use('/api/events', negotiationV2Routes)
+// T3 — retiradas las rutas V2 de negociación (routes/negotiation.ts, Sunset
+// vencido): el frontend usa la API canónica V1 /api/negotiations.
 
 // Gamification Routes (FASE 4)
 app.use('/api/achievements', achievementRoutes)
@@ -276,14 +284,14 @@ app.use('/api/profile', profileCompletionRoutes)  // GET /completion (no choca c
 
 // v1.6.1 Cron retención: en producción, dry-run las primeras 2 ejecuciones.
 let retentionRunCount = 0
-if (process.env.NODE_ENV === 'production') {
+if (RUN_BACKGROUND_JOBS && process.env.NODE_ENV === 'production') {
   cron.schedule('0 4 * * *', async () => {
     const dryRun = retentionRunCount < 2
     try {
       await runRetention({ dryRun })
       retentionRunCount++
     } catch (e) {
-      console.error('[retention cron] failed', e)
+      logger.error({ err: e }, '[retention cron] failed')
     }
   })
 }
@@ -300,7 +308,7 @@ mountSentryErrorHandler(app)
 
 // Error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err)
+  logger.error({ err }, 'unhandled request error')
   res.status(500).json({
     error: 'Internal server error',
     message: process.env.NODE_ENV === 'development' ? err.message : undefined,
@@ -308,34 +316,34 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 })
 
 // v1.3 weekly cron — every Monday at 08:00
-cron.schedule('0 8 * * 1', () => {
-  runWeeklyGeneration().catch(err => console.error('recurringTask cron error:', err))
-  sendWeeklyDigests().catch(err => console.error('digest cron error:', err))
+if (RUN_BACKGROUND_JOBS) cron.schedule('0 8 * * 1', () => {
+  runWeeklyGeneration().catch(err => logger.error({ err }, 'recurringTask cron error'))
+  sendWeeklyDigests().catch(err => logger.error({ err }, 'digest cron error'))
 })
 
 // v2.2.5 — Daily push digest per user (Claude Design canvas 10).
 // Corre cada minuto y manda push a usuarios cuyo `digestHour` coincide con la
 // hora actual en su `timezone`. La query es barata; el envío real solo ocurre
 // para los matched. Si no hay actividad ni unread del día, omite.
-cron.schedule('* * * * *', async () => {
+if (RUN_BACKGROUND_JOBS) cron.schedule('* * * * *', async () => {
   try {
     const m = await import('./services/notificationDigestService.js')
     await m.runDigestForCurrentMinute()
   } catch (err) {
     // Solo log si NO es el "import vacío" del entorno tests
     if (process.env.NODE_ENV !== 'test') {
-      console.error('[digest cron]', err)
+      logger.error({ err }, '[digest cron]')
     }
   }
 })
 
 // Freezer reset — every Monday at 00:00 UTC
-cron.schedule('0 0 * * 1', () => {
-  resetFreezersOnMonday().catch(err => console.error('resetFreezers cron error:', err))
+if (RUN_BACKGROUND_JOBS) cron.schedule('0 0 * * 1', () => {
+  resetFreezersOnMonday().catch(err => logger.error({ err }, 'resetFreezers cron error'))
 })
 
 // Auto-accept pending TaskLogs older than 24h — runs every hour
-cron.schedule('0 * * * *', async () => {
+if (RUN_BACKGROUND_JOBS) cron.schedule('0 * * * *', async () => {
   try {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
     // Bug 2026-04-22: el cron auto-verificaba CUALQUIER taskLog pending >24h,
@@ -351,28 +359,33 @@ cron.schedule('0 * * * *', async () => {
         completedBy: { not: null },
       },
     })
-    const affectedCouples = new Set<string>()
-    for (const log of pending) {
+    const affectedCouples = new Set<string>(pending.map((l) => l.coupleId))
+    if (pending.length > 0) {
+      // audit §4 #2 — antes: un $transaction por TaskLog vencido (N+1 que
+      // escalaba con el volumen de pendientes). Ahora: dos operaciones bulk
+      // (updateMany + createMany) en una sola transacción atómica. Los logs
+      // ya vienen filtrados por completedBy != null, así que userId nunca es
+      // null y relatedTaskLogId (UNIQUE) no colisiona (el log estaba pending,
+      // sin PointsTransaction previa).
+      const now = new Date()
+      const ids = pending.map((l) => l.id)
       await prisma.$transaction([
-        prisma.taskLog.update({
-          where: { id: log.id },
-          data: { status: 'verified', verifiedAt: new Date() },
+        prisma.taskLog.updateMany({
+          where: { id: { in: ids } },
+          data: { status: 'verified', verifiedAt: now },
         }),
-        prisma.pointsTransaction.create({
-          data: {
+        prisma.pointsTransaction.createMany({
+          data: pending.map((log) => ({
             coupleId: log.coupleId,
-            userId: log.completedBy ?? undefined,
+            userId: log.completedBy!,
             type: 'task_completed',
             relatedTaskLogId: log.id,
             amount: log.pointsFinal,
             description: 'Auto-verificado tras 24h sin respuesta',
-          },
+          })),
         }),
       ])
-      affectedCouples.add(log.coupleId)
-    }
-    if (pending.length > 0) {
-      console.log(`[cron] Auto-verified ${pending.length} task log(s)`)
+      logger.info({ count: pending.length }, '[cron] auto-verified task logs')
     }
     // Recompute gamification once per affected couple
     for (const coupleId of affectedCouples) {
@@ -381,19 +394,26 @@ cron.schedule('0 * * * *', async () => {
         await calculateAndSaveXP(coupleId)
         await checkAllAchievements(coupleId)
       } catch (gamErr) {
-        console.error('[cron] gamification recompute error:', gamErr)
+        logger.error({ err: gamErr, coupleId }, '[cron] gamification recompute error')
       }
     }
   } catch (err) {
-    console.error('[cron] auto-accept error:', err)
+    logger.error({ err }, '[cron] auto-accept error')
   }
 })
 
-app.listen(PORT, () => {
-  console.log(`🚀 Matripuntos backend running on http://localhost:${PORT}`)
-  console.log(`📊 Health check: http://localhost:${PORT}/api/health`)
-  // v2.0.7 — auto-seed del catálogo de actividades. Idempotente, no bloqueante.
-  import('./services/bootstrapCatalog.js')
-    .then((m) => m.bootstrapActivityCatalog())
-    .catch((err) => console.error('[bootstrap] failed', err))
-})
+if (RUN_BACKGROUND_JOBS) {
+  app.listen(PORT, () => {
+    logger.info({ port: PORT }, '🚀 Matripuntos backend running')
+    logger.info(`📊 Health check: http://localhost:${PORT}/api/health`)
+    // v2.0.7 — auto-seed del catálogo de actividades. Idempotente, no bloqueante.
+    import('./services/bootstrapCatalog.js')
+      .then((m) => m.bootstrapActivityCatalog())
+      .catch((err) => logger.error({ err }, '[bootstrap] failed'))
+  })
+}
+
+// Fase 1 (harness E2E): exportamos `app` para que supertest la monte sin abrir
+// puerto. En prod/dev el bloque de arriba sigue arrancando el listener igual.
+export { app }
+export default app

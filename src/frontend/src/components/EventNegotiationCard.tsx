@@ -1,13 +1,22 @@
+// T3 — migrado a la API canónica V1 (/api/negotiations, negotiationId-based).
+// Antes consumía las rutas V2 deprecadas event-status-based (apiClient.negotiation.*,
+// routes/negotiation.ts) — ver TODO_REFACTOR.md "retirada de rutas V2 deprecadas".
+// El flujo completo (contraoferta con importe, forzar) vive en ActivityDetail
+// (/home/activities/:id); este card resuelve los casos rápidos desde Calendar:
+// proponer un draft, aceptar/rechazar la ronda pendiente, y ver el historial.
 import { useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { apiClient } from '../services/apiClient'
-import { Check, X, MessageSquare, Clock } from 'lucide-react'
+import { Check, X, MessageSquare, Clock, Loader, Edit } from 'lucide-react'
 import { ConfirmDialog } from './v2/primitives/ConfirmDialog'
+import { Button } from './v2/primitives/Button'
+import { Pill } from './v2/primitives/Pill'
 
 type PendingAction = 'propose' | 'accept' | 'reject' | null
 
 // Keys that downstream screens (Dashboard, Analytics, Achievements, Bell) depend on.
-// Invalidating after accept/reject/counter keeps points and activity feeds fresh
+// Invalidating after accept/reject keeps points and activity feeds fresh
 // whenever the user negotiates from any entry point that uses this card (Calendar, etc.).
 const DOWNSTREAM_QUERY_KEYS: (readonly unknown[])[] = [
   ['balance'],
@@ -19,16 +28,27 @@ const DOWNSTREAM_QUERY_KEYS: (readonly unknown[])[] = [
   ['taskLogs', 'pending'],
 ]
 
-interface NegotiationStatus {
-  eventId: string
+interface NegotiationRow {
+  id: string
+  roundNumber: number
+  pointsProposed: string
+  message?: string
+  responseType?: string
+  proposedBy?: string
+}
+
+interface NegotiationEvent {
+  id: string
+  type: string
+  title?: string
   status: string
-  currentRound: number
-  maxRounds: number
-  proposedPoints?: number
-  agreedPoints?: number
-  canCounterPropose: boolean
-  isFinalized: boolean
-  negotiationHistory: any[]
+  pointsBase: string
+  pointsCalculated: string
+  pointsAgreed?: string | null
+  negotiationRound: number
+  maxFreeRounds?: number
+  creator?: { id: string; name: string } | null
+  negotiations: NegotiationRow[]
 }
 
 interface EventNegotiationCardProps {
@@ -39,6 +59,21 @@ interface EventNegotiationCardProps {
   onStatusChange?: () => void
 }
 
+function statusPill(status: string) {
+  switch (status) {
+    case 'draft':    return <Pill tone="indigo">Borrador</Pill>
+    case 'pending':  return <Pill tone="warn">Pendiente</Pill>
+    case 'accepted': return <Pill tone="success">Aceptada</Pill>
+    case 'rejected': return <Pill tone="danger">Rechazada</Pill>
+    case 'forced':   return <Pill tone="purple">Forzada</Pill>
+    // Estados legacy del flujo V2 retirado — solo display, sin acciones.
+    case 'proposed':             return <Pill tone="warn">Propuesta enviada</Pill>
+    case 'counter_proposal':     return <Pill tone="warn">Contrapropuesta</Pill>
+    case 'pending_conversation': return <Pill tone="indigo">Pendiente conversación</Pill>
+    default:         return <Pill tone="indigo">{status}</Pill>
+  }
+}
+
 export const EventNegotiationCard = ({
   eventId,
   eventTitle,
@@ -46,76 +81,90 @@ export const EventNegotiationCard = ({
   currentUserId,
   onStatusChange,
 }: EventNegotiationCardProps) => {
-  const [status, setStatus] = useState<NegotiationStatus | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showResponses, setShowResponses] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const isCreator = createdBy === currentUserId
-  const isResponder = !isCreator
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
-  const invalidateDownstream = () => {
+  // Misma queryKey que ActivityDetail → comparten cache.
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['events', eventId],
+    queryFn: () => apiClient.events.getById(eventId),
+    enabled: !!eventId,
+  })
+  const event = data?.event as NegotiationEvent | undefined
+
+  const invalidateAfterAction = () => {
     for (const key of DOWNSTREAM_QUERY_KEYS) {
       queryClient.invalidateQueries({ queryKey: key })
     }
+    queryClient.invalidateQueries({ queryKey: ['events', 'all'] })
+    queryClient.invalidateQueries({ queryKey: ['events', eventId] })
   }
 
-  const loadStatus = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const result = await apiClient.negotiation.getNegotiationStatus(eventId)
-      setStatus(result.status)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load negotiation status')
-    } finally {
-      setLoading(false)
-    }
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-6">
+        <Loader className="w-5 h-5 animate-spin text-text-secondary" />
+      </div>
+    )
   }
 
-  const handlePropose = () => setPendingAction('propose')
-  const handleAccept = () => setPendingAction('accept')
-  const handleReject = () => setPendingAction('reject')
+  if (isError || !event) {
+    return (
+      <div className="p-3 rounded-md bg-danger/10 border border-danger/30 text-danger text-sm">
+        No se pudo cargar la negociación.
+      </div>
+    )
+  }
 
+  // ─── Derivados V1 (mismo criterio que ActivityDetail) ─────────────────────
+  const negs = event.negotiations || []
+  const awaiting = negs.filter((n) => n.responseType === 'awaiting').pop()
+  const isMyTurn = event.status === 'pending' && (
+    !awaiting ? !isCreator : awaiting.proposedBy !== currentUserId
+  )
+  const pts = Number(event.pointsCalculated || event.pointsBase)
+  const awaitingPts = awaiting ? Number(awaiting.pointsProposed) : pts
+  const maxRounds = event.maxFreeRounds ?? 2
+  const isFinalized = ['accepted', 'rejected', 'forced'].includes(event.status)
+  const isLegacyStatus = ['proposed', 'counter_proposal', 'pending_conversation'].includes(event.status)
+
+  const goToDetail = () => navigate(`/home/activities/${eventId}`)
+
+  // ─── Acciones (API canónica V1) ────────────────────────────────────────────
   const runPropose = async () => {
     try {
-      setLoading(true)
-      await apiClient.negotiation.proposeEvent(eventId)
-      await loadStatus()
+      setBusy(true)
+      setError(null)
+      await apiClient.negotiations.create({ eventId, pointsProposed: pts })
+      invalidateAfterAction()
       onStatusChange?.()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to propose event')
+      setError(err instanceof Error ? err.message : 'No se pudo enviar la propuesta')
     } finally {
-      setLoading(false)
+      setBusy(false)
     }
   }
 
-  const runAccept = async () => {
-    try {
-      setLoading(true)
-      await apiClient.negotiation.respondToProposal(eventId, 'accept')
-      await loadStatus()
-      invalidateDownstream()
-      onStatusChange?.()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to accept proposal')
-    } finally {
-      setLoading(false)
+  const runRespond = async (responseType: 'accepted' | 'rejected') => {
+    if (!awaiting?.id) {
+      setError('No se encontró la negociación activa.')
+      return
     }
-  }
-
-  const runReject = async () => {
     try {
-      setLoading(true)
-      await apiClient.negotiation.respondToProposal(eventId, 'reject')
-      await loadStatus()
-      invalidateDownstream()
+      setBusy(true)
+      setError(null)
+      await apiClient.negotiations.respond(awaiting.id, { responseType })
+      invalidateAfterAction()
       onStatusChange?.()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reject proposal')
+      setError(err instanceof Error ? err.message : 'No se pudo responder a la propuesta')
     } finally {
-      setLoading(false)
+      setBusy(false)
     }
   }
 
@@ -123,254 +172,152 @@ export const EventNegotiationCard = ({
     const action = pendingAction
     setPendingAction(null)
     if (action === 'propose') await runPropose()
-    else if (action === 'accept') await runAccept()
-    else if (action === 'reject') await runReject()
+    else if (action === 'accept') await runRespond('accepted')
+    else if (action === 'reject') await runRespond('rejected')
   }
-
-  const handlePendingConversation = async () => {
-    try {
-      setLoading(true)
-      await apiClient.negotiation.respondToProposal(
-        eventId,
-        'pending_conversation',
-        undefined,
-        'Preferimos hablarlo en persona'
-      )
-      await loadStatus()
-      invalidateDownstream()
-      onStatusChange?.()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to mark as pending conversation')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'draft':
-        return 'bg-gray-100 text-gray-800'
-      case 'proposed':
-        return 'bg-blue-100 text-blue-800'
-      case 'counter_proposal':
-        return 'bg-orange-100 text-orange-800'
-      case 'pending_conversation':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'accepted':
-        return 'bg-green-100 text-green-800'
-      case 'rejected':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'draft':
-        return 'Borrador'
-      case 'proposed':
-        return 'Propuesta Enviada'
-      case 'counter_proposal':
-        return 'Contra-propuesta'
-      case 'pending_conversation':
-        return 'Pendiente Conversación'
-      case 'accepted':
-        return 'Aceptado'
-      case 'rejected':
-        return 'Rechazado'
-      default:
-        return status
-    }
-  }
-
-  if (!status && !loading) {
-    return (
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <button
-          onClick={loadStatus}
-          className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          disabled={loading}
-        >
-          {loading ? 'Cargando...' : 'Ver Estado de Negociación'}
-        </button>
-      </div>
-    )
-  }
-
-  if (loading) {
-    return <div className="text-center py-4">Cargando...</div>
-  }
-
-  if (!status) return null
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">{eventTitle}</h3>
-        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(status.status)}`}>
-          {getStatusLabel(status.status)}
-        </span>
+    <div className="space-y-4">
+      {/* Header: título + estado */}
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-base font-bold text-text-primary truncate">{eventTitle}</h3>
+        {statusPill(event.status)}
       </div>
 
       {/* Turn indicator */}
-      {(status.status === 'proposed' || status.status === 'counter_proposal') && (
-        <div className={`flex items-center gap-2 py-2 px-3 rounded-lg text-sm mb-3 ${
-          isCreator && status.status === 'proposed'
-            ? 'bg-blue-50 border border-blue-200 text-blue-700'
-            : isResponder && status.status === 'proposed'
-            ? 'bg-amber-50 border border-amber-200 text-amber-700'
-            : isCreator && status.status === 'counter_proposal'
-            ? 'bg-amber-50 border border-amber-200 text-amber-700'
-            : 'bg-blue-50 border border-blue-200 text-blue-700'
+      {event.status === 'pending' && (
+        <div className={`flex items-center gap-2 py-2 px-3 rounded-md text-sm border ${
+          isMyTurn
+            ? 'bg-warn/10 border-warn/30 text-warn'
+            : 'bg-surface-muted border-brd-subtle text-text-secondary'
         }`}>
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-            (isCreator && status.status === 'proposed') || (isResponder && status.status === 'counter_proposal')
-              ? 'bg-blue-400'
-              : 'bg-amber-400 animate-pulse'
+            isMyTurn ? 'bg-warn animate-pulse' : 'bg-text-tertiary'
           }`} />
           <span className="font-medium">
-            {(isCreator && status.status === 'proposed') || (isResponder && status.status === 'counter_proposal')
-              ? 'Esperando respuesta del partner'
-              : 'Tu turno de responder'}
+            {isMyTurn ? 'Tu turno de responder' : 'Esperando respuesta del partner'}
           </span>
           <span className="ml-auto opacity-70 text-xs flex-shrink-0">
-            Ronda {status.currentRound}/{status.maxRounds}
+            Ronda {event.negotiationRound}/{maxRounds}
           </span>
         </div>
       )}
 
-      {error && <div className="text-red-600 text-sm mb-4 bg-red-50 p-3 rounded">{error}</div>}
+      {error && (
+        <div className="p-3 rounded-md bg-danger/10 border border-danger/30 text-danger text-sm">
+          {error}
+        </div>
+      )}
 
-      {/* Status Info */}
-      <div className="space-y-3 mb-6">
+      {/* Puntos */}
+      <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">Ronda Actual:</span>
-          <span className="font-medium">
-            {status.currentRound} / {status.maxRounds}
-          </span>
+          <span className="text-text-secondary">Puntos propuestos:</span>
+          <span className="font-bold text-brand-amber">{awaitingPts} pts</span>
         </div>
-
-        {status.proposedPoints !== undefined && (
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Puntos Propuestos:</span>
-            <span className="font-medium">{status.proposedPoints} pts</span>
-          </div>
-        )}
-
-        {status.agreedPoints !== undefined && (
-          <div className="flex items-center justify-between text-sm bg-green-50 p-2 rounded">
-            <span className="text-green-700">Puntos Acordados:</span>
-            <span className="font-semibold text-green-700">{status.agreedPoints} pts</span>
+        {event.pointsAgreed != null && (
+          <div className="flex items-center justify-between text-sm bg-success/10 border border-success/30 p-2 rounded-md">
+            <span className="text-success">Puntos acordados:</span>
+            <span className="font-semibold text-success">{Number(event.pointsAgreed)} pts</span>
           </div>
         )}
       </div>
 
-      {/* Action Buttons */}
-      <div className="space-y-3">
-        {/* Creator Actions - Draft */}
-        {isCreator && status.status === 'draft' && (
-          <button
-            onClick={handlePropose}
-            disabled={loading}
-            className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            <MessageSquare size={18} />
-            Enviar Propuesta
-          </button>
+      {/* Acciones */}
+      <div className="space-y-2">
+        {/* Creador con draft → enviar propuesta (ronda 1 = puntos calculados) */}
+        {isCreator && event.status === 'draft' && (
+          <Button fullWidth onClick={() => setPendingAction('propose')} disabled={busy}>
+            <span className="inline-flex items-center gap-2">
+              <MessageSquare size={18} />
+              Enviar Propuesta ({pts} pts)
+            </span>
+          </Button>
         )}
 
-        {/* Responder Actions - Proposed */}
-        {isResponder && status.status === 'proposed' && (
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={handleAccept}
-              disabled={loading}
-              className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              <Check size={18} />
-              Aceptar
-            </button>
-            <button
-              onClick={handleReject}
-              disabled={loading}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              <X size={18} />
-              Rechazar
-            </button>
+        {/* Mi turno → aceptar/rechazar la ronda pendiente */}
+        {isMyTurn && (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="primary" onClick={() => setPendingAction('accept')} disabled={busy}>
+                <span className="inline-flex items-center gap-2">
+                  <Check size={18} />
+                  Aceptar
+                </span>
+              </Button>
+              <Button variant="danger" onClick={() => setPendingAction('reject')} disabled={busy}>
+                <span className="inline-flex items-center gap-2">
+                  <X size={18} />
+                  Rechazar
+                </span>
+              </Button>
+            </div>
+            <Button variant="outline" fullWidth onClick={goToDetail}>
+              <span className="inline-flex items-center gap-2">
+                <Edit size={16} />
+                Contraoferta / ver detalle
+              </span>
+            </Button>
+          </>
+        )}
+
+        {/* Esperando al partner → solo enlace al detalle (forzar vive allí) */}
+        {event.status === 'pending' && !isMyTurn && (
+          <Button variant="outline" fullWidth onClick={goToDetail}>
+            Ver detalle de la actividad
+          </Button>
+        )}
+
+        {/* Estados legacy del flujo V2 retirado: sin acciones aquí */}
+        {isLegacyStatus && (
+          <div className="flex items-start gap-2 p-3 rounded-md bg-surface-muted border border-brd-subtle text-sm text-text-secondary">
+            <Clock size={16} className="flex-shrink-0 mt-0.5" />
+            <span>
+              Esta actividad usa el flujo de negociación antiguo. Gestiónala desde el
+              detalle de la actividad.
+            </span>
           </div>
         )}
 
-        {/* Responder Actions - Counter Proposal */}
-        {isResponder && status.status === 'counter_proposal' && (
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={handleAccept}
-              disabled={loading}
-              className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
-            >
-              Aceptar
-            </button>
-            <button
-              onClick={handleReject}
-              disabled={loading}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
-            >
-              Rechazar
-            </button>
-          </div>
-        )}
-
-        {/* Pending Conversation Button */}
-        {!status.isFinalized && (
-          <button
-            onClick={handlePendingConversation}
-            disabled={loading}
-            className="w-full px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 disabled:opacity-50 flex items-center justify-center gap-2"
+        {/* Historial */}
+        {negs.length > 0 && (
+          <Button
+            variant="outline"
+            fullWidth
+            onClick={() => setShowHistory(!showHistory)}
           >
-            <Clock size={18} />
-            Hablamos en Persona
-          </button>
+            {showHistory ? 'Ocultar' : 'Ver'} Historial ({negs.length})
+          </Button>
         )}
-
-        {/* History Button */}
-        <button
-          onClick={() => setShowResponses(!showResponses)}
-          className="w-full px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-        >
-          {showResponses ? 'Ocultar' : 'Ver'} Historial ({status.negotiationHistory?.length || 0})
-        </button>
       </div>
 
-      {/* History */}
-      {showResponses && status.negotiationHistory && status.negotiationHistory.length > 0 && (
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <h4 className="font-semibold mb-3">Historial de Negociación</h4>
-          <div className="space-y-2 text-sm">
-            {status.negotiationHistory.map((neg, idx) => (
-              <div key={idx} className="bg-gray-50 p-2 rounded">
-                <div className="flex justify-between items-start">
-                  <span className="font-medium">Ronda {neg.roundNumber}</span>
-                  {neg.responseType && (
-                    <span className="text-xs bg-gray-200 px-2 py-1 rounded">{neg.responseType}</span>
-                  )}
-                </div>
-                {neg.pointsProposed && <div className="text-gray-600">Puntos: {neg.pointsProposed}</div>}
-                {neg.message && <div className="text-gray-600 italic">"{neg.message}"</div>}
+      {/* Historial de rondas (Negotiation rows V1) */}
+      {showHistory && negs.length > 0 && (
+        <div className="pt-3 border-t border-brd-subtle space-y-2">
+          {negs.map((neg) => (
+            <div key={neg.id} className="bg-surface-muted border border-brd-subtle p-2.5 rounded-md text-sm">
+              <div className="flex justify-between items-start gap-2">
+                <span className="font-medium text-text-primary">Ronda {neg.roundNumber}</span>
+                <span className="text-xs text-text-secondary bg-surface-card border border-brd-subtle px-2 py-0.5 rounded">
+                  {neg.responseType === 'awaiting' ? 'Esperando respuesta' :
+                   neg.responseType === 'accepted' ? 'Aceptado' :
+                   neg.responseType === 'rejected' ? 'Rechazado' :
+                   'Contrapropuesta'}
+                </span>
               </div>
-            ))}
-          </div>
+              <div className="text-text-secondary mt-1">Puntos: {Number(neg.pointsProposed)}</div>
+              {neg.message && <div className="text-text-tertiary italic mt-0.5">"{neg.message}"</div>}
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Finalized Status */}
-      {status.isFinalized && (
-        <div className="mt-4 p-3 bg-blue-50 rounded text-sm text-blue-800">
-          {status.status === 'accepted' && '✓ Evento aceptado y acordado'}
-          {status.status === 'rejected' && '✗ Evento rechazado'}
-          {status.status === 'pending_conversation' && '💬 Pendiente de conversación en persona'}
+      {/* Estado finalizado */}
+      {isFinalized && (
+        <div className="p-3 rounded-md bg-surface-muted border border-brd-subtle text-sm text-text-secondary">
+          {event.status === 'accepted' && '✓ Actividad aceptada y acordada'}
+          {event.status === 'rejected' && '✗ Actividad rechazada'}
+          {event.status === 'forced' && '⚡ Actividad forzada por el creador'}
         </div>
       )}
 
@@ -382,8 +329,8 @@ export const EventNegotiationCard = ({
           pendingAction === 'reject' ? 'Rechazar propuesta' : ''
         }
         message={
-          pendingAction === 'propose' ? '¿Enviar la propuesta a tu pareja?' :
-          pendingAction === 'accept' ? '¿Confirmas que aceptas esta propuesta?' :
+          pendingAction === 'propose' ? `¿Enviar la propuesta a tu pareja por ${pts} pts?` :
+          pendingAction === 'accept' ? `¿Confirmas que aceptas esta propuesta de ${awaitingPts} pts?` :
           pendingAction === 'reject' ? '¿Confirmas que rechazas esta propuesta?' : ''
         }
         confirmLabel={
@@ -392,7 +339,7 @@ export const EventNegotiationCard = ({
           pendingAction === 'reject' ? 'Rechazar' : 'Confirmar'
         }
         variant={pendingAction === 'reject' ? 'danger' : 'primary'}
-        busy={loading}
+        busy={busy}
         onConfirm={handleConfirm}
         onClose={() => setPendingAction(null)}
       />

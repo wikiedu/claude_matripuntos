@@ -2,6 +2,7 @@
 // Feature flag GAMIFICATION_V2_ENABLED gate (incluye gamification + push).
 
 import { Router, Request, Response } from 'express'
+import { requireAuth } from '../lib/requireAuth.js'
 import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 import { writeBucket, readBucket } from '../middleware/rateLimiter.js'
@@ -40,8 +41,8 @@ router.get('/vapid-key', readBucket, (_req: Request, res: Response) => {
 
 // POST /api/notifications/push/subscribe
 router.post('/subscribe', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user.id as string
-  const coupleId = (req as any).user.coupleId as string | undefined
+  const userId = requireAuth(req).userId
+  const coupleId = requireAuth(req).coupleId
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const parsed = subscribeSchema.safeParse(req.body)
@@ -59,8 +60,8 @@ router.post('/subscribe', writeBucket, async (req: Request, res: Response) => {
 
 // POST /api/notifications/push/unsubscribe
 router.post('/unsubscribe', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user.id as string
-  const coupleId = (req as any).user.coupleId as string | undefined
+  const userId = requireAuth(req).userId
+  const coupleId = requireAuth(req).coupleId
   const endpointSchema = z.object({ endpoint: z.string().url().max(2000) })
   const parsed = endpointSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: 'Datos inválidos' })
@@ -75,21 +76,26 @@ router.post('/unsubscribe', writeBucket, async (req: Request, res: Response) => 
 
 // POST /api/notifications/push/test — envía un push de prueba al user actual.
 router.post('/test', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user.id as string
+  const userId = requireAuth(req).userId
   const subs = await prisma.pushSubscription.findMany({ where: { userId } })
   if (subs.length === 0) return res.status(404).json({ error: 'Sin suscripciones' })
 
-  const results: any[] = []
-  const expired: string[] = []
-  for (const sub of subs) {
-    const r = await sendPushToSubscription(sub, {
-      title: 'Notificación de prueba',
-      body: 'Si ves esto, las notificaciones funcionan ✅',
-      url: '/dashboard',
-    })
-    results.push({ endpoint: sub.endpoint, ok: r.ok, statusCode: r.statusCode })
-    if (r.statusCode === 410 || r.statusCode === 404) expired.push(sub.endpoint)
-  }
+  // audit §4 #7 — antes los envíos eran secuenciales (for await). Ahora en
+  // paralelo: cada device es independiente y la latencia de red dominaba.
+  const settled = await Promise.all(
+    subs.map(async (sub) => {
+      const r = await sendPushToSubscription(sub, {
+        title: 'Notificación de prueba',
+        body: 'Si ves esto, las notificaciones funcionan ✅',
+        url: '/dashboard',
+      })
+      return { endpoint: sub.endpoint, ok: r.ok, statusCode: r.statusCode }
+    }),
+  )
+  const results = settled
+  const expired = settled
+    .filter((r) => r.statusCode === 410 || r.statusCode === 404)
+    .map((r) => r.endpoint)
   if (expired.length > 0) {
     await prisma.pushSubscription.deleteMany({ where: { endpoint: { in: expired } } })
   }

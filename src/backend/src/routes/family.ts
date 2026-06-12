@@ -1,9 +1,11 @@
 import { Router, Request, Response } from 'express'
+import { requireAuth } from '../lib/requireAuth.js'
 import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 
 const router = Router()
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 // Middleware to ensure user is authenticated
 router.use(authenticateToken)
@@ -40,8 +42,8 @@ const MAX_CHILDREN_PER_COUPLE = 12
  */
 router.post('/children', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
-    const coupleId = (req as any).user?.coupleId as string | undefined
+    const userId = requireAuth(req).userId
+    const coupleId = req.user?.coupleId as string | undefined
     if (!coupleId) {
       return res.status(401).json({ error: 'Authentication required' })
     }
@@ -80,7 +82,7 @@ router.post('/children', async (req: Request, res: Response) => {
       child,
     })
   } catch (error) {
-    console.error('Error adding child:', error)
+    logger.error({ err: error }, 'Error adding child')
     res.status(500).json({ error: 'Failed to add child' })
   }
 })
@@ -91,7 +93,7 @@ router.post('/children', async (req: Request, res: Response) => {
  */
 router.get('/children', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -102,13 +104,13 @@ router.get('/children', async (req: Request, res: Response) => {
     }
 
     const children = await prisma.child.findMany({
-      where: { coupleId: user.coupleId },
+      where: { coupleId: requireAuth(req).coupleId },
       orderBy: { dateOfBirth: 'asc' },
     })
 
     res.json(children)
   } catch (error) {
-    console.error('Error fetching children:', error)
+    logger.error({ err: error }, 'Error fetching children')
     res.status(500).json({ error: 'Failed to fetch children' })
   }
 })
@@ -119,7 +121,7 @@ router.get('/children', async (req: Request, res: Response) => {
  */
 router.put('/children/:childId', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
     const { childId } = req.params
 
     const parsedBody = childUpdateSchema.safeParse(req.body)
@@ -163,7 +165,7 @@ router.put('/children/:childId', async (req: Request, res: Response) => {
       child: updatedChild,
     })
   } catch (error) {
-    console.error('Error updating child:', error)
+    logger.error({ err: error }, 'Error updating child')
     res.status(500).json({ error: 'Failed to update child' })
   }
 })
@@ -174,7 +176,7 @@ router.put('/children/:childId', async (req: Request, res: Response) => {
  */
 router.delete('/children/:childId', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
     const { childId } = req.params
 
     // v2.5.9 audit 01 S1-R-14 — scope por req.coupleId.
@@ -198,7 +200,7 @@ router.delete('/children/:childId', async (req: Request, res: Response) => {
 
     res.json({ message: 'Child deleted successfully' })
   } catch (error) {
-    console.error('Error deleting child:', error)
+    logger.error({ err: error }, 'Error deleting child')
     res.status(500).json({ error: 'Failed to delete child' })
   }
 })
@@ -209,7 +211,7 @@ router.delete('/children/:childId', async (req: Request, res: Response) => {
  */
 router.post('/pets', async (req: Request, res: Response) => {
   try {
-    const coupleId = (req as any).user?.coupleId as string | undefined
+    const coupleId = req.user?.coupleId as string | undefined
     if (!coupleId) {
       return res.status(401).json({ error: 'Authentication required' })
     }
@@ -234,7 +236,7 @@ router.post('/pets', async (req: Request, res: Response) => {
       pet,
     })
   } catch (error) {
-    console.error('Error adding pet:', error)
+    logger.error({ err: error }, 'Error adding pet')
     res.status(500).json({ error: 'Failed to add pet' })
   }
 })
@@ -245,7 +247,7 @@ router.post('/pets', async (req: Request, res: Response) => {
  */
 router.get('/pets', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -256,12 +258,12 @@ router.get('/pets', async (req: Request, res: Response) => {
     }
 
     const pets = await prisma.pet.findMany({
-      where: { coupleId: user.coupleId },
+      where: { coupleId: requireAuth(req).coupleId },
     })
 
     res.json(pets)
   } catch (error) {
-    console.error('Error fetching pets:', error)
+    logger.error({ err: error }, 'Error fetching pets')
     res.status(500).json({ error: 'Failed to fetch pets' })
   }
 })
@@ -272,7 +274,7 @@ router.get('/pets', async (req: Request, res: Response) => {
  */
 router.put('/pets/:petId', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
     const { petId } = req.params
 
     const parsedBody = petUpdateSchema.safeParse(req.body)
@@ -311,7 +313,7 @@ router.put('/pets/:petId', async (req: Request, res: Response) => {
       pet: updatedPet,
     })
   } catch (error) {
-    console.error('Error updating pet:', error)
+    logger.error({ err: error }, 'Error updating pet')
     res.status(500).json({ error: 'Failed to update pet' })
   }
 })
@@ -322,7 +324,7 @@ router.put('/pets/:petId', async (req: Request, res: Response) => {
  */
 router.delete('/pets/:petId', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
     const { petId } = req.params
 
     // v2.5.9 audit 01 S1-R-14 — scope por req.coupleId.
@@ -344,7 +346,7 @@ router.delete('/pets/:petId', async (req: Request, res: Response) => {
 
     res.json({ message: 'Pet deleted successfully' })
   } catch (error) {
-    console.error('Error deleting pet:', error)
+    logger.error({ err: error }, 'Error deleting pet')
     res.status(500).json({ error: 'Failed to delete pet' })
   }
 })
@@ -386,7 +388,7 @@ async function notifyPartnerOnChildChange(
       },
     })
   } catch (err) {
-    console.error('Failed to notify partner about child change:', err)
+    logger.error({ err }, 'Failed to notify partner about child change')
   }
 }
 

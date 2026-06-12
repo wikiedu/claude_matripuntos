@@ -50,8 +50,8 @@ const schema = z.object({
 
 // POST /api/task-logs/:logId/proof
 router.post('/:logId/proof', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const userId = req.user?.id as string
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const parsed = schema.safeParse(req.body)
@@ -75,8 +75,8 @@ router.post('/:logId/proof', writeBucket, async (req: Request, res: Response) =>
 
 // DELETE /api/task-logs/:logId/proof
 router.delete('/:logId/proof', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const userId = req.user?.id as string
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const log = await prisma.taskLog.findUnique({ where: { id: req.params.logId } })
@@ -97,7 +97,7 @@ router.delete('/:logId/proof', writeBucket, async (req: Request, res: Response) 
 
 // GET /api/task-logs/:logId/proof — lectura visible al partner para verificar
 router.get('/:logId/proof', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const log = await prisma.taskLog.findUnique({

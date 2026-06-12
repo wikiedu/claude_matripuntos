@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express'
 import { authenticateToken } from '../middleware/auth.js'
 import { getGamificationStatus } from '../services/gamificationService.js'
+import { logger } from '../lib/logger.js'
 
 const router = express.Router()
 
@@ -16,7 +17,7 @@ router.get('/status', authenticateToken, async (req: Request, res: Response): Pr
     const status = await getGamificationStatus(req.coupleId)
     res.json(status)
   } catch (error) {
-    console.error('Error getting gamification status:', error)
+    logger.error({ err: error }, 'Error getting gamification status')
     res.status(500).json({ error: 'Failed to get gamification status' })
   }
 })

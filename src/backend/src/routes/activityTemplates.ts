@@ -8,6 +8,7 @@ import { readBucket, writeBucket } from '../middleware/rateLimiter.js'
 import { activityTemplateService } from '../services/activityTemplateService.js'
 import { configurationProposalService } from '../services/configurationProposalService.js'
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 const router = Router()
 router.use(authenticateToken)
@@ -34,7 +35,7 @@ const templateSchema = z.object({
 const updateSchema = templateSchema.partial()
 
 router.get('/', readBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   const grouped = (req.query.grouped ?? 'false') === 'true'
   if (grouped) {
@@ -46,8 +47,8 @@ router.get('/', readBucket, async (req: Request, res: Response) => {
 })
 
 router.post('/', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const userId = req.user?.id as string
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const parsed = templateSchema.safeParse(req.body)
@@ -68,15 +69,15 @@ router.post('/', writeBucket, async (req: Request, res: Response) => {
       rationale: `Puntos sugeridos para la nueva actividad "${created.name}"`,
     })
   } catch (e) {
-    console.warn('[v2.1.1] propose template points failed:', e)
+    logger.warn({ err: e }, '[v2.1.1] propose template points failed')
   }
 
   res.status(201).json({ template: created })
 })
 
 router.put('/:id', writeBucket, async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id as string
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const userId = req.user?.id as string
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
   const parsed = updateSchema.safeParse(req.body)
@@ -103,7 +104,7 @@ router.put('/:id', writeBucket, async (req: Request, res: Response) => {
           rationale: `Cambio de puntos sugeridos en "${updated.name}"`,
         })
       } catch (e) {
-        console.warn('[v2.1.1] propose template points (update) failed:', e)
+        logger.warn({ err: e }, '[v2.1.1] propose template points (update) failed')
       }
     }
 
@@ -115,7 +116,7 @@ router.put('/:id', writeBucket, async (req: Request, res: Response) => {
 })
 
 router.delete('/:id', writeBucket, async (req: Request, res: Response) => {
-  const coupleId = (req as any).user?.coupleId as string | undefined
+  const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
   try {
     await activityTemplateService.deactivate(coupleId, req.params.id)

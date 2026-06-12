@@ -3,355 +3,37 @@
 // AddTaskSheet for task creation, dark-mode Log/Dispute modals.
 // Rendered naked inside AuthedLayout (AppHeader is provided globally).
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { isSheetOpen, acquireSheetLock, releaseSheetLock } from '../lib/sheetLock'
-import {
-  Plus, CheckCircle, Loader, X, RefreshCw, AlertTriangle, Clock,
-  Sparkles, History, ListChecks,
-} from 'lucide-react'
+import { isSheetOpen } from '../lib/sheetLock'
+import { Loader, X, RefreshCw } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { apiClient } from '../services/apiClient'
-import { toLocalDateString, formatLocalDate } from '../utils/dateUtils'
-import { WeeklyTaskView } from '../components/WeeklyTaskView'
-import { WeekStrip } from '../components/v2/tasks/WeekStrip'
-// v2.3.0 — Pill retirado del header tras refactor canvas 15.
-import { Button } from '../components/v2/primitives/Button'
-import {
-  CategoryFilterStrip,
-  CATEGORY_EMOJI,
-  CATEGORY_LABEL,
-} from '../components/v2/tasks/CategoryFilterStrip'
-import { TaskItemLarge } from '../components/v2/tasks/TaskItemLarge'
-import { TaskItemMedium } from '../components/v2/tasks/TaskItemMedium'
-import { TaskCatalogRow } from '../components/v2/tasks/TaskCatalogRow'
+import { toLocalDateString } from '../utils/dateUtils'
+import { CategoryFilterStrip } from '../components/v2/tasks/CategoryFilterStrip'
 import { AddTaskSheet } from '../components/v2/tasks/AddTaskSheet'
 import { AddTaskFromCatalogSheet } from '../components/v2/tasks/AddTaskFromCatalogSheet'
 import { usePointsBurst } from '../components/v2/dashboard/PointsBurst'
 import { MPTabs } from '../components/v2/tasks/MPTabs'
 import { HeaderStrip, type FilterValue } from '../components/v2/tasks/HeaderStrip'
 import { VerifyBanner } from '../components/v2/tasks/VerifyBanner'
-import { AllDoneCard } from '../components/v2/tasks/AllDoneCard'
-// Pill ya no se usa tras v2.3.0 — quitamos import.
 import { RecurringTaskManager } from '../components/v2/tasks/RecurringTaskManager'
 import { ConfirmDialog } from '../components/v2/primitives/ConfirmDialog'
-import { TaskProofUploader } from '../components/v2/proof/TaskProofUploader'
+import { LogTaskModal } from '../components/v2/tasks/LogTaskModal'
+import { DisputeModal } from '../components/v2/tasks/DisputeModal'
+import { PendingVerificationList } from '../components/v2/tasks/PendingVerificationList'
+import { TodaySection } from '../components/v2/tasks/TodaySection'
+import { WeekSection } from '../components/v2/tasks/WeekSection'
+import { CatalogSection } from '../components/v2/tasks/CatalogSection'
+import { HistoryTab } from '../components/v2/tasks/HistoryTab'
+import { TasksWeekView } from '../components/v2/tasks/TasksWeekView'
+import { TASK_CATALOG } from '../components/v2/tasks/taskCatalog'
+import type { Task, TaskLog } from '../components/v2/tasks/taskTypes'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface Task {
-  id: string
-  name: string
-  category: string
-  pointsBase: string
-  description?: string
-  isRecurring?: boolean
-  frequency?: string | null
-  scheduledFor?: string
-  // v1.6.3 fix QA Bug 4: marcador de "tarea sembrada del catálogo del seed".
-  // Si true y sin scheduledFor/recurrencia, no aparece en "Hoy".
-  isDefault?: boolean
-}
-
-interface TaskLog {
-  id: string
-  taskId: string
-  taskName: string
-  taskCategory: string
-  date: string
-  pointsFinal: number | string
-  status: 'pending' | 'verified' | 'disputed'
-  modifier?: string
-  completedBy: { id: string; name: string } | null
-  verifiedBy: { id: string; name: string } | null
-  verifiedAt?: string
-  disputeReason?: string
-}
-
-// ─── Catalog data (copied from v1 Tasks.tsx lines 51-93) ──────────────────────
-const TASK_CATALOG: { category: string; tasks: { name: string; pts: number; desc?: string }[] }[] = [
-  { category: 'cocina', tasks: [
-    { name: 'Cocinar la cena', pts: 12 }, { name: 'Cocinar la comida', pts: 10 },
-    { name: 'Preparar el desayuno', pts: 6 }, { name: 'Fregar los platos', pts: 8 },
-    { name: 'Vaciar el lavavajillas', pts: 5 }, { name: 'Limpiar la cocina', pts: 12 },
-  ]},
-  { category: 'limpieza', tasks: [
-    { name: 'Pasar la aspiradora', pts: 10 }, { name: 'Fregar el suelo', pts: 12 },
-    { name: 'Limpiar el polvo', pts: 8 }, { name: 'Poner la lavadora', pts: 6 },
-    { name: 'Tender la ropa', pts: 6 }, { name: 'Doblar y guardar ropa', pts: 8 }, { name: 'Planchar', pts: 10 },
-  ]},
-  { category: 'baños', tasks: [
-    { name: 'Limpiar baño completo', pts: 15 }, { name: 'Limpiar WC', pts: 8 },
-    { name: 'Limpiar lavabos y espejos', pts: 7 },
-  ]},
-  { category: 'compra', tasks: [
-    { name: 'Hacer la compra semanal', pts: 18, desc: 'Supermercado grande' },
-    { name: 'Compra pequeña / reposición', pts: 8 }, { name: 'Hacer lista de la compra', pts: 5 },
-    { name: 'Recibir pedido online', pts: 5 },
-  ]},
-  { category: 'logistica', tasks: [
-    { name: 'Gestión facturas / banca', pts: 10 }, { name: 'Llamadas y gestiones admin', pts: 8 },
-    { name: 'Organizar armarios', pts: 12 }, { name: 'Sacar basura / reciclaje', pts: 5 },
-    { name: 'Llevar coche al taller', pts: 10 },
-  ]},
-  { category: 'cuidado', tasks: [
-    { name: 'Llevar/recoger niños al cole', pts: 8 }, { name: 'Ayudar con los deberes', pts: 10 },
-    { name: 'Baño / ducha de los niños', pts: 8 }, { name: 'Acostar a los niños', pts: 7 },
-    { name: 'Tarde con los niños (actividades)', pts: 15 },
-  ]},
-  { category: 'mantenimiento', tasks: [
-    { name: 'Reparación en casa', pts: 18, desc: 'Bricolaje, fontanería...' },
-    { name: 'Gestionar reparación externa', pts: 10 }, { name: 'Organizar trastero/garaje', pts: 14 },
-  ]},
-  { category: 'jardineria', tasks: [
-    { name: 'Regar las plantas', pts: 5 }, { name: 'Cortar el césped', pts: 15 },
-    { name: 'Limpiar terraza / balcón', pts: 10 },
-  ]},
-  { category: 'mascotas', tasks: [
-    { name: 'Sacar a pasear al perro', pts: 5 }, { name: 'Dar de comer a la mascota', pts: 4 },
-    { name: 'Limpiar zona de la mascota', pts: 8 }, { name: 'Llevar al veterinario', pts: 12 },
-  ]},
-]
-
-// ─── Log task modal ───────────────────────────────────────────────────────────
-function LogTaskModal({ task, onClose, onSuccess }: {
-  task: Task; onClose: () => void; onSuccess: (points?: number) => void
-}) {
-  const [modifier, setModifier] = useState<'none' | 'extra' | 'partial'>('none')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // v2.5.6 audit 06 S1 — escape para cerrar + sheetLock auto + a11y.
-  useEffect(() => {
-    const onEsc = (e: KeyboardEvent) => e.key === 'Escape' && !isSubmitting && onClose()
-    window.addEventListener('keydown', onEsc)
-    acquireSheetLock()
-    return () => {
-      window.removeEventListener('keydown', onEsc)
-      releaseSheetLock()
-    }
-  }, [isSubmitting, onClose])
-
-  const base = parseFloat(task.pointsBase) || 10
-  const modMap = { none: 1.0, extra: 1.3, partial: 0.7 }
-  const finalPts = Math.round(base * modMap[modifier])
-
-  const handleSubmit = async () => {
-    setIsSubmitting(true)
-    setError(null)
-    try {
-      await apiClient.tasks.logCompletion(task.id, {
-        date: new Date().toISOString(),
-        pointsBase: base,
-        modifier: modifier !== 'none' ? modifier : undefined,
-      })
-      onSuccess(finalPts)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al registrar')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="log-task-modal-title"
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
-    >
-      <div className="bg-surface-card border border-brd-purple rounded-xl shadow-xl max-w-md w-full p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 id="log-task-modal-title" className="text-base font-bold text-text-primary">Registrar tarea</h3>
-          <button onClick={onClose} className="p-1 hover:bg-surface-muted rounded-full text-text-secondary">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="bg-surface-muted border border-brd-subtle rounded-md p-3 mb-4 flex items-center gap-3">
-          <span className="text-2xl">{CATEGORY_EMOJI[task.category?.toLowerCase()] || '✅'}</span>
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold text-text-primary truncate">{task.name}</div>
-            <div className="text-xs text-text-secondary">
-              {CATEGORY_LABEL[task.category?.toLowerCase()] || task.category}
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-brand-amber tabular-nums">{finalPts}</div>
-            <div className="text-xs text-text-tertiary">pts</div>
-          </div>
-        </div>
-
-        <div className="mb-4 p-3 bg-brand-purple/10 border border-brand-purple/30 rounded-md text-xs text-brand-purple">
-          ℹ️ Los puntos se acreditarán cuando tu pareja <strong>verifique</strong> la tarea.
-        </div>
-
-        {error && (
-          <div className="mb-4 p-3 bg-danger/10 border border-danger/30 rounded-md text-danger text-sm">
-            {error}
-          </div>
-        )}
-
-        <div className="mb-5 space-y-2">
-          <p className="text-xs font-semibold text-text-secondary mb-1">¿Cómo fue?</p>
-          {([
-            { value: 'none' as const, label: '✔️ Normal', desc: `${base} pts` },
-            { value: 'extra' as const, label: '⭐ Esfuerzo extra', desc: `+30% → ${Math.round(base * 1.3)} pts` },
-            { value: 'partial' as const, label: '🔸 Parcial', desc: `−30% → ${Math.round(base * 0.7)} pts` },
-          ]).map((opt) => {
-            const active = modifier === opt.value
-            return (
-              <label
-                key={opt.value}
-                className={`flex items-center gap-3 p-3 rounded-md border cursor-pointer transition ${
-                  active
-                    ? 'border-brand-purple/40 bg-brand-purple/10'
-                    : 'border-brd-subtle bg-surface-card'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="modifier"
-                  checked={active}
-                  onChange={() => setModifier(opt.value)}
-                  className="sr-only"
-                />
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-text-primary">{opt.label}</div>
-                  <div className="text-xs text-text-secondary">{opt.desc}</div>
-                </div>
-                {active && <div className="w-2.5 h-2.5 rounded-full bg-brand-purple flex-shrink-0" />}
-              </label>
-            )
-          })}
-        </div>
-
-        <div className="flex gap-2">
-          <Button variant="ghost" onClick={onClose} fullWidth disabled={isSubmitting}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSubmit} fullWidth disabled={isSubmitting}>
-            <span className="inline-flex items-center gap-2">
-              {isSubmitting ? <Loader className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-              Registrar (+{finalPts} pts)
-            </span>
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Dispute modal ────────────────────────────────────────────────────────────
-function DisputeModal({ log, onClose, onSuccess }: {
-  log: TaskLog; onClose: () => void; onSuccess: () => void
-}) {
-  const [reason, setReason] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // v2.5.6 audit 06 S1 — escape + sheetLock auto + a11y.
-  useEffect(() => {
-    const onEsc = (e: KeyboardEvent) => e.key === 'Escape' && !isSubmitting && onClose()
-    window.addEventListener('keydown', onEsc)
-    acquireSheetLock()
-    return () => {
-      window.removeEventListener('keydown', onEsc)
-      releaseSheetLock()
-    }
-  }, [isSubmitting, onClose])
-
-  const handleSubmit = async () => {
-    setIsSubmitting(true)
-    try {
-      await apiClient.tasks.disputeLog(log.taskId, log.id, { disputeReason: reason.trim() || 'Sin motivo' })
-      onSuccess()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al disputar')
-      setIsSubmitting(false)
-    }
-  }
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="dispute-modal-title"
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
-    >
-      <div className="bg-surface-card border border-brd-purple rounded-xl shadow-xl max-w-sm w-full p-5">
-        <h3 id="dispute-modal-title" className="text-base font-bold text-text-primary mb-1">⚠️ Disputar tarea</h3>
-        <p className="text-sm text-text-secondary mb-4">
-          Disputando <strong className="text-text-primary">{log.taskName}</strong> de{' '}
-          <strong className="text-text-primary">{log.completedBy?.name}</strong> ({log.pointsFinal} pts)
-        </p>
-        {error && (
-          <div className="mb-3 p-3 bg-danger/10 border border-danger/30 rounded-md text-danger text-sm">
-            {error}
-          </div>
-        )}
-        <label className="text-xs font-semibold text-text-secondary mb-1 block">Motivo (opcional)</label>
-        <textarea
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          placeholder="¿Por qué cuestionas esta tarea?"
-          rows={3}
-          className="w-full bg-surface-card border border-brd-purple rounded-md px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary resize-none focus:outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple/50 mb-4"
-        />
-        <div className="flex gap-2">
-          <Button variant="ghost" onClick={onClose} fullWidth disabled={isSubmitting}>
-            Cancelar
-          </Button>
-          <Button variant="danger" onClick={handleSubmit} fullWidth disabled={isSubmitting}>
-            <span className="inline-flex items-center gap-1">
-              {isSubmitting ? <Loader className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
-              Disputar
-            </span>
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Segment control (reusable) ───────────────────────────────────────────────
-function Segment<T extends string>({
-  value, onChange, options,
-}: {
-  value: T
-  onChange: (v: T) => void
-  options: { value: T; label: string; badge?: number }[]
-}) {
-  return (
-    <div className="inline-flex gap-1 p-1 rounded-lg bg-surface-card border border-brd-subtle">
-      {options.map((opt) => {
-        const active = value === opt.value
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onChange(opt.value)}
-            className={`relative px-3 py-1.5 rounded-md text-xs font-semibold transition flex items-center gap-1.5 ${
-              active
-                ? 'bg-grad-cta text-white shadow-md shadow-brand-amber/30'
-                : 'bg-transparent text-text-secondary hover:text-text-primary'
-            }`}
-          >
-            {opt.label}
-            {opt.badge !== undefined && opt.badge > 0 && (
-              <span
-                className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                  active ? 'bg-white/20 text-white' : 'bg-danger/80 text-white'
-                }`}
-              >
-                {opt.badge}
-              </span>
-            )}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
+// Referencias estables para los fallbacks de las queries — evitan que un
+// `?? []` fresco por render invalide los useMemo de abajo durante bootstrap.
+const EMPTY_TASKS: Task[] = []
+const EMPTY_LOGS: TaskLog[] = []
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function Tasks() {
@@ -384,8 +66,8 @@ export default function Tasks() {
     refetchInterval: () => (isSheetOpen() ? false : 30_000),
     refetchIntervalInBackground: false,
   })
-  const tasks: Task[] = tasksQuery.data ?? []
-  const allLogs: TaskLog[] = logsQuery.data ?? []
+  const tasks: Task[] = tasksQuery.data ?? EMPTY_TASKS
+  const allLogs: TaskLog[] = logsQuery.data ?? EMPTY_LOGS
   // isLoading sólo en bootstrap (sin data aún) para evitar el flash en
   // refetches background (mismo patrón que useAppStore.isRefreshing).
   const isLoading = (tasksQuery.isLoading && !tasksQuery.data) || (logsQuery.isLoading && !logsQuery.data)
@@ -412,7 +94,6 @@ export default function Tasks() {
   // el AddTaskSheet en blanco (crear tarea nueva fuera del catálogo).
   const [showCatalogSheet, setShowCatalogSheet] = useState(false)
   const [addingFromCatalog, setAddingFromCatalog] = useState<string | null>(null)
-  const [showCatalog, setShowCatalog] = useState(false)
   const [deletingTask, setDeletingTask] = useState<Task | null>(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -420,23 +101,23 @@ export default function Tasks() {
   const [view, setView] = useState<'list' | 'week'>(() => {
     try { return (localStorage.getItem('mp.tasks.view') as any) || 'list' } catch { return 'list' }
   })
-  const setViewPersisted = (v: 'list' | 'week') => {
+  const setViewPersisted = useCallback((v: 'list' | 'week') => {
     setView(v)
     try { localStorage.setItem('mp.tasks.view', v) } catch { /* ignore */ }
-  }
+  }, [])
   // v2.3.0 — segment único Mías/Todas/Recurrentes (Claude Design canvas 15).
   // Mapea a `tab` legacy: mine→mis_tareas, all→mis_tareas con personFilter='all',
   // recurring→recurrentes.
   const [filter, setFilter] = useState<FilterValue>(() => {
     try { return (localStorage.getItem('mp.tasks.filter') as FilterValue) || 'mine' } catch { return 'mine' }
   })
-  const setFilterPersisted = (f: FilterValue) => {
+  const setFilterPersisted = useCallback((f: FilterValue) => {
     setFilter(f)
     try { localStorage.setItem('mp.tasks.filter', f) } catch {}
     if (f === 'recurring') setTab('recurrentes')
     else setTab('mis_tareas')
     setPersonFilter(f === 'all' ? 'all' : 'mine')
-  }
+  }, [])
   const [cat, setCat] = useState<string>('all')
   const [personFilter, setPersonFilter] = useState<'all' | 'mine' | 'partner'>('all')
   const [weekStart, setWeekStart] = useState<Date>(() => {
@@ -462,128 +143,170 @@ export default function Tasks() {
   }, [queryClient])
 
   // ─── Derived state ─────────────────────────────────────────────────────────
+  // T2 (refactor opus-4-8): todo el bloque derivado vive en UN useMemo — las
+  // colecciones comparten intermedios (today, weekBounds, taskIdsHiddenFromToday)
+  // y así solo se recalculan cuando cambian datos o filtros, no en cada render
+  // (p.ej. al abrir/cerrar un modal). `today` se computa fuera y entra como dep
+  // para que el memo se invalide en el primer render tras medianoche.
+  const userId = user?.id
   const today = toLocalDateString(new Date())
 
-  const myTodayLogs = allLogs.filter(
-    (l) => l.completedBy?.id === user?.id && l.date?.toString().startsWith(today),
-  )
-  const myTodayLogsByTask = new Map(myTodayLogs.map((l) => [l.taskId, l]))
+  const {
+    myTodayLogs, myTodayLogsByTask, myPendingLogs, partnerPendingLogs,
+    historyLogs, filteredTasks, todayTasks, weekNotTodayTasks,
+    myWeekLogsByTaskId, weekDoneCount, visibleCatalog,
+  } = useMemo(() => {
+    const myTodayLogs = allLogs.filter(
+      (l) => l.completedBy?.id === userId && l.date?.toString().startsWith(today),
+    )
+    const myTodayLogsByTask = new Map(myTodayLogs.map((l) => [l.taskId, l]))
 
-  const myPendingLogs = allLogs.filter(
-    (l) => l.completedBy?.id === user?.id && l.status === 'pending',
-  )
-  const partnerPendingLogs = allLogs.filter(
-    (l) => l.completedBy?.id !== user?.id && l.status === 'pending',
-  )
-  // Quick-win #4 2026-04-22: filtro mías/pareja aplicado al historial para
-  // facilitar repasar rápidamente qué hizo cada uno.
-  const matchesPerson = (l: TaskLog) =>
-    personFilter === 'all'
-      ? true
-      : personFilter === 'mine'
-        ? l.completedBy?.id === user?.id
-        : l.completedBy?.id && l.completedBy.id !== user?.id
-  const historyLogs = allLogs
-    .filter((l) => l.status !== 'pending')
-    .filter(matchesPerson)
+    const myPendingLogs = allLogs.filter(
+      (l) => l.completedBy?.id === userId && l.status === 'pending',
+    )
+    const partnerPendingLogs = allLogs.filter(
+      (l) => l.completedBy?.id !== userId && l.status === 'pending',
+    )
+    // Quick-win #4 2026-04-22: filtro mías/pareja aplicado al historial para
+    // facilitar repasar rápidamente qué hizo cada uno.
+    const matchesPerson = (l: TaskLog) =>
+      personFilter === 'all'
+        ? true
+        : personFilter === 'mine'
+          ? l.completedBy?.id === userId
+          : l.completedBy?.id && l.completedBy.id !== userId
+    const historyLogs = allLogs
+      .filter((l) => l.status !== 'pending')
+      .filter(matchesPerson)
 
-  const filteredTasks = cat === 'all' ? tasks : tasks.filter((t) => t.category?.toLowerCase() === cat)
+    const filteredTasks = cat === 'all' ? tasks : tasks.filter((t) => t.category?.toLowerCase() === cat)
 
-  // A task is "done for now" if anyone in the couple has a log for it
-  // (pending or verified) dated today, or has a pending-verification log from
-  // any recent day. Those logs already surface in the "pendientes de verificación"
-  // widget above; re-listing them in Hoy confuses the user into thinking they
-  // need to redo the task. Once partner verifies/disputes, the task reappears.
-  const taskIdsHiddenFromToday = new Set<string>()
-  for (const l of allLogs) {
-    if (l.date?.toString().startsWith(today)) taskIdsHiddenFromToday.add(l.taskId)
-    if (l.status === 'pending') taskIdsHiddenFromToday.add(l.taskId)
-  }
-  // Bug 2026-04-22: "Hoy" used to require scheduledFor<=today, which meant
-  // catalog-added tasks and puntual custom tasks (both have scheduledFor=null)
-  // were invisible everywhere. Now "Hoy" shows (a) scheduled tasks due
-  // today-or-earlier AND (b) unscheduled tasks the user has in their list —
-  // those are "available whenever" and belong here until the user acts on them.
-  //
-  // Bug 2026-04-23: una recurrente pausada (frequency!=null, isRecurring=false)
-  // seguía apareciendo hoy porque scheduledFor quedaba apuntando a la última
-  // instancia generada. Pause borra las ocurrencias futuras pero no reescribe
-  // scheduledFor del Task row, así que filtramos explícitamente aquí.
-  const todayTasks = filteredTasks
-    .filter((t) => !taskIdsHiddenFromToday.has(t.id))
-    .filter((t) => !(t.frequency && !t.isRecurring))
-    // v1.6.3 fix QA Bug 4: las tasks con isDefault=true son sugerencias del
-    // seed del couple, no tareas activas. Solo deben aparecer en "Hoy" si
-    // tienen scheduledFor o son recurrentes (es decir, el user las activó
-    // explícitamente). Antes contaminaban el listado de cada día con todo
-    // el catálogo.
-    .filter((t) => !t.isDefault || !!t.scheduledFor || t.isRecurring)
-    // v2.0.6 fix bug "tareas que aparecen solas": antes una tarea sin
-    // `scheduledFor` aparecía en "Hoy" para siempre, todos los días, en ambas
-    // cuentas de la pareja. Ahora "Hoy" sólo muestra tareas con scheduledFor
-    // hoy o en el pasado (vencidas). Las no programadas viven en el catálogo y
-    // solo entran a "Hoy" cuando el usuario las programa.
-    .filter((t) => {
+    // A task is "done for now" if anyone in the couple has a log for it
+    // (pending or verified) dated today, or has a pending-verification log from
+    // any recent day. Those logs already surface in the "pendientes de verificación"
+    // widget above; re-listing them in Hoy confuses the user into thinking they
+    // need to redo the task. Once partner verifies/disputes, the task reappears.
+    const taskIdsHiddenFromToday = new Set<string>()
+    for (const l of allLogs) {
+      if (l.date?.toString().startsWith(today)) taskIdsHiddenFromToday.add(l.taskId)
+      if (l.status === 'pending') taskIdsHiddenFromToday.add(l.taskId)
+    }
+    // Bug 2026-04-22: "Hoy" used to require scheduledFor<=today, which meant
+    // catalog-added tasks and puntual custom tasks (both have scheduledFor=null)
+    // were invisible everywhere. Now "Hoy" shows (a) scheduled tasks due
+    // today-or-earlier AND (b) unscheduled tasks the user has in their list —
+    // those are "available whenever" and belong here until the user acts on them.
+    //
+    // Bug 2026-04-23: una recurrente pausada (frequency!=null, isRecurring=false)
+    // seguía apareciendo hoy porque scheduledFor quedaba apuntando a la última
+    // instancia generada. Pause borra las ocurrencias futuras pero no reescribe
+    // scheduledFor del Task row, así que filtramos explícitamente aquí.
+    const todayTasks = filteredTasks
+      .filter((t) => !taskIdsHiddenFromToday.has(t.id))
+      .filter((t) => !(t.frequency && !t.isRecurring))
+      // v1.6.3 fix QA Bug 4: las tasks con isDefault=true son sugerencias del
+      // seed del couple, no tareas activas. Solo deben aparecer en "Hoy" si
+      // tienen scheduledFor o son recurrentes (es decir, el user las activó
+      // explícitamente). Antes contaminaban el listado de cada día con todo
+      // el catálogo.
+      .filter((t) => !t.isDefault || !!t.scheduledFor || t.isRecurring)
+      // v2.0.6 fix bug "tareas que aparecen solas": antes una tarea sin
+      // `scheduledFor` aparecía en "Hoy" para siempre, todos los días, en ambas
+      // cuentas de la pareja. Ahora "Hoy" sólo muestra tareas con scheduledFor
+      // hoy o en el pasado (vencidas). Las no programadas viven en el catálogo y
+      // solo entran a "Hoy" cuando el usuario las programa.
+      .filter((t) => {
+        if (!t.scheduledFor) return false
+        const sf = toLocalDateString(t.scheduledFor)
+        return sf <= today
+      })
+
+    // Week bounds (in local time) — used for the "Esta semana" section
+    const weekBounds = (() => {
+      const start = new Date()
+      start.setHours(0, 0, 0, 0)
+      const day = start.getDay()
+      start.setDate(start.getDate() - (day === 0 ? 6 : day - 1))
+      const end = new Date(start)
+      end.setDate(start.getDate() + 7)
+      return { start, end }
+    })()
+
+    const weekNotTodayTasks = filteredTasks.filter((t) => {
       if (!t.scheduledFor) return false
-      const sf = toLocalDateString(t.scheduledFor)
-      return sf <= today
+      // v1.6.3 fix QA Bug 4: misma lógica que en todayTasks — descartar
+      // sugerencias inactivas del catálogo.
+      if (t.isDefault && !t.scheduledFor && !t.isRecurring) return false
+      const d = new Date(t.scheduledFor)
+      if (isNaN(d.getTime())) return false
+      if (d >= weekBounds.start && d < weekBounds.end) {
+        return toLocalDateString(d) !== today
+      }
+      return false
     })
 
-  // Week bounds (in local time) — used for the "Esta semana" section
-  const weekBounds = (() => {
-    const start = new Date()
-    start.setHours(0, 0, 0, 0)
-    const day = start.getDay()
-    start.setDate(start.getDate() - (day === 0 ? 6 : day - 1))
-    const end = new Date(start)
-    end.setDate(start.getDate() + 7)
-    return { start, end }
-  })()
+    // v2.6.1 audit 05 1.4 — antes mostrábamos `0/{N}` hardcoded en la
+    // sección "Esta semana". Ahora contamos cuántas de esas tareas tienen
+    // un log mío esta semana (status pending/verified, no disputed).
+    const weekStartIso = toLocalDateString(weekBounds.start)
+    const weekEndIso = toLocalDateString(weekBounds.end)
+    const myWeekLogsByTaskId = new Set(
+      allLogs
+        .filter((l) => l.completedBy?.id === userId)
+        .filter((l) => l.status !== 'disputed')
+        .filter((l) => {
+          const d = l.date?.toString().slice(0, 10)
+          return d ? d >= weekStartIso && d < weekEndIso : false
+        })
+        .map((l) => l.taskId),
+    )
+    const weekDoneCount = weekNotTodayTasks.filter((t) =>
+      myWeekLogsByTaskId.has(t.id),
+    ).length
 
-  const weekNotTodayTasks = filteredTasks.filter((t) => {
-    if (!t.scheduledFor) return false
-    // v1.6.3 fix QA Bug 4: misma lógica que en todayTasks — descartar
-    // sugerencias inactivas del catálogo.
-    if (t.isDefault && !t.scheduledFor && !t.isRecurring) return false
-    const d = new Date(t.scheduledFor)
-    if (isNaN(d.getTime())) return false
-    if (d >= weekBounds.start && d < weekBounds.end) {
-      return toLocalDateString(d) !== today
+    // Bug 2026-04-22: el catálogo es un listado fijo de ideas — no se filtra por
+    // lo que ya añadiste. Duplicar es intencional (ej: "Limpiar baño" con dos
+    // baños). Antes escondíamos ítems ya añadidos, lo que hacía que el catálogo
+    // pareciera que "desaparecía" al usarlo.
+    const visibleCatalog = TASK_CATALOG
+      .filter((g) => cat === 'all' || g.category === cat)
+
+    return {
+      myTodayLogs, myTodayLogsByTask, myPendingLogs, partnerPendingLogs,
+      historyLogs, filteredTasks, todayTasks, weekNotTodayTasks,
+      myWeekLogsByTaskId, weekDoneCount, visibleCatalog,
     }
-    return false
-  })
+  }, [allLogs, tasks, userId, cat, personFilter, today])
 
-  // v2.6.1 audit 05 1.4 — antes mostrábamos `0/{N}` hardcoded en la
-  // sección "Esta semana". Ahora contamos cuántas de esas tareas tienen
-  // un log mío esta semana (status pending/verified, no disputed).
-  const weekStartIso = toLocalDateString(weekBounds.start)
-  const weekEndIso = toLocalDateString(weekBounds.end)
-  const myWeekLogsByTaskId = new Set(
-    allLogs
-      .filter((l) => l.completedBy?.id === user?.id)
-      .filter((l) => l.status !== 'disputed')
-      .filter((l) => {
-        const d = l.date?.toString().slice(0, 10)
-        return d ? d >= weekStartIso && d < weekEndIso : false
-      })
-      .map((l) => l.taskId),
+  // Payloads memoizados de props (antes se mapeaban inline en cada render).
+  const verifyBannerLogs = useMemo(
+    () => partnerPendingLogs.map((l) => ({
+      id: l.id,
+      taskId: l.taskId,
+      taskName: l.taskName ?? '',
+      pointsFinal: l.pointsFinal,
+      completedBy: l.completedBy,
+    })),
+    [partnerPendingLogs],
   )
-  const weekDoneCount = weekNotTodayTasks.filter((t) =>
-    myWeekLogsByTaskId.has(t.id),
-  ).length
-
-  // Bug 2026-04-22: el catálogo es un listado fijo de ideas — no se filtra por
-  // lo que ya añadiste. Duplicar es intencional (ej: "Limpiar baño" con dos
-  // baños). Antes escondíamos ítems ya añadidos, lo que hacía que el catálogo
-  // pareciera que "desaparecía" al usarlo.
-  const visibleCatalog = TASK_CATALOG
-    .filter((g) => cat === 'all' || g.category === cat)
+  const existingTasksForSheet = useMemo(
+    () => tasks.map((t) => ({
+      id: t.id,
+      name: t.name,
+      category: t.category ?? '',
+      pointsBase: String(t.pointsBase ?? 0),
+      isDefault: !!t.isDefault,
+    })),
+    [tasks],
+  )
 
   // v2.2.0 — microinteracción +X MP al completar (canvas 13 Claude Design)
   const burst = usePointsBurst()
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
-  const handleLogSuccess = async (loggedPoints?: number) => {
+  // T2 (refactor opus-4-8): todos los handlers en useCallback para que las
+  // secciones extraídas reciban referencias estables entre renders.
+  const handleLogSuccess = useCallback(async (loggedPoints?: number) => {
     if (loggedPoints && loggedPoints > 0) {
       // Anchor: el botón que el user pulsó. Si no lo tenemos, centrado.
       burst.trigger(`+${loggedPoints} MP`, document.activeElement)
@@ -594,9 +317,9 @@ export default function Tasks() {
     queryClient.invalidateQueries({ queryKey: ['gamification', 'status'] })
     queryClient.invalidateQueries({ queryKey: ['achievements', 'map'] })
     await loadData()
-  }
+  }, [burst.trigger, queryClient, loadData])
 
-  const handleVerify = async (log: TaskLog) => {
+  const handleVerify = useCallback(async (log: TaskLog) => {
     setVerifyingId(log.id)
     setError(null)
     try {
@@ -615,9 +338,9 @@ export default function Tasks() {
     } finally {
       setVerifyingId(null)
     }
-  }
+  }, [queryClient, loadData])
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = useCallback(async () => {
     if (!deletingTask) return
     setDeleting(true)
     try {
@@ -631,16 +354,16 @@ export default function Tasks() {
     } finally {
       setDeleting(false)
     }
-  }
+  }, [deletingTask, loadData])
 
-  const handleDisputeSuccess = async () => {
+  const handleDisputeSuccess = useCallback(async () => {
     setDisputingLog(null)
     setSuccess('⚠️ Tarea disputada. Se notificará a tu pareja.')
     setTimeout(() => setSuccess(null), 4000)
     await loadData()
-  }
+  }, [loadData])
 
-  const handleCreateFromCatalog = async (name: string, category: string, pts: number, desc?: string) => {
+  const handleCreateFromCatalog = useCallback(async (name: string, category: string, pts: number, desc?: string) => {
     setAddingFromCatalog(name)
     try {
       await apiClient.tasks.create({ name: name.trim(), category, pointsBase: pts, description: desc?.trim() })
@@ -652,13 +375,31 @@ export default function Tasks() {
     } finally {
       setAddingFromCatalog(null)
     }
-  }
+  }, [loadData])
 
-  const handleAddSheetSaved = async () => {
+  const handleAddSheetSaved = useCallback(async () => {
     setSuccess('✅ Tarea creada')
     setTimeout(() => setSuccess(null), 3000)
     await loadData()
-  }
+  }, [loadData])
+
+  // Micro-handlers inline que antes creaban una lambda nueva por render.
+  const closeLogModal = useCallback(() => setLoggingTask(null), [])
+  const closeDisputeModal = useCallback(() => setDisputingLog(null), [])
+  const closeAddSheet = useCallback(() => setShowAddSheet(false), [])
+  const openCatalogSheet = useCallback(() => setShowCatalogSheet(true), [])
+  const closeCatalogSheet = useCallback(() => setShowCatalogSheet(false), [])
+  const handleCatalogSheetSaved = useCallback(() => {
+    setShowCatalogSheet(false)
+    handleAddSheetSaved()
+  }, [handleAddSheetSaved])
+  const closeDeleteDialog = useCallback(() => {
+    if (!deleting) setDeletingTask(null)
+  }, [deleting])
+  const toggleView = useCallback(
+    () => setViewPersisted(view === 'list' ? 'week' : 'list'),
+    [setViewPersisted, view],
+  )
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
@@ -668,30 +409,24 @@ export default function Tasks() {
 
       {/* Modals */}
       {loggingTask && (
-        <LogTaskModal task={loggingTask} onClose={() => setLoggingTask(null)} onSuccess={handleLogSuccess} />
+        <LogTaskModal task={loggingTask} onClose={closeLogModal} onSuccess={handleLogSuccess} />
       )}
       {disputingLog && (
-        <DisputeModal log={disputingLog} onClose={() => setDisputingLog(null)} onSuccess={handleDisputeSuccess} />
+        <DisputeModal log={disputingLog} onClose={closeDisputeModal} onSuccess={handleDisputeSuccess} />
       )}
       <AddTaskSheet
         open={showAddSheet}
-        onClose={() => setShowAddSheet(false)}
+        onClose={closeAddSheet}
         onSaved={handleAddSheetSaved}
       />
       <AddTaskFromCatalogSheet
         open={showCatalogSheet}
         catalog={TASK_CATALOG}
-        existingTasks={tasks.map((t) => ({
-          id: t.id,
-          name: t.name,
-          category: t.category ?? '',
-          pointsBase: String(t.pointsBase ?? 0),
-          isDefault: !!(t as any).isDefault,
-        }))}
+        existingTasks={existingTasksForSheet}
         partnerName={(useAppStore.getState().couple?.users ?? []).find(u => u.id !== user?.id)?.name ?? 'Tu pareja'}
         meName={user?.name ?? 'Yo'}
-        onClose={() => setShowCatalogSheet(false)}
-        onSaved={() => { setShowCatalogSheet(false); handleAddSheetSaved() }}
+        onClose={closeCatalogSheet}
+        onSaved={handleCatalogSheetSaved}
       />
       <ConfirmDialog
         open={deletingTask !== null}
@@ -705,7 +440,7 @@ export default function Tasks() {
         variant="danger"
         busy={deleting}
         onConfirm={handleConfirmDelete}
-        onClose={() => !deleting && setDeletingTask(null)}
+        onClose={closeDeleteDialog}
       />
 
       {/* v2.3.0 — Refactor canvas 15: top tabs +MP/-MP + pg-h + HeaderStrip
@@ -727,20 +462,14 @@ export default function Tasks() {
         filter={filter}
         onFilterChange={setFilterPersisted}
         view={view}
-        onViewToggle={() => setViewPersisted(view === 'list' ? 'week' : 'list')}
-        onAdd={() => setShowCatalogSheet(true)}
+        onViewToggle={toggleView}
+        onAdd={openCatalogSheet}
       />
 
       {/* v2.3.0 — banner condicional de verificación. Sustituye la inner tab
           'Verificar' que estaba vacía 80% del tiempo. Si no hay nada, 0px. */}
       <VerifyBanner
-        pendingLogs={partnerPendingLogs.map((l) => ({
-          id: l.id,
-          taskId: l.taskId,
-          taskName: l.taskName ?? '',
-          pointsFinal: l.pointsFinal,
-          completedBy: l.completedBy,
-        }))}
+        pendingLogs={verifyBannerLogs}
         onVerify={(log) => handleVerify(log as any)}
       />
 
@@ -769,67 +498,11 @@ export default function Tasks() {
         </div>
       ) : view === 'week' ? (
         // ── SEMANA VIEW (canvas 15 S03) ──
-        <div className="-mx-4">{/* anular el wrapper px-4 para que WeekStrip ocupe todo el ancho */}
-          <div className="flex items-center justify-between px-6 py-2 mb-2">
-            <button
-              onClick={() => { const d = new Date(weekStart); d.setDate(d.getDate() - 7); setWeekStart(d) }}
-              className="text-text-secondary hover:text-text-primary px-2 py-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber"
-              aria-label="Semana anterior"
-            >
-              ‹
-            </button>
-            <span className="text-xs font-bold text-text-secondary">
-              {weekStart.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} –{' '}
-              {new Date(weekStart.getTime() + 6 * 86400000).toLocaleDateString('es-ES', {
-                day: 'numeric', month: 'short', year: 'numeric',
-              })}
-            </span>
-            <button
-              onClick={() => { const d = new Date(weekStart); d.setDate(d.getDate() + 7); setWeekStart(d) }}
-              className="text-text-secondary hover:text-text-primary px-2 py-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber"
-              aria-label="Semana siguiente"
-            >
-              ›
-            </button>
-          </div>
-
-          {/* v2.3.3 — WeekStrip 7 días (canvas 15) */}
-          {(() => {
-            const todayIso = new Date().toISOString().slice(0, 10)
-            const dayLetters = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
-            const days = Array.from({ length: 7 }, (_, i) => {
-              const d = new Date(weekStart)
-              d.setDate(d.getDate() + i)
-              const iso = d.toISOString().slice(0, 10)
-              const tasksOnDay = filteredTasks.filter((t) => {
-                if (!t.scheduledFor) return false
-                return new Date(t.scheduledFor).toISOString().slice(0, 10) === iso
-              })
-              const pip: 'amber' | 'spend' | 'both' | null =
-                tasksOnDay.length > 0 ? 'amber' : null
-              return {
-                dn: dayLetters[i],
-                dd: d.getDate(),
-                iso,
-                today: iso === todayIso,
-                pip,
-              }
-            })
-            return (
-              <WeekStrip
-                days={days}
-                onDayClick={(iso) => {
-                  const el = document.getElementById(`day-${iso}`)
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
-                }}
-              />
-            )
-          })()}
-
-          <div className="px-4">
-            <WeeklyTaskView weekStart={weekStart} />
-          </div>
-        </div>
+        <TasksWeekView
+          weekStart={weekStart}
+          onWeekStartChange={setWeekStart}
+          filteredTasks={filteredTasks}
+        />
       ) : (
         // ── LISTA VIEW ──
         <>
@@ -838,204 +511,33 @@ export default function Tasks() {
             <div className="space-y-4">
               <CategoryFilterStrip value={cat} onChange={setCat} />
 
-              {myPendingLogs.length > 0 && (
-                <div className="p-3 rounded-md bg-warn/10 border border-warn/30">
-                  <p className="text-sm font-semibold text-warn mb-2 inline-flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    Mis tareas pendientes de verificación ({myPendingLogs.length})
-                  </p>
-                  <div className="space-y-1.5">
-                    {myPendingLogs.map((log) => (
-                      <div key={log.id} className="bg-surface-card rounded-md px-3 py-2 border border-brd-subtle">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-base">{CATEGORY_EMOJI[log.taskCategory?.toLowerCase()] || '✅'}</span>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-text-primary truncate">{log.taskName}</p>
-                              <p className="text-xs text-text-tertiary">{formatLocalDate(log.date)}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 ml-2">
-                            <span className="text-sm font-bold text-warn tabular-nums">+{log.pointsFinal} pts</span>
-                          </div>
-                        </div>
-                        <TaskProofUploader logId={log.id} canEdit={true} compact />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <PendingVerificationList logs={myPendingLogs} />
 
-              {/* Section: Hoy — header refinado canvas 15 (con day stamp + count amber) */}
-              {(() => {
-                const dayLabel = new Date().toLocaleDateString('es-ES', {
-                  weekday: 'short', day: 'numeric', month: 'short',
-                }).replace('.', '')
-                const allDoneToday = todayTasks.length > 0 && myTodayLogs.length >= todayTasks.length
-                const totalMpToday = myTodayLogs.reduce((s, l) => s + Number(l.pointsFinal || 0), 0)
-                const pendingThisWeek = weekNotTodayTasks.length
-                return (
-                  <section>
-                    <div className="flex items-baseline justify-between px-1 pt-3.5 pb-2">
-                      <h3 className="m-0 text-[13px] font-extrabold text-text-primary tracking-tight">
-                        🔥 Hoy
-                        <span className="ml-2 text-xs font-semibold text-text-tertiary">· {dayLabel}</span>
-                      </h3>
-                      <span className="text-[11px] font-bold text-text-tertiary tabular-nums tracking-wide">
-                        <b className="text-brand-amber font-extrabold">{myTodayLogs.length}</b>/{todayTasks.length}
-                      </span>
-                    </div>
-                    {allDoneToday && (
-                      <AllDoneCard totalMpToday={totalMpToday} pendingThisWeek={pendingThisWeek} />
-                    )}
-                  </section>
-                )
-              })()}
+              <TodaySection
+                todayTasks={todayTasks}
+                filteredTasksCount={filteredTasks.length}
+                cat={cat}
+                myTodayLogs={myTodayLogs}
+                myTodayLogsByTask={myTodayLogsByTask}
+                pendingThisWeek={weekNotTodayTasks.length}
+                onLog={setLoggingTask}
+                onDelete={setDeletingTask}
+                onOpenCatalog={openCatalogSheet}
+              />
 
-              {/* Section: Hoy (contenido original mantenido) */}
-              <section>
-                {todayTasks.length === 0 ? (
-                  <div className="rounded-md bg-surface-card border border-brd-subtle p-6 text-center">
-                    {filteredTasks.length === 0 ? (
-                      <ListChecks className="w-9 h-9 mx-auto text-text-tertiary mb-2" />
-                    ) : (
-                      <Sparkles className="w-9 h-9 mx-auto text-brand-purple mb-2" />
-                    )}
-                    <p className="text-sm font-semibold text-text-primary mb-1">
-                      {filteredTasks.length === 0
-                        ? (cat === 'all' ? 'Sin tareas en tu lista' : 'Sin tareas en esta categoría')
-                        : 'Todo al día'}
-                    </p>
-                    <p className="text-xs text-text-secondary mb-3 max-w-xs mx-auto">
-                      {filteredTasks.length === 0
-                        ? (cat === 'all'
-                          ? 'Empieza añadiendo una tarea del catálogo o crea la tuya — se repartirán los puntos según quien la haga.'
-                          : 'Revisa el catálogo más abajo o crea una tarea en esta categoría.')
-                        : 'Las tareas de hoy están completadas o esperando a que tu pareja las verifique.'}
-                    </p>
-                    {filteredTasks.length === 0 && cat === 'all' && (
-                      <Button size="sm" onClick={() => setShowCatalogSheet(true)}>
-                        <span className="inline-flex items-center gap-1">
-                          <Plus className="w-4 h-4" /> Añadir del catálogo
-                        </span>
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {todayTasks.map((task) => {
-                      const myLog = myTodayLogsByTask.get(task.id)
-                      const doneToday = !!myLog
-                      return (
-                        <div key={task.id} className="relative group">
-                          <TaskItemLarge
-                            task={{
-                              id: task.id,
-                              name: task.name,
-                              category: task.category,
-                              pointsBase: task.pointsBase,
-                              isRecurring: (task as any).isRecurring,
-                              scheduledFor: (task as any).scheduledFor,
-                            }}
-                            doneToday={doneToday}
-                            status={myLog?.status}
-                            onMark={() => !doneToday && setLoggingTask(task)}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setDeletingTask(task)}
-                            aria-label={`Borrar ${task.name}`}
-                            className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-surface-card border border-brd-subtle text-text-tertiary hover:text-danger hover:border-danger/40 text-xs flex items-center justify-center shadow-sm"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </section>
+              <WeekSection
+                tasks={weekNotTodayTasks}
+                doneCount={weekDoneCount}
+                myWeekLogsByTaskId={myWeekLogsByTaskId}
+                onLog={setLoggingTask}
+                onDelete={setDeletingTask}
+              />
 
-              {/* Section: Esta semana — header refinado canvas 15 */}
-              {weekNotTodayTasks.length > 0 && (
-                <section>
-                  <div className="flex items-baseline justify-between px-1 pt-3.5 pb-2">
-                    <h3 className="m-0 text-[13px] font-extrabold text-text-primary tracking-tight">📅 Esta semana</h3>
-                    <span className="text-[11px] font-bold text-text-tertiary tabular-nums tracking-wide">
-                      <b className="text-brand-amber font-extrabold">{weekDoneCount}</b>/{weekNotTodayTasks.length}
-                    </span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {weekNotTodayTasks.map((task) => {
-                      const doneThisWeek = myWeekLogsByTaskId.has(task.id)
-                      return (
-                      <div key={task.id} className="relative group">
-                        <TaskItemMedium
-                          task={{
-                            id: task.id,
-                            name: task.name,
-                            category: task.category,
-                            pointsBase: task.pointsBase,
-                            isRecurring: (task as any).isRecurring,
-                            scheduledFor: (task as any).scheduledFor,
-                          }}
-                          doneToday={doneThisWeek}
-                          onMark={() => !doneThisWeek && setLoggingTask(task)}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setDeletingTask(task)}
-                          aria-label={`Borrar ${task.name}`}
-                          className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-surface-card border border-brd-subtle text-text-tertiary hover:text-danger hover:border-danger/40 text-xs flex items-center justify-center shadow-sm"
-                        >
-                          ×
-                        </button>
-                      </div>
-                      )
-                    })}
-                  </div>
-                </section>
-              )}
-
-              {/* Section: Catálogo (collapsed by default) */}
-              {visibleCatalog.length > 0 && (
-                <section>
-                  <button
-                    type="button"
-                    onClick={() => setShowCatalog((v) => !v)}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-md bg-surface-card border border-brd-subtle text-sm font-semibold text-text-primary hover:bg-surface-muted transition-colors"
-                  >
-                    <span>
-                      📚 {showCatalog ? 'Ocultar catálogo' : 'Ver catálogo'}
-                      <span className="ml-1.5 text-xs font-normal text-text-tertiary">
-                        ({visibleCatalog.reduce((s, g) => s + g.tasks.length, 0)} ideas)
-                      </span>
-                    </span>
-                    <span className="text-text-tertiary text-xs">{showCatalog ? '▲' : '▼'}</span>
-                  </button>
-                  {showCatalog && (
-                    <div className="mt-2 rounded-md bg-surface-card border border-brd-subtle overflow-hidden">
-                      {visibleCatalog.map((group) => (
-                        <div key={group.category}>
-                          <div className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wide text-text-tertiary bg-surface-muted border-b border-brd-subtle">
-                            {CATEGORY_EMOJI[group.category]} {CATEGORY_LABEL[group.category]}
-                          </div>
-                          {group.tasks.map((t) => (
-                            <TaskCatalogRow
-                              key={`${group.category}-${t.name}`}
-                              name={t.name}
-                              pts={t.pts}
-                              desc={t.desc}
-                              busy={addingFromCatalog === t.name}
-                              onAdd={() => handleCreateFromCatalog(t.name, group.category, t.pts, t.desc)}
-                            />
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
-              )}
+              <CatalogSection
+                catalog={visibleCatalog}
+                addingFromCatalog={addingFromCatalog}
+                onAdd={handleCreateFromCatalog}
+              />
             </div>
           )}
 
@@ -1047,82 +549,11 @@ export default function Tasks() {
 
           {/* ── HISTORIAL TAB ── */}
           {tab === 'historial' && (
-            <div className="space-y-2">
-              <div className="mb-1">
-                <Segment<'all' | 'mine' | 'partner'>
-                  value={personFilter}
-                  onChange={setPersonFilter}
-                  options={[
-                    { value: 'all', label: 'Todas' },
-                    { value: 'mine', label: 'Mías' },
-                    { value: 'partner', label: 'Pareja' },
-                  ]}
-                />
-              </div>
-              {historyLogs.length === 0 ? (
-                <div className="rounded-md bg-surface-card border border-brd-subtle p-10 text-center">
-                  <History className="w-10 h-10 mx-auto text-text-tertiary mb-2" />
-                  <p className="font-semibold text-text-primary">
-                    {personFilter === 'mine'
-                      ? 'Sin tareas tuyas todavía'
-                      : personFilter === 'partner'
-                        ? 'Sin tareas de tu pareja todavía'
-                        : 'Sin historial todavía'}
-                  </p>
-                  <p className="text-sm text-text-secondary mt-1 max-w-xs mx-auto">
-                    Las tareas verificadas y disputadas se archivan aquí para revisar puntos, disputas y quién hace qué con el tiempo.
-                  </p>
-                  {personFilter !== 'all' && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setPersonFilter('all')}
-                      className="mt-3"
-                    >
-                      Ver todas
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                historyLogs.map((log) => (
-                  <div key={log.id} className="p-3 rounded-md bg-surface-card border border-brd-subtle">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span
-                            className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
-                              log.status === 'verified'
-                                ? 'bg-success/15 text-success border border-success/30'
-                                : 'bg-warn/15 text-warn border border-warn/30'
-                            }`}
-                          >
-                            {log.status === 'verified' ? '✅ Verificada' : '⚠️ Disputada'}
-                          </span>
-                        </div>
-                        <p className="font-medium text-text-primary truncate">{log.taskName}</p>
-                        <p className="text-[11px] text-text-tertiary">
-                          {log.completedBy?.name} · {formatLocalDate(log.date)}
-                          {log.verifiedBy && ` · ✓ ${log.verifiedBy.name}`}
-                        </p>
-                        {log.disputeReason && (
-                          <p className="text-[11px] text-warn mt-0.5">💬 "{log.disputeReason}"</p>
-                        )}
-                      </div>
-                      <div className="ml-3 text-right">
-                        <div
-                          className={`font-bold text-sm tabular-nums ${
-                            log.status === 'verified' ? 'text-success' : 'text-text-tertiary'
-                          }`}
-                        >
-                          {log.status === 'verified' ? `+${log.pointsFinal}` : log.pointsFinal} pts
-                        </div>
-                        <div className="text-[11px] text-text-tertiary">{log.completedBy?.name}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+            <HistoryTab
+              logs={historyLogs}
+              personFilter={personFilter}
+              onPersonFilterChange={setPersonFilter}
+            />
           )}
         </>
       )}

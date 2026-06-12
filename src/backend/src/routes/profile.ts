@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import { requireAuth } from '../lib/requireAuth.js'
 import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 import { UserProfileInput, CoupleProfileInput, OnboardingData } from '../types/v2.js'
@@ -6,6 +7,8 @@ import { MOOD_KEYS } from '../data/moodKeys.js'
 
 const router = Router()
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
+import { parseJsonField } from '../lib/jsonField.js'
 import { getPreferencesForUser, setPreferencesForUser } from '../services/notificationPreferencesService.js'
 
 // v1.6 — Schema canónico para PUT /me. El test hermético en
@@ -32,7 +35,7 @@ router.use(authenticateToken)
  */
 router.post('/user', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
     const data: UserProfileInput = req.body
 
     // Check if user exists
@@ -92,7 +95,7 @@ router.post('/user', async (req: Request, res: Response) => {
       profile,
     })
   } catch (error) {
-    console.error('Error completing user profile:', error)
+    logger.error({ err: error }, 'Error completing user profile')
     res.status(500).json({ error: 'Failed to complete profile' })
   }
 })
@@ -104,7 +107,7 @@ router.post('/user', async (req: Request, res: Response) => {
 router.get('/user/:userId', async (req: Request, res: Response) => {
   try {
     const { userId } = req.params
-    const currentUserId = (req as any).user.id
+    const currentUserId = requireAuth(req).userId
 
     // Users can only view their own profile or partner's profile
     const currentUser = await prisma.user.findUnique({
@@ -130,14 +133,14 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
     // Parse JSON fields
     const parsedProfile = {
       ...profile,
-      taskPreferencesLoves: JSON.parse(profile.taskPreferencesLoves),
-      taskPreferencesDislikes: JSON.parse(profile.taskPreferencesDislikes),
-      workSchedule: profile.workSchedule ? JSON.parse(profile.workSchedule) : null,
+      taskPreferencesLoves: parseJsonField<string[]>(profile.taskPreferencesLoves, []),
+      taskPreferencesDislikes: parseJsonField<string[]>(profile.taskPreferencesDislikes, []),
+      workSchedule: parseJsonField(profile.workSchedule, null),
     }
 
     res.json(parsedProfile)
   } catch (error) {
-    console.error('Error fetching user profile:', error)
+    logger.error({ err: error }, 'Error fetching user profile')
     res.status(500).json({ error: 'Failed to fetch profile' })
   }
 })
@@ -148,7 +151,7 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
  */
 router.post('/couple', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
     const data: CoupleProfileInput = req.body
 
     // Get user's couple
@@ -196,7 +199,7 @@ router.post('/couple', async (req: Request, res: Response) => {
       profile: coupleProfile,
     })
   } catch (error) {
-    console.error('Error completing couple profile:', error)
+    logger.error({ err: error }, 'Error completing couple profile')
     res.status(500).json({ error: 'Failed to complete couple profile' })
   }
 })
@@ -207,7 +210,7 @@ router.post('/couple', async (req: Request, res: Response) => {
  */
 router.get('/couple', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -228,13 +231,13 @@ router.get('/couple', async (req: Request, res: Response) => {
     // Parse JSON fields
     const parsedProfile = {
       ...coupleProfile,
-      cohabitation: coupleProfile.cohabitation ? JSON.parse(coupleProfile.cohabitation) : null,
-      externalServices: coupleProfile.externalServices ? JSON.parse(coupleProfile.externalServices) : null,
+      cohabitation: parseJsonField(coupleProfile.cohabitation, null),
+      externalServices: parseJsonField(coupleProfile.externalServices, null),
     }
 
     res.json(parsedProfile)
   } catch (error) {
-    console.error('Error fetching couple profile:', error)
+    logger.error({ err: error }, 'Error fetching couple profile')
     res.status(500).json({ error: 'Failed to fetch couple profile' })
   }
 })
@@ -247,8 +250,8 @@ router.get('/couple', async (req: Request, res: Response) => {
  * where the user exists but no profile row has been created yet.
  */
 router.put('/me', async (req: Request, res: Response) => {
-  const userId = (req as any).user.id
-  const coupleId = (req as any).user.coupleId
+  const userId = requireAuth(req).userId
+  const coupleId = requireAuth(req).coupleId
 
   const parsed = profileUpdateSchema.safeParse(req.body)
   if (!parsed.success) {
@@ -319,7 +322,7 @@ router.put('/me', async (req: Request, res: Response) => {
 
     res.json({ message: 'Profile updated', profile: result })
   } catch (error) {
-    console.error('Error updating profile:', error)
+    logger.error({ err: error }, 'Error updating profile')
     res.status(500).json({ error: 'Failed to update profile' })
   }
 })
@@ -342,7 +345,7 @@ const moodHistoryQuerySchema = z.object({
 })
 
 router.get('/mood-history', async (req: Request, res: Response) => {
-  const userId = (req as any).user.id
+  const userId = requireAuth(req).userId
 
   const parsed = moodHistoryQuerySchema.safeParse(req.query)
   if (!parsed.success) {
@@ -394,7 +397,7 @@ router.get('/mood-history', async (req: Request, res: Response) => {
 
     res.json({ tz, days, history })
   } catch (e) {
-    console.error('Error fetching mood history:', e)
+    logger.error({ err: e }, 'Error fetching mood history')
     res.status(500).json({ error: 'Failed to fetch mood history' })
   }
 })
@@ -404,19 +407,19 @@ router.get('/mood-history', async (req: Request, res: Response) => {
 // Quiet hours configurables. Toggles por categoría.
 router.get('/notification-preferences', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.id
+    const userId = req.user?.id
     if (!userId) return res.status(401).json({ error: 'Not authenticated' })
     const prefs = await getPreferencesForUser(userId)
     res.json({ preferences: prefs })
   } catch (e) {
-    console.error('[notification-preferences GET] error:', e)
+    logger.error({ err: e }, '[notification-preferences GET] error')
     res.status(500).json({ error: 'Failed to fetch preferences' })
   }
 })
 
 router.put('/notification-preferences', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.id
+    const userId = req.user?.id
     if (!userId) return res.status(401).json({ error: 'Not authenticated' })
     const body = req.body ?? {}
     // Defensive: validar estructura mínima
@@ -433,7 +436,7 @@ router.put('/notification-preferences', async (req: Request, res: Response) => {
     const saved = await setPreferencesForUser(userId, next)
     res.json({ preferences: saved })
   } catch (e) {
-    console.error('[notification-preferences PUT] error:', e)
+    logger.error({ err: e }, '[notification-preferences PUT] error')
     res.status(500).json({ error: 'Failed to save preferences' })
   }
 })

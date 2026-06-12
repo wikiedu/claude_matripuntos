@@ -2,6 +2,8 @@
 import express, { Request, Response } from 'express'
 import { authenticateToken } from '../middleware/auth.js'
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
+import { parseJsonField } from '../lib/jsonField.js'
 import { createNotification } from '../services/notificationService.js'
 
 const router = express.Router()
@@ -31,7 +33,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response): Promise<
 
     res.json({ rules: DEFAULT_RULES, proposals })
   } catch (error) {
-    console.error('Error getting rules:', error)
+    logger.error({ err: error }, 'Error getting rules')
     res.status(500).json({ error: 'Failed to get rules' })
   }
 })
@@ -68,7 +70,7 @@ router.post('/propose', authenticateToken, async (req: Request, res: Response): 
     const partner = couple?.users.find(u => u.id !== req.userId)
     const proposerName = couple?.users.find(u => u.id === req.userId)?.name || 'Tu pareja'
     if (partner) {
-      const payloadObj = typeof payload === 'string' ? JSON.parse(payload) : payload
+      const payloadObj = typeof payload === 'string' ? parseJsonField<Record<string, any>>(payload, {}) : payload
       const description = payloadObj.description || payloadObj.name || type
       await createNotification({
         coupleId: req.coupleId,
@@ -81,7 +83,7 @@ router.post('/propose', authenticateToken, async (req: Request, res: Response): 
 
     res.status(201).json(proposal)
   } catch (error) {
-    console.error('Error creating rule proposal:', error)
+    logger.error({ err: error }, 'Error creating rule proposal')
     res.status(500).json({ error: 'Failed to create proposal' })
   }
 })
@@ -124,7 +126,7 @@ router.put('/:id/respond', authenticateToken, async (req: Request, res: Response
 
     // If accepted category proposal — create the category
     if (status === 'accepted' && proposal.type === 'category') {
-      const p = JSON.parse(proposal.payload)
+      const p = parseJsonField<Record<string, any>>(proposal.payload, {})
       await prisma.category.create({
         data: {
           coupleId: req.coupleId,
@@ -140,7 +142,7 @@ router.put('/:id/respond', authenticateToken, async (req: Request, res: Response
 
     // If accepted category_edit — update the category
     if (status === 'accepted' && proposal.type === 'category_edit') {
-      const p = JSON.parse(proposal.payload)
+      const p = parseJsonField<Record<string, any>>(proposal.payload, {})
       const { categoryId, ...fields } = p
       await prisma.category.update({
         where: { id: categoryId },
@@ -163,7 +165,7 @@ router.put('/:id/respond', authenticateToken, async (req: Request, res: Response
 
     res.json(updated)
   } catch (error) {
-    console.error('Error responding to proposal:', error)
+    logger.error({ err: error }, 'Error responding to proposal')
     res.status(500).json({ error: 'Failed to respond to proposal' })
   }
 })

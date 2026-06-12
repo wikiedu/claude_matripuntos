@@ -70,6 +70,7 @@ src/backend/.claude-flow/
 .claude/helpers/
 .claude/skills/
 .claude/settings.json
+.claude/settings.local.json
 .claude/scheduled_tasks.lock
 .mcp.json
 .swarm/

@@ -2,16 +2,8 @@ import { Request, Response, NextFunction } from 'express'
 import { verifyToken } from '../services/authService.js'
 import prisma from '../lib/prisma.js'
 
-// Extend Express Request type to include auth data
-declare global {
-  namespace Express {
-    interface Request {
-      userId?: string
-      coupleId?: string
-      user?: { id: string; coupleId: string }
-    }
-  }
-}
+// El tipado de req.userId/coupleId/user vive en src/types/express.d.ts
+// (augmentación global de Express.Request).
 
 // Audit v1.4 P1-G: cache the per-user lookup so every authed request doesn't
 // hit Prisma just to re-confirm the user still exists. Keyed by userId with

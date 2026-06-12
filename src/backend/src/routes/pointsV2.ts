@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import { requireAuth } from '../lib/requireAuth.js'
 import { z } from 'zod'
 import { Decimal } from '@prisma/client/runtime/library'
 import { authenticateToken } from '../middleware/auth.js'
@@ -6,6 +7,7 @@ import { pointsCalculator } from '../services/pointsCalculator.js'
 
 const router = Router()
 import prisma from '../lib/prisma.js'
+import { logger } from '../lib/logger.js'
 
 // Middleware to ensure user is authenticated
 router.use(authenticateToken)
@@ -25,7 +27,7 @@ const previewSchema = z.object({
 
 router.post('/preview', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
     const data = previewSchema.parse(req.body)
     const user = await prisma.user.findUnique({ where: { id: userId } })
     if (!user?.coupleId) {
@@ -46,7 +48,7 @@ router.post('/preview', async (req: Request, res: Response) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Validation error', details: error.errors })
     }
-    console.error('Error previewing points:', error)
+    logger.error({ err: error }, 'Error previewing points')
     res.status(500).json({ error: 'Failed to preview points' })
   }
 })
@@ -59,7 +61,7 @@ router.post('/preview', async (req: Request, res: Response) => {
  */
 router.post('/calculate', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
     const { eventId } = req.body
 
     if (!eventId) {
@@ -104,7 +106,7 @@ router.post('/calculate', async (req: Request, res: Response) => {
       breakdown,
     })
   } catch (error) {
-    console.error('Error calculating points:', error)
+    logger.error({ err: error }, 'Error calculating points')
     res.status(500).json({ error: 'Failed to calculate points' })
   }
 })
@@ -115,8 +117,8 @@ router.post('/calculate', async (req: Request, res: Response) => {
  */
 router.post('/recalculate/:eventId', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
-    const coupleId = (req as any).user?.coupleId as string | undefined
+    const userId = requireAuth(req).userId
+    const coupleId = req.user?.coupleId as string | undefined
     const { eventId } = req.params
 
     if (!coupleId) {
@@ -170,7 +172,7 @@ router.post('/recalculate/:eventId', async (req: Request, res: Response) => {
       event: updated,
     })
   } catch (error) {
-    console.error('Error recalculating points:', error)
+    logger.error({ err: error }, 'Error recalculating points')
     res.status(500).json({ error: 'Failed to recalculate points' })
   }
 })
@@ -181,7 +183,7 @@ router.post('/recalculate/:eventId', async (req: Request, res: Response) => {
  */
 router.get('/category/:categoryId', async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id
+    const userId = requireAuth(req).userId
     const { categoryId } = req.params
 
     // Get category
@@ -224,7 +226,7 @@ router.get('/category/:categoryId', async (req: Request, res: Response) => {
       },
     })
   } catch (error) {
-    console.error('Error fetching category points:', error)
+    logger.error({ err: error }, 'Error fetching category points')
     res.status(500).json({ error: 'Failed to fetch category' })
   }
 })
