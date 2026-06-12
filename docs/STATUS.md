@@ -1,13 +1,20 @@
 # STATUS — Matripuntos
 
-**Última actualización:** 2026-05-06
-**Versión actual desplegada en producción:** `v2.8.0` · Sprints 1-26 hardening del audit profundo
+**Última actualización:** 2026-06-12
+**Versión actual desplegada en producción:** `v2.9.0` · Refactor profundo opus-4-8
+
+> **Refactor opus-4-8 (2026-06-07 → 2026-06-12)** completado y desplegado: 46 commits.
+> strict:true backend, pino logger, apiClient split, Tasks.tsx descompuesto,
+> V2 negociación deprecada retirada, PWA Fase 1, N+1 batched, parseJsonField,
+> refresh tokens código, E2E harness (4 suites/12 tests), 5 suites unitarias nuevas.
+>
+> **Fase 2 iniciada** — ver `docs/PHASE2_MASTERBRIEF.md` + `docs/TODO_PHASE2.md`.
+> Módulos: Seguridad S0/S1, Performance (bundle 898KB→?), Deuda técnica,
+> Brainstorming features, UX/UI polish, Testing coverage, Architecture.
 
 > **Auditoría 2026-05-05** completada y cerrada: ~255 hallazgos en 12 dominios.
 > Sprints 1-26 (v2.4.0 → v2.8.0) cierran los **25 S0 críticos**, **~85 S1**,
-> **~60 S2** y **~15 S3**. Los items pendientes son específicos de producto
-> (eliminación física de V1 achievements tras frontend migration, decisión
-> sobre couple/pause unilateral o consenso, Render plan starter vs uptime-robot).
+> **~60 S2** y **~15 S3**. Los items pendientes son específicos de producto.
 
 > **Handoff Claude Design 14 canvases iniciales completado al 100%.**
 > **Canvas 15 (Tareas/Actividades rediseño)** desplegado en v2.3.0.
