@@ -85,13 +85,14 @@ function validateEnv(): void {
 }
 validateEnv()
 
-// v2.8.0 audit 02 S2-11 — log de estado del legacy achievement engine.
-// Cuando el frontend deje de leer /api/achievements (V1), se podrá
-// setear LEGACY_ACHIEVEMENTS_ENABLED=false y este log lo confirmará.
-if (process.env.LEGACY_ACHIEVEMENTS_ENABLED === 'false') {
-  logger.info('[boot] legacy V1 achievementEngine OFF — solo V2 (CoupleAchievement) activo.')
+// v2.8.0 audit 02 S2-11 · Fase 2 C.2 — legacy achievement engine V1.
+// El frontend ya solo consume V2 (/achievements/map + /gamification/status),
+// así que desde Fase 2 C.2 el default es OFF. Para reactivar V1 (rollback):
+// setear LEGACY_ACHIEVEMENTS_ENABLED=true en Render.
+if (process.env.LEGACY_ACHIEVEMENTS_ENABLED === 'true') {
+  logger.info('[boot] legacy V1 achievementEngine activo (opt-in, en paralelo a V2).')
 } else {
-  logger.info('[boot] legacy V1 achievementEngine activo (en paralelo a V2). Set LEGACY_ACHIEVEMENTS_ENABLED=false para apagarlo cuando el frontend migre.')
+  logger.info('[boot] legacy V1 achievementEngine OFF (default desde Fase 2 C.2) — solo V2 (CoupleAchievement) activo.')
 }
 
 initSentry()

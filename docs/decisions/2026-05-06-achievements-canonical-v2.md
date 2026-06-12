@@ -39,8 +39,8 @@ catalog-based). V1 queda **deprecado** desde v2.8.0.
 | Fase | Acción | Estado |
 |---|---|---|
 | **1** (v2.8.0) | Marcar `achievementEngine` como `@deprecated` y feature-flag `LEGACY_ACHIEVEMENTS_ENABLED` (default true) en routes | ✅ Aplicado |
-| **2** (post-v2.8) | Migrar frontend: dejar de leer `/api/achievements` (per-user) y usar solo `/api/achievements/map` (V2 unificado) | ⏳ Pendiente |
-| **3** | Setear `LEGACY_ACHIEVEMENTS_ENABLED=false` en Render | ⏳ Pendiente |
+| **2** (post-v2.8) | Migrar frontend: dejar de leer `/api/achievements` (per-user) y usar solo `/api/achievements/map` (V2 unificado) | ✅ Verificado 2026-06-12 (Fase 2 C.2): el frontend solo consume `/achievements/map`, `/gamification/status` y `/gamification-v2/*`. Las funciones V1 del API client (`getAllAchievements`, `getUserAchievements`, `checkAchievements`, `getCoupleStats`, `getCoupleScore`, `getLeaderboard`, `getWeeklySummary`) tenían 0 importadores y se retiraron |
+| **3** | Apagar V1: flag invertido a opt-in (`=== 'true'`) en código — default OFF sin tocar Render. Rollback: `LEGACY_ACHIEVEMENTS_ENABLED=true` | ✅ Aplicado 2026-06-12 (Fase 2 C.2) |
 | **4** | Borrar `achievementEngine.ts`, eliminar endpoints `/api/achievements`, `/api/achievements/user`, `/api/achievements/check` | ⏳ Pendiente |
 | **5** (opcional) | Migración de datos: backfill `CoupleAchievement` desde `UserAchievement` si interesa preservar histórico | ⏳ Decidir |
 

@@ -92,6 +92,47 @@ describe('E2E flujo #2 — crear tarea → completar → verificar → balance',
     expect(Number(txs[0].amount)).toBeCloseTo(pointsFinal, 5)
   })
 
+  it('Fase 2 C.2 — con LEGACY_ACHIEVEMENTS_ENABLED default (OFF), verificar no crea logros V1 y el mapa V2 responde', async () => {
+    const { userA, userB } = couple
+
+    // Flujo mínimo: crear → log → verificar (mismo path que el test de arriba).
+    const createRes = await request(app)
+      .post('/api/tasks')
+      .set(authHeader(userA.token))
+      .send({ name: 'Fregar los platos', category: 'cocina', pointsBase: 2.0 })
+    expect(createRes.status).toBe(201)
+    const taskId: string = createRes.body.task.id
+
+    const logRes = await request(app)
+      .post(`/api/tasks/${taskId}/log`)
+      .set(authHeader(userA.token))
+      .send({ date: new Date().toISOString(), pointsBase: 2.0, modifier: 'none' })
+    expect(logRes.status).toBe(201)
+    const logId: string = logRes.body.taskLog.id
+
+    const verifyRes = await request(app)
+      .put(`/api/tasks/${taskId}/logs/${logId}/verify`)
+      .set(authHeader(userB.token))
+      .send({})
+    expect(verifyRes.status).toBe(200)
+    // El payload V1 `newAchievements` queda vacío con el engine apagado.
+    expect(verifyRes.body.newAchievements ?? []).toHaveLength(0)
+
+    // V1 apagado → 0 filas per-user en UserAchievement.
+    const v1Rows = await prisma.userAchievement.count({
+      where: { userId: { in: [userA.id, userB.id] } },
+    })
+    expect(v1Rows).toBe(0)
+
+    // V2 sigue vivo: el mapa unificado (único endpoint que lee el frontend)
+    // responde 200 con un array.
+    const mapRes = await request(app)
+      .get('/api/achievements/map')
+      .set(authHeader(userA.token))
+    expect(mapRes.status).toBe(200)
+    expect(Array.isArray(mapRes.body)).toBe(true)
+  })
+
   it('impide auto-verificación: el completer no puede verificar su propio log (P0-C)', async () => {
     const { userA } = couple
 

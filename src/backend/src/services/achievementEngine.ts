@@ -3,15 +3,16 @@
  *
  * El sistema canónico es V2: `achievementCheckService.ts` (per-couple
  * `AchievementDefinition` + `CoupleAchievement`) + `achievementEngineV2.ts`
- * (catálogo declarativo). Esta clase persiste solo porque el frontend
- * sigue leyendo `/api/achievements` (V1) y `/api/achievements/user`.
+ * (catálogo declarativo).
  *
  * Plan de eliminación:
- *   1. Migrar frontend a `/api/achievements/map` (V2 unificado).
- *   2. Setear `LEGACY_ACHIEVEMENTS_ENABLED=false` en Render para
- *      apagar las llamadas desde routes.
+ *   1. ✅ (Fase 2 C.2, 2026-06-12) Frontend verificado: solo consume
+ *      `/api/achievements/map` (V2 unificado).
+ *   2. ✅ (Fase 2 C.2) Flag invertido a opt-in: V1 solo corre con
+ *      `LEGACY_ACHIEVEMENTS_ENABLED=true`. Default OFF.
  *   3. Eliminar `achievementEngine.ts` + endpoints `/api/achievements`,
- *      `/api/achievements/user`, `/api/achievements/check`.
+ *      `/api/achievements/user`, `/api/achievements/check`
+ *      (tras un ciclo en prod sin reactivar el flag).
  *   4. Migración de datos: backfill `CoupleAchievement` desde
  *      `UserAchievement` si hace falta preservar histórico.
  *

@@ -26,7 +26,7 @@
 ### MÓDULO C — Deuda técnica (prioridad 3)
 - [x] **C.0** (nuevo, hallazgo B.1) `AnalyticsChart.tsx` + `recharts` dead code *(2026-06-12 — componente borrado, recharts desinstalado, CLAUDE.md §2/§3 limpio, tsc + build verdes)*
 - [x] **C.1** `negotiationEngine.ts` retirado *(2026-06-12 — 0 consumidores verificados en src/routes/frontend/scripts/packages; borrado servicio + test file con OK explícito del usuario [estaba en lista NO TOCAR]; type-check 0 + e2e 5/17 verdes)*
-- [ ] **C.2** Mapear consumidores achievements V1 vs V2 → plan flag `LEGACY_ACHIEVEMENTS_ENABLED=false`
+- [x] **C.2** Achievements V1→V2 *(2026-06-12 — mapeo: frontend solo consume V2 (/achievements/map + /gamification/status + /gamification-v2); 0 consumidores V1. Flag invertido a opt-in (`=== 'true'`, default OFF) en taskRoutes/negotiationRoutes/server.ts. API client frontend: 7 funciones V1 muertas retiradas. ADR + STATUS.md actualizados. E2E nuevo: verify no crea UserAchievement + map V2 responde → baseline 5/18. PENDIENTE MANUAL: `.env.example:55` dice `=true`, bloqueado por permisos — cambiar a `false` a mano)*
 - [ ] **C.3** ErrorBoundary global en `App.tsx` o `AuthedLayout.tsx`
 - [ ] **C.4** Remaining explicit `any` en backend + frontend críticos
 - [ ] **C.5** Plan migración `invitations.ts` V2 → doc en bloqueos

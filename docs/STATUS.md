@@ -32,7 +32,7 @@
 ### v2.8.0 Sprint 26 — achievements V2 canonical — **2026-05-06**
 - **ADR docs/decisions/2026-05-06-achievements-canonical-v2.md**: V2 (per-couple) declarado canónico, V1 (per-user) deprecado (audit 02 S2-11)
 - **achievementEngine.ts**: bloque @deprecated explícito + plan de eliminación
-- **routes**: V1 calls detrás de feature flag `LEGACY_ACHIEVEMENTS_ENABLED` (default true). Cuando frontend migre, bastará setear false en Render
+- **routes**: V1 calls detrás de feature flag `LEGACY_ACHIEVEMENTS_ENABLED`. *(Actualización Fase 2 C.2, 2026-06-12: frontend verificado solo-V2 → flag invertido a opt-in, default OFF. Rollback: `LEGACY_ACHIEVEMENTS_ENABLED=true` en Render)*
 - **server.ts boot log**: indica el estado del flag
 
 ### v2.7.7 Sprint 25 — empty states + memo + iOS safe-area — **2026-05-06**

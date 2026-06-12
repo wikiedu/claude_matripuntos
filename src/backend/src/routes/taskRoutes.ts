@@ -545,13 +545,13 @@ router.put('/:taskId/logs/:logId/verify', authMiddleware, async (req: Request, r
       })
     }
 
-    // v2.8.0 audit 02 S2-11 — trigger del engine V1 (per-user) detrás de
-    // un feature flag. El sistema canónico es V2 (achievementCheckService
-    // + achievementEngineV2 catalog-based). V1 sigue activo por defecto
-    // hasta que el frontend deje de leer /api/achievements/user. Para
-    // matar V1: setear LEGACY_ACHIEVEMENTS_ENABLED=false en Render.
+    // v2.8.0 audit 02 S2-11 · Fase 2 C.2 — trigger del engine V1 (per-user)
+    // detrás de un feature flag, ahora OPT-IN. El sistema canónico es V2
+    // (achievementCheckService + achievementEngineV2 catalog-based) y el
+    // frontend ya no lee /api/achievements/user. Rollback: setear
+    // LEGACY_ACHIEVEMENTS_ENABLED=true en Render.
     let newAchievements: any[] = []
-    if (taskLog.completedBy && process.env.LEGACY_ACHIEVEMENTS_ENABLED !== 'false') {
+    if (taskLog.completedBy && process.env.LEGACY_ACHIEVEMENTS_ENABLED === 'true') {
       newAchievements = await achievementEngine.checkAchievements(
         taskLog.completedBy,
         req.coupleId,

@@ -1,4 +1,8 @@
 // Dominio gamificación: status, logros y mapa de achievements.
+// Fase 2 C.2 — retiradas las funciones V1 (getAllAchievements,
+// getUserAchievements, checkAchievements, getCoupleStats, getCoupleScore,
+// getLeaderboard, getWeeklySummary): 0 importadores; varias apuntaban a
+// endpoints inexistentes. El sistema canónico es V2 (/achievements/map).
 import type { GamificationStatus, AchievementMapNode } from '../../types/index'
 import { http } from './http'
 
@@ -6,29 +10,6 @@ import { http } from './http'
 export const gamification = {
   getStatus: (): Promise<GamificationStatus> =>
     http.request('/gamification/status'),
-
-  getAllAchievements: () =>
-    http.request('/achievements'),
-
-  getUserAchievements: () =>
-    http.request('/achievements/user/my-achievements'),
-
-  checkAchievements: () =>
-    http.request('/achievements/check', {
-      method: 'POST',
-    }),
-
-  getCoupleStats: () =>
-    http.request('/achievements/couple/stats'),
-
-  getCoupleScore: () =>
-    http.request('/achievements/couple/score'),
-
-  getLeaderboard: (limit: number = 10) =>
-    http.request(`/achievements/leaderboard?limit=${limit}`),
-
-  getWeeklySummary: () =>
-    http.request('/achievements/weekly-summary'),
 }
 
 // Achievements map endpoints (v1.2)
