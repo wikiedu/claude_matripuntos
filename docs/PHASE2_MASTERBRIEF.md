@@ -14,10 +14,15 @@
 
 ### Flujo de sesión
 1. **Arranque**: `/model <max>` + `/effort high`. Lee este archivo + `docs/TODO_PHASE2.md`.
-2. **No explores el repo a ciegas**: lee solo los archivos citados en el módulo activo.
-3. **Checkpoint al 75% de contexto**: commit de lo que esté verde → anota en `docs/TODO_PHASE2.md` → `/clear`.
-4. **Una pieza lógica por commit**: `type-check 0 + test:e2e 12 verdes` antes de cada commit.
-5. **Si te bloqueas**: anota bloqueo en `docs/TODO_PHASE2.md` y para. No improvises arquitectura.
+2. **Contexto de proyecto** — CLAUDE.md se carga automáticamente en Claude Code. Si necesitas
+   más detalle de features/roadmap (Módulos D y E), lee explícitamente:
+   - `CLAUDE.md §1` (qué es Matripuntos), `§7` (puntos), `§8` (reglas de negocio), `§9` (versiones)
+   - `docs/STATUS.md` (estado en producción), `docs/ROADMAP.md` (lo que viene)
+   - Para los demás módulos (A/B/C/F): con este brief + archivos citados es suficiente.
+3. **No explores el repo a ciegas**: lee solo los archivos citados en el módulo activo.
+4. **Checkpoint al 75% de contexto**: commit de lo que esté verde → anota en `docs/TODO_PHASE2.md` → `/clear`.
+5. **Una pieza lógica por commit**: `type-check 0 + test:e2e 12 verdes` antes de cada commit.
+6. **Si te bloqueas**: anota bloqueo en `docs/TODO_PHASE2.md` y para. No improvises arquitectura.
 
 ### Comandos de verificación (idénticos para TODO el trabajo)
 ```bash
@@ -647,12 +652,25 @@ C.2, C.3, C.4, C.5 en ese orden.
 ### Sesión 4 (Módulo D — Brainstorming)
 ```
 Tarea: Módulo D — Brainstorming de features y mejoras.
+
+CONTEXTO NECESARIO para esta sesión — lee en este orden antes de empezar:
+1. docs/PHASE2_MASTERBRIEF.md §5 (Módulo D con los 8 puntos de análisis)
+2. CLAUDE.md §1 (qué es Matripuntos), §3 (estructura de código),
+   §7 (sistema de puntos), §8 (reglas de negocio), §9 (versiones y roadmap)
+3. docs/STATUS.md (estado en producción)
+4. docs/ROADMAP.md (si existe, para contexto de qué viene)
+
 Esta sesión NO escribe código. Escribe docs/PHASE2_FEATURE_PROPOSALS.md con:
-- Análisis de cada punto D.1-D.8
-- Para cada uno: situación actual, problema identificado, 2-3 propuestas con pros/contras,
-  esfuerzo estimado (S/M/L), recomendación
-- Al final: ranking de las 5 propuestas más impactantes con plan de implementación resumido
-No hagas commits de código. Solo el doc.
+- Análisis de cada punto D.1-D.8 (flujo negociación, gamificación, push,
+  analytics, realtime, puntos, onboarding, features nuevas)
+- Para cada uno: situación actual, problema identificado, 2-3 propuestas con
+  pros/contras y esfuerzo S/M/L, recomendación final razonada
+- Sección de brainstorming libre: propuestas que no estaban en los D.x
+  (inspiradas en el roadmap, el stack, los usuarios, el contexto)
+- Ranking final: top 5 propuestas más impactantes con plan de implementación
+  resumido (qué archivos, qué sprint, qué dependencias)
+
+Un solo commit al cerrar: docs(phase2): feature proposals v1
 ```
 
 ### Sesión 5 (Módulo E — UX/UI)
