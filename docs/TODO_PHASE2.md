@@ -24,7 +24,7 @@
 - [x] **B.4** Fuentes Inter latin+latin-ext *(2026-06-12, commit 8922f71 — 35 woff2→10, precache 1549→1361 KiB)*
 
 ### MÓDULO C — Deuda técnica (prioridad 3)
-- [ ] **C.0** (nuevo, hallazgo B.1) `AnalyticsChart.tsx` + dependencia `recharts` son dead code — 0 importadores. Borrar componente + `npm uninstall recharts` + quitar de CLAUDE.md §2
+- [x] **C.0** (nuevo, hallazgo B.1) `AnalyticsChart.tsx` + `recharts` dead code *(2026-06-12 — componente borrado, recharts desinstalado, CLAUDE.md §2/§3 limpio, tsc + build verdes)*
 - [ ] **C.1** Confirmar 0 consumidores de `negotiationEngine.ts` → borrar archivo + test file
 - [ ] **C.2** Mapear consumidores achievements V1 vs V2 → plan flag `LEGACY_ACHIEVEMENTS_ENABLED=false`
 - [ ] **C.3** ErrorBoundary global en `App.tsx` o `AuthedLayout.tsx`

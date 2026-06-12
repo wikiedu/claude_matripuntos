@@ -28,7 +28,7 @@ App web gamificada para parejas: gestión equitativa de responsabilidades del ho
 - React 18 + TypeScript + Vite
 - Tailwind CSS + Lucide React
 - Zustand (global state) · React Query (server state)
-- Recharts (analytics charts)
+- Charts: SVG custom (recharts retirado en Fase 2 C.0)
 
 **Backend** (`src/backend/`) — Puerto 3000
 - Node.js + Express + TypeScript (ESM, `node --loader ts-node/esm`)
@@ -78,7 +78,6 @@ pages/                      # Una página por ruta de React Router
 
 components/                 # Raíz: legacy/transversales aún en uso
   Alert.tsx                 # Banner de alerta
-  AnalyticsChart.tsx        # Wrapper Recharts
   CookieConsentBanner.tsx   # Consentimiento de cookies (GDPR)
   EventNegotiationCard.tsx  # Card de negociación de evento (legacy)
   Footer.tsx · RuleProposalCard.tsx · TaskScheduleForm.tsx · WeeklyTaskView.tsx

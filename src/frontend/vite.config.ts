@@ -68,8 +68,7 @@ export default defineConfig({
       output: {
         // Fase 2 B.1 — vendors pesados en chunks propios y cacheables:
         // cambian con mucha menos frecuencia que el código de la app.
-        // Nota: recharts NO va aquí — su único consumidor (AnalyticsChart.tsx)
-        // es dead code sin importadores; los charts reales son SVG custom.
+        // (recharts retirado en C.0 — los charts reales son SVG custom)
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-query': ['@tanstack/react-query'],
