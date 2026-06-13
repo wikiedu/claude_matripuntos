@@ -279,6 +279,15 @@ export const EventNegotiationCard = ({
           </div>
         )}
 
+        {/* E.6 Fase 2 — link al detalle SIEMPRE disponible. Los dos branches
+            de status 'pending' ya lo incluyen arriba; cubrimos el resto:
+            draft (creador o no), finalizados y estados legacy. */}
+        {event.status !== 'pending' && (
+          <Button variant="outline" fullWidth onClick={goToDetail}>
+            Ver detalle de la actividad
+          </Button>
+        )}
+
         {/* Historial */}
         {negs.length > 0 && (
           <Button

@@ -18,14 +18,17 @@ describe('useMoodVigent', () => {
     expect(result.current).toBeNull()
   })
 
-  it('returns mood when updated <24h ago', () => {
-    const recent = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
+  // v2.0.7 — el contrato es "vigente solo si moodUpdatedAt es HOY (día local)".
+  // ANTES este test usaba "hace 12h", que cruza medianoche si la suite corre
+  // antes de las 12:00 → flaky. Usamos `new Date()` (ahora) que siempre es hoy.
+  it('returns mood when updated today', () => {
+    const recent = new Date().toISOString()
     const { result } = renderHook(() => useMoodVigent('feliz', recent))
     expect(result.current?.key).toBe('feliz')
     expect(result.current?.emoji).toBe('😊')
   })
 
-  it('returns null when updated >=24h ago', () => {
+  it('returns null when updated on a previous day', () => {
     const old = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString()
     const { result } = renderHook(() => useMoodVigent('feliz', old))
     expect(result.current).toBeNull()

@@ -18,6 +18,7 @@ import { BottomSheet } from '../components/v2/primitives/BottomSheet'
 import { Button } from '../components/v2/primitives/Button'
 import { EventNegotiationCard } from '../components/EventNegotiationCard'
 import { CalendarV2Section } from '../components/v2/calendar/CalendarV2Section'
+import { useCalendarEntries, type CalendarEntry } from '../hooks/useCalendarV2'
 import { toLocalDateString } from '../utils/dateUtils'
 
 // ─── Inline ISO week helpers (per spec) ───────────────────────────────────────
@@ -166,6 +167,52 @@ export const Calendar: React.FC = () => {
     [events, taskLogPseudoEvents],
   )
 
+  // E.6 Fase 2 — entradas Calendar 360 (services recurrentes, cumpleaños,
+  // festivos) del mes visible. Antes solo aparecían en la lista unificada del
+  // final (CalendarV2Section, próximos 30 días); ahora también pintan en el
+  // MonthGrid y en el drawer del día seleccionado. Excluimos event/task para
+  // no duplicar lo que ya viene de events + taskLogs.
+  const monthFromISO = useMemo(() => new Date(year, month - 1, 1).toISOString(), [year, month])
+  const monthToISO = useMemo(
+    () => new Date(year, month, 0, 23, 59, 59, 999).toISOString(),
+    [year, month],
+  )
+  const v2EntriesQuery = useCalendarEntries({
+    from: monthFromISO,
+    to: monthToISO,
+    types: ['service', 'birthday', 'holiday'],
+  })
+  const v2Entries = useMemo<CalendarEntry[]>(
+    () =>
+      (v2EntriesQuery.data?.entries ?? []).filter((e) =>
+        ['service', 'birthday', 'holiday'].includes(e.type),
+      ),
+    [v2EntriesQuery.data],
+  )
+
+  // Pseudo-events display-only para el MonthGrid (mismo patrón que taskLogs):
+  // el tipo se mapea a emoji en MonthGrid (🧹/🎂/🏖️); no son tappables como
+  // negociación porque el drawer solo renderiza EventCardV2 con Events reales.
+  const v2PseudoEvents = useMemo<AppEvent[]>(
+    () =>
+      v2Entries.map((e) => ({
+        id: `cal-${e.id}`,
+        coupleId: (couple?.id ?? '') as string,
+        createdBy: '',
+        type: e.type,
+        title: e.title,
+        dateStart: e.date,
+        dateEnd: e.endDate ?? e.date,
+        status: 'accepted',
+      })) as AppEvent[],
+    [v2Entries, couple?.id],
+  )
+
+  const monthGridEntries = useMemo(
+    () => [...calendarEntries, ...v2PseudoEvents],
+    [calendarEntries, v2PseudoEvents],
+  )
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
   }
@@ -200,6 +247,11 @@ export const Calendar: React.FC = () => {
   // don't appear empty in the drawer. Not tappable (they are not Events).
   const tasksOnSelected = selectedDate
     ? (logsRes?.logs ?? []).filter((l) => !!l.date && toLocalDateString(l.date) === selectedDate)
+    : []
+
+  // E.6 — entradas Calendar 360 del día seleccionado (display-only rows).
+  const v2OnSelected = selectedDate
+    ? v2Entries.filter((e) => !!e.date && toLocalDateString(e.date) === selectedDate)
     : []
 
   // Events in the current ISO week (monday..sunday of currentDate)
@@ -320,7 +372,7 @@ export const Calendar: React.FC = () => {
               <MonthGrid
                 year={year}
                 month={month}
-                events={calendarEntries}
+                events={monthGridEntries}
                 selectedDate={selectedDate}
                 onSelect={setSelectedDate}
                 onLongPress={handleLongPress}
@@ -337,7 +389,9 @@ export const Calendar: React.FC = () => {
                       }).format(new Date(`${selectedDate}T00:00:00`))}
                     </span>
                   </h2>
-                  {eventsOnSelected.length === 0 && tasksOnSelected.length === 0 ? (
+                  {eventsOnSelected.length === 0 &&
+                  tasksOnSelected.length === 0 &&
+                  v2OnSelected.length === 0 ? (
                     <div className="rounded-md bg-surface-card border border-brd-subtle p-6 text-center">
                       <p className="text-sm text-text-secondary">Sin actividad este día</p>
                     </div>
@@ -347,7 +401,7 @@ export const Calendar: React.FC = () => {
                     // the drawer instead of pushing the rest of the page down.
                     <div
                       className={`space-y-3 ${
-                        eventsOnSelected.length + tasksOnSelected.length > 6
+                        eventsOnSelected.length + tasksOnSelected.length + v2OnSelected.length > 6
                           ? 'max-h-[22rem] overflow-y-auto pr-1'
                           : ''
                       }`}
@@ -361,6 +415,18 @@ export const Calendar: React.FC = () => {
                               onTap={() => setSelectedEvent(ev)}
                             />
                           ))}
+                        </div>
+                      )}
+                      {v2OnSelected.length > 0 && (
+                        <div>
+                          <p className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wide mb-1.5">
+                            Agenda del hogar ({v2OnSelected.length})
+                          </p>
+                          <div className="space-y-1.5">
+                            {v2OnSelected.map((e) => (
+                              <CalendarEntryRow key={e.id} entry={e} />
+                            ))}
+                          </div>
                         </div>
                       )}
                       {tasksOnSelected.length > 0 && (
@@ -462,6 +528,37 @@ export const Calendar: React.FC = () => {
       {/* v2.0.1.x — Calendar 360 unificado: services + birthdays + holidays + Google */}
       <CalendarV2Section />
     </main>
+  )
+}
+
+// E.6 — non-interactive row for a Calendar 360 entry (service/birthday/holiday)
+// on the selected day. Mirrors TaskLogRow styling.
+const V2_ENTRY_META: Record<string, { emoji: string; label: string }> = {
+  service: { emoji: '🧹', label: 'Servicio' },
+  birthday: { emoji: '🎂', label: 'Cumpleaños' },
+  holiday: { emoji: '🏖️', label: 'Festivo' },
+}
+
+function CalendarEntryRow({ entry }: { entry: CalendarEntry }) {
+  const meta = V2_ENTRY_META[entry.type] ?? { emoji: '📅', label: 'Evento' }
+  const timeLabel = !entry.allDay
+    ? new Date(entry.date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+    : null
+  return (
+    <div className="flex items-center gap-3 p-2.5 rounded-lg bg-surface-card border border-brd-subtle">
+      <div className="w-9 h-9 rounded-md bg-surface-muted border border-brd-subtle flex items-center justify-center text-base flex-shrink-0">
+        {meta.emoji}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold text-text-primary truncate">{entry.title}</div>
+        <div className="text-[11px] text-text-secondary truncate">{meta.label}</div>
+      </div>
+      {timeLabel && (
+        <div className="text-[11px] font-semibold text-text-secondary tabular-nums flex-shrink-0">
+          {timeLabel}
+        </div>
+      )}
+    </div>
   )
 }
 

@@ -43,12 +43,12 @@
   - D.8 Features nuevas (modo vacaciones, acuerdos recurrentes, widget, export PDF, modo solo)
 
 ### MÓDULO E — UX/UI polish (prioridad 5)
-- [ ] **E.1** Empty states audit: Shopping, Todos, Notifications, Achievements tabs
-- [ ] **E.2** PWA install prompt: `beforeinstallprompt` + banner manual iOS
-- [ ] **E.3** Accessibility: aria-labels en BottomNav, FabActionSheet, modales
-- [ ] **E.4** Loading skeletons: audit adoption de `Skeleton` primitive en Activities, Calendar, Analytics, Achievements
-- [ ] **E.5** `Settings.tsx` — organizar + añadir sección "Notificaciones Push" con toggle `useWebPush().subscribe()`
-- [ ] **E.6** Calendar day view UX + link EventCard → ActivityDetail
+- [x] **E.1** Empty states audit *(2026-06-12, commit 302ae3d — patrón Journal v2.7.7 [emoji + título + sub + CTA] aplicado a Shopping [focus input], Todos mine+shared [focus input], Notifications [título + CTA "Ver todas" en filtro vacío], HistoryTab achievements. RankingTab y banner de Achievements page ya estaban OK. tsc 0 + vitest 161 passed/8 preexistentes)*
+- [x] **E.2** PWA install prompt *(2026-06-12, commit a55c2f9 — lib/installPrompt.ts [captura pre-React en main.tsx, useSyncExternalStore] + InstallAppCard en SettingsIndex: botón nativo Chrome/Edge · instrucciones manuales iOS · null si standalone. tsc 0 + build OK + vitest baseline 161/8)*
+- [x] **E.3** Accessibility *(2026-06-12, commit 8383389 — BottomNav/FabActionSheet ya OK de sprints previos; añadido role=dialog+aria-modal+aria-labelledby a 4 sheets custom + 2 modales Settings, aria-labelledby en BottomSheet primitive, role=menuitem en HeaderMenu, focus-visible en FAB. tsc 0 + vitest 161/8)*
+- [x] **E.4** Loading skeletons *(2026-06-12, commit fd53097 — Activities 2 tabs + Achievements: texto→SkeletonList; Calendar: spinner→skeleton grid; BasicAnalytics: bootstrap skeleton nuevo [antes renderizaba charts con data undefined]. tsc 0 + vitest 161/8)*
+- [x] **E.5** Settings push toggle *(2026-06-12, commit baad809 — PushToggleCard en NotificationsSection: primer consumidor de useWebPush [cierra el eslabón del Módulo H]. Estados subscribed/denied/iOS-no-instalado/unsupported. "Organizar Settings": ya estaba seccionado [SettingsIndex + 9 secciones por ruta], no requería reorganización. tsc 0 + vitest 161/8)*
+- [x] **E.6** Calendar day view UX + link EventCard → ActivityDetail *(2026-06-13 — (1) EventNegotiationCard: botón "Ver detalle de la actividad" en los estados que no lo tenían [draft, accepted/rejected/forced, legacy — el texto legacy decía "gestiónala desde el detalle" sin dar el link]; pending ya lo tenía en ambos branches. (2) Day view: entradas Calendar 360 [service/birthday/holiday] del mes visible ahora pintan en MonthGrid [emojis 🧹🎂🏖️ nuevos] y en el drawer del día como filas display-only "Agenda del hogar" — antes solo salían en la lista unificada del final [próximos 30 días]. WeekStripChart no tocado [chart de puntos]. Crear/editar desde calendario ya estaba OK [botones + long-press]. Bonus: fix test flaky useMoodVigent [usaba "hace 12h" que cruza medianoche antes de las 12:00; contrato v2.0.7 es "hoy local"]. tsc 0 + build OK + vitest 161/8)*
 - [ ] **E.7** Journal: prompt del día visible sin scroll + retrospectivas CTA
 - [ ] **E.8** Dark mode: buscar `bg-white`/`text-black` sin variante `dark:`
 

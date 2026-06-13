@@ -24,6 +24,10 @@ const TYPE_EMOJI: Record<string, string> = {
   cuidado: '👶',
   ocio: '🎉',
   tarea: '✅',
+  // E.6 Fase 2 — entradas Calendar 360 (pseudo-events desde Calendar.tsx)
+  service: '🧹',
+  birthday: '🎂',
+  holiday: '🏖️',
 }
 
 function emojiFor(type: string | undefined): string {
