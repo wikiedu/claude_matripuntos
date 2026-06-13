@@ -72,6 +72,25 @@ export default function Journal() {
     }
   }
 
+  // E.7 Fase 2 — responder al prompt ahora también enfoca el composer
+  // (antes solo cambiaba el placeholder y el user no veía feedback).
+  function answerPrompt() {
+    setUsePrompt(true)
+    document.querySelector<HTMLTextAreaElement>('[data-testid="journal-body"]')?.focus()
+  }
+
+  // E.7 Fase 2 — CTA de retrospectiva: marcarla como vista (antes el endpoint
+  // POST /retrospectives/:id/seen existía pero la UI nunca lo llamaba, así que
+  // la card quedaba "pendiente" indefinidamente).
+  async function markRetroSeen(id: string) {
+    try {
+      await apiClient.request(`/journal/retrospectives/${id}/seen`, { method: 'POST' })
+      queryClient.invalidateQueries({ queryKey: ['journal', 'retrospectives'] })
+    } catch (e: any) {
+      setErr(e?.message ?? 'No se pudo marcar la retrospectiva como vista')
+    }
+  }
+
   function deleteEntry(id: string) {
     setConfirmDeleteId(id)
   }
@@ -107,7 +126,7 @@ export default function Journal() {
           <p className="text-sm text-white/90 italic">{prompt.text}</p>
           <button
             type="button"
-            onClick={() => setUsePrompt(true)}
+            onClick={answerPrompt}
             className="text-[11px] text-amber-400 mt-1.5 underline"
           >
             Responder a esta pregunta →
@@ -131,6 +150,22 @@ export default function Journal() {
               </button>
             ))}
           </div>
+          {/* E.7 — feedback visible de que la entrada responde al prompt de hoy */}
+          {usePrompt && prompt && (
+            <div className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md bg-purple-900/20 border border-purple-500/20">
+              <span className="text-[11px] text-purple-300 truncate">
+                💬 Respondiendo a la pregunta de hoy
+              </span>
+              <button
+                type="button"
+                onClick={() => setUsePrompt(false)}
+                className="text-white/40 text-xs hover:text-white/70 flex-shrink-0"
+                aria-label="Dejar de responder a la pregunta de hoy"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -177,7 +212,7 @@ export default function Journal() {
         <section className="mb-4">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-text-tertiary mb-1.5">Retrospectiva</p>
           {unseenRetros.slice(0, 1).map(r => (
-            <RetrospectiveCard key={r.id} retro={r} />
+            <RetrospectiveCard key={r.id} retro={r} onSeen={() => markRetroSeen(r.id)} />
           ))}
         </section>
       )}
@@ -306,7 +341,7 @@ function EntryCard({ entry, isMine, onReact, onDelete }: {
   )
 }
 
-function RetrospectiveCard({ retro }: { retro: any }) {
+function RetrospectiveCard({ retro, onSeen }: { retro: any; onSeen: () => void }) {
   const data = retro.data ?? {}
   const stats = data.stats ?? {}
   const periodLabel = retro.period === 'week' ? 'semana' : retro.period === 'month' ? 'mes' : 'año'
@@ -321,6 +356,15 @@ function RetrospectiveCard({ retro }: { retro: any }) {
         {stats.moodPredominant && <li>• Mood predominante: {stats.moodPredominant}</li>}
         {stats.isBalanced && <li className="text-emerald-300">• Saldo equilibrado ✓</li>}
       </ul>
+      {/* E.7 — CTA explícito: sin esto la retro quedaba "pendiente" para siempre */}
+      <button
+        type="button"
+        onClick={onSeen}
+        data-testid="journal-retrospective-seen"
+        className="mt-2 text-[11px] font-semibold text-amber-300 underline hover:text-amber-200"
+      >
+        ✓ Marcar como vista
+      </button>
     </div>
   )
 }
