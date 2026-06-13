@@ -40,10 +40,12 @@ import './App.css'
 
 // Fallback de Suspense mientras carga el chunk de una ruta — mismo patrón
 // visual que el estado isLoading de ProtectedRoute.
+// E.8 Fase 2 — la app es dark-only (tokens fijos en tailwind.config); el
+// bg-gray-50 producía un pantallazo blanco al cargar cada chunk lazy.
 function RouteFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
-      <div className="text-gray-500 text-sm">Cargando...</div>
+    <div className="min-h-screen flex items-center justify-center bg-grad-page">
+      <div className="text-text-secondary text-sm">Cargando...</div>
     </div>
   )
 }
@@ -72,10 +74,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, user, couple, logout } = useAppStore()
 
   // While we're checking a stored token, render nothing to avoid a flash redirect
+  // E.8 Fase 2 — bg-gray-50 → tokens dark (pantallazo blanco en cada arranque).
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-500 text-sm">Cargando...</div>
+      <div className="min-h-screen flex items-center justify-center bg-grad-page">
+        <div className="text-text-secondary text-sm">Cargando...</div>
       </div>
     )
   }

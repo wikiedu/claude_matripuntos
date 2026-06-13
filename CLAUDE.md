@@ -77,10 +77,11 @@ pages/                      # Una página por ruta de React Router
                             #   PartnerCatchUp
 
 components/                 # Raíz: legacy/transversales aún en uso
-  Alert.tsx                 # Banner de alerta
   CookieConsentBanner.tsx   # Consentimiento de cookies (GDPR)
+  ErrorBoundary.tsx         # Boundary global (Fase 2 C.3)
   EventNegotiationCard.tsx  # Card de negociación de evento (legacy)
-  Footer.tsx · RuleProposalCard.tsx · TaskScheduleForm.tsx · WeeklyTaskView.tsx
+  Footer.tsx · TaskScheduleForm.tsx · WeeklyTaskView.tsx
+                            # (Alert.tsx y RuleProposalCard.tsx retirados en Fase 2 E.8 — dead code)
   v2/                       # UI nueva, 19 subcarpetas por dominio:
     primitives/             # Design system: Button, Card, Input, Avatar, BottomSheet,
                             #   AlertDialog, ConfirmDialog, Pill, ProgressBar, Skeleton, AvatarPicker

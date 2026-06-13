@@ -31,14 +31,16 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   render() {
     if (!this.state.hasError) return this.props.children
 
+    // E.8 Fase 2 — la app es dark-only (tokens fijos en tailwind.config);
+    // las clases gray/dark: producían un pantallazo light-mode incoherente.
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-grad-page px-4">
         <div className="w-full max-w-[500px] text-center">
           <div className="text-5xl mb-4" aria-hidden="true">😵</div>
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          <h1 className="text-lg font-semibold text-text-primary mb-2">
             Algo ha salido mal
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+          <p className="text-sm text-text-secondary mb-6">
             Se ha producido un error inesperado. Puedes recargar la página o
             volver al inicio — tus datos están a salvo.
           </p>
@@ -52,7 +54,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             </button>
             <a
               href="/dashboard"
-              className="w-full max-w-[280px] px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
+              className="w-full max-w-[280px] px-4 py-2.5 rounded-xl border border-brd-purple text-sm font-medium text-text-primary hover:bg-surface-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
             >
               Ir al inicio
             </a>
