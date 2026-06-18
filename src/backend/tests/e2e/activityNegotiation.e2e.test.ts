@@ -192,4 +192,29 @@ describe('E2E flujo #3 (V1) — proponer → contraoferta → aceptar → balanc
     })
     expect(txs).toHaveLength(0)
   })
+
+  // [p3:A1-2] El proponente de una ronda 'awaiting' no puede resolverla él
+  // mismo (auto-aceptar sin consenso del partner debitaría a event.createdBy).
+  // Mismo criterio que ruleProposals/configurationProposalService.
+  it('self-response: el proponente no puede aceptar su propia ronda (403, sin cobro)', async () => {
+    const { userA } = couple
+
+    const { id: eventId, pointsCalculated } = await createDraftEvent(userA.token)
+    const round1Id = await openNegotiation(userA.token, eventId, pointsCalculated)
+
+    // A propuso la ronda 1 → A intenta aceptarla él mismo.
+    const selfAccept = await request(app)
+      .put(`/api/negotiations/${round1Id}/respond`)
+      .set(authHeader(userA.token))
+      .send({ responseType: 'accepted' })
+    expect(selfAccept.status).toBe(403)
+
+    // El evento sigue pending y NO se generó ninguna PointsTransaction.
+    const ev = await request(app).get(`/api/events/${eventId}`).set(authHeader(userA.token))
+    expect(ev.body.event.status).toBe('pending')
+    const txs = await prisma.pointsTransaction.findMany({
+      where: { relatedEventId: eventId },
+    })
+    expect(txs).toHaveLength(0)
+  })
 })

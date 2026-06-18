@@ -142,6 +142,15 @@ router.put('/:negotiationId/respond', authMiddleware, async (req: Request, res: 
       return
     }
 
+    // The proposer of a round cannot resolve it themselves: accepting/rejecting
+    // a round triggers a PointsTransaction against event.createdBy without the
+    // partner's consent. Consensus requires the *other* user to respond.
+    // Mirrors ruleProposals.ts and configurationProposalService.ts.
+    if (negotiation.proposedBy === req.userId) {
+      res.status(403).json({ error: 'No puedes responder a tu propia propuesta' })
+      return
+    }
+
     if (negotiation.responseType !== 'awaiting') {
       // Stale/stuck states happen for two reasons:
       //   a) Another tab already responded — a newer round may now be awaiting.
