@@ -877,6 +877,13 @@ router.post('/:id/resume', authMiddleware, async (req: Request, res: Response): 
         recurrenceStart: now,
         recurrenceEnd: null,
         scheduledFor: now,
+        // A2-3: recurrenceStart=now reinicia la serie, así que reseteamos el
+        // contador de ocurrencias (igual que POST /:id/schedule). Si no se
+        // resetea, los ciclos pausa/reanuda inflan occurrenceCount y
+        // computeInstancesToCreate calcula remaining = maxOccurrences -
+        // occurrenceCount <= 0, suprimiendo generación legítima sin motivo
+        // visible (la tarea deja de generar placeholders).
+        occurrenceCount: 0,
       },
     })
 
