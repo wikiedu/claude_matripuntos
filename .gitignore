@@ -77,3 +77,7 @@ src/backend/.claude-flow/
 ruvector.db
 .agents/
 skills-lock.json
+
+# graphify knowledge graph output + agent worktrees
+graphify-out/
+.claude/worktrees/
