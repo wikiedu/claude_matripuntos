@@ -3,7 +3,13 @@
 > Este doc es el punto de entrada para una sesión nueva. Si acabas de hacer `/clear`,
 > lee esto y actúa; no necesitas re-explorar nada.
 
-## Estado actual (preparado, sin lanzar todavía)
+## Estado actual: ✅ EJECUTADO Y CERRADO (pendiente QA + merge)
+> Lanzado y completado 2026-06-18 (runId `wf_04e82c27-30e`). 25/34 hallazgos
+> confirmados, **23 fixes commiteados** (`[p3:*]`), 2 no-op correctos, 0 pendientes.
+> Puertas type-check (back+front) y build: OK. Tests backend: sin regresión (6 suites
+> DB-bound son baseline). **Resumen completo y QA en `docs/phase3-audit/COMPLETION.md`.**
+> Pendiente: QA del usuario en browser → merge a `main`.
+
 - **Rama de trabajo:** `refactor/opus-4-8-phase3` (creada desde `main`). Los agentes
   editan y commitean AQUÍ. Se mergea a `main` solo tras QA del usuario en browser.
 - **graphify:** instalado (CLI en `~/.local/bin`, requiere `export PATH="$HOME/.local/bin:$PATH"`).
