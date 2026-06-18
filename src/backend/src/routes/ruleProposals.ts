@@ -1,5 +1,6 @@
 // src/backend/src/routes/ruleProposals.ts
 import express, { Request, Response } from 'express'
+import { z } from 'zod'
 import { authenticateToken } from '../middleware/auth.js'
 import prisma from '../lib/prisma.js'
 import { logger } from '../lib/logger.js'
@@ -7,6 +8,18 @@ import { parseJsonField } from '../lib/jsonField.js'
 import { createNotification } from '../services/notificationService.js'
 
 const router = express.Router()
+
+// Payload tipado para propuestas type='category_edit'. Solo se permiten los
+// campos editables del modelo Category — nunca se escriben `fields` arbitrarios
+// desde el payload (controlado por quien creó la propuesta).
+const categoryEditPayloadSchema = z.object({
+  categoryId: z.string().min(1),
+  name: z.string().min(1).optional(),
+  emoji: z.string().min(1).optional(),
+  type: z.string().min(1).optional(),
+  basePoints: z.coerce.number().optional(),
+  description: z.string().optional(),
+})
 
 const DEFAULT_RULES = [
   { key: 'free_negotiation_rounds', value: 2, description: 'Rondas de negociación gratuitas' },
@@ -141,9 +154,27 @@ router.put('/:id/respond', authenticateToken, async (req: Request, res: Response
     }
 
     // If accepted category_edit — update the category
+    // A5-1 (p3): IDOR cross-couple. El categoryId viene del payload (controlado
+    // por quien creó la propuesta) y debe validarse contra req.coupleId antes de
+    // actualizar; si no, un user puede sobrescribir categorías de OTRA pareja.
+    // Mismo patrón que categories.ts (fix audit 01 S1-R-14) + payload tipado Zod.
     if (status === 'accepted' && proposal.type === 'category_edit') {
-      const p = parseJsonField<Record<string, any>>(proposal.payload, {})
-      const { categoryId, ...fields } = p
+      const raw = parseJsonField<Record<string, any>>(proposal.payload, {})
+      const parsed = categoryEditPayloadSchema.safeParse(raw)
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Invalid category_edit payload' })
+        return
+      }
+      const { categoryId, ...fields } = parsed.data
+
+      const cat = await prisma.category.findFirst({
+        where: { id: categoryId, coupleId: req.coupleId }
+      })
+      if (!cat) {
+        res.status(404).json({ error: 'Category not found' })
+        return
+      }
+
       await prisma.category.update({
         where: { id: categoryId },
         data: fields
