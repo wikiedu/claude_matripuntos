@@ -72,6 +72,22 @@ export default function Journal() {
     }
   }
 
+  // p3 A4-2 — antes las reacciones eran add-only (solo POST /react, idempotente):
+  // pulsar el mismo emoji no hacía nada y no se podía deshacer una reacción puesta
+  // por error. El backend ya exponía DELETE /react?emoji= pero el front nunca lo
+  // llamaba. Ahora EntryCard alterna: si ya reaccioné con ese emoji, lo quita.
+  async function unreact(entryId: string, emoji: string) {
+    try {
+      await apiClient.request(
+        `/journal/entries/${entryId}/react?emoji=${encodeURIComponent(emoji)}`,
+        { method: 'DELETE' },
+      )
+      queryClient.invalidateQueries({ queryKey: ['journal', 'entries'] })
+    } catch (e: any) {
+      setErr(e?.message ?? 'No se pudo quitar la reacción')
+    }
+  }
+
   // E.7 Fase 2 — responder al prompt ahora también enfoca el composer
   // (antes solo cambiaba el placeholder y el user no veía feedback).
   function answerPrompt() {
@@ -244,7 +260,9 @@ export default function Journal() {
               key={e.id}
               entry={e}
               isMine={e.authorId === user?.id}
+              currentUserId={user?.id}
               onReact={(emoji) => react(e.id, emoji)}
+              onUnreact={(emoji) => unreact(e.id, emoji)}
               onDelete={() => deleteEntry(e.id)}
             />
           ))
@@ -264,10 +282,12 @@ export default function Journal() {
   )
 }
 
-function EntryCard({ entry, isMine, onReact, onDelete }: {
+function EntryCard({ entry, isMine, currentUserId, onReact, onUnreact, onDelete }: {
   entry: JournalEntry
   isMine: boolean
+  currentUserId?: string
   onReact: (emoji: string) => void
+  onUnreact: (emoji: string) => void
   onDelete: () => void
 }) {
   // v2.6.1 audit 05 4.3 — `entry.tags` puede ser un JSON malformado (bug
@@ -285,8 +305,10 @@ function EntryCard({ entry, isMine, onReact, onDelete }: {
     }
   })()
   const reactionCounts = new Map<string, number>()
+  const myReactions = new Set<string>()
   for (const r of entry.reactions ?? []) {
     reactionCounts.set(r.emoji, (reactionCounts.get(r.emoji) ?? 0) + 1)
+    if (currentUserId && r.userId === currentUserId) myReactions.add(r.emoji)
   }
 
   return (
@@ -315,26 +337,43 @@ function EntryCard({ entry, isMine, onReact, onDelete }: {
       )}
       {!isMine && entry.shared && (
         <div className="flex gap-1 mt-2 pt-2 border-t border-brd-subtle">
-          {QUICK_REACTIONS.map(emoji => (
-            <button
-              key={emoji}
-              type="button"
-              onClick={() => onReact(emoji)}
-              className="text-base hover:scale-110 transition"
-              aria-label={`Reaccionar con ${emoji}`}
-            >
-              {emoji}
-            </button>
-          ))}
+          {QUICK_REACTIONS.map(emoji => {
+            const mine = myReactions.has(emoji)
+            return (
+              <button
+                key={emoji}
+                type="button"
+                // p3 A4-2 — toggle: si ya reaccioné con este emoji, lo quito.
+                onClick={() => (mine ? onUnreact(emoji) : onReact(emoji))}
+                aria-pressed={mine}
+                className={`text-base hover:scale-110 transition rounded ${mine ? 'scale-110 ring-1 ring-amber-400/60 bg-amber-500/10' : ''}`}
+                aria-label={mine ? `Quitar reacción ${emoji}` : `Reaccionar con ${emoji}`}
+              >
+                {emoji}
+              </button>
+            )
+          })}
         </div>
       )}
       {reactionCounts.size > 0 && (
         <div className="flex flex-wrap gap-1 mt-2">
-          {[...reactionCounts.entries()].map(([emoji, count]) => (
-            <span key={emoji} className="text-[11px] bg-white/10 text-white/80 px-1.5 py-0.5 rounded-full">
-              {emoji} {count}
-            </span>
-          ))}
+          {[...reactionCounts.entries()].map(([emoji, count]) => {
+            const mine = myReactions.has(emoji)
+            return (
+              <button
+                key={emoji}
+                type="button"
+                // p3 A4-2 — la pill de mi propia reacción ahora la puedo retirar
+                // pulsándola; las de la pareja no son interactivas.
+                onClick={mine ? () => onUnreact(emoji) : undefined}
+                disabled={!mine}
+                aria-label={mine ? `Quitar tu reacción ${emoji}` : `${emoji} ${count}`}
+                className={`text-[11px] px-1.5 py-0.5 rounded-full ${mine ? 'bg-amber-500/20 text-amber-200 ring-1 ring-amber-400/40 hover:bg-amber-500/30' : 'bg-white/10 text-white/80 cursor-default'}`}
+              >
+                {emoji} {count}
+              </button>
+            )
+          })}
         </div>
       )}
     </article>
