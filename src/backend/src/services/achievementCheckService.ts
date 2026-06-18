@@ -1,3 +1,4 @@
+import type { Couple } from '@prisma/client'
 import prisma from '../lib/prisma.js'
 import { parseJsonField } from '../lib/jsonField.js'
 import { createCoupleNotification } from './notificationService.js'
@@ -11,7 +12,11 @@ interface AchievementCondition {
 
 async function evaluateCondition(
   condition: AchievementCondition,
-  coupleId: string
+  coupleId: string,
+  // Cached Couple row for this invocation: several branches (daily_streak,
+  // weekly_streak, level_reached, no_forced_events_days fallback) read the SAME
+  // couple. Fetching it once upstream avoids 1 query per matching definition.
+  couple: Couple | null
 ): Promise<{ met: boolean; current: number; target: number }> {
   const target = condition.threshold || condition.days || condition.weeks || 1
 
@@ -23,12 +28,10 @@ async function evaluateCondition(
       return { met: count >= target, current: count, target }
     }
     case 'daily_streak': {
-      const couple = await prisma.couple.findUnique({ where: { id: coupleId } })
       const current = couple?.dailyStreakDays || 0
       return { met: current >= target, current, target }
     }
     case 'weekly_streak': {
-      const couple = await prisma.couple.findUnique({ where: { id: coupleId } })
       const current = couple?.weeklyStreakWeeks || 0
       return { met: current >= target, current, target }
     }
@@ -73,8 +76,7 @@ async function evaluateCondition(
         where: { coupleId, status: 'forced' },
         orderBy: { updatedAt: 'desc' }
       })
-      const referenceDate = lastForced?.updatedAt
-        ?? (await prisma.couple.findUnique({ where: { id: coupleId } }))?.createdAt
+      const referenceDate = lastForced?.updatedAt ?? couple?.createdAt
       if (!referenceDate) return { met: false, current: 0, target }
       const daysSince = Math.floor((Date.now() - referenceDate.getTime()) / (24 * 60 * 60 * 1000))
       const current = Math.min(target, Math.max(0, daysSince))
@@ -83,7 +85,6 @@ async function evaluateCondition(
     case 'level_reached': {
       // v2.1.0 — sistema unificado de 10 niveles (encuentro → mito).
       const levelOrder = ['encuentro', 'confianza', 'compania', 'complicidad', 'refugio', 'raices', 'tribu', 'legado', 'eterno', 'mito']
-      const couple = await prisma.couple.findUnique({ where: { id: coupleId } })
       const currentIdx = levelOrder.indexOf(couple?.level || 'encuentro')
       return { met: currentIdx >= target, current: currentIdx, target }
     }
@@ -102,6 +103,10 @@ export async function checkAllAchievements(coupleId: string): Promise<string[]> 
   })
   const existingMap = new Map(existing.map((ca) => [ca.achievementDefinitionId, ca]))
 
+  // Fetch the couple row once and reuse it across every definition (was
+  // re-fetched inside evaluateCondition on each iteration — N+1 in the hot path).
+  const couple = await prisma.couple.findUnique({ where: { id: coupleId } })
+
   const newlyUnlocked: string[] = []
 
   for (const def of definitions) {
@@ -111,7 +116,7 @@ export async function checkAllAchievements(coupleId: string): Promise<string[]> 
     const condition = parseJsonField<AchievementCondition | null>(def.condition, null)
     if (!condition) continue
 
-    const { met, current, target } = await evaluateCondition(condition, coupleId)
+    const { met, current, target } = await evaluateCondition(condition, coupleId, couple)
     const progressJson = JSON.stringify({ current, target })
 
     if (met) {
@@ -136,7 +141,9 @@ export async function checkAllAchievements(coupleId: string): Promise<string[]> 
         `🏆 ¡Nuevo logro desbloqueado!`,
         `¡Habéis conseguido '${def.name}'! +${def.xpReward} XP`
       )
-    } else {
+    } else if (ca?.progress !== progressJson) {
+      // Only write when the stored progress actually changed. The common case in
+      // the hot path is "progress unchanged" → skip the upsert entirely.
       await prisma.coupleAchievement.upsert({
         where: { coupleId_achievementDefinitionId: { coupleId, achievementDefinitionId: def.id } },
         create: { coupleId, achievementDefinitionId: def.id, progress: progressJson },
