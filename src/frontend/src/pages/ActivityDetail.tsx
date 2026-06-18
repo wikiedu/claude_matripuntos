@@ -237,7 +237,7 @@ export default function ActivityDetail() {
         <Card>
           <div className="flex items-start justify-between mb-4 gap-3">
             <div className="flex-1 min-w-0">
-              <h2 className="text-xl font-extrabold text-text-primary">{event.title || event.type}</h2>
+              <h2 className="text-xl font-extrabold text-text-primary break-words">{event.title || event.type}</h2>
               <p className="text-text-secondary text-sm mt-1">
                 Solicitado por{' '}
                 <strong className="text-text-primary">{event.creator?.name || '?'}</strong>
