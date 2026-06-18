@@ -238,7 +238,7 @@ export function AddTaskFromCatalogSheet({
         role="dialog"
         aria-modal="true"
         aria-label="Añadir tarea"
-        className="w-full sm:max-w-lg bg-surface-card border border-brd-subtle rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 max-h-[92vh] overflow-y-auto"
+        className="w-full sm:max-w-lg bg-surface-card border border-brd-subtle rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 max-h-[92dvh] overflow-y-auto"
         style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
       >
         <div className="flex items-center justify-between mb-3">

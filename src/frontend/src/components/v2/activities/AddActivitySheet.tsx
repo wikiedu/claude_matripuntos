@@ -87,7 +87,7 @@ export function AddActivitySheet({ open, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="add-activity-title"
-        className="w-full sm:max-w-lg bg-surface-card border border-brd-subtle rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 max-h-[92vh] overflow-y-auto"
+        className="w-full sm:max-w-lg bg-surface-card border border-brd-subtle rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 max-h-[92dvh] overflow-y-auto"
         style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
       >
         <div className="flex items-center justify-between mb-3">
@@ -137,7 +137,7 @@ export function AddActivitySheet({ open, onClose }: Props) {
           ))}
         </div>
 
-        <div className="max-h-[55vh] overflow-y-auto space-y-3">
+        <div className="max-h-[55dvh] overflow-y-auto space-y-3">
           {isLoading && (
             <p className="text-sm text-text-tertiary text-center py-6">Cargando catálogo…</p>
           )}
