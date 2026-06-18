@@ -8,14 +8,18 @@ import { apiClient } from '../services/apiClient'
 // v2.0.x — default ON. Solo desactivado con VITE_GAMIFICATION_V2_ENABLED=false explícito.
 const FLAG_ENABLED = (import.meta.env?.VITE_GAMIFICATION_V2_ENABLED ?? 'true') !== 'false'
 
+// Contrato real de GET /api/gamification-v2/level (routes/gamificationV2.ts).
+// El backend NUNCA envía `perks`; sí envía `levelOrdinal`, `emoji` y `progressPct`.
 export interface LevelInfo {
   xp: number
   level: number
+  levelOrdinal: number
   name: string
-  perks: string[]
+  emoji: string
   threshold: number
   nextThreshold: number
   xpToNext: number
+  progressPct: number
 }
 
 export interface StreakInfo {

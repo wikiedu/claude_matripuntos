@@ -3,9 +3,8 @@ import { render, screen } from '@testing-library/react'
 import { LevelBar } from './LevelBar'
 
 const baseLevel = {
-  xp: 200, level: 2, name: 'Amigos',
-  perks: ['theme:tribe'],
-  threshold: 100, nextThreshold: 300, xpToNext: 100,
+  xp: 200, level: 2, levelOrdinal: 2, name: 'Amigos', emoji: '🤝',
+  threshold: 100, nextThreshold: 300, xpToNext: 100, progressPct: 50,
 }
 
 describe('LevelBar', () => {
