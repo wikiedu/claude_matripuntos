@@ -31,11 +31,12 @@ export const points = {
 
   getTransaction: (id: string) => http.request(`/points/transactions/${id}`),
 
-  requestReset: () =>
-    http.request('/points/reset-request', { method: 'POST' }),
-
-  confirmReset: () =>
-    http.request('/points/reset-confirm', { method: 'POST' }),
+  // NOTA (p3:A4-4): los métodos requestReset()/confirmReset() se retiraron de
+  // este cliente por ser huérfanos (ningún componente los invocaba). El backend
+  // mantiene las rutas POST /points/reset-request y /points/reset-confirm, pero
+  // reset-confirm está gated tras POINTS_RESET_ENABLED y devuelve 503 hasta que
+  // ship el flujo de aprobación de v1.5 (ResetRequest + consentimiento firmado).
+  // Cuando ese flujo entre, re-cablear aquí el client + la UI en Settings.
 }
 
 // Points V2 endpoints
