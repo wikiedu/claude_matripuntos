@@ -118,10 +118,24 @@ router.get('/user', authenticateToken, async (req: Request, res: Response): Prom
 
 /**
  * POST /api/achievements/check
- * Manually check and unlock new achievements
+ * Manually check and unlock new achievements (V1 legacy engine).
+ *
+ * [p3:A5-5] Deuda V1: este endpoint no tiene consumidor frontend (el front solo
+ * usa /achievements/map + /gamification/status). Invoca achievementEngine V1,
+ * que ya está OFF por defecto en las rutas de escritura (taskRoutes/negotiationRoutes,
+ * gated por LEGACY_ACHIEVEMENTS_ENABLED). Aquí faltaba ese gate, dejando el motor V1
+ * accesible por API pese al sunset. Lo alineamos con la misma semántica opt-in:
+ * solo activo si LEGACY_ACHIEVEMENTS_ENABLED === 'true'. Por defecto devuelve 410 Gone.
+ * No se borra el endpoint ni el motor: retirada definitiva tras confirmar 0 consumidores
+ * por logs/E2E (ver CLAUDE.md §10 — V2/V1 deprecada se retira con red de seguridad).
  */
 router.post('/check', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {
+    if (process.env.LEGACY_ACHIEVEMENTS_ENABLED !== 'true') {
+      res.status(410).json({ error: 'Legacy achievements engine is disabled' })
+      return
+    }
+
     if (!req.userId || !req.coupleId) {
       res.status(401).json({ error: 'Authentication required' })
       return
