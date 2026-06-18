@@ -58,14 +58,10 @@ async function safeRequest<T>(path: string, fallback: T): Promise<T> {
   }
 }
 
-export function useLevel() {
-  return useQuery({
-    queryKey: ['gamification-v2', 'level'],
-    queryFn: () => safeRequest<LevelInfo | null>('/gamification-v2/level', null),
-    enabled: FLAG_ENABLED,
-    staleTime: 5 * 60_000,
-  })
-}
+// useLevel() retirado en Fase 3 (p3:A4-5): hook muerto sin consumidores tras v2.1.0
+// (BalanceLevelHero muestra el nivel; Achievements usa el endpoint V1 /gamification/status).
+// El tipo LevelInfo se conserva porque LevelBar.tsx lo sigue importando.
+// El endpoint GET /api/gamification-v2/level sigue montado (no se toca runtime backend).
 
 export function useStreak() {
   return useQuery({
