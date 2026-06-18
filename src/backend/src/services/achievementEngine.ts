@@ -2,8 +2,11 @@
  * @deprecated v2.8.0 — Sistema V1 (per-user `Achievement`/`UserAchievement`).
  *
  * El sistema canónico es V2: `achievementCheckService.ts` (per-couple
- * `AchievementDefinition` + `CoupleAchievement`) + `achievementEngineV2.ts`
- * (catálogo declarativo).
+ * `AchievementDefinition` + `CoupleAchievement`, evaluación DB-driven).
+ *
+ * Nota (Fase 3, p3:A5-4): el experimento `achievementEngineV2.ts` (catálogo
+ * declarativo estático en `achievementCatalog.ts`) se retiró por ser dead code
+ * — nunca se cableó al runtime; el motor real es `achievementCheckService.ts`.
  *
  * Plan de eliminación:
  *   1. ✅ (Fase 2 C.2, 2026-06-12) Frontend verificado: solo consume
