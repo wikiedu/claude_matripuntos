@@ -1,3 +1,9 @@
+// DEPRECATED / SUNSET (p3:A5-6): Analytics V1. Su único consumidor frontend
+// (services/api/analytics.ts) ha sido eliminado por dead code; el frontend usa
+// exclusivamente /api/analytics/v2 (useAnalyticsV2). Esta ruta queda montada por
+// ahora siguiendo la regla dura del refactor: las rutas deprecadas se desmontan
+// solo tras confirmar tráfico cero en prod + E2E de Analytics V2 que lo cubra.
+// Retirada pendiente: server.ts (mount + import) cuando se cumplan ambas puertas.
 import { Router, Request, Response } from 'express'
 import { authenticateToken } from '../middleware/auth.js'
 import * as analyticsService from '../services/analyticsService.js'

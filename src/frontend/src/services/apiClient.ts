@@ -14,7 +14,6 @@ import { notifications } from './api/notifications'
 import { profile, family } from './api/profile'
 import { gamification, achievements } from './api/gamification'
 import { calendar } from './api/calendar'
-import { analytics } from './api/analytics'
 import { shopping, todos } from './api/lists'
 
 export const apiClient = {
@@ -46,7 +45,6 @@ export const apiClient = {
   gamification,
   achievements,
   calendar,
-  analytics,
   shopping,
   todos,
 }
