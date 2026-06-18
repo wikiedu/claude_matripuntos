@@ -51,17 +51,33 @@ router.get('/level', readBucket, async (req: Request, res: Response) => {
 })
 
 // GET /api/gamification-v2/streak
+// A4-1 (p3): lee de la MISMA fuente de verdad que V1 (gamification/status):
+// Couple.dailyStreakDays / weeklyStreakWeeks / lastActivityDate, que es lo que
+// updateDailyStreak() escribe realmente. La tabla CoupleStreak nunca se escribe
+// (0 writes en el backend), así que leerla devolvía siempre 0 y ocultaba el
+// badge de racha del Dashboard incluso con racha activa.
 router.get('/streak', readBucket, async (req: Request, res: Response) => {
   const coupleId = req.user?.coupleId as string | undefined
   if (!coupleId) return res.status(400).json({ error: 'No couple' })
 
-  const row = await prisma.coupleStreak.findUnique({ where: { coupleId } })
+  const couple = await prisma.couple.findUnique({
+    where: { id: coupleId },
+    select: {
+      dailyStreakDays: true,
+      weeklyStreakWeeks: true,
+      lastActivityDate: true,
+    },
+  })
+  const daily = couple?.dailyStreakDays ?? 0
+  const weekly = couple?.weeklyStreakWeeks ?? 0
   res.json({
-    daily: row?.dailyStreak ?? 0,
-    weekly: row?.weeklyStreak ?? 0,
-    longestDaily: row?.longestDaily ?? 0,
-    longestWeekly: row?.longestWeekly ?? 0,
-    lastActivityAt: row?.lastActivityAt ?? null,
+    daily,
+    weekly,
+    // Couple no persiste el histórico de récord; usamos la racha actual como
+    // mejor valor disponible (nunca menor que la actual).
+    longestDaily: daily,
+    longestWeekly: weekly,
+    lastActivityAt: couple?.lastActivityDate ?? null,
   })
 })
 
