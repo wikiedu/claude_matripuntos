@@ -6,13 +6,19 @@
 import crypto from 'crypto'
 import prisma from '../lib/prisma.js'
 
-export async function dissolveCouple(coupleId: string): Promise<void> {
+// Devuelve los IDs de los users reasignados (couple nuevo). El caller los usa
+// para invalidar la auth-cache + revocar refresh tokens: tras reasignar el
+// coupleId, el JWT viejo y la entrada cacheada apuntan al couple disuelto, así
+// que sin invalidación habría acceso residual hasta 60s (audit p3:A1-1).
+export async function dissolveCouple(coupleId: string): Promise<string[]> {
   const couple = await prisma.couple.findUnique({
     where: { id: coupleId },
     include: { users: { where: { deletedAt: null } } },
   })
   if (!couple) throw new Error('Couple not found')
-  if (couple.dissolvedAt) return  // idempotente
+  if (couple.dissolvedAt) return []  // idempotente
+
+  const reassignedUserIds = couple.users.map((u) => u.id)
 
   await prisma.$transaction(async (tx) => {
     // v2.5.4 audit 02 S1 — rotamos el secretKey del couple disuelto para
@@ -39,4 +45,6 @@ export async function dissolveCouple(coupleId: string): Promise<void> {
       await tx.user.update({ where: { id: user.id }, data: { coupleId: newCouple.id } })
     }
   })
+
+  return reassignedUserIds
 }

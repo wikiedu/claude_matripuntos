@@ -4,10 +4,12 @@ import { Router, Request, Response } from 'express'
 import { requireAuth } from '../lib/requireAuth.js'
 import bcrypt from 'bcryptjs'
 import { authenticateToken } from '../middleware/auth.js'
+import { invalidateAuthCache } from '../middleware/authMiddleware.js'
 import { criticalBucket } from '../middleware/rateLimiter.js'
 import { coupleLeaveSchema } from '../../../../packages/shared/dist/index.js'
 import prisma from '../lib/prisma.js'
 import { dissolveCouple } from '../services/coupleLifecycleService.js'
+import { revokeAllForUser } from '../services/refreshTokenService.js'
 import { telemetryBackend } from '../services/telemetry.js'
 
 const router = Router()
@@ -26,7 +28,15 @@ router.post('/leave', criticalBucket, async (req: Request, res: Response) => {
   const ok = await bcrypt.compare(parsed.data.password, user.passwordHash)
   if (!ok) return res.status(401).json({ error: 'Contraseña incorrecta' })
 
-  await dissolveCouple(coupleId)
+  const reassignedUserIds = await dissolveCouple(coupleId)
+  // audit p3:A1-1 — tras reasignar el coupleId, la entrada de auth-cache (TTL
+  // 60s) y los refresh tokens de cada user reasignado siguen apuntando al
+  // couple disuelto. Invalidamos la cache (la próxima request re-consulta la
+  // BD) y revocamos los refresh tokens para cerrar el acceso residual.
+  for (const uid of reassignedUserIds) {
+    invalidateAuthCache(uid)
+    await revokeAllForUser(uid)
+  }
   void telemetryBackend.track(userId, 'couple.left', {})
 
   // Frontend usa newCoupleId para renovar token (pasarela: el front re-loguea o

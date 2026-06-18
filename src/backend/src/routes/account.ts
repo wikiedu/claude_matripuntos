@@ -7,10 +7,12 @@ import { randomInt } from 'crypto'
 import { requireAuth } from '../lib/requireAuth.js'
 import bcrypt from 'bcryptjs'
 import { authenticateToken } from '../middleware/auth.js'
+import { invalidateAuthCache } from '../middleware/authMiddleware.js'
 import { criticalBucket, readBucket } from '../middleware/rateLimiter.js'
 import { accountDeleteRequestSchema, accountDeleteSchema } from '../../../../packages/shared/dist/index.js'
 import prisma from '../lib/prisma.js'
 import { deleteAccount } from '../services/accountDeletionService.js'
+import { revokeAllForUser } from '../services/refreshTokenService.js'
 import { telemetryBackend } from '../services/telemetry.js'
 import { sendEmail, deleteAccountCodeEmail } from '../services/emailService.js'
 import { logger } from '../lib/logger.js'
@@ -82,6 +84,13 @@ router.post('/delete', criticalBucket, async (req: Request, res: Response) => {
   deleteCodes.delete(userId)
 
   await deleteAccount(userId)
+  // audit p3:A1-1 — deleteAccount hace soft-delete (deletedAt) pero la
+  // auth-cache (TTL 60s) aún tiene el coupleId del user y el camino de
+  // cache-hit no re-consulta la BD, así que el filtro de deletedAt se saltaba
+  // hasta 60s. Invalidamos la cache y revocamos los refresh tokens para que el
+  // JWT viejo no pueda re-emitirse ni autenticar tras el borrado.
+  invalidateAuthCache(userId)
+  await revokeAllForUser(userId)
   void telemetryBackend.track(userId, 'account.deleted', {})
   res.json({ ok: true })
 })
