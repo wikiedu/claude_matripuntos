@@ -41,7 +41,7 @@ El diseño NO obliga a reempezar:
   `Workflow({ scriptPath })` — la idempotencia (ficheros + commits `[p3:<id>]`)
   evita repetir trabajo. Apunta aquí el último runId conocido:
 
-  **Último runId:** _(ninguno todavía — se anota al primer lanzamiento)_
+  **Último runId:** `wf_04e82c27-30e` (lanzado 2026-06-18, sesión ultracode). Para reanudar tras corte en la MISMA sesión: `Workflow({ scriptPath, resumeFromRunId: "wf_04e82c27-30e" })`.
 
 ## Fases del workflow
 A. **Audit** — 5 dominios en paralelo (read-only): A2 tareas-solas, A3 responsiveness,

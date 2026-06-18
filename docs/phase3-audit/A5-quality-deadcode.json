@@ -1,0 +1,65 @@
+{
+  "domain": "A5 — Calidad: manejo de errores, validación, dead code, N+1, deuda V1/V2",
+  "findings": [
+    {
+      "id": "A5-1",
+      "severity": "S1",
+      "title": "IDOR cross-couple en aceptar propuesta category_edit (category.update sin scope por coupleId)",
+      "file": "src/backend/src/routes/ruleProposals.ts",
+      "line": 147,
+      "evidence": "Al aceptar una propuesta type='category_edit' se ejecuta `await prisma.category.update({ where: { id: categoryId }, data: fields })` donde `categoryId` viene del payload de la propuesta (controlado por el usuario que la creó) y NUNCA se valida que esa categoría pertenezca a `req.coupleId`. Compárese con categories.ts:201-219 que sí hace `findFirst({ where: { id: categoryId, coupleId } })` antes de actualizar (fix audit 01 S1-R-14). Aquí un usuario puede crear una propuesta con `payload.categoryId` apuntando a una categoría de OTRA pareja; al aceptarla su partner, se sobrescribe (name/emoji/basePoints/type) la categoría ajena. Rompe el aislamiento por coupleId (regla sagrada). Lo mismo aplica al create (type='category') aunque ese sí inserta con coupleId propio, así que el riesgo está solo en el update.",
+      "proposedFix": "Antes del update, verificar pertenencia: `const cat = await prisma.category.findFirst({ where: { id: categoryId, coupleId: req.coupleId } }); if (!cat) { res.status(404).json({ error: 'Category not found' }); return }` y solo entonces `category.update`. Añadir además un schema Zod para el payload de category_edit (categoryId string, campos editables tipados) para no escribir `fields` arbitrarios sin filtrar.",
+      "confidence": "alta"
+    },
+    {
+      "id": "A5-2",
+      "severity": "S2",
+      "title": "N+1 en checkAllAchievements: query + upsert por cada AchievementDefinition en el hot path de tareas/negociación",
+      "file": "src/backend/src/services/achievementCheckService.ts",
+      "line": 107,
+      "evidence": "`checkAllAchievements(coupleId)` (L95) itera TODAS las definiciones (`for (const def of definitions)`, L107) y por cada una: (1) llama `evaluateCondition` (L12) que lanza 1-2 queries más — varios branches re-fetchean la MISMA fila `prisma.couple.findUnique({ where: { id: coupleId } })` (L26, L31, L86) en cada iteración; (2) ejecuta SIEMPRE un `prisma.coupleAchievement.upsert` (L118 o L140) incluso cuando el progreso no cambió. Con N definiciones son ~2N+N = ~3N queries por invocación. Se llama de forma síncrona en taskRoutes.ts:394 (registrar log) y :566 (verificar log) y en negotiationRoutes.ts, es decir en cada acción de tarea/negociación de cada usuario.",
+      "proposedFix": "1) Cachear la fila `couple` una sola vez al inicio de checkAllAchievements y pasarla a evaluateCondition (o memoizar dentro de la llamada). 2) Solo hacer upsert cuando `progressJson` difiere del `ca.progress` existente (ya se tiene `existingMap`), evitando N escrituras inútiles. 3) Considerar mover la llamada fuera del request crítico a un job/await no bloqueante (ya está en try/catch non-fatal en taskRoutes, pero sigue siendo síncrono antes del res.json).",
+      "confidence": "alta"
+    },
+    {
+      "id": "A5-3",
+      "severity": "S2",
+      "title": "Validación faltante (sin Zod) en POST /api/rules/propose y PUT /api/rules/:id/respond",
+      "file": "src/backend/src/routes/ruleProposals.ts",
+      "line": 48,
+      "evidence": "`const { type, payload, comment } = req.body` (L48) con solo un guard de truthiness `if (!type || !payload || !comment)`. `type` se persiste sin allow-list (cualquier string entra; luego la lógica de respond se ramifica por type='category'/'category_edit' sin garantizar que el payload tenga la forma esperada). `payload` puede ser cualquier JSON arbitrario y se usa para construir filas Category (name/emoji/basePoints) en respond sin validar tipos. La ruta está montada (server.ts:278) y consumida por el frontend (services/api/configuration.ts:95,104), así que es código vivo. El resto de rutas equivalentes (categories.ts, configurationProposals.ts) sí usan safeParse de Zod.",
+      "proposedFix": "Definir schemas Zod: `proposeSchema = z.object({ type: z.enum(['rule','category','category_edit']), payload: z.unknown(), comment: z.string().min(1).max(500) })` y, por discriminated union, validar la forma de payload según type. En respond: `z.object({ status: z.enum(['accepted','rejected']), comment: z.string().max(500).optional() })`. Usar safeParse y devolver 400 con el error de Zod, en línea con el resto de rutas.",
+      "confidence": "alta"
+    },
+    {
+      "id": "A5-4",
+      "severity": "S3",
+      "title": "Dead code: achievementEngineV2.ts no se importa en ningún punto de producción (solo en su test)",
+      "file": "src/backend/src/services/achievementEngineV2.ts",
+      "line": 68,
+      "evidence": "Exporta `evaluateNewUnlocks` (L68), `computeProgress` (L87), `visibleCatalog` (L107) e interfaces, pero `grep -rn achievementEngineV2 --include=*.ts` sobre todo src/ NO encuentra ningún import: las únicas menciones son comentarios en taskRoutes.ts:550 y achievementEngine.ts:5 que lo describen como 'sistema canónico V2'. El sistema canónico real en runtime es achievementCheckService.ts (ese sí se importa y ejecuta). achievementEngineV2 solo tiene un consumidor: tests/achievementEngineV2.test.ts. Es lógica pura testeada pero sin caller productivo — deuda que confunde sobre cuál es el motor vigente.",
+      "proposedFix": "Decidir: (a) si achievementCheckService debe delegar la evaluación pura en achievementEngineV2 (refactor para usarlo de verdad y eliminar duplicación de lógica de condiciones), o (b) si es un experimento abandonado, retirar el módulo + su test y limpiar los comentarios que lo citan como canónico. No retirar sin esa decisión por la regla V1/V2.",
+      "confidence": "alta"
+    },
+    {
+      "id": "A5-5",
+      "severity": "S3",
+      "title": "Deuda V1: endpoints /api/achievements (GET, /user, /check, /couple-score) y motor V1 sin consumidor frontend",
+      "file": "src/backend/src/routes/achievements.ts",
+      "line": 130,
+      "evidence": "El frontend solo llama `/achievements/map` y `/gamification/status` (services/api/gamification.ts:11,17; el propio comentario L2-5 dice que las funciones V1 se retiraron por '0 importadores'). Sin embargo el backend sigue montando achievementRoutes (server.ts:236) con `GET /`, `GET /user`, `POST /check` (L123, que invoca el motor V1 `achievementEngine.checkAchievements`, L130) y `couple-score`, todos sobre las tablas legacy Achievement/UserAchievement. Son endpoints vivos pero huérfanos: superficie de ataque + mantenimiento sin valor. El motor V1 (achievementEngine.ts) ya está detrás del flag LEGACY_ACHIEVEMENTS_ENABLED en taskRoutes (off por defecto), pero /api/achievements/check lo ejecuta SIN flag.",
+      "proposedFix": "Tras verificar con E2E que ningún cliente (web/móvil) consume estos paths, sunset de las rutas V1 de achievements salvo /map, y del motor achievementEngine.ts si /check se retira. Mientras tanto, como mínimo poner POST /check tras el mismo flag LEGACY_ACHIEVEMENTS_ENABLED para no ejecutar el motor V1 por una ruta no usada. Seguir la regla: migrar/confirmar consumidor + E2E antes de borrar.",
+      "confidence": "media"
+    },
+    {
+      "id": "A5-6",
+      "severity": "S3",
+      "title": "Dead code frontend: cliente V1 services/api/analytics.ts (9 métodos) nunca llamado; backend /api/analytics V1 huérfano",
+      "file": "src/frontend/src/services/api/analytics.ts",
+      "line": 5,
+      "evidence": "`export const analytics = { getCouple, getUsers, getDailyActivity, getNegotiations, getPointsByCategory, getWeeklyTrends, getDailyBreakdown, getMonthly, getYearly }` (L5+). Se re-exporta vía apiClient.ts (import L17, expose L49) pero `grep` de cualquiera de esos 9 métodos en todo src/frontend (fuera del propio fichero) devuelve 0 llamadas — el frontend usa exclusivamente useAnalyticsV2 / `/analytics/v2`. El re-export por el barrel apiClient hace que tree-shaking no lo elimine. Su contraparte backend routes/analytics.ts (V1) sigue montada (server.ts:269) sin más consumidores que este cliente muerto.",
+      "proposedFix": "Eliminar `analytics` del barrel apiClient y el fichero services/api/analytics.ts (cliente V1). En backend, marcar routes/analytics.ts para sunset y, tras confirmar por logs/E2E que no recibe tráfico, desmontarla (server.ts:269 + import L26). Aplicar la regla V1/V2: retirar solo con consumidor confirmado a cero + E2E de la pantalla Analytics que cubra V2.",
+      "confidence": "media"
+    }
+  ]
+}

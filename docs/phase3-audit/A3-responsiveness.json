@@ -1,0 +1,115 @@
+{
+  "domain": "A3-responsiveness (Tareas y Responsabilidades/Actividades)",
+  "findings": [
+    {
+      "id": "A3-1",
+      "severity": "S1",
+      "title": "BottomSheet sin max-height ni scroll: el wizard de tarea recurrente se sale de pantalla",
+      "file": "src/frontend/src/components/v2/primitives/BottomSheet.tsx",
+      "line": 39,
+      "evidence": "El panel del sheet es `className=\"fixed left-0 right-0 bottom-0 z-[81] max-w-[500px] mx-auto bg-surface-elevated ... rounded-t-xl p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]\"` — NO tiene `max-h` ni `overflow-y-auto`. AddTaskSheet (que usa este BottomSheet) en el paso 2 con `mode==='recurring'` renderiza el TaskScheduleForm completo (datetime-local + select + 2 inputs de recurrencia) más los botones; en pantallas cortas (iPhone SE 667px, o con teclado abierto) el contenido crece por debajo del viewport y, como el panel está anclado a `bottom-0` sin scroll interno, los botones Guardar/Volver quedan inaccesibles. Es el componente base de TODOS los sheets de tareas, así que el problema es transversal.",
+      "proposedFix": "Añadir al panel: `max-h-[90dvh] overflow-y-auto overscroll-contain`. Ej: `className=\"fixed left-0 right-0 bottom-0 z-[81] max-w-[500px] mx-auto max-h-[90dvh] overflow-y-auto overscroll-contain bg-surface-elevated ...\"`. Usar `dvh` (no `vh`) para respetar la barra dinámica del navegador móvil. Comparar con AddActivitySheet.tsx:90 y AddTaskFromCatalogSheet.tsx:241 que SÍ tienen `max-h-[92vh] overflow-y-auto` (corregir a `dvh` también).",
+      "confidence": "alta"
+    },
+    {
+      "id": "A3-2",
+      "severity": "S2",
+      "title": "Sheets de actividad/catálogo usan max-h-[92vh] en vez de dvh: cortados por la barra del navegador en iOS",
+      "file": "src/frontend/src/components/v2/activities/AddActivitySheet.tsx",
+      "line": 90,
+      "evidence": "`className=\"w-full sm:max-w-lg ... rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 max-h-[92vh] overflow-y-auto\"`. `92vh` en iOS Safari ignora la barra de URL/herramientas dinámica, por lo que el 92% se calcula sobre el viewport \"largo\" y el fondo del sheet (CTA 'Crear desde cero' + texto) queda tapado bajo la toolbar. Mismo patrón en AddTaskFromCatalogSheet.tsx:241.",
+      "proposedFix": "Cambiar `max-h-[92vh]` por `max-h-[92dvh]` en AddActivitySheet.tsx:90 y AddTaskFromCatalogSheet.tsx:241, y los `max-h-[55vh]` del listado interno (AddActivitySheet.tsx:140) por `max-h-[55dvh]`. dvh sigue la altura visible real.",
+      "confidence": "media"
+    },
+    {
+      "id": "A3-3",
+      "severity": "S2",
+      "title": "Chips de categoría con tap targets <44px (CategoryFilterStrip)",
+      "file": "src/frontend/src/components/v2/tasks/CategoryFilterStrip.tsx",
+      "line": 34,
+      "evidence": "Los chips son `px-3 py-1.5 rounded-full text-xs`. `py-1.5` (6px) + line-height de `text-xs` (~16px) ≈ 28px de alto total. Muy por debajo del mínimo de 44px de Apple HIG / 48dp de Material para targets táctiles. Es una fila scrollable horizontal en la que el usuario filtra constantemente; en móvil cuesta acertar el chip.",
+      "proposedFix": "Subir el alto: `px-3.5 py-2.5 min-h-[40px] inline-flex items-center` (o `py-2` + `min-h-[44px]`). Aplica a ambos botones (l.34 'Todas' y l.45 chips de categoría). Mantener `flex-shrink-0` que ya tienen.",
+      "confidence": "alta"
+    },
+    {
+      "id": "A3-4",
+      "severity": "S2",
+      "title": "Chips de HistoryFilters con tap target aún menor y posible compresión",
+      "file": "src/frontend/src/components/v2/activities/HistoryFilters.tsx",
+      "line": 51,
+      "evidence": "Chips `px-3 py-1 rounded-full text-[11px]` → alto ≈ 24px. Además el contenedor de fila es `<div className=\"flex gap-1.5 overflow-x-auto\">` (l.42) y los Chip NO llevan `flex-shrink-0`: en la fila de status (4 chips: Todos/Aprobadas/Rechazadas/Forzadas) sobre 320px el flex las comprime y el texto se trunca/parte en vez de scrollear. `whitespace-nowrap` evita el wrap pero fuerza compresión de ancho.",
+      "proposedFix": "1) En `Chip` (l.45) añadir `flex-shrink-0` y subir alto a `py-2 min-h-[36px]`. 2) En `Row` (l.42) añadir `no-scrollbar` y `-mx-1 px-1` para que el scroll horizontal sea fluido como en CategoryFilterStrip.",
+      "confidence": "alta"
+    },
+    {
+      "id": "A3-5",
+      "severity": "S2",
+      "title": "WeekStrip de 7 días: celdas demasiado estrechas y tap target bajo en pantallas pequeñas",
+      "file": "src/frontend/src/components/v2/tasks/WeekStrip.tsx",
+      "line": 21,
+      "evidence": "`<div className=\"grid grid-cols-7 gap-1 px-4 pb-3\">` con celdas `px-1 py-2`. En 320px: (320 - 32 padding - 6*4 gap) / 7 ≈ 32px de ancho por celda. El botón completo mide ~32x44px pero el área util visible (número `text-sm` + letra `text-[9px]` + pip 4px) es minúscula y el padding horizontal `px-1` (4px) hace que el contenido casi toque el borde. Difícil de pulsar con precisión un día concreto.",
+      "proposedFix": "Reducir presión de ancho: `gap-0.5` en vez de `gap-1`, y dar más respiración vertical para mantener target táctil: `py-2.5 min-h-[52px]`. Considerar `text-[8.5px]` para la letra en <360px no es necesario; basta con gap menor. Mantener grid-cols-7 (semana siempre son 7).",
+      "confidence": "media"
+    },
+    {
+      "id": "A3-6",
+      "severity": "S2",
+      "title": "Botón borrar (×) flotante de 24px: tap target muy por debajo del mínimo",
+      "file": "src/frontend/src/components/v2/tasks/TodaySection.tsx",
+      "line": 102,
+      "evidence": "`className=\"absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full ... text-xs flex items-center justify-center\"`. 24x24px es la mitad del mínimo táctil recomendado (44px). Está superpuesto en la esquina de cada TaskItemLarge y al estar a `-top-1.5 -right-1.5` se sale ligeramente del card; en móvil es muy fácil fallar el toque o pulsarlo sin querer al intentar marcar la tarea.",
+      "proposedFix": "Subir a `w-9 h-9` (36px, mínimo aceptable en esquina densa) o `w-11 h-11` con un icono más pequeño dentro. Si el espacio aprieta, mantener `w-9 h-9` e icono `text-sm`. Asegurar que no solape el checkbox de TaskItemLarge.",
+      "confidence": "alta"
+    },
+    {
+      "id": "A3-7",
+      "severity": "S2",
+      "title": "ActivityActionCard: fila de 3 acciones se comprime en 320px con labels minúsculos",
+      "file": "src/frontend/src/components/v2/activities/ActivityActionCard.tsx",
+      "line": 98,
+      "evidence": "`<div className=\"flex gap-1.5 mt-2\">` con dos botones `flex-1 px-2 py-2 ... text-[11px]` (Aceptar / Negociar, cada uno con icono 12px + texto) y un tercero `px-3 py-2` (rechazar). En 320px, restando el margen `mx-4` del card (l.54) el ancho útil es ~256px; dividido entre 3 botones con iconos deja ~70px por botón: 'Negociar' a `text-[11px]` con icono Repeat cabe justo, pero con un nombre de actividad largo en la cabecera y el precio `−NN MP` la card ya va apretada. El target vertical `py-2` (8px) + texto ≈ 32px también queda por debajo de 44px.",
+      "proposedFix": "Subir altura a `py-2.5 min-h-[40px]` en los 3 botones. Para anchos muy estrechos, considerar `flex-wrap` o pasar la acción 'Negociar' a un segundo renglón en <360px (`flex-col xs:flex-row` no existe por defecto; usar `flex-wrap gap-1.5` y `min-w-[88px]` por botón para que reflujen). Mantener iconos a 12px.",
+      "confidence": "media"
+    },
+    {
+      "id": "A3-8",
+      "severity": "S3",
+      "title": "Segment de Tabs/HeaderStrip trunca labels en pantallas estrechas (Recurrentes/Plantillas)",
+      "file": "src/frontend/src/components/v2/tasks/HeaderStrip.tsx",
+      "line": 47,
+      "evidence": "Cada opción del segment es `flex-1 px-2 py-1.5 text-[11px] ... whitespace-nowrap overflow-hidden text-ellipsis`. En tareas la 3ª opción es 'Recurrentes' (11 chars) y en actividades 'Plantillas'; con `flex-1` (3 columnas iguales) y `px-2` por lado, en 320px cada celda ≈ 90px → 'Recurrentes' a 11px no entra completo y se corta con ellipsis ('Recurren…'). Funciona pero degrada legibilidad del filtro principal.",
+      "proposedFix": "Opción A: reducir a `text-[10.5px]` y `px-1.5` solo en este segment. Opción B (mejor): acortar el label a 'Recurr.' o usar icono ↺ + tooltip. El segment inline de Activities.tsx:98 ('Activas/Historial/Catálogo') tiene el mismo patrón pero SIN `overflow-hidden text-ellipsis` (l.98 solo `whitespace-nowrap`), así que ahí el texto puede empujar el ancho; conviene unificar añadiéndole también `min-w-0 overflow-hidden text-ellipsis`.",
+      "confidence": "media"
+    },
+    {
+      "id": "A3-9",
+      "severity": "S3",
+      "title": "Botón 'Actualizar' y barra de título de Tasks pueden apretar en pantallas muy estrechas",
+      "file": "src/frontend/src/pages/Tasks.tsx",
+      "line": 449,
+      "evidence": "`<div className=\"px-4 pt-2.5 pb-1.5 flex items-center justify-between\">` con `<h1 ... text-[22px]>Tareas</h1>` y un botón 'Actualizar' (`text-[11px] ... px-2.5 py-1 inline-flex items-center gap-1.5` con icono). 'Tareas' es corto así que no colisiona, pero el patrón es frágil: la misma estructura en Activities.tsx:73 tiene 'Actividades' (11 chars a text-[22px]) + botón 'Nueva actividad' (`px-3 py-1.5` + icono + texto), que en 320px deja muy poco aire entre ambos. No hay `flex-wrap` ni `gap` mínimo garantizado.",
+      "proposedFix": "Añadir `gap-2 min-w-0` al contenedor flex y `truncate` al h1, y al botón `flex-shrink-0`. En Activities.tsx:73-83 considerar reducir el botón a solo icono + aria-label en <360px (el FAB ya existe en otros sitios), o `whitespace-nowrap flex-shrink-0` para que no se parta.",
+      "confidence": "baja"
+    },
+    {
+      "id": "A3-10",
+      "severity": "S3",
+      "title": "RecurringTaskManager: botón Pausar/Reactivar puede empujar el layout con nombres largos",
+      "file": "src/frontend/src/components/v2/tasks/RecurringTaskManager.tsx",
+      "line": 122,
+      "evidence": "La fila es `flex items-start justify-between gap-3`; a la izquierda nombre+pills con `min-w-0 flex-1 truncate`, a la derecha un `<div className=\"flex-shrink-0\">` con un Button 'Pausar'/'Reactivar' (texto + icono). El texto del botón no está acotado; con i18n o nombres de frecuencia largos el bloque derecho crece y reduce el espacio del nombre. Las pills (`flex-wrap` l.129) reflujen bien, pero en 320px tres pills (frecuencia + 'NN pts base' + categoría) ocupan 2-3 líneas, alargando la card.",
+      "proposedFix": "Acotar el botón: en móvil mostrar solo icono (`<span className=\"hidden xs:inline\">Pausar</span>` o aria-label puro) y dejar el texto a partir de `sm:`. Alternativa: mover la acción a un menú/swipe. Bajo impacto hoy (ES, nombres cortos) pero confirmar con pruebas de nombres largos.",
+      "confidence": "baja"
+    },
+    {
+      "id": "A3-11",
+      "severity": "S3",
+      "title": "ActivityDetail: precio grande y título sin truncado garantizado en cabecera de Card",
+      "file": "src/frontend/src/pages/ActivityDetail.tsx",
+      "line": 238,
+      "evidence": "Cabecera `<div className=\"flex items-start justify-between mb-4 gap-3\">`: izquierda `flex-1 min-w-0` con `<h2 className=\"text-xl font-extrabold\">{event.title}` (sin `truncate`/`break-words`), derecha `flex-shrink-0` con `text-3xl ... −{pts}`. Un título de actividad largo (sin truncar) puede desbordar en una sola línea muy larga o empujar; al no haber `break-words`/`truncate` en el h2, una palabra muy larga (URL, nombre sin espacios) provoca overflow horizontal de la Card en móvil.",
+      "proposedFix": "Añadir al h2 `break-words` (o `truncate` si se prefiere una línea). Ej: `className=\"text-xl font-extrabold text-text-primary break-words\"`. El grid `grid-cols-2 gap-3` de fecha/hora (l.257) está bien para móvil.",
+      "confidence": "baja"
+    }
+  ]
+}

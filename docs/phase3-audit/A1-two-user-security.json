@@ -1,0 +1,55 @@
+{
+  "domain": "A1-two-user-security",
+  "findings": [
+    {
+      "id": "A1-1",
+      "severity": "S1",
+      "title": "El borrado de cuenta y el 'salir de pareja' no invalidan la auth-cache: acceso residual ~60s saltándose el chequeo de deletedAt",
+      "file": "src/backend/src/routes/account.ts",
+      "line": 84,
+      "evidence": "POST /api/account/delete llama 'await deleteAccount(userId)' (account.ts:84) pero NUNCA llama invalidateAuthCache(userId) ni revokeAllForUser(userId). authMiddleware cachea por 60s '{coupleId}' y en el camino de cache-hit (authMiddleware.ts:68-69 'if (cached && cached.expiresAt > now) { userCoupleId = cached.coupleId }') NO se re-consulta la BD, por lo que el filtro de deletedAt (authMiddleware.ts:81 'if (!user || !user.coupleId || user.deletedAt)') se salta por completo. Tras el delete el JWT del usuario sigue llevando el coupleId antiguo y la cache aún tiene ese mismo coupleId, así que la comparación de authMiddleware.ts:94 'if (userCoupleId !== decoded.coupleId)' pasa y la petición autentica con plenos permisos durante hasta 60s después de borrar la cuenta. coupleLifecycleService.dissolveCouple (couple.ts:29) tiene el mismo defecto: reasigna coupleId sin invalidar la cache (en este caso el JWT viejo deja de cuadrar tras expirar la cache, pero durante la ventana sigue operando sobre el couple antiguo). Contraste: invitations.ts:260 y :573 SÍ llaman invalidateAuthCache tras mutar coupleId, demostrando que es el patrón esperado.",
+      "proposedFix": "En routes/account.ts tras 'await deleteAccount(userId)' añadir 'invalidateAuthCache(userId)' y 'await revokeAllForUser(userId)'. En services/coupleLifecycleService.dissolveCouple (o en couple.ts tras dissolveCouple) invalidar la cache de cada user reasignado: 'for (const u of couple.users) invalidateAuthCache(u.id)'. Importar invalidateAuthCache desde middleware/authMiddleware.js. Opcional pero recomendable: hacer que el camino de cache-hit guarde también deletedAt y lo verifique, para defensa en profundidad.",
+      "confidence": "alta"
+    },
+    {
+      "id": "A1-2",
+      "severity": "S2",
+      "title": "Negociación V1: responder a una ronda no comprueba que el respondedor != proponente, permitiendo auto-resolver la propuesta sin consenso del partner",
+      "file": "src/backend/src/routes/negotiationRoutes.ts",
+      "line": 118,
+      "evidence": "PUT /api/negotiations/:negotiationId/respond (negotiationRoutes.ts:118-305) sólo valida que la negotiation pertenece al couple (findFirst con event.coupleId, :128-138) y que está en estado 'awaiting'. NO comprueba que 'req.userId !== negotiation.proposedBy'. El mismo usuario que creó la ronda 'awaiting' (POST /, :41, donde proposedBy = req.userId) puede inmediatamente aceptarla/rechazarla/contraproponer él mismo. Al aceptar se crea una PointsTransaction debitando a 'negotiation.event.createdBy' (:237-246) sin que el partner haya consentido — rompe el modelo de negociación de dos partes. Esto es inconsistente con el resto del código: ruleProposals.ts:108 ('if (proposal.proposedById === req.userId) res.status(403)... Cannot respond to your own proposal') y configurationProposalService.ts:94 ('if (proposal.proposedById === accepterId)') sí bloquean la auto-respuesta.",
+      "proposedFix": "Tras cargar la negotiation y antes de la transición de estado, añadir: 'if (negotiation.proposedBy === req.userId) { res.status(403).json({ error: \"No puedes responder a tu propia propuesta\" }); return }'. Cubrir con un test de integración (dos usuarios) que verifique que el proponente recibe 403 al intentar aceptar su propia ronda awaiting.",
+      "confidence": "alta"
+    },
+    {
+      "id": "A1-3",
+      "severity": "S2",
+      "title": "Rotación de refresh token no atómica: race entre revoke y emisión permite dos tokens válidos y debilita la reuse-detection",
+      "file": "src/backend/src/services/refreshTokenService.ts",
+      "line": 56,
+      "evidence": "rotateRefresh (refreshTokenService.ts:56-91) lee 'existing' con findUnique (:61), comprueba revokedAt/expiresAt (:64-72), y SÓLO DESPUÉS revoca con update (:75-78) y emite uno nuevo con issueRefresh (:80). Estas operaciones NO están dentro de un prisma.$transaction ni hay guard atómico de tipo updateMany({where:{id, revokedAt:null}}). Dos peticiones POST /auth/refresh concurrentes con el mismo plaintext pueden ambas pasar la comprobación 'existing.revokedAt == null' antes de que cualquiera ejecute el update → ambas revocan el mismo token y emiten DOS refresh tokens nuevos válidos. Además, la lógica de reuse-detection (:64-69, 'si revokedAt → revokeAllForUser') deja de ser fiable bajo concurrencia porque la condición de carrera evita que se observe el estado revocado.",
+      "proposedFix": "Hacer la rotación atómica: dentro de prisma.$transaction, ejecutar 'const r = await tx.refreshToken.updateMany({ where: { id: existing.id, revokedAt: null }, data: { revokedAt: new Date(), lastUsedAt: new Date() } })' y si r.count === 0 abortar (token ya rotado por otra petición concurrente → tratar como reuse/conflict). Sólo emitir el token nuevo (issueRefresh con el mismo tx) cuando r.count === 1.",
+      "confidence": "media"
+    },
+    {
+      "id": "A1-4",
+      "severity": "S2",
+      "title": "TOCTOU en el cap de miembros de la pareja (accept-link-partner / accept-invitation): dos aceptaciones concurrentes pueden meter 3+ usuarios en un couple",
+      "file": "src/backend/src/routes/invitations.ts",
+      "line": 555,
+      "evidence": "accept-link-partner (invitations.ts:538-599) comprueba la capacidad con 'if ((await coupleMemberCount(invitation.coupleId!, userId)) >= 2) return 409' (:555) y a continuación, en una operación separada, mueve al usuario con 'prisma.user.update({ ... coupleId: invitation.coupleId })' (:570). El read del recuento y el write del coupleId no son atómicos ni están en transacción con bloqueo. El mismo patrón está en accept-invitation (:248 check, :253 update). Dos invitados distintos aceptando invitaciones hacia el mismo couple a la vez pueden ambos leer count<2 antes de que ninguno escriba, resultando en un couple con 3 (o más) miembros activos. Eso rompe el aislamiento de 'pareja de 2' del que dependen balance, analytics y la lógica de partner por todo el backend.",
+      "proposedFix": "Encapsular check+move en una transacción con verificación atómica: dentro de prisma.$transaction, recontar con tx y, antes del update, re-verificar count<2; alternativamente añadir una constraint a nivel de datos (p.ej. un índice/columna que limite miembros activos) o un lock pesimista (SELECT ... FOR UPDATE vía $queryRaw sobre el couple). Como mínimo, recontar dentro del mismo $transaction que hace el user.update y lanzar si ya hay 2 activos.",
+      "confidence": "media"
+    },
+    {
+      "id": "A1-5",
+      "severity": "S3",
+      "title": "Endpoint público couple-preview expone el coupleId interno (y nombres) a llamantes no autenticados por joinCode enumerable",
+      "file": "src/backend/src/routes/authRoutes.ts",
+      "line": 514,
+      "evidence": "GET /api/auth/couple-preview/:code (authRoutes.ts:487-524) es público (sin authMiddleware) y devuelve 'coupleId: couple.id' (:516) junto con los nombres de los miembros (:518) a cualquiera que envíe un joinCode. El joinCode es relativamente corto/enumerable (normalizeJoinCode). Aunque coupleId no es un factor de autenticación (la auth real exige JWT), exponer el identificador interno de la pareja y los nombres de pila a un llamante anónimo es exposición de PII/identificadores innecesaria: el flujo de invitación sólo necesita {isFull, members} para renderizar la preview, no el coupleId crudo.",
+      "proposedFix": "No devolver couple.id en la respuesta pública (el frontend del flujo de unión no lo necesita; usa el joinCode). Si algún cliente lo requiere, devolver un token opaco de un solo uso en lugar del id real. Considerar rate-limit por IP en este endpoint para mitigar la enumeración de joinCodes.",
+      "confidence": "media"
+    }
+  ]
+}

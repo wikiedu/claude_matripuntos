@@ -1,0 +1,75 @@
+{
+  "domain": "functionality",
+  "findings": [
+    {
+      "id": "A4-1",
+      "severity": "S1",
+      "title": "El badge de racha del Dashboard nunca aparece: lee la tabla CoupleStreak, que jamás se escribe",
+      "file": "src/backend/src/routes/gamificationV2.ts",
+      "line": 58,
+      "evidence": "GET /api/gamification-v2/streak lee `prisma.coupleStreak.findUnique({ where: { coupleId } })` y devuelve `daily: row?.dailyStreak ?? 0`. Pero no existe NINGÚN write a la tabla `coupleStreak` en todo el backend (grep `coupleStreak.(update|create|upsert)` → 0 resultados). La racha REAL vive en `Couple.dailyStreakDays`, que sí se actualiza vía `updateDailyStreak()` (taskRoutes.ts:392, negotiationRoutes.ts:327). El Dashboard consume este endpoint a través de `useStreak()` (useGamificationV2.ts:66) y lo pasa a `<StreakBadge>`, que en StreakBadge.tsx:12 hace `if (streak.daily === 0 && streak.weekly === 0) return null`. Resultado: el badge de racha del Dashboard SIEMPRE se oculta, incluso para parejas con racha activa (que sí ven la racha correcta en /achievements vía el endpoint V1 /gamification/status que lee Couple.dailyStreakDays). Flujo roto: completar tareas a diario → racha sube en BD → Dashboard sigue mostrando 0 / badge oculto.",
+      "proposedFix": "Hacer que GET /gamification-v2/streak lea de la misma fuente de verdad que V1: `const couple = await prisma.couple.findUnique({ where: { id: coupleId }, select: { dailyStreakDays: true, weeklyStreakWeeks: true, lastActivityDate: true } })` y devolver `daily: couple.dailyStreakDays, weekly: couple.weeklyStreakWeeks, ...`. Alternativamente, escribir en CoupleStreak dentro de updateDailyStreak(). Lo primero es menos cambio y elimina la fuente duplicada muerta.",
+      "confidence": "alta"
+    },
+    {
+      "id": "A4-2",
+      "severity": "S2",
+      "title": "Reacciones del diario son add-only: no se puede quitar ni alternar una reacción ya puesta",
+      "file": "src/frontend/src/pages/Journal.tsx",
+      "line": 60,
+      "evidence": "El frontend solo llama a `react()` (Journal.tsx:60) → `POST /journal/entries/:id/react`, que en el backend hace `prisma.journalReaction.upsert(... update: {})` (journal.ts:137-141): idempotente, nunca borra. El backend SÍ expone `DELETE /journal/entries/:id/react?emoji=` (journal.ts:145) pero el frontend NUNCA lo llama (grep confirma 0 usos del DELETE). Además, en EntryCard (Journal.tsx:316-330) los botones de reacción solo se muestran a la pareja sobre entries compartidas, sin estado visual de 'ya reaccioné', y volver a pulsar el mismo emoji no hace nada visible. Flujo incompleto: el usuario pulsa un emoji por error y no puede deshacerlo.",
+      "proposedFix": "En EntryCard, detectar si el usuario actual ya reaccionó con ese emoji (`entry.reactions?.some(r => r.userId === currentUserId && r.emoji === e)`) y, si es así, llamar a un nuevo `unreact(entryId, emoji)` que haga `apiClient.request('/journal/entries/'+id+'/react?emoji='+encodeURIComponent(emoji), { method: 'DELETE' })`. Resaltar visualmente las reacciones propias.",
+      "confidence": "alta"
+    },
+    {
+      "id": "A4-3",
+      "severity": "S2",
+      "title": "El tipo LevelInfo del frontend miente sobre el contrato: declara `perks` (nunca enviado) y omite `levelOrdinal`/`emoji`/`progressPct` (sí enviados)",
+      "file": "src/frontend/src/hooks/useGamificationV2.ts",
+      "line": 11,
+      "evidence": "La interfaz `LevelInfo` declara `perks: string[]` y `name`, `threshold`, `nextThreshold`, `xpToNext` como no opcionales. Pero GET /api/gamification-v2/level (gamificationV2.ts:40-50) devuelve `{ xp, level, levelOrdinal, name, emoji, threshold, nextThreshold, xpToNext, progressPct }` — NUNCA `perks`. Por tanto cualquier consumidor que confíe en `level.perks` recibe `undefined` aunque TypeScript lo marque como `string[]`. El drift se enmascara porque `safeRequest<LevelInfo>` castea con `as T` sin validar. Riesgo: si se reactiva el uso de `perks` en UI (p.ej. mostrar perks por nivel) reventaría en runtime con datos undefined sin que TS avise.",
+      "proposedFix": "Sincronizar la interfaz con la respuesta real: quitar `perks: string[]`, añadir `levelOrdinal: number`, `emoji: string`, `progressPct: number`. Idealmente compartir el tipo desde packages/shared y validar con Zod en `safeRequest`.",
+      "confidence": "alta"
+    },
+    {
+      "id": "A4-4",
+      "severity": "S3",
+      "title": "Reset de saldo expuesto en apiClient pero sin punto de entrada en la UI (feature huérfana)",
+      "file": "src/frontend/src/services/api/points.ts",
+      "line": 34,
+      "evidence": "`points.requestReset()` (POST /points/reset-request) y `points.confirmReset()` (POST /points/reset-confirm) están definidos en el cliente y existen en el backend (pointsRoutes.ts:437, 488 — flujo de dos pasos con rate limit). Pero ningún componente/página los invoca (grep `requestReset|confirmReset|reset-request|reset-confirm` en src/frontend fuera de api/points.ts → 0 resultados). El usuario no tiene forma de resetear el saldo desde la app aunque el backend lo soporta.",
+      "proposedFix": "Decidir: (a) añadir el CTA de reset en Settings/cuenta con el flujo request→confirm, o (b) si el reset se considera retirado, eliminar los métodos huérfanos del cliente y/o desmontar las rutas. No dejar API a medio cablear.",
+      "confidence": "alta"
+    },
+    {
+      "id": "A4-5",
+      "severity": "S3",
+      "title": "Hook useLevel (gamification V2) muerto: ningún consumidor",
+      "file": "src/frontend/src/hooks/useGamificationV2.ts",
+      "line": 57,
+      "evidence": "`useLevel()` queda sin consumidores tras v2.1.0 (Dashboard.tsx:224 comenta 'useLevel retirado del dashboard'; Achievements usa el endpoint V1 `/gamification/status` vía useGamificationStatus, no este hook). grep `useLevel` en src/frontend (excluyendo el propio hook y tests) → 0 usos. El endpoint GET /gamification-v2/level sigue montado y mantenido pero su único cliente declarado está muerto.",
+      "proposedFix": "Eliminar `useLevel` (y opcionalmente el tipo LevelInfo si se consolida en A4-3) o documentar que se conserva para un consumidor futuro. Reduce superficie de drift sin tocar runtime.",
+      "confidence": "media"
+    },
+    {
+      "id": "A4-6",
+      "severity": "S3",
+      "title": "Comentario stale en EventNegotiationCard apunta a routes/negotiation.ts (V2) que ya fue retirada",
+      "file": "src/frontend/src/components/EventNegotiationCard.tsx",
+      "line": 2,
+      "evidence": "El encabezado del componente (líneas 2-3) dice que consume 'routes/negotiation.ts (V2)'. Pero ese archivo backend YA NO EXISTE (ls src/backend/src/routes/negotiation.ts → NOT FOUND; server.ts:232 confirma 'T3 — retiradas las rutas V2 de negociación'). El componente en realidad ya usa la API V1 canónica (`apiClient.negotiations.create/respond` → /api/negotiations, EventNegotiationCard.tsx:143,161). El flujo funciona; solo el comentario engaña a quien audite la decisión V1/V2 de CLAUDE.md (que aún describe negotiation.ts como 'viva y montada').",
+      "proposedFix": "Actualizar el comentario de EventNegotiationCard.tsx para reflejar que consume la API V1 (/api/negotiations) y que la V2 negotiation.ts fue retirada en T3. Actualizar también la nota de §10 de CLAUDE.md (dice que negotiation.ts sigue montada, pero ya no lo está).",
+      "confidence": "alta"
+    },
+    {
+      "id": "A4-7",
+      "severity": "S3",
+      "title": "Filtro de fecha 'to' en calendar/v2/entries usa lte sobre medianoche UTC: puede excluir entries del último día del rango",
+      "file": "src/backend/src/routes/calendarV2.ts",
+      "line": 52,
+      "evidence": "`if (parsed.data.to) where.date.lte = new Date(parsed.data.to)`. El frontend (useCalendarV2.ts:50-58) pasa `to` como string de fecha. `new Date('2026-06-30')` se interpreta como 2026-06-30T00:00:00Z; cualquier CalendarEntry con `date` ese mismo día pero hora > 00:00 (entries no allDay) queda fuera del rango `lte`. El mes en curso puede 'perder' eventos del último día visible de la rejilla.",
+      "proposedFix": "Normalizar el límite superior a fin de día: `where.date.lte = new Date(new Date(parsed.data.to).setUTCHours(23,59,59,999))`, o usar `lt` del día siguiente. Aplicar el mismo criterio en cualquier otro filtro de rango por fecha.",
+      "confidence": "media"
+    }
+  ]
+}
