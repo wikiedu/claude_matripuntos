@@ -95,7 +95,7 @@ export default function Activities() {
               key={opt.v}
               type="button"
               onClick={() => setTab(opt.v)}
-              className={`flex-1 px-2 py-1.5 rounded-md text-[11px] font-bold whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple ${
+              className={`flex-1 min-w-0 px-1.5 py-1.5 rounded-md text-[10.5px] font-bold whitespace-nowrap overflow-hidden text-ellipsis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple ${
                 tab === opt.v ? 'bg-brand-purple/20 text-text-primary' : 'text-text-tertiary'
               }`}
               aria-pressed={tab === opt.v}

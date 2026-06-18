@@ -44,7 +44,7 @@ export function HeaderStrip({ mode, filter, onFilterChange, view, onViewToggle, 
             key={f}
             type="button"
             onClick={() => onFilterChange(f)}
-            className={`flex-1 px-2 py-1.5 rounded-md text-[11px] font-bold whitespace-nowrap overflow-hidden text-ellipsis transition focus-visible:outline-none focus-visible:ring-2 ${ringColor} ${
+            className={`flex-1 min-w-0 px-1.5 py-1.5 rounded-md text-[10.5px] font-bold whitespace-nowrap overflow-hidden text-ellipsis transition focus-visible:outline-none focus-visible:ring-2 ${ringColor} ${
               filter === f ? onActiveBg : 'text-text-tertiary'
             }`}
             aria-pressed={filter === f}
