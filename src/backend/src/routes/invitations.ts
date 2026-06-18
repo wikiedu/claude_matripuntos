@@ -6,6 +6,7 @@ import { invalidateAuthCache } from '../middleware/authMiddleware.js'
 import crypto from 'crypto'
 import bcryptjs from 'bcryptjs'
 import prisma from '../lib/prisma.js'
+import { Prisma } from '@prisma/client'
 import { signAccessToken, BCRYPT_ROUNDS } from '../services/authService.js'
 import { maybeIssueRefreshPair } from './authRoutes.js'
 import { logger } from '../lib/logger.js'
@@ -53,6 +54,27 @@ async function coupleMemberCount(coupleId: string, excludeUserId?: string): Prom
       ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
     },
   })
+}
+
+// Fase 3 A1-4 (TOCTOU en el cap de miembros) — sentinel para abortar la
+// transacción de join cuando la pareja ya está completa. Distinguible de un
+// error inesperado de Prisma para devolver 409 (no 500).
+class CapacityError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'CapacityError'
+  }
+}
+
+// En Serializable, dos aceptaciones concurrentes hacia la misma pareja chocan:
+// Postgres aborta una con P2034 ("Transaction failed due to a write conflict
+// or a deadlock"). Tratamos ese conflicto como "pareja completa" (la otra
+// request ganó la carrera) en vez de propagar un 500.
+function isSerializationConflict(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === 'P2034' || error.code === 'P2002')
+  )
 }
 
 /**
@@ -243,31 +265,44 @@ router.post('/accept-invitation', deprecationMiddleware, authenticateToken, asyn
       return res.status(400).json({ error: 'Email does not match invitation' })
     }
 
-    // Fase 2 A.2 — re-validar capacidad en el momento de aceptar: la pareja
-    // destino puede haberse completado desde que se emitió la invitación.
-    if ((await coupleMemberCount(invitation.coupleId!, userId)) >= 2) {
-      return res.status(409).json({ error: 'Esa pareja ya está completa.' })
+    // Fase 2 A.2 / Fase 3 A1-4 — re-validar capacidad y mover al usuario en
+    // UNA transacción serializable. El check (count<2) + update separados eran
+    // TOCTOU: dos invitados aceptando hacia la misma pareja en paralelo podían
+    // leer count<2 antes de escribir → pareja de 3+ rompiendo el aislamiento
+    // "pareja de 2". Recontar dentro de la tx serializa las aceptaciones.
+    try {
+      await prisma.$transaction(
+        async (tx) => {
+          const memberCount = await tx.user.count({
+            where: { coupleId: invitation.coupleId!, deletedAt: null, id: { not: userId } },
+          })
+          if (memberCount >= 2) {
+            throw new CapacityError('Esa pareja ya está completa.')
+          }
+          // Update user's couple ID
+          await tx.user.update({
+            where: { id: userId },
+            data: { coupleId: invitation.coupleId },
+          })
+          // Update invitation status
+          await tx.invitation.update({
+            where: { id: invitation.id },
+            data: { status: 'accepted', toUserId: userId, updatedAt: new Date() },
+          })
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      )
+    } catch (txError) {
+      if (txError instanceof CapacityError) {
+        return res.status(409).json({ error: txError.message })
+      }
+      if (isSerializationConflict(txError)) {
+        return res.status(409).json({ error: 'Esa pareja ya está completa.' })
+      }
+      throw txError
     }
-
-    // Update user's couple ID
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        coupleId: invitation.coupleId,
-      },
-    })
     // Audit v1.4 P1-G: drop cached coupleId for this user.
     invalidateAuthCache(userId)
-
-    // Update invitation status
-    await prisma.invitation.update({
-      where: { id: invitation.id },
-      data: {
-        status: 'accepted',
-        toUserId: userId,
-        updatedAt: new Date(),
-      },
-    })
 
     // Get updated couple data
     const couple = await prisma.couple.findUnique({
@@ -548,32 +583,55 @@ router.post('/accept-link-partner', authenticateToken, async (req: Request, res:
     if (!invitation) return res.status(404).json({ error: 'Solicitud no encontrada o ya procesada.' })
     if (new Date() > invitation.expiresAt) return res.status(410).json({ error: 'La solicitud ha caducado.' })
 
-    // Fase 2 A.2 — los checks de /link-partner ("ninguno de los dos tiene
-    // pareja") se hicieron al CREAR la solicitud; aquí pueden haber caducado.
-    // Re-validar ambos lados antes de mover al usuario:
-    // 1. la pareja del solicitante no se ha completado mientras tanto
-    if ((await coupleMemberCount(invitation.coupleId!, userId)) >= 2) {
-      return res.status(409).json({ error: 'Esa pareja ya está completa.' })
-    }
-    // 2. yo no he vinculado otra pareja mientras tanto (me iría abandonándola)
-    const me = await prisma.user.findUnique({ where: { id: userId } })
-    if (me?.coupleId) {
-      const myPartners = await prisma.user.count({
-        where: { coupleId: me.coupleId, deletedAt: null, id: { not: userId } },
-      })
-      if (myPartners >= 1) {
-        return res.status(409).json({ error: 'Ya tienes una pareja vinculada.' })
-      }
-    }
+    // Fase 2 A.2 / Fase 3 A1-4 — los checks de /link-partner ("ninguno de los
+    // dos tiene pareja") se hicieron al CREAR la solicitud; aquí pueden haber
+    // caducado. Re-validar ambos lados Y mover al usuario en UNA transacción
+    // serializable: el check+update fuera de transacción era TOCTOU (dos
+    // invitados aceptando hacia la misma pareja en paralelo podían leer
+    // count<2 antes de escribir → pareja de 3+). Con Serializable + recuento
+    // dentro de la tx, las aceptaciones concurrentes serializan y una falla.
+    try {
+      await prisma.$transaction(
+        async (tx) => {
+          // 1. la pareja del solicitante no se ha completado mientras tanto
+          const partnerCount = await tx.user.count({
+            where: { coupleId: invitation.coupleId!, deletedAt: null, id: { not: userId } },
+          })
+          if (partnerCount >= 2) {
+            throw new CapacityError('Esa pareja ya está completa.')
+          }
+          // 2. yo no he vinculado otra pareja mientras tanto (me iría abandonándola)
+          const me = await tx.user.findUnique({ where: { id: userId } })
+          if (me?.coupleId) {
+            const myPartners = await tx.user.count({
+              where: { coupleId: me.coupleId, deletedAt: null, id: { not: userId } },
+            })
+            if (myPartners >= 1) {
+              throw new CapacityError('Ya tienes una pareja vinculada.')
+            }
+          }
 
-    // Move me to the requester's couple
-    await prisma.user.update({ where: { id: userId }, data: { coupleId: invitation.coupleId! } })
+          // Move me to the requester's couple
+          await tx.user.update({ where: { id: userId }, data: { coupleId: invitation.coupleId! } })
+          // Mark invitation accepted
+          await tx.invitation.update({ where: { id: invitation.id }, data: { status: 'accepted' } })
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      )
+    } catch (txError) {
+      if (txError instanceof CapacityError) {
+        return res.status(409).json({ error: txError.message })
+      }
+      // Serialization conflict (P2034) bajo aceptaciones concurrentes: la otra
+      // request ganó la carrera; tratamos esto como "pareja completa".
+      if (isSerializationConflict(txError)) {
+        return res.status(409).json({ error: 'Esa pareja ya está completa.' })
+      }
+      throw txError
+    }
     // Audit v1.4 P1-G: the authMiddleware cache holds this user's old coupleId.
     // Invalidate so the next request re-reads the new link from the DB.
     invalidateAuthCache(userId)
-
-    // Mark invitation accepted
-    await prisma.invitation.update({ where: { id: invitation.id }, data: { status: 'accepted' } })
 
     // Mark the notification as read (if any)
     await prisma.notification.updateMany({
