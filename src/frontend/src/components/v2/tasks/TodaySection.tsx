@@ -99,7 +99,7 @@ export function TodaySection({
                     type="button"
                     onClick={() => onDelete(task)}
                     aria-label={`Borrar ${task.name}`}
-                    className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-surface-card border border-brd-subtle text-text-tertiary hover:text-danger hover:border-danger/40 text-xs flex items-center justify-center shadow-sm"
+                    className="absolute -top-2 -right-2 w-9 h-9 rounded-full bg-surface-card border border-brd-subtle text-text-tertiary hover:text-danger hover:border-danger/40 text-sm leading-none flex items-center justify-center shadow-sm"
                   >
                     ×
                   </button>
