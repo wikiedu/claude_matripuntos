@@ -95,12 +95,12 @@ export function ActivityActionCard({ activity, busy, onAccept, onCounter, onReje
         Acepta para reservar y restar los puntos.
       </div>
 
-      <div className="flex gap-1.5 mt-2">
+      <div className="flex flex-wrap gap-1.5 mt-2">
         <button
           type="button"
           onClick={() => onAccept(a.id)}
           disabled={busy}
-          className="flex-1 px-2 py-2 rounded-md bg-success text-white text-[11px] font-bold disabled:opacity-50 inline-flex items-center justify-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success"
+          className="flex-1 min-w-[88px] min-h-[40px] px-2 py-2.5 rounded-md bg-success text-white text-[11px] font-bold disabled:opacity-50 inline-flex items-center justify-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success"
         >
           <Check size={12} /> Aceptar
         </button>
@@ -108,7 +108,7 @@ export function ActivityActionCard({ activity, busy, onAccept, onCounter, onReje
           type="button"
           onClick={() => onCounter(a.id)}
           disabled={busy}
-          className="flex-1 px-2 py-2 rounded-md bg-transparent border border-brd-subtle text-text-secondary text-[11px] font-bold disabled:opacity-50 inline-flex items-center justify-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple"
+          className="flex-1 min-w-[88px] min-h-[40px] px-2 py-2.5 rounded-md bg-transparent border border-brd-subtle text-text-secondary text-[11px] font-bold disabled:opacity-50 inline-flex items-center justify-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple"
         >
           <Repeat size={12} /> Negociar
         </button>
@@ -117,7 +117,7 @@ export function ActivityActionCard({ activity, busy, onAccept, onCounter, onReje
           onClick={() => onReject(a.id)}
           disabled={busy}
           aria-label="Rechazar"
-          className="px-3 py-2 rounded-md bg-transparent border text-danger text-[11px] font-bold disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger"
+          className="min-h-[40px] px-3 py-2.5 rounded-md bg-transparent border text-danger text-[11px] font-bold disabled:opacity-50 inline-flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger"
           style={{ borderColor: 'rgba(239,68,68,0.30)' }}
         >
           <X size={12} />
