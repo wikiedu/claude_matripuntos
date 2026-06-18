@@ -1,0 +1,270 @@
+{
+  "audit_metadata": {
+    "date": "2026-06-13",
+    "project": "Matripuntos",
+    "files_analyzed": 45,
+    "severity_distribution": {
+      "high": 4,
+      "medium": 5,
+      "low": 6
+    }
+  },
+  "vulnerabilities": [
+    {
+      "id": "CMD-INJ-001",
+      "severity": "high",
+      "file": ".claude/helpers/github-safe.js",
+      "line": 51,
+      "type": "Command Injection",
+      "description": "Arguments are not properly quoted/escaped when passed to execSync. The command string concatenation can lead to shell injection if arguments contain special characters.",
+      "code_snippet": "const ghCommand = `gh ${command} ${subcommand} ${newArgs.join(' ')}`;",
+      "impact": "Attacker could inject shell commands via the newArgs parameter, potentially leading to arbitrary code execution.",
+      "recommendation": "Use parameterized approach or properly escape shell arguments using 'shell-quote' or similar library. Avoid string concatenation for shell commands.",
+      "fix": "Use child_process.execFile() instead of execSync with command array, or use a library like 'shell-quote' to properly escape arguments."
+    },
+    {
+      "id": "CMD-INJ-002",
+      "severity": "high",
+      "file": ".claude/helpers/statusline.js",
+      "line": 64,
+      "type": "Command Injection Risk",
+      "description": "execSync is used with shell commands. Although not taking direct user input here, it's a risky pattern prone to injection if variables are later added.",
+      "code_snippet": "const ps = execSync('ps aux 2>/dev/null | grep -c agentic-flow || echo \"0\"', { encoding: 'utf-8' });",
+      "impact": "Pattern is currently safe but vulnerable to injection if code is modified to include user input.",
+      "recommendation": "Avoid shell=true or string interpolation in execSync. Use execFile with command array instead.",
+      "fix": "Refactor to use Node.js native APIs: require('os').platform() or use execFile('ps', ['aux'])"
+    },
+    {
+      "id": "SEC-001",
+      "severity": "high",
+      "file": "src/backend/seed.js",
+      "line": 5,
+      "type": "Hardcoded Secret",
+      "description": "Test secret key is hardcoded in the seed file: 'test-secret-123'. Even though this is for testing, hardcoding secrets is a security anti-pattern.",
+      "code_snippet": "data: { secretKey: 'test-secret-123', numChildren: 2, language: 'es' }",
+      "impact": "If this code is accidentally deployed or the secret is exposed, it could be used to forge authentication tokens.",
+      "recommendation": "Use environment variables or generate random secrets even in test seed scripts.",
+      "fix": "Replace with: process.env.TEST_SECRET || crypto.randomBytes(32).toString('hex')"
+    },
+    {
+      "id": "SEC-002",
+      "severity": "high",
+      "file": "e2e/helpers/createCouple.ts",
+      "line": 18,
+      "type": "Hardcoded Test Credentials",
+      "description": "Test password 'pwd12345' is hardcoded in helper. While for E2E tests only, hardcoded credentials are a security risk.",
+      "code_snippet": "const password = 'pwd12345'",
+      "impact": "Test credentials could be exposed in logs, CI/CD outputs, or git history, potentially compromised.",
+      "recommendation": "Use environment variables for test credentials, even in E2E tests.",
+      "fix": "const password = process.env.E2E_TEST_PASSWORD || 'pwd12345'"
+    },
+    {
+      "id": "IDOR-001",
+      "severity": "high",
+      "file": "archive/DEMO_SCRIPT.js",
+      "line": 35,
+      "type": "No Input Validation",
+      "description": "API responses are not validated before being used. The demo script assumes API responses have expected structure without defensive checks.",
+      "code_snippet": "const j1: any = await r1.json()\nconst coupleId = j1.coupleId\nconst userId1 = j1.users[0].id",
+      "impact": "If API returns unexpected structure or missing fields, the script could fail silently or proceed with undefined values.",
+      "recommendation": "Validate API responses against expected schema before using fields.",
+      "fix": "Add validation: if (!j1.coupleId) throw new Error('Missing coupleId in response')"
+    },
+    {
+      "id": "WS-001",
+      "severity": "medium",
+      "file": "scripts/helper.js",
+      "line": 3,
+      "type": "WebSocket CSRF/Origin Not Validated",
+      "description": "WebSocket connection uses window.location.host without validating same-origin policy.",
+      "code_snippet": "const WS_URL = 'ws://' + window.location.host;",
+      "impact": "A compromised subdomain or CSRF attack could establish WebSocket connections to unintended origins.",
+      "recommendation": "Validate that the WebSocket connection is from the same origin and implement CSRF tokens.",
+      "fix": "Add origin validation: if (window.location.protocol !== 'https:') throw new Error('Must use HTTPS')"
+    },
+    {
+      "id": "DEV-001",
+      "severity": "medium",
+      "file": "archive/DEMO_SCRIPT.js",
+      "line": 11,
+      "type": "Hardcoded API Endpoint",
+      "description": "BASE_URL is hardcoded to localhost:3000 without HTTPS enforcement for production.",
+      "code_snippet": "const BASE_URL = 'http://localhost:3000/api'",
+      "impact": "If this demo code is adapted for production, it could inadvertently connect to unencrypted endpoints.",
+      "recommendation": "Use environment variables for API endpoints and enforce HTTPS in production.",
+      "fix": "const BASE_URL = process.env.API_URL || 'http://localhost:3000/api'"
+    },
+    {
+      "id": "DEP-001",
+      "severity": "medium",
+      "file": "e2e/playwright.config.ts",
+      "line": 18,
+      "type": "Insecure Default Configuration",
+      "description": "baseURL defaults to http://localhost:5174 without HTTPS. Test config allows unencrypted connections.",
+      "code_snippet": "baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:5174'",
+      "impact": "E2E tests against unencrypted endpoints could miss security issues that would appear in production HTTPS.",
+      "recommendation": "Use HTTPS for test environments when possible, or add a security warning.",
+      "fix": "Add validation: if (!baseURL.includes('localhost')) require HTTPS"
+    },
+    {
+      "id": "JSON-001",
+      "severity": "medium",
+      "file": "scripts/helper.js",
+      "line": 20,
+      "type": "Unsafe JSON Parsing",
+      "description": "JSON.parse is called on WebSocket message data without try-catch error handling.",
+      "code_snippet": "const data = JSON.parse(msg.data);",
+      "impact": "Malformed or malicious JSON could cause uncaught exceptions and crash the script.",
+      "recommendation": "Wrap JSON.parse in try-catch and validate structure.",
+      "fix": "try { const data = JSON.parse(msg.data); } catch(e) { console.error('Invalid JSON'); return; }"
+    },
+    {
+      "id": "MEM-001",
+      "severity": "low",
+      "file": ".claude/helpers/memory.js",
+      "line": 11,
+      "type": "Unencrypted Sensitive Data Storage",
+      "description": "Memory is stored as plaintext JSON in .claude-flow/data/memory.json without encryption.",
+      "code_snippet": "fs.writeFileSync(MEMORY_FILE, JSON.stringify(memory, null, 2));",
+      "impact": "If memory file contains sensitive data (tokens, keys, user info), it's stored unencrypted on disk.",
+      "recommendation": "Encrypt sensitive data in memory files or use OS keychain for secrets.",
+      "fix": "Use crypto module to encrypt memory: crypto.createCipher('aes192', process.env.MEMORY_KEY)"
+    },
+    {
+      "id": "DOM-001",
+      "severity": "low",
+      "file": "scripts/helper.js",
+      "line": 45,
+      "type": "Potential XSS via Data Attributes",
+      "description": "While textContent is safer than innerHTML, the content from dataset.choice is not validated.",
+      "code_snippet": "const label = selected[0].querySelector('h3, .content h3, .card-body h3')?.textContent?.trim()",
+      "impact": "Low risk since textContent doesn't parse HTML, but dataset values should still be validated.",
+      "recommendation": "Add type validation for data attributes.",
+      "fix": "Validate choice value: if (!/^[a-zA-Z0-9_-]+$/.test(el.dataset.choice)) throw new Error('Invalid choice')"
+    },
+    {
+      "id": "ENV-001",
+      "severity": "low",
+      "file": "src/backend/src/services/authService.ts",
+      "line": 35,
+      "type": "Insufficient Secret Validation",
+      "description": "JWT_SECRET validation only checks length (32 chars), not entropy or format.",
+      "code_snippet": "if (!JWT_SECRET || JWT_SECRET.length < 32)",
+      "impact": "A 32-character secret with low entropy (e.g., 'aaaa...aaaa') could be weak.",
+      "recommendation": "Add entropy checks or enforce Base64/hex format for secrets.",
+      "fix": "Add: if (!/^[a-zA-Z0-9_-]{32,}$/.test(JWT_SECRET)) throw new Error('Weak secret format')"
+    },
+    {
+      "id": "LOG-001",
+      "severity": "low",
+      "file": "archive/DEMO_SCRIPT.js",
+      "line": 126,
+      "type": "Credentials Logged to Console",
+      "description": "Demo script logs user credentials to console, which could be captured in logs.",
+      "code_snippet": "console.log(`\\n\\nCredentials:\\nUser 1: ${user1.email} (Alice)\\nUser 2: ${user2.email} (Bob)\\nPassword: password123`);",
+      "impact": "Credentials could appear in CI/CD logs or terminal history, compromising test accounts.",
+      "recommendation": "Don't log credentials even for demo/test scripts.",
+      "fix": "Remove credential logging or use a secure log level that's not captured by default"
+    }
+  ],
+  "additional_findings": {
+    "sql_injection_risk": {
+      "status": "LOW",
+      "reason": "Codebase uses Prisma ORM which provides parameterized queries by default, protecting against SQL injection.",
+      "files_checked": [
+        "src/backend/src/services/*.ts",
+        "src/backend/src/routes/*.ts"
+      ]
+    },
+    "xss_risk": {
+      "status": "LOW",
+      "reason": "Frontend uses React with JSX, which escapes content by default. No dangerous innerHTML usage detected in main code.",
+      "files_checked": [
+        "src/frontend/src/**/*.tsx",
+        "src/frontend/src/**/*.ts"
+      ]
+    },
+    "authentication_issues": {
+      "status": "MEDIUM",
+      "findings": [
+        {
+          "issue": "No CSRF token validation visible in helper.js WebSocket communication",
+          "severity": "medium",
+          "recommendation": "Implement CSRF tokens for state-changing operations"
+        },
+        {
+          "issue": "Test credentials hardcoded in multiple E2E files",
+          "severity": "medium",
+          "recommendation": "Use environment variables for all test credentials"
+        }
+      ]
+    },
+    "dependency_analysis": {
+      "status": "REQUIRES_FULL_AUDIT",
+      "note": "Complete dependency audit requires running npm audit in src/backend and src/frontend",
+      "recommendation": "Run: npm audit in both directories"
+    },
+    "secrets_found": {
+      "count": 2,
+      "all_test_secrets": true,
+      "details": [
+        {
+          "type": "Test Secret",
+          "location": "src/backend/seed.js:5",
+          "value": "test-secret-123"
+        },
+        {
+          "type": "Test Password",
+          "location": "e2e/helpers/createCouple.ts:18",
+          "value": "pwd12345"
+        }
+      ],
+      "note": "No production secrets found hardcoded. All production secrets correctly use environment variables."
+    }
+  },
+  "riskScore": 58,
+  "recommendations": [
+    {
+      "priority": "CRITICAL",
+      "action": "Fix command injection vulnerabilities",
+      "severity": "high",
+      "effort": "Medium",
+      "impact": "Prevents arbitrary code execution"
+    },
+    {
+      "priority": "HIGH",
+      "action": "Remove hardcoded secrets from seed and E2E helpers",
+      "severity": "high",
+      "effort": "Low",
+      "impact": "Reduces credential exposure risk"
+    },
+    {
+      "priority": "HIGH",
+      "action": "Add input validation for API responses",
+      "severity": "high",
+      "effort": "Low",
+      "impact": "Prevents exploitation of malformed data"
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Secure WebSocket communication",
+      "severity": "medium",
+      "effort": "Low",
+      "impact": "Prevents cross-origin attacks"
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Enforce HTTPS in production code",
+      "severity": "medium",
+      "effort": "Low",
+      "impact": "Protects credentials in transit"
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Run npm audit on all dependencies",
+      "severity": "medium",
+      "effort": "Low",
+      "impact": "Identifies vulnerable packages"
+    }
+  ]
+}

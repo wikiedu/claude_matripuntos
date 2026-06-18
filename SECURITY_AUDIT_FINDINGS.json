@@ -1,0 +1,334 @@
+{
+  "audit_metadata": {
+    "date": "2026-06-13",
+    "auditor": "Claude Security Audit Agent V3",
+    "version": "1.0",
+    "scope": "Full codebase security assessment"
+  },
+  "summary": {
+    "total_findings": 27,
+    "critical": 4,
+    "high": 12,
+    "medium": 8,
+    "low": 3
+  },
+  "critical_findings": [
+    {
+      "id": "C-001",
+      "title": "Hardcoded Test Credentials in Demo Script",
+      "file": "archive/DEMO_SCRIPT.js",
+      "lines": [65, 71, 80, 82, 89, 91],
+      "severity": "CRITICAL",
+      "category": "Hardcoded Secrets",
+      "description": "Plain-text credentials (alice@test.com:password123, bob@test.com:password123) exposed in source control",
+      "impact": "Unauthorized access to demo accounts",
+      "recommendation": "Use environment variables; move to .gitignore; store in credential manager",
+      "status": "OPEN"
+    },
+    {
+      "id": "C-002",
+      "title": "Hardcoded Test Credentials in Database Seed File",
+      "file": "src/backend/seed.js",
+      "lines": [8, 14, 24, 108],
+      "severity": "CRITICAL",
+      "category": "Hardcoded Secrets",
+      "description": "Test database seed contains hardcoded credentials and insecure secretKey",
+      "impact": "Weak cryptographic keys; credentials leaked in logs",
+      "recommendation": "Use crypto.randomBytes for keys; remove credential console.log",
+      "status": "OPEN"
+    },
+    {
+      "id": "C-003",
+      "title": "Unvalidated WebSocket Message Execution",
+      "file": "scripts/helper.js",
+      "lines": [14, 20],
+      "severity": "CRITICAL",
+      "category": "Unvalidated Input / DoS",
+      "description": "WebSocket messages trigger page reload without authentication or rate-limiting",
+      "impact": "Denial of service via malicious WebSocket messages",
+      "recommendation": "Add HMAC signature validation; implement replay attack prevention",
+      "status": "OPEN"
+    },
+    {
+      "id": "C-004",
+      "title": "Hardcoded Test Password in E2E Helper",
+      "file": "e2e/helpers/createCouple.ts",
+      "lines": [22, 31],
+      "severity": "CRITICAL",
+      "category": "Hardcoded Test Credentials",
+      "description": "All E2E tests use same hardcoded password 'pwd12345'",
+      "impact": "Predictable test credentials; risk if tests run against staging/prod",
+      "recommendation": "Generate unique passwords using crypto.randomBytes() per test run",
+      "status": "OPEN"
+    }
+  ],
+  "high_findings": [
+    {
+      "id": "H-001",
+      "title": "JWT Secret Validation is Weak",
+      "file": "src/backend/src/services/authService.ts",
+      "lines": [10, 13],
+      "severity": "HIGH",
+      "category": "Weak Cryptography",
+      "description": "JWT_SECRET checked for minimum 32 characters only; no entropy validation",
+      "impact": "Weak signing keys vulnerable to brute force",
+      "recommendation": "Increase minimum to 64 characters; validate entropy (≥128 bits)",
+      "status": "OPEN"
+    },
+    {
+      "id": "H-002",
+      "title": "Soft-Deleted Users Can Still Authenticate",
+      "file": "src/backend/src/middleware/authMiddleware.ts",
+      "lines": [76, 85],
+      "severity": "HIGH",
+      "category": "Broken Authentication",
+      "description": "Although code correctly checks deletedAt, this was previously a vulnerability and needs test coverage",
+      "impact": "Deleted users could authenticate with old tokens",
+      "recommendation": "Add unit tests to verify soft-delete filtering in auth middleware",
+      "status": "PARTIALLY_FIXED"
+    },
+    {
+      "id": "H-003",
+      "title": "Plaintext Token Storage in localStorage",
+      "file": "src/frontend/src/services/api/http.ts",
+      "lines": [28, 36, 54, 56],
+      "severity": "HIGH",
+      "category": "Sensitive Data Exposure",
+      "description": "JWT access tokens stored in plaintext localStorage vulnerable to XSS",
+      "impact": "Token theft via XSS; session hijacking",
+      "recommendation": "Move to httpOnly Secure cookies; use sessionStorage for access token at minimum",
+      "status": "OPEN"
+    },
+    {
+      "id": "H-004",
+      "title": "Refresh Token Stored in localStorage Without Encryption",
+      "file": "src/frontend/src/services/api/http.ts",
+      "lines": [34, 37],
+      "severity": "HIGH",
+      "category": "Sensitive Data Exposure",
+      "description": "Long-lived refresh token stored plaintext in localStorage",
+      "impact": "Persistent session hijacking via stolen refresh token",
+      "recommendation": "Move to httpOnly Secure cookie; encrypt if localStorage is necessary",
+      "status": "OPEN"
+    },
+    {
+      "id": "H-005",
+      "title": "Missing CSRF Protection Documentation",
+      "file": "src/backend/src/server.ts",
+      "lines": [],
+      "severity": "HIGH",
+      "category": "Cross-Site Request Forgery",
+      "description": "CSRF protection strategy not documented; if cookies added later, CSRF tokens required",
+      "impact": "Vulnerability if cookie-based auth is introduced without CSRF tokens",
+      "recommendation": "Document JWT-based CSRF immunity; add explicit CSRF token requirement for future cookie-based auth",
+      "status": "OPEN"
+    },
+    {
+      "id": "H-006",
+      "title": "Insufficient Rate-Limiting on Authentication Endpoints",
+      "file": "src/backend/src/server.ts",
+      "lines": [],
+      "severity": "HIGH",
+      "category": "Brute Force Vulnerability",
+      "description": "No strict rate-limiting visible on /auth/login and /auth/signup endpoints",
+      "impact": "Password brute force attacks possible",
+      "recommendation": "Add 5 attempts/15min for login; 3 attempts/hour for signup; use Redis for distributed rate-limiting",
+      "status": "OPEN"
+    },
+    {
+      "id": "H-007",
+      "title": "No Input Length Validation on Sensitive Fields",
+      "file": "src/backend/src/schemas/authSchemas.ts",
+      "lines": [],
+      "severity": "HIGH",
+      "category": "Input Validation",
+      "description": "Email, name, and password fields lack maximum length constraints",
+      "impact": "DoS via large payloads; database bloat",
+      "recommendation": "Add max: 254 for email (RFC 5321); max: 128 for password; max: 100 for name",
+      "status": "OPEN"
+    },
+    {
+      "id": "H-008",
+      "title": "Missing Server-Side Validation for Enum Fields",
+      "file": "src/backend/src/routes/taskRoutes.ts",
+      "lines": [],
+      "severity": "HIGH",
+      "category": "Input Validation",
+      "description": "Enum fields (category, status, type) not validated with Zod enum() schema",
+      "impact": "Invalid state in database; application crashes",
+      "recommendation": "Use Zod enum validation: z.enum(['cocina', 'baños', 'limpieza', ...])",
+      "status": "OPEN"
+    },
+    {
+      "id": "H-009",
+      "title": "No Content-Type Validation in File Uploads",
+      "file": "src/backend/src/routes/taskProof.ts",
+      "lines": [],
+      "severity": "HIGH",
+      "category": "Arbitrary File Upload",
+      "description": "Proof image uploads don't validate MIME type or file size limits",
+      "impact": "Malware distribution; DoS via large files",
+      "recommendation": "Validate Content-Type header; check magic bytes with file-type library; enforce 5MB max",
+      "status": "OPEN"
+    },
+    {
+      "id": "H-010",
+      "title": "Google OAuth Token Not Properly Encrypted",
+      "file": "src/backend/src/routes/googleCalendarOauth.ts",
+      "lines": [],
+      "severity": "HIGH",
+      "category": "Sensitive Data Exposure",
+      "description": "Google OAuth refresh token stored in database without encryption",
+      "impact": "Unauthorized Google Calendar access if database is compromised",
+      "recommendation": "Encrypt refresh tokens using AES-256-GCM before storage; decrypt on retrieval",
+      "status": "OPEN"
+    },
+    {
+      "id": "H-011",
+      "title": "Error Messages Leak System Information",
+      "file": "src/backend/src/server.ts",
+      "lines": [],
+      "severity": "HIGH",
+      "category": "Information Disclosure",
+      "description": "Full error messages and stack traces exposed in development mode",
+      "impact": "Information disclosure; attacker learns system architecture",
+      "recommendation": "Log errors server-side only; return generic messages to client unless EXPOSE_ERRORS=true",
+      "status": "OPEN"
+    },
+    {
+      "id": "H-012",
+      "title": "No Validation of Couple Relationship in Route Handlers",
+      "file": "src/backend/src/routes/*",
+      "lines": [],
+      "severity": "HIGH",
+      "category": "Broken Access Control / IDOR",
+      "description": "Protected routes verify authMiddleware but not coupleId ownership (IDOR)",
+      "impact": "User A could access/modify User B's couple data if they guess IDs",
+      "recommendation": "Add coupleId check in all couple-scoped resource queries: where: { id, coupleId: req.coupleId }",
+      "status": "OPEN"
+    }
+  ],
+  "medium_findings": [
+    {
+      "id": "M-001",
+      "title": "Weak Session ID Generation",
+      "file": ".claude/helpers/session.js",
+      "severity": "MEDIUM",
+      "category": "Weak Cryptography",
+      "recommendation": "Use crypto.randomBytes(32).toString('hex')"
+    },
+    {
+      "id": "M-002",
+      "title": "Unencrypted Sensitive Data in Helper Storage",
+      "file": ".claude/helpers/memory.js",
+      "severity": "MEDIUM",
+      "category": "Sensitive Data Storage",
+      "recommendation": "Encrypt with AES-256-GCM before storing to disk"
+    },
+    {
+      "id": "M-003",
+      "title": "Missing HSTS Header",
+      "file": "src/backend/src/server.ts",
+      "severity": "MEDIUM",
+      "category": "Weak HTTPS Configuration",
+      "recommendation": "Add helmet.hsts({ maxAge: 31536000, includeSubDomains: true, preload: true })"
+    },
+    {
+      "id": "M-004",
+      "title": "No Database Connection Encryption",
+      "file": "Database configuration",
+      "severity": "MEDIUM",
+      "category": "Weak Network Configuration",
+      "recommendation": "Use DATABASE_URL with ?sslmode=require parameter"
+    },
+    {
+      "id": "M-005",
+      "title": "Insufficient Password Entropy Requirements",
+      "file": "src/backend/src/schemas/authSchemas.ts",
+      "severity": "MEDIUM",
+      "category": "Weak Password Policy",
+      "recommendation": "Require 12+ chars, uppercase, lowercase, digit, and special character"
+    },
+    {
+      "id": "M-006",
+      "title": "No Account Lockout After Failed Login Attempts",
+      "file": "src/backend/src/services/authService.ts",
+      "severity": "MEDIUM",
+      "category": "Brute Force Vulnerability",
+      "recommendation": "Lock account for 15 minutes after 5 failed attempts"
+    },
+    {
+      "id": "M-007",
+      "title": "No Security Headers for Content Injection Protection",
+      "file": "src/backend/src/server.ts",
+      "severity": "MEDIUM",
+      "category": "Missing Security Headers",
+      "recommendation": "Add CSP, X-Frame-Options, X-Content-Type-Options, etc."
+    },
+    {
+      "id": "M-008",
+      "title": "No Rate-Limiting on Expensive Operations",
+      "file": "src/backend/src/routes/analytics.ts",
+      "severity": "MEDIUM",
+      "category": "Denial of Service",
+      "recommendation": "Add per-user rate-limiting on export/expensive operations"
+    }
+  ],
+  "low_findings": [
+    {
+      "id": "L-001",
+      "title": "Document Encoding Issues",
+      "file": "src/frontend/public/index.html",
+      "severity": "LOW",
+      "category": "Best Practice",
+      "recommendation": "Add <meta charset=\"UTF-8\" />"
+    },
+    {
+      "id": "L-002",
+      "title": "Missing Subresource Integrity Checks",
+      "file": "src/frontend/public/index.html",
+      "severity": "LOW",
+      "category": "Supply Chain Risk",
+      "recommendation": "Add integrity=\"sha384-...\" to external scripts"
+    },
+    {
+      "id": "L-003",
+      "title": "No Version Pinning in Package Manager",
+      "file": "package.json",
+      "severity": "LOW",
+      "category": "Dependency Management",
+      "recommendation": "Pin exact versions; commit package-lock.json"
+    }
+  ],
+  "remediation_timeline": {
+    "immediate_1_week": [
+      "C-001: Remove hardcoded credentials from DEMO_SCRIPT.js",
+      "C-002: Remove plaintext passwords from seed.js",
+      "C-003: Implement WebSocket signature validation",
+      "C-004: Generate unique passwords in E2E helpers"
+    ],
+    "short_term_1_month": [
+      "H-001: Increase JWT_SECRET to 64+ characters with entropy validation",
+      "H-003, H-004: Move tokens to httpOnly Secure cookies",
+      "H-007, H-008: Add input validation and length limits",
+      "H-009: Validate file uploads (MIME type, size)",
+      "H-010: Encrypt Google OAuth tokens at rest",
+      "H-006: Add rate-limiting to auth endpoints"
+    ],
+    "long_term_3_months": [
+      "H-012: Audit all routes for IDOR vulnerabilities",
+      "M-005, M-006: Implement password complexity + account lockout",
+      "M-007: Add comprehensive security headers",
+      "Add third-party penetration testing"
+    ]
+  },
+  "dependency_status": {
+    "note": "Run 'npm audit' and 'npx snyk test' to identify vulnerable packages",
+    "packages_to_check": [
+      "express@4.18.2",
+      "jsonwebtoken@9.0.2",
+      "bcryptjs@2.4.3",
+      "helmet@7.2.0"
+    ]
+  }
+}

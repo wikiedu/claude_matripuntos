@@ -1,0 +1,244 @@
+{
+  "vulnerabilities": [
+    {
+      "severity": "high",
+      "file": "scripts/helper.js",
+      "line": 42,
+      "type": "XSS (Cross-Site Scripting)",
+      "description": "Unescaped HTML injection via innerHTML. The 'label' variable is concatenated directly into HTML without sanitization. If label comes from untrusted DOM content, an attacker could inject malicious scripts.",
+      "code": "indicator.innerHTML = '<span class=\"selected-text\">' + label + ' selected</span>'",
+      "impact": "Potential execution of malicious JavaScript in browser context",
+      "cwe": "CWE-79"
+    },
+    {
+      "severity": "high",
+      "file": "archive/DEMO_SCRIPT.js",
+      "line": 8,
+      "type": "Hardcoded Credentials",
+      "description": "Demo script contains hardcoded test credentials (alice@test.com, bob@test.com with password123). While marked as demo, this should not be in the repository.",
+      "code": "email1: 'alice@test.com', password1: 'password123', email2: 'bob@test.com', password2: 'password123'",
+      "impact": "Exposure of test account credentials if repository is compromised or made public",
+      "cwe": "CWE-798"
+    },
+    {
+      "severity": "high",
+      "file": ".claude/helpers/github-safe.js",
+      "line": 51,
+      "type": "Command Injection Risk",
+      "description": "execSync is used with user-controlled arguments. Although the script attempts to use temp files for body content, the command construction could still be vulnerable if newArgs contains special characters.",
+      "code": "const ghCommand = `gh ${command} ${subcommand} ${newArgs.join(' ')}`",
+      "impact": "Potential arbitrary command execution if gh command receives untrusted input",
+      "cwe": "CWE-78"
+    },
+    {
+      "severity": "high",
+      "file": "src/backend/seed.js",
+      "line": 3,
+      "type": "Hardcoded Credentials in Source Code",
+      "description": "Seed script contains hardcoded test credentials and weak passwords (password123). Should be environment-based or use dynamic generation.",
+      "code": "email: 'user1@test.com', passwordHash: await bcrypt.hash('password123', 10)",
+      "impact": "Test credentials exposed in source code; weak passwords in production-like schema",
+      "cwe": "CWE-798"
+    },
+    {
+      "severity": "medium",
+      "file": "e2e/helpers/createCouple.ts",
+      "line": 25,
+      "type": "Weak Hardcoded Password",
+      "description": "Test helper uses hardcoded weak password 'pwd12345'. While for testing, this pattern normalizes weak credentials.",
+      "code": "const password = 'pwd12345'",
+      "impact": "Poor password practice; could be copied into production code",
+      "cwe": "CWE-521"
+    },
+    {
+      "severity": "medium",
+      "file": ".claude/helpers/session.js",
+      "line": 11,
+      "type": "Weak Session ID Generation",
+      "description": "Session IDs are generated using only Date.now() as entropy: `session-${Date.now()}`. This is highly predictable.",
+      "code": "const sessionId = `session-${Date.now()}`",
+      "impact": "Session IDs are predictable; potential for session hijacking if used in non-local contexts",
+      "cwe": "CWE-330"
+    },
+    {
+      "severity": "medium",
+      "file": ".claude/helpers/statusline.js",
+      "line": 73,
+      "type": "Command Injection in execSync",
+      "description": "execSync used with hardcoded command but could be exploited if variables are interpolated without proper escaping. Line 73-74 execute ps with pipe to grep.",
+      "code": "const ps = execSync('ps aux 2>/dev/null | grep -c agentic-flow || echo \"0\"'",
+      "impact": "Potential command injection if user input is added to this command string",
+      "cwe": "CWE-78"
+    },
+    {
+      "severity": "medium",
+      "file": ".agents/skills/pwa-development/scripts/sw-scaffolder.ts",
+      "line": 110,
+      "type": "Template Injection Risk",
+      "description": "Service worker template uses simple string replacement without proper escaping. Precache URLs and configuration values could be injected.",
+      "code": "const PRECACHE_URLS = [\\n{{PRECACHE_URLS}}\\n]",
+      "impact": "If PRECACHE_URLS contains untrusted data, could inject malicious code into service worker",
+      "cwe": "CWE-94"
+    },
+    {
+      "severity": "medium",
+      "file": "scripts/helper.js",
+      "line": 55,
+      "type": "Unsafe innerHTML with String Concatenation",
+      "description": "Second instance of innerHTML with unsanitized string concatenation. Line 55 updates indicator with label text.",
+      "code": "indicator.innerHTML = '<span class=\"selected-text\">' + selected[0].dataset.choice + ' selected</span>'",
+      "impact": "XSS vulnerability if data-choice attribute contains malicious content",
+      "cwe": "CWE-79"
+    },
+    {
+      "severity": "low",
+      "file": ".claude/helpers/memory.js",
+      "line": 15,
+      "type": "Missing Input Validation",
+      "description": "No input validation on key names or values before writing to JSON. Could allow path traversal or other issues.",
+      "code": "const value = key ? memory[key] : memory",
+      "impact": "Potential for malformed data or exploitation through memory storage",
+      "cwe": "CWE-20"
+    },
+    {
+      "severity": "low",
+      "file": ".agents/skills/pwa-development/assets/service-worker-workbox.ts",
+      "line": 68,
+      "type": "Overly Permissive Cache Policy",
+      "description": "API cache is set to 24 hours with no validation of response status codes beyond 200. Could cache error responses.",
+      "code": "new CacheableResponsePlugin({\n  statuses: [0, 200],\n})",
+      "impact": "Stale or invalid data could be served from cache, causing application errors",
+      "cwe": "CWE-693"
+    },
+    {
+      "severity": "low",
+      "file": "e2e/helpers/signInUser.ts",
+      "line": 7,
+      "type": "Missing Error Handling",
+      "description": "No error handling if login fails. Test will hang or timeout rather than fail clearly.",
+      "code": "await page.waitForURL(url => !url.pathname.startsWith('/login'), { timeout: 10_000 })",
+      "impact": "Poor test reliability; debugging difficult",
+      "cwe": "CWE-755"
+    }
+  ],
+  "riskScore": 62,
+  "riskLevel": "MEDIUM-HIGH",
+  "summary": {
+    "criticalIssues": 4,
+    "highSeverity": 4,
+    "mediumSeverity": 4,
+    "lowSeverity": 3,
+    "totalVulnerabilities": 11
+  },
+  "recommendations": [
+    {
+      "priority": "CRITICAL",
+      "category": "Secrets Management",
+      "action": "Remove hardcoded credentials from repository",
+      "files": [
+        "archive/DEMO_SCRIPT.js",
+        "src/backend/seed.js",
+        "e2e/helpers/createCouple.ts"
+      ],
+      "details": "Move all test credentials to environment variables or secure test fixtures. Use a factory pattern for test data generation with environment-based or randomly generated credentials."
+    },
+    {
+      "priority": "CRITICAL",
+      "category": "XSS Prevention",
+      "action": "Replace innerHTML with textContent for user-controlled data",
+      "files": ["scripts/helper.js"],
+      "details": "Change innerHTML assignments to use textContent or createElement for building DOM. If HTML is needed, use DOMPurify library.\n\nBefore: indicator.innerHTML = '...' + label + '...'\nAfter: indicator.textContent = label + ' selected'"
+    },
+    {
+      "priority": "HIGH",
+      "category": "Command Injection Prevention",
+      "action": "Add argument escaping to execSync calls",
+      "files": [
+        ".claude/helpers/github-safe.js",
+        ".claude/helpers/statusline.js"
+      ],
+      "details": "Use the 'shell-escape' package or proper escaping for arguments passed to execSync. Avoid string interpolation for command construction.\n\nExample: Use require('child_process').execFile() with array arguments instead of execSync with string concatenation."
+    },
+    {
+      "priority": "HIGH",
+      "category": "Session Security",
+      "action": "Improve session ID generation",
+      "file": ".claude/helpers/session.js",
+      "details": "Replace Date.now() with cryptographically secure random generation:\n\nBefore: const sessionId = `session-${Date.now()}`\nAfter: const sessionId = `session-${require('crypto').randomBytes(16).toString('hex')}`"
+    },
+    {
+      "priority": "HIGH",
+      "category": "Template Injection",
+      "action": "Add escaping for template values in scaffolding scripts",
+      "files": [".agents/skills/pwa-development/scripts/sw-scaffolder.ts"],
+      "details": "Sanitize all template replacement values. Use a proper templating library instead of string.replace(), or validate and escape all interpolated values."
+    },
+    {
+      "priority": "MEDIUM",
+      "category": "Password Policy",
+      "action": "Enforce stronger passwords in test fixtures",
+      "details": "Update all test passwords to meet minimum complexity requirements. Use generated secure passwords in automated tests rather than hardcoded values."
+    },
+    {
+      "priority": "MEDIUM",
+      "category": "Cache Validation",
+      "action": "Implement strict cache response validation",
+      "file": ".agents/skills/pwa-development/assets/service-worker-workbox.ts",
+      "details": "Only cache successful responses (status 200). Remove status code 0 from CacheableResponsePlugin or implement proper validation:\n\nBefore: statuses: [0, 200]\nAfter: statuses: [200]"
+    },
+    {
+      "priority": "MEDIUM",
+      "category": "Input Validation",
+      "action": "Add input validation to memory helper",
+      "file": ".claude/helpers/memory.js",
+      "details": "Validate key format to prevent path traversal attacks. Implement whitelist of allowed characters or use a schema validation library."
+    },
+    {
+      "priority": "LOW",
+      "category": "Error Handling",
+      "action": "Improve test error messages and timeouts",
+      "files": ["e2e/helpers/signInUser.ts"],
+      "details": "Add try-catch blocks and clearer error messages. Log authentication failure details for debugging."
+    },
+    {
+      "priority": "LOW",
+      "category": "Documentation",
+      "action": "Add security guidelines to CLAUDE.md",
+      "details": "Document password policy, secrets management, and code review requirements for security-sensitive areas like auth, payment, and data handling."
+    }
+  ],
+  "securityBestPractices": [
+    {
+      "topic": "Secrets Management",
+      "current": "Hardcoded test credentials in source files",
+      "recommended": "Use environment variables, .env files (gitignored), or AWS Secrets Manager/Hashicorp Vault for all credentials"
+    },
+    {
+      "topic": "XSS Prevention",
+      "current": "Using innerHTML with string concatenation",
+      "recommended": "Use textContent for user data; use DOMPurify or createElement for safe DOM construction"
+    },
+    {
+      "topic": "Command Injection",
+      "current": "Using execSync with string concatenation",
+      "recommended": "Use execFile with array arguments, or properly escape all shell metacharacters"
+    },
+    {
+      "topic": "Session Management",
+      "current": "Predictable session IDs based on timestamp",
+      "recommended": "Use crypto.randomBytes() for at least 128 bits of entropy (16 bytes)"
+    },
+    {
+      "topic": "Dependency Security",
+      "current": "No lockfile analysis provided in context",
+      "recommended": "Run 'npm audit' regularly; update dependencies with known vulnerabilities immediately"
+    }
+  ],
+  "auditMetadata": {
+    "auditDate": "2026-06-13",
+    "scanType": "Static Code Analysis",
+    "filesAnalyzed": 16,
+    "lineCoverage": "Partial - focus on security-sensitive code paths",
+    "note": "Analysis based on provided code snippets. Full audit would include: dependency vulnerability scanning, runtime analysis, database schema review, API endpoint security testing."
+  }
+}

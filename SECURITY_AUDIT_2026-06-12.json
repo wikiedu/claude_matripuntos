@@ -1,0 +1,418 @@
+{
+  "audit_metadata": {
+    "project": "Matripuntos",
+    "audit_date": "2026-06-12",
+    "auditor": "Security Auditor Agent V3",
+    "scope": [
+      ".claude/helpers/github-safe.js",
+      ".claude/helpers/memory.js",
+      "archive/DEMO_SCRIPT.js",
+      "src/backend/seed.js",
+      "scripts/helper.js",
+      "e2e/helpers/createCouple.ts",
+      "e2e/specs/activity-counter-rounds.spec.ts"
+    ],
+    "findings_summary": {
+      "critical": 2,
+      "high": 4,
+      "medium": 5,
+      "low": 3
+    }
+  },
+  "findings": [
+    {
+      "id": "S0-001",
+      "title": "Command Injection in github-safe.js (execSync with unsanitized args)",
+      "file": ".claude/helpers/github-safe.js",
+      "line_range": "80-106",
+      "severity": "CRITICAL",
+      "vulnerability_type": "Command Injection (CWE-78)",
+      "description": "Lines 80-105 contain two instances where user-controlled arguments are directly interpolated into shell commands executed via execSync. The args array is joined with spaces without escaping, allowing shell metacharacters to break out of the intended command.",
+      "vulnerable_code": [
+        "const ghCommand = `gh ${command} ${subcommand} ${newArgs.join(' ')}`;",
+        "execSync(`gh ${args.join(' ')}`, { stdio: 'inherit' });"
+      ],
+      "exploitation_path": "Attacker can pass malicious arguments containing: $(command), backticks, pipes, redirects, etc. Example: ./github-safe.js pr comment 123 'body'; rm -rf /' would execute 'rm -rf' after the gh command.",
+      "impact": "Remote Code Execution (RCE) - arbitrary system command execution with the privileges of the Node.js process",
+      "remediation": [
+        "Use child_process.execFile() instead of execSync with string interpolation",
+        "Pass arguments as array to execFile: execFile('gh', [command, subcommand, ...args])",
+        "Example: const result = execFile('gh', [command, subcommand, ...newArgs], { stdio: 'inherit' })",
+        "Do not use shell: true which re-enables shell interpretation"
+      ],
+      "cvss_score": 9.8,
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+    },
+    {
+      "id": "S0-002",
+      "title": "Hardcoded Test Credentials in archive/DEMO_SCRIPT.js",
+      "file": "archive/DEMO_SCRIPT.js",
+      "line_range": "65-94",
+      "severity": "HIGH",
+      "vulnerability_type": "Hardcoded Credentials (CWE-798)",
+      "description": "Plain-text email addresses and password 'password123' are hardcoded in the demo script. While labeled as demo, this file should never be committed to production repositories.",
+      "vulnerable_code": [
+        "email1: 'alice@test.com',",
+        "password1: 'password123',",
+        "email2: 'bob@test.com',",
+        "password2: 'password123'"
+      ],
+      "exploitation_path": "If this script is discovered in version control or deployed systems, attackers can use the hardcoded credentials to access test accounts and potentially the production system if similar credentials are reused.",
+      "impact": "Unauthorized access to test/demo accounts; information disclosure; potential lateral movement if credentials are reused in production",
+      "remediation": [
+        "Move to .env or .env.example with placeholder values only",
+        "Use environment variables: process.env.TEST_EMAIL_1, process.env.TEST_PASSWORD",
+        "Add archive/ to .gitignore if it contains demo/test code",
+        "Document in README that this is for local testing only",
+        "Consider removing from production deployments entirely"
+      ],
+      "cvss_score": 7.5,
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+    },
+    {
+      "id": "S0-003",
+      "title": "Hardcoded Secret Key in src/backend/seed.js",
+      "file": "src/backend/seed.js",
+      "line_range": "8",
+      "severity": "CRITICAL",
+      "vulnerability_type": "Hardcoded Credentials / Secret Key Exposure (CWE-798)",
+      "description": "The couple.secretKey is hardcoded as 'test-secret-123' in the seed script. This appears to be a symmetric encryption key or join code secret that should never be hardcoded or committed to version control.",
+      "vulnerable_code": [
+        "data: { secretKey: 'test-secret-123', numChildren: 2, language: 'es' },"
+      ],
+      "exploitation_path": "If secretKey is used for cryptographic operations (e.g., AES encryption), attackers with access to this repo can decrypt sensitive couple data. This is especially dangerous if the same weak key is reused across test and production databases.",
+      "impact": "Cryptographic key compromise; potential decryption of sensitive data if the same key derivation is used in production; integrity violation if the key is used for HMAC operations",
+      "remediation": [
+        "Generate random secrets during seed: const secretKey = crypto.randomBytes(32).toString('hex')",
+        "Use environment variable: const secretKey = process.env.SEED_SECRET_KEY || crypto.randomBytes(32).toString('hex')",
+        "Never hardcode secret keys in code or seed scripts",
+        "Store seed secrets in .env.seed (add to .gitignore)",
+        "Regenerate all couple.secretKey values in production if this was ever used as production data"
+      ],
+      "cvss_score": 9.1,
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:N"
+    },
+    {
+      "id": "S0-004",
+      "title": "Hardcoded Test Password in e2e/helpers/createCouple.ts",
+      "file": "e2e/helpers/createCouple.ts",
+      "line_range": "22",
+      "severity": "HIGH",
+      "vulnerability_type": "Hardcoded Credentials (CWE-798)",
+      "description": "Test password 'pwd12345' is hardcoded in the E2E test helper. While this is a test credential, if E2E tests run against production or staging environments, this could create accounts with a known password.",
+      "vulnerable_code": [
+        "const password = 'pwd12345'"
+      ],
+      "exploitation_path": "If E2E tests are run against staging/production (misconfiguration), accounts created with this helper would use the same predictable password, allowing account takeover via brute-force or dictionary attack.",
+      "impact": "Account takeover of E2E test accounts in staging/production; information disclosure",
+      "remediation": [
+        "Generate random passwords: const password = crypto.randomBytes(16).toString('hex')",
+        "Use environment variable: const password = process.env.E2E_TEST_PASSWORD || generateRandomPassword()",
+        "Ensure E2E tests ONLY run against isolated test/CI environments (assert process.env.NODE_ENV !== 'production')",
+        "Add a pre-test guard that throws if BASE_URL points to production"
+      ],
+      "cvss_score": 7.5,
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+    },
+    {
+      "id": "S1-001",
+      "title": "Unsafe JSON.parse in scripts/helper.js WebSocket handler",
+      "file": "scripts/helper.js",
+      "line_range": "15",
+      "severity": "HIGH",
+      "vulnerability_type": "Unsafe Deserialization (CWE-502)",
+      "description": "Line 15 parses incoming WebSocket messages directly without validation. If the server sends malformed JSON or if an attacker can control the WebSocket frames, this could lead to unexpected behavior or DoS.",
+      "vulnerable_code": [
+        "const data = JSON.parse(msg.data);"
+      ],
+      "exploitation_path": "Attacker with network access to the WebSocket connection could send: (1) Non-JSON data causing unhandled exception, (2) Extremely large JSON causing memory exhaustion, (3) Prototype pollution payloads if the code later assigns parsed data to objects unsafely.",
+      "impact": "Denial of Service (client-side); potential prototype pollution if data is merged into objects; unhandled exceptions in event handler",
+      "remediation": [
+        "Wrap in try-catch: try { const data = JSON.parse(msg.data); } catch(e) { console.error('Invalid JSON'); return; }",
+        "Validate parsed object structure before use",
+        "Implement message size limits: if (msg.data.length > MAX_SIZE) { ws.close(); return; }",
+        "Use a schema validator (Zod/Yup) to validate WebSocket frame structure"
+      ],
+      "cvss_score": 7.1,
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:L"
+    },
+    {
+      "id": "S1-002",
+      "title": "DOM-based XSS in scripts/helper.js innerHTML usage",
+      "file": "scripts/helper.js",
+      "line_range": "59",
+      "severity": "HIGH",
+      "vulnerability_type": "Cross-Site Scripting (DOM-XSS, CWE-79)",
+      "description": "Line 59 uses innerHTML to inject HTML from a selected element's textContent and dataset.choice. If dataset.choice contains user-controlled data from a previous session or persistent storage, this could result in XSS.",
+      "vulnerable_code": [
+        "indicator.innerHTML = '<span class=\"selected-text\">' + label + ' selected</span> — return to terminal to continue';"
+      ],
+      "exploitation_path": "If 'label' comes from element.textContent that contains HTML entities (like from a WebSocket message or stored user input), using innerHTML could execute scripts. Example: label = '<img src=x onerror=alert(1)>' would execute arbitrary JavaScript.",
+      "impact": "Cross-Site Scripting (XSS); session hijacking; data theft; malware injection; credential harvesting",
+      "remediation": [
+        "Use textContent instead of innerHTML: indicator.textContent = label + ' selected — return to terminal to continue'",
+        "If HTML formatting is needed, sanitize with DOMPurify: indicator.innerHTML = DOMPurify.sanitize(htmlString)",
+        "Never interpolate user data directly into innerHTML: use element.createTextNode() or textContent",
+        "Example fix: indicator.textContent = ''; const span = document.createElement('span'); span.textContent = label; span.className = 'selected-text'; indicator.appendChild(span);"
+      ],
+      "cvss_score": 7.3,
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N"
+    },
+    {
+      "id": "S1-003",
+      "title": "Weak Password Requirements in Schemas",
+      "file": "src/backend/src/schemas/authSchemas.ts",
+      "line_range": "9, 42, 82",
+      "severity": "MEDIUM",
+      "vulnerability_type": "Weak Cryptography / Insufficient Authentication (CWE-326)",
+      "description": "Password minimum length is only 8 characters (min(8)). This is below NIST guidelines and weak against modern hardware. No complexity requirements (uppercase, lowercase, numbers, symbols) are enforced.",
+      "vulnerable_code": [
+        "password1: z.string().min(8, 'Password must be at least 8 characters'),",
+        "password: z.string().min(8),",
+        "password: z.string().min(8),"
+      ],
+      "exploitation_path": "Weak 8-character passwords can be cracked via dictionary attack or brute force in hours/days. Coupled with bcrypt salt rounds (if not properly configured), this increases account compromise risk.",
+      "impact": "Account compromise; unauthorized access to couple data; privacy violation",
+      "remediation": [
+        "Increase minimum to 12-16 characters: z.string().min(12, 'Password must be at least 12 characters')",
+        "Add complexity requirements: password must contain uppercase, lowercase, number, and symbol",
+        "Example: z.string().min(12).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/).regex(/[^a-zA-Z0-9]/)",
+        "Implement password strength meter on frontend",
+        "Consider using passphrase instead of complex passwords (NIST SP 800-63B Rev 3)"
+      ],
+      "cvss_score": 5.3,
+      "cvss_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N"
+    },
+    {
+      "id": "S1-004",
+      "title": "Shared Password Across Test Accounts",
+      "file": "src/backend/seed.js",
+      "line_range": "14, 25",
+      "severity": "MEDIUM",
+      "vulnerability_type": "Weak Authentication / Credential Reuse (CWE-1391)",
+      "description": "Both seed users (Alice and Bob) are created with the same password 'password123'. This violates the principle of least privilege and makes it impossible to audit which user performed an action.",
+      "vulnerable_code": [
+        "passwordHash: await bcrypt.hash('password123', 10),",
+        "passwordHash: await bcrypt.hash('password123', 10),"
+      ],
+      "exploitation_path": "If the seed password is exposed or guessed, both test accounts are compromised with a single credential. This is acceptable for local test data but dangerous if seed is ever run in production/staging.",
+      "impact": "Reduced accountability; if used in production, enables account takeover of both users in the couple",
+      "remediation": [
+        "Generate unique passwords per user in seed: const pw1 = crypto.randomBytes(16).toString('hex'); const pw2 = crypto.randomBytes(16).toString('hex')",
+        "Log generated passwords to stdout for test setup only (clear them after seed run)",
+        "Never run seed.js in production (assert NODE_ENV !== 'production')",
+        "Add a guard in seed.js: if (process.env.NODE_ENV === 'production') { throw new Error('Seed cannot run in production'); }"
+      ],
+      "cvss_score": 6.5,
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N"
+    },
+    {
+      "id": "S1-005",
+      "title": "Potential Insecure Direct Object Reference (IDOR) in joinCode usage",
+      "file": "e2e/helpers/createCouple.ts",
+      "line_range": "31",
+      "severity": "MEDIUM",
+      "vulnerability_type": "Insecure Direct Object Reference (CWE-639)",
+      "description": "The helper passes couple.secretKey as joinCode to register the second user. While this appears intentional, if secretKey is predictable or not properly validated, attackers could join arbitrary couples.",
+      "vulnerable_code": [
+        "joinCode: j1.couple?.secretKey"
+      ],
+      "exploitation_path": "If secretKey generation is weak (e.g., sequential, time-based, or uses Math.random()), attackers could guess another couple's joinCode and register a fake partner account, bypassing the couple validation.",
+      "impact": "Unauthorized account linking; couple data breach; denial of service (disrupting couple's negotiation system)",
+      "remediation": [
+        "Verify secretKey is cryptographically random and non-guessable: crypto.randomBytes(32).toString('hex')",
+        "Implement rate limiting on register-with-code endpoint to prevent brute-force guessing",
+        "Add one-time use tokens for joinCode or implement expiration (e.g., 24 hours)",
+        "Log failed joinCode attempts for security monitoring",
+        "Implement CAPTCHA on register-with-code after N failed attempts"
+      ],
+      "cvss_score": 6.5,
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:N"
+    },
+    {
+      "id": "S2-001",
+      "title": "Unsafe Temporary File Creation in github-safe.js",
+      "file": ".claude/helpers/github-safe.js",
+      "line_range": "62",
+      "severity": "MEDIUM",
+      "vulnerability_type": "Insecure Temporary File (CWE-377)",
+      "description": "Temporary file is created in system tmpdir without proper permission restrictions. While randomBytes are used for the filename, the file is world-readable by default in most Unix systems.",
+      "vulnerable_code": [
+        "const tmpFile = join(tmpdir(), `gh-body-${randomBytes(8).toString('hex')}.tmp`);"
+      ],
+      "exploitation_path": "Another process running as a different user on the same system could read the temporary file before it's deleted, potentially exposing sensitive GitHub API content (PR bodies, issue comments with secrets).",
+      "impact": "Information disclosure; exposure of sensitive content in temporary files; potential credential leakage if PR/issue bodies contain secrets",
+      "remediation": [
+        "Use fs.mkdtemp() instead: const tmpDir = await mkdtemp(join(tmpdir(), 'gh-')); const tmpFile = join(tmpDir, 'body.tmp');",
+        "Set restrictive permissions: fs.writeFileSync(tmpFile, body, { mode: 0o600 });",
+        "Properly cleanup: fs.rmSync(tmpDir, { recursive: true, force: true });",
+        "Use a try-finally block to ensure cleanup even on exceptions"
+      ],
+      "cvss_score": 5.5,
+      "cvss_vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N"
+    },
+    {
+      "id": "S2-002",
+      "title": "Missing Input Validation in memory.js",
+      "file": ".claude/helpers/memory.js",
+      "line_range": "36-47",
+      "severity": "MEDIUM",
+      "vulnerability_type": "Insufficient Input Validation (CWE-20)",
+      "description": "The 'set' and 'delete' commands don't validate the key format. A key like '__proto__' or 'constructor' could enable prototype pollution.",
+      "vulnerable_code": [
+        "memory[key] = value;",
+        "delete memory[key];"
+      ],
+      "exploitation_path": "Setting __proto__ or constructor keys could pollute the Object prototype, affecting all objects in the application. Example: memory.js set __proto__ '{\"polluted\": true}'",
+      "impact": "Prototype pollution; potential DoS; unexpected behavior in dependent code; information disclosure",
+      "remediation": [
+        "Validate key format: if (!/^[a-zA-Z0-9_-]+$/.test(key)) { throw new Error('Invalid key format'); }",
+        "Reject reserved keys: if (['__proto__', 'constructor', 'prototype'].includes(key)) { throw new Error('Reserved key'); }",
+        "Use Object.create(null) to create memory object without prototype: const memory = Object.create(null)",
+        "Use Map instead of plain object: const memory = new Map()"
+      ],
+      "cvss_score": 5.3,
+      "cvss_vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:L"
+    },
+    {
+      "id": "S2-003",
+      "title": "Missing Error Handling in E2E Test Activity Counter",
+      "file": "e2e/specs/activity-counter-rounds.spec.ts",
+      "line_range": "19",
+      "severity": "MEDIUM",
+      "vulnerability_type": "Insufficient Error Handling (CWE-755)",
+      "description": "The test assumes response JSON parsing will always succeed. If the API returns non-JSON (e.g., HTML error page), the .json() call will fail silently or throw unhandled exception.",
+      "vulnerable_code": [
+        "const ev: any = await create.json()"
+      ],
+      "exploitation_path": "If the API returns a 5xx error page as HTML, the test will fail cryptically. This masks real API issues and makes debugging harder. Additionally, type assertion 'any' bypasses all type safety.",
+      "impact": "Flaky tests; reduced debugging capability; masked API errors; test coverage illusion",
+      "remediation": [
+        "Add status check before parsing: expect(create.ok()).toBeTruthy();",
+        "Use try-catch: const ev = await create.json().catch(() => { throw new Error(`API returned ${create.status()}`) })",
+        "Replace 'any' with proper types: interface EventResponse { id: string; ... }; const ev: EventResponse = await create.json()",
+        "Add comprehensive error logging: console.log(await create.text()); to see actual response"
+      ],
+      "cvss_score": 4.3,
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:L/A:N"
+    },
+    {
+      "id": "S3-001",
+      "title": "Potential Race Condition in authMiddleware Cache Invalidation",
+      "file": "src/backend/src/middleware/authMiddleware.ts",
+      "line_range": "35-41, 82",
+      "severity": "LOW",
+      "vulnerability_type": "Race Condition (CWE-362)",
+      "description": "The authCache is manually invalidated, but there's no locking mechanism. Between the time the cache is deleted and the Prisma lookup completes, another request could access stale cache data.",
+      "vulnerable_code": [
+        "authCache.delete(decoded.userId)",
+        "authCache.invalidateAuthCache(userId)"
+      ],
+      "exploitation_path": "In high-concurrency scenarios, a very narrow window exists where: (1) Auth cache is invalidated, (2) Another request reads the cache and finds it missing, (3) Meanwhile Prisma is querying, (4) A race condition in the DB query execution could read old couple assignment.",
+      "impact": "Low likelihood but high impact - potential unauthorized access to another couple's data in rare race condition scenarios",
+      "remediation": [
+        "Use a more sophisticated caching strategy: version-based cache keys",
+        "Consider using Redis for distributed caching with atomic operations",
+        "Add test coverage for concurrent auth scenarios",
+        "Implement request ID logging to trace concurrent requests"
+      ],
+      "cvss_score": 3.7,
+      "cvss_vector": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:L/I:L/A:N"
+    },
+    {
+      "id": "S3-002",
+      "title": "Silent Error Suppression in github-safe.js Cleanup",
+      "file": ".claude/helpers/github-safe.js",
+      "line_range": "93-97",
+      "severity": "LOW",
+      "vulnerability_type": "Improper Error Handling (CWE-755)",
+      "description": "Cleanup errors are silently ignored. If temporary file deletion fails (permission issue, file locked), it remains on disk.",
+      "vulnerable_code": [
+        "try { unlinkSync(tmpFile); } catch (e) { // Ignore cleanup errors }"
+      ],
+      "exploitation_path": "Over time, orphaned temporary files accumulate, potentially exhausting disk space (DoS). If tmpdir has sensitive files from other processes, repeated failure to clean up could indicate permission issues.",
+      "impact": "Disk space exhaustion (DoS); potential information disclosure if temp files aren't cleaned up",
+      "remediation": [
+        "Log cleanup failures: catch (e) { console.warn(`Failed to cleanup ${tmpFile}: ${e.message}`); }",
+        "Implement a retry mechanism: let retries = 3; while (retries--) { try { unlinkSync(tmpFile); break; } catch (e) { if (retries === 0) throw; } }",
+        "Add periodic cleanup of orphaned gh-body-*.tmp files in system tmpdir"
+      ],
+      "cvss_score": 3.1,
+      "cvss_vector": "CVSS:3.1/AV:L/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L"
+    },
+    {
+      "id": "S3-003",
+      "title": "WebSocket Auto-reconnect Without Rate Limiting",
+      "file": "scripts/helper.js",
+      "line_range": "22",
+      "severity": "LOW",
+      "vulnerability_type": "Denial of Service (CWE-400)",
+      "description": "WebSocket reconnect happens every 1000ms without exponential backoff. If server is down, client spams reconnection attempts.",
+      "vulnerable_code": [
+        "setTimeout(connect, 1000);"
+      ],
+      "exploitation_path": "If a malicious server intentionally keeps rejecting connections, the client will continuously attempt reconnection, consuming resources and battery (mobile).",
+      "impact": "Client resource exhaustion (CPU, battery, bandwidth); potential DoS if many clients are attacking",
+      "remediation": [
+        "Implement exponential backoff: const maxRetries = 5; let retries = 0; const delay = Math.min(1000 * Math.pow(2, retries), 30000); setTimeout(connect, delay);",
+        "Add maximum retry limit: if (retries >= maxRetries) { console.error('Max retries exceeded'); return; }",
+        "Add jitter: const delay = baseDelay + Math.random() * 1000;"
+      ],
+      "cvss_score": 3.7,
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+    }
+  ],
+  "risk_summary": {
+    "critical_findings": [
+      "Command injection in github-safe.js (S0-001) - RCE vulnerability",
+      "Hardcoded secret key in seed.js (S0-003) - Cryptographic key compromise"
+    ],
+    "high_findings": [
+      "Hardcoded test credentials in DEMO_SCRIPT.js (S0-002)",
+      "Hardcoded E2E test password (S0-004)",
+      "Unsafe JSON.parse in WebSocket handler (S1-001)",
+      "DOM-based XSS in innerHTML usage (S1-002)"
+    ],
+    "immediate_actions_required": [
+      "1. CRITICAL: Fix command injection in github-safe.js by using execFile with array arguments",
+      "2. CRITICAL: Rotate couple.secretKey values if seed.js was ever run in production",
+      "3. HIGH: Move hardcoded credentials to environment variables",
+      "4. HIGH: Fix XSS vulnerability by replacing innerHTML with textContent",
+      "5. HIGH: Add try-catch around JSON.parse in WebSocket handler",
+      "6. MEDIUM: Implement stronger password requirements (min 12 chars + complexity)",
+      "7. MEDIUM: Add guard to prevent seed.js from running in production"
+    ]
+  },
+  "compliance_notes": {
+    "OWASP_Top_10_2021": {
+      "A01_Broken_Access_Control": "Potential IDOR with joinCode (S1-005), weak validation on partner registration",
+      "A02_Cryptographic_Failures": "Hardcoded secret keys (S0-003), weak password requirements (S1-003)",
+      "A03_Injection": "Command injection in github-safe.js (S0-001)",
+      "A04_Insecure_Design": "Weak password policy, insufficient rate limiting on reconnect",
+      "A05_Security_Misconfiguration": "Debug code left in production (DEMO_SCRIPT.js), missing environment guards in seed.js",
+      "A07_Authentication_Failures": "Hardcoded credentials (S0-002, S0-004, S1-004)",
+      "A08_Software_and_Data_Integrity": "Unsafe deserialization in WebSocket (S1-001)",
+      "A09_Security_Logging_Failures": "Silent error suppression in cleanup (S3-002), missing debug guards"
+    },
+    "GDPR_readiness": {
+      "status": "MEDIUM RISK",
+      "notes": "Proper auth middleware exists (authMiddleware.ts shows strong auth checks), but seed/test data handling poses data controller compliance risk if ever run in production"
+    },
+    "Industry_standards": {
+      "NIST_SP_800_63B": "Password requirements fall short of current recommendations (min 8 vs 12+)",
+      "OWASP_Secure_Coding_Practices": "Multiple violations: hardcoded credentials, command injection, unsafe deserialization"
+    }
+  },
+  "dependency_security_status": {
+    "note": "No dependency vulnerabilities detected in scanned files",
+    "positive_findings": [
+      "@prisma/client - verified in authMiddleware.ts (singleton pattern is correct, cache strategy for auth is sound)",
+      "bcrypt - used correctly in seed.js with proper salt rounds",
+      "Zod validation - properly used in authSchemas.ts for input validation"
+    ],
+    "packages_to_audit": [
+      "child_process - used unsafely in github-safe.js (execSync with string interpolation)",
+      "fs module - unsafe temp file handling in github-safe.js"
+    ]
+  }
+}

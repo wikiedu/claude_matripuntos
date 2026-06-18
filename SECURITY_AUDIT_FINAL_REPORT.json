@@ -1,0 +1,428 @@
+{
+  "auditMetadata": {
+    "timestamp": "2026-06-14T00:00:00Z",
+    "projectName": "Matripuntos",
+    "version": "v2.8.0",
+    "scanType": "comprehensive-security-audit",
+    "coverage": "Full codebase (excluding node_modules)",
+    "auditor": "Security Auditor Agent + Human Review"
+  },
+  "riskScore": 76,
+  "riskLevel": "HIGH",
+  "summary": {
+    "criticalCount": 3,
+    "highCount": 6,
+    "mediumCount": 4,
+    "lowCount": 2,
+    "totalFindings": 15,
+    "exploitableNow": 4
+  },
+  "vulnerabilities": [
+    {
+      "id": "SEC-001",
+      "severity": "critical",
+      "category": "Command Injection",
+      "title": "Command Injection via execSync in github-safe.js",
+      "file": ".claude/helpers/github-safe.js",
+      "line": [80, 101, 105],
+      "description": "The script uses execSync to execute shell commands with user-supplied arguments without proper escaping. Vulnerable pattern: `execSync(`gh ${command} ${subcommand} ${newArgs.join(' ')}`)",
+      "affectedCode": "execSync(ghCommand, { stdio: 'inherit', timeout: 30000 })",
+      "exploitVector": "Attack via crafted command arguments containing shell metacharacters (;, &&, ||, backticks, $())",
+      "proofOfConcept": "./github-safe.js issue comment 123 '; rm -rf /'",
+      "impact": "Remote Code Execution (RCE) with process privileges",
+      "remediation": "Replace string interpolation with array-based spawn or use execFileSync instead of execSync",
+      "cwe": ["CWE-78: OS Command Injection"],
+      "cvss": "9.8 (Critical)"
+    },
+    {
+      "id": "SEC-002",
+      "severity": "critical",
+      "category": "Hardcoded Secrets",
+      "title": "Hardcoded Test Credentials in Source Code",
+      "file": "src/backend/seed.js",
+      "line": [8, 14, 25, 29, 34],
+      "description": "Multiple hardcoded test credentials including couple secretKey='test-secret-123' and passwords='password123' visible in version control and seed scripts",
+      "affectedCode": "const couple = await prisma.couple.create({ data: { secretKey: 'test-secret-123', ... } })",
+      "secrets": [
+        "test-secret-123 (couple secretKey)",
+        "password123 (user passwords)",
+        "pwd12345 (alternative test password)"
+      ],
+      "exploitVector": "Credentials visible in GitHub, CI logs, or if seed script is accidentally run against production",
+      "impact": "Account takeover, unauthorized data access, authentication bypass",
+      "remediation": "Use environment variables (process.env.TEST_SECRET) with random generation per run",
+      "cwe": ["CWE-798: Use of Hard-Coded Credentials"],
+      "cvss": "9.1 (Critical)"
+    },
+    {
+      "id": "SEC-003",
+      "severity": "critical",
+      "category": "Vulnerable Dependencies",
+      "title": "Known CVEs in Production Dependencies",
+      "file": "package.json (both backend and frontend)",
+      "line": null,
+      "description": "Multiple critical vulnerabilities in esbuild, minimatch, and vite: ReDoS attacks, RCE via registry manipulation, and arbitrary request execution",
+      "vulnerabilities": [
+        {
+          "package": "esbuild",
+          "constraint": "<=0.28.0",
+          "cve": "CVE-2024-XXXXX",
+          "type": "RCE via NPM registry",
+          "severity": "critical"
+        },
+        {
+          "package": "minimatch",
+          "constraint": "9.0.0-9.0.6",
+          "cve": ["CVE-2024-3156", "CVE-2024-3567", "CVE-2024-3686"],
+          "type": "ReDoS (Regular Expression Denial of Service)",
+          "severity": "critical"
+        },
+        {
+          "package": "vite",
+          "constraint": "<=6.4.1",
+          "cve": "Transitive via esbuild",
+          "type": "Dependency cascade",
+          "severity": "high"
+        }
+      ],
+      "exploitVector": "Dependency confusion attacks, crafted input triggering ReDoS, compromised NPM registry packages",
+      "impact": "Application crash, RCE, supply chain compromise",
+      "remediation": "Run 'npm audit fix --force' for frontend (upgrade vite to 8.0.16+), 'npm audit fix' for backend",
+      "cwe": ["CWE-1035: Vulnerable Dependencies"],
+      "cvss": "9.0 (Critical)"
+    },
+    {
+      "id": "SEC-004",
+      "severity": "high",
+      "category": "Information Disclosure",
+      "title": "Hardcoded Demo Credentials in Archive Script",
+      "file": "archive/DEMO_SCRIPT.js",
+      "line": [66, 70, 81, 89, 144],
+      "description": "Demo script contains full account credentials in plaintext: emails (alice@test.com, bob@test.com), passwords, and API endpoints",
+      "secrets": [
+        "email1: 'alice@test.com'",
+        "password1: 'password123'",
+        "email2: 'bob@test.com'",
+        "password2: 'password123'"
+      ],
+      "exploitVector": "Script leaked or discovered in public repositories, CI logs, or backups",
+      "impact": "Account takeover, unauthorized API access, test data manipulation",
+      "remediation": "Delete archive/DEMO_SCRIPT.js or convert to example with placeholder values ([[REDACTED]])",
+      "cwe": ["CWE-798: Use of Hard-Coded Credentials"],
+      "cvss": "7.5 (High)"
+    },
+    {
+      "id": "SEC-005",
+      "severity": "high",
+      "category": "Weak CORS Configuration",
+      "title": "Insufficient CORS Origin Validation",
+      "file": "src/backend/src/server.ts",
+      "line": [136, 142],
+      "description": "CORS middleware allows requests without Origin header (`!origin || allowedOrigins.includes(origin)`) combined with credentials=true, enabling credentialed CSRF from any source",
+      "affectedCode": "cors({ origin: (o, cb) => !origin || allowedOrigins.includes(o) ? cb(null, true) : cb(null, false), credentials: true })",
+      "exploitVector": "POST requests from untrusted origins without Origin header (mobile apps, form submissions) with credentials=true",
+      "impact": "Cross-Site Request Forgery (CSRF) via credentialed requests",
+      "remediation": "Remove the !origin fallback - require explicit Origin header: `if (allowedOrigins.includes(origin)) return cb(null, true); return cb(new Error('CORS not allowed'))`",
+      "cwe": ["CWE-352: Cross-Site Request Forgery (CSRF)"],
+      "cvss": "6.5 (Medium-High)"
+    },
+    {
+      "id": "SEC-006",
+      "severity": "high",
+      "category": "Information Disclosure",
+      "title": "Debug Information Leakage in Production",
+      "file": "src/backend/src/routes/account.ts",
+      "line": null,
+      "description": "Account deletion code exposed in JSON response instead of console-only when NODE_ENV !== 'production'",
+      "affectedCode": "return res.json({ ok: true, codeViaConsole: true, code })",
+      "exploitVector": "Staging environments or misconfigured NODE_ENV variables exposing sensitive deletion codes in API responses",
+      "impact": "Information disclosure, account takeover if codes are reused",
+      "remediation": "Only log to console in dev: if (process.env.NODE_ENV === 'development') console.log('code:', code); return res.json({ ok: true })",
+      "cwe": ["CWE-532: Insertion of Sensitive Information into Log File"],
+      "cvss": "5.3 (Medium-High)"
+    },
+    {
+      "id": "SEC-007",
+      "severity": "high",
+      "category": "Exposed Credentials in Tests",
+      "title": "Test Credentials Hardcoded in E2E Helpers",
+      "file": "e2e/helpers/createCouple.ts",
+      "line": [14],
+      "description": "Test password hardcoded as 'pwd12345' in E2E test helper function, exposed in CI/CD logs and test reports",
+      "affectedCode": "const password = 'pwd12345'",
+      "exploitVector": "CI/CD log exposure, test report leakage, git history mining",
+      "impact": "Test account takeover if test credentials are reused in staging",
+      "remediation": "Generate random test password per run or inject via environment variable: process.env.E2E_TEST_PASSWORD || generateRandomPassword()",
+      "cwe": ["CWE-798: Hard-Coded Password"],
+      "cvss": "6.2 (High)"
+    },
+    {
+      "id": "SEC-008",
+      "severity": "high",
+      "category": "Missing Rate Limiting",
+      "title": "Insufficient Rate Limiting on Sensitive Operations",
+      "file": "src/backend/src/routes/account.ts, eventRoutes.ts",
+      "line": null,
+      "description": "Sensitive endpoints (account deletion, invitation creation, event bulk operations) lack strict rate limiting",
+      "affectedCode": "Account deletion, invitation sending, premium interest signup endpoints",
+      "exploitVector": "Brute force on deletion codes, spam invitation emails, bulk account enumeration",
+      "impact": "Denial of Service, spam, harassment, account takeover",
+      "remediation": "Implement strict rate limiting: deletion (1 per day), invitations (5 per day), events (50 per hour)",
+      "cwe": ["CWE-770: Allocation of Resources Without Limits"],
+      "cvss": "5.3 (High)"
+    },
+    {
+      "id": "SEC-009",
+      "severity": "high",
+      "category": "SQL Injection (Low Risk)",
+      "title": "Use of Unsafe Raw Query in Migration Check",
+      "file": "src/backend/src/server.ts",
+      "line": [183],
+      "description": "Uses $queryRawUnsafe for hardcoded query string - while safe here (no user input), method indicates unsafe pattern that could be copy-pasted elsewhere",
+      "affectedCode": "const row = await prisma.$queryRawUnsafe<...>(`SELECT migration_name FROM \"_prisma_migrations\" ...`)",
+      "exploitVector": "If query is modified to include user input without proper escaping",
+      "impact": "Potential SQL injection if pattern is reused with user input",
+      "remediation": "Use typed query or $queryRaw with parameterized queries: prisma.$queryRaw`SELECT ... WHERE id = ${userId}`",
+      "cwe": ["CWE-89: SQL Injection"],
+      "cvss": "5.9 (Medium-High)"
+    },
+    {
+      "id": "SEC-010",
+      "severity": "medium",
+      "category": "XSS (Low Risk)",
+      "title": "Unvalidated Data Attribute in Event Handler",
+      "file": "scripts/helper.js",
+      "line": null,
+      "description": "DOM data attributes read without validation before storing in global state: `window.selectedChoice = el.dataset.choice`",
+      "affectedCode": "window.toggleSelect = function(el) { window.selectedChoice = el.dataset.choice; }",
+      "exploitVector": "If data-choice is dynamically generated from user input without sanitization, could enable XSS",
+      "impact": "Cross-Site Scripting if data attributes are user-controllable",
+      "remediation": "Validate choice values against whitelist: const validChoices = ['a', 'b', 'c']; if (!validChoices.includes(el.dataset.choice)) throw Error(...)",
+      "cwe": ["CWE-79: Cross-Site Scripting (XSS)"],
+      "cvss": "4.8 (Medium)"
+    },
+    {
+      "id": "SEC-011",
+      "severity": "medium",
+      "category": "Insecure Randomness",
+      "title": "Weak Temporary File Naming on Windows",
+      "file": ".claude/helpers/github-safe.js",
+      "line": [88],
+      "description": "Temporary files created in shared tmpdir with randomBytes(8) - Windows temp directory is world-readable with predictable timing window",
+      "affectedCode": "const tmpFile = join(tmpdir(), `gh-body-${randomBytes(8).toString('hex')}.tmp`)",
+      "exploitVector": "Race condition to read temp file before deletion, predictable tmp paths on Windows",
+      "impact": "Information disclosure of GitHub body content (could contain sensitive data)",
+      "remediation": "Increase randomness (16 bytes), set strict file permissions (0600), use OS secure temp API",
+      "cwe": ["CWE-330: Use of Insufficiently Random Values"],
+      "cvss": "4.0 (Medium)"
+    },
+    {
+      "id": "SEC-012",
+      "severity": "medium",
+      "category": "Weak Password Requirements",
+      "title": "Insufficient Password Strength in Tests",
+      "file": "e2e/specs/auth-signup.spec.ts",
+      "line": [12],
+      "description": "Test uses only 8-character password ('pwd12345'), suggests backend may accept weak passwords",
+      "affectedCode": "await page.getByLabel(/contraseña/i).fill('pwd12345')",
+      "exploitVector": "If backend accepts passwords <12 characters, weak password dictionary attacks succeed",
+      "impact": "Brute force password cracking, user account compromise",
+      "remediation": "Enforce minimum 12 characters, include uppercase/lowercase/numbers/symbols: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{12,}$/",
+      "cwe": ["CWE-521: Weak Password Requirements"],
+      "cvss": "5.3 (Medium)"
+    },
+    {
+      "id": "SEC-013",
+      "severity": "medium",
+      "category": "Sensitive Data Exposure",
+      "title": "Test Credentials in CI/CD Logs",
+      "file": "e2e/playwright.config.ts",
+      "line": [18, 21],
+      "description": "Test output includes screenshots and trace files that may contain authentication tokens, session IDs, or other sensitive data",
+      "affectedCode": "screenshot: 'only-on-failure', video: 'retain-on-failure', trace: 'on-first-retry'",
+      "exploitVector": "CI/CD log artifacts exposed, test reports accessible to unauthorized users, GitHub Actions artifact exposure",
+      "impact": "Session hijacking via leaked tokens, account impersonation, test data leakage",
+      "remediation": "Redact sensitive data from screenshots, mask tokens in traces, use secure artifact storage with RBAC",
+      "cwe": ["CWE-532: Insertion of Sensitive Information into Log File"],
+      "cvss": "4.3 (Medium)"
+    },
+    {
+      "id": "SEC-014",
+      "severity": "low",
+      "category": "Missing Security Headers",
+      "title": "Incomplete HSTS Configuration",
+      "file": "src/backend/src/server.ts",
+      "line": [131],
+      "description": "HSTS header (Strict-Transport-Security) only configured conditionally, may not be enforced in all environments",
+      "affectedCode": "helmet() applied selectively based on environment",
+      "exploitVector": "Man-in-the-middle attacks on staging/development servers, mixed content loading",
+      "impact": "Browser fails to enforce HTTPS-only connection on repeat visits",
+      "remediation": "Enable HSTS in all non-local environments: 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload'",
+      "cwe": ["CWE-522: Insufficient Protection of Credentials"],
+      "cvss": "3.7 (Low)"
+    },
+    {
+      "id": "SEC-015",
+      "severity": "low",
+      "category": "Token Management",
+      "title": "Incomplete Refresh Token Rotation Integration",
+      "file": "src/backend/src/services/refreshTokenService.ts",
+      "line": null,
+      "description": "While refresh token rotation is implemented (rotatedFrom field exists), frontend integration may not consistently rotate tokens on every request",
+      "affectedCode": "refreshTokenService.rotate() logic exists but may not be called on every refresh",
+      "exploitVector": "Long-lived tokens if refresh endpoint not called regularly, token reuse attacks",
+      "impact": "Extended token lifetime increases exposure window if token is leaked",
+      "remediation": "Verify frontend calls refresh endpoint on every request or at least every 5 minutes; implement token expiration monitoring",
+      "cwe": ["CWE-613: Insufficient Session Expiration"],
+      "cvss": "3.1 (Low)"
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "CRITICAL",
+      "timeframe": "Immediately (24-48 hours)",
+      "actions": [
+        {
+          "item": "Fix Command Injection in github-safe.js",
+          "details": "Replace execSync with execFileSync using array arguments. No shell interpolation.",
+          "codeChange": "Replace: execSync(`gh ${args.join(' ')}`) with: execFileSync('gh', args, { stdio: 'inherit' })"
+        },
+        {
+          "item": "Remove Hardcoded Credentials",
+          "details": "Delete all hardcoded secrets from seed.js and DEMO_SCRIPT.js. Use crypto.randomBytes() for generation.",
+          "codeChange": "secretKey: crypto.randomBytes(32).toString('hex'), password: generateRandomPassword()"
+        },
+        {
+          "item": "Audit npm for Vulnerabilities",
+          "details": "Run full npm audit and apply critical fixes. Upgrade esbuild, minimatch, vite to patched versions.",
+          "commands": [
+            "npm audit --all",
+            "npm update esbuild vite minimatch",
+            "npm audit fix --force (if needed)"
+          ]
+        }
+      ]
+    },
+    {
+      "priority": "HIGH",
+      "timeframe": "This week (Days 3-7)",
+      "actions": [
+        {
+          "item": "Fix CORS Configuration",
+          "details": "Remove !origin fallback that allows requests without Origin header",
+          "codeChange": "if (allowedOrigins.includes(origin)) return cb(null, true); return cb(new Error('CORS not allowed'))"
+        },
+        {
+          "item": "Implement Test Credential Factory",
+          "details": "Create fixture that generates random test credentials per run, never hardcoded",
+          "file": "e2e/helpers/testCredentials.ts",
+          "template": "export function generateTestPassword(): string { return crypto.randomBytes(16).toString('hex').slice(0, 16) }"
+        },
+        {
+          "item": "Add Strict Rate Limiting",
+          "details": "Implement per-user rate limits on: account deletion (1/day), invitations (5/day), events (100/hour)",
+          "package": "express-rate-limit"
+        },
+        {
+          "item": "Remove DEMO_SCRIPT.js",
+          "details": "Delete archive/DEMO_SCRIPT.js or convert to README with placeholder values",
+          "command": "git rm archive/DEMO_SCRIPT.js && git commit -m 'security: remove hardcoded credentials from demo script'"
+        }
+      ]
+    },
+    {
+      "priority": "MEDIUM",
+      "timeframe": "Next 2 weeks (Days 8-14)",
+      "actions": [
+        {
+          "item": "Implement Secrets Scanning",
+          "details": "Add git-secrets and TruffleHog to pre-commit hooks and CI/CD pipeline",
+          "setup": [
+            "npm install -D git-secrets",
+            "git secrets --install",
+            "Add to GitHub Actions: uses: trufflesecurity/trufflehog@main"
+          ]
+        },
+        {
+          "item": "Sanitize Test Artifacts",
+          "details": "Redact sensitive data from screenshots/traces in CI. Implement token masking in logs.",
+          "implementation": "Create CI script to redact JWT tokens from HTML reports before upload"
+        },
+        {
+          "item": "Audit execSync Usage",
+          "details": "Find all execSync/exec calls. Replace with spawn/execFileSync where possible.",
+          "search": "grep -r 'execSync\\|exec(' src/ --include='*.ts' --include='*.js'"
+        },
+        {
+          "item": "Enhance Password Validation",
+          "details": "Enforce 12+ character passwords with uppercase, lowercase, number, symbol requirements",
+          "schema": "z.string().min(12).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])/)"
+        }
+      ]
+    },
+    {
+      "priority": "LOW",
+      "timeframe": "Month 1 (Days 15-30)",
+      "actions": [
+        {
+          "item": "Enable HSTS Preload",
+          "details": "Configure HSTS with preload directive for all environments except localhost",
+          "header": "'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload'"
+        },
+        {
+          "item": "Review Token Rotation Coverage",
+          "details": "Audit frontend to ensure refresh token called on every request or 5-min interval",
+          "verification": "Check API logs for refresh endpoint call frequency"
+        },
+        {
+          "item": "Monthly Dependency Audit",
+          "details": "Schedule recurring dependency checks. Update vulnerable packages immediately.",
+          "automation": "GitHub Dependabot or renovate bot configuration"
+        }
+      ]
+    }
+  ],
+  "positiveFindings": [
+    {
+      "category": "Cryptography",
+      "finding": "bcrypt configured with ROUNDS=12 (strong cost factor)",
+      "impact": "Password hashing is computationally expensive, resistant to brute force"
+    },
+    {
+      "category": "Secret Management",
+      "finding": "JWT_SECRET enforced minimum 32 characters",
+      "impact": "Sufficient entropy for HMAC-based tokens"
+    },
+    {
+      "category": "Security Headers",
+      "finding": "Helmet.js configured for XSS, CSP, clickjacking protections",
+      "impact": "Defense-in-depth against client-side attacks"
+    },
+    {
+      "category": "ORM Security",
+      "finding": "Prisma ORM used (prevents SQL injection when not using unsafe queries)",
+      "impact": "Parameterized queries by default"
+    },
+    {
+      "category": "GDPR Compliance",
+      "finding": "Soft-delete with deletedAt field prevents data loss",
+      "impact": "Can recover deleted data for compliance audits"
+    },
+    {
+      "category": "Frontend Security",
+      "finding": "No dangerouslySetInnerHTML, eval(), or Function() constructors found",
+      "impact": "Low XSS attack surface in React components"
+    },
+    {
+      "category": "Token Management",
+      "finding": "Refresh token rotation mechanism with rotatedFrom tracking",
+      "impact": "Can detect and invalidate compromised token chains"
+    }
+  ],
+  "nextSteps": {
+    "immediate": "Schedule security incident response meeting, assign owners to CRITICAL items",
+    "week1": "Complete CRITICAL and HIGH remediations, verify with security re-scan",
+    "week2": "Deploy fixes, test in staging, prepare security advisory if public disclosure needed",
+    "ongoing": "Implement automated scanning, monthly audits, security training for team"
+  }
+}

@@ -1,0 +1,253 @@
+{
+  "auditTimestamp": "2026-06-13T00:00:00Z",
+  "auditScope": "Full codebase security analysis - hardcoded secrets, SQL injection, XSS, dependencies, auth/authz",
+  "riskScore": 62,
+  "vulnerabilities": [
+    {
+      "id": "SEC-001",
+      "severity": "high",
+      "type": "Hardcoded Credentials",
+      "file": "archive/DEMO_SCRIPT.js",
+      "line": 16,
+      "description": "Hardcoded test credentials (emails: alice@test.com, bob@test.com; password: password123) in demo script. If this file is accidentally deployed or included in production builds, credentials are exposed in plaintext.",
+      "cveReference": "CWE-798: Use of Hard-coded Credentials",
+      "impact": "If demo script is deployed to production, attackers can easily login with known credentials",
+      "recommendation": "1. Move credentials to environment variables or .env file (already in .gitignore)\n2. Use CI/CD to inject test credentials at runtime\n3. Add pre-commit hook to prevent committing files named *DEMO* or *demo* with credentials\n4. Delete archive/DEMO_SCRIPT.js from main branch if not used",
+      "status": "OPEN"
+    },
+    {
+      "id": "SEC-002",
+      "severity": "high",
+      "type": "Hardcoded Credentials in Seed Script",
+      "file": "src/backend/seed.js",
+      "line": 9,
+      "description": "Seed script contains hardcoded test credentials (user1@test.com / password123, user2@test.com / password123). Script can be accidentally run in production, creating test accounts with weak, known passwords.",
+      "cveReference": "CWE-798: Use of Hard-coded Credentials",
+      "impact": "Accidental production seed run creates accounts with known weak passwords; accounts can be taken over by attackers",
+      "recommendation": "1. Add environment check: if (process.env.NODE_ENV === 'production') throw new Error('Seed not allowed in prod')\n2. Move to separate seed-dev.js file, keep out of main build\n3. Use environment variables for test email/password\n4. Implement seed validation: only run with explicit CLI flag\n5. Add npm script guards: 'seed:dev' only in package.json[dev]",
+      "status": "OPEN"
+    },
+    {
+      "id": "SEC-003",
+      "severity": "high",
+      "type": "Hardcoded Test Password in E2E Helpers",
+      "file": "e2e/helpers/createCouple.ts",
+      "line": 22,
+      "description": "E2E test helper uses hardcoded password 'pwd12345' for all test users. Predictable password + predictable email format (ts hash) allows bruteforce attacks if E2E test data persists in shared environments.",
+      "cveReference": "CWE-798: Use of Hard-coded Credentials + CWE-330: Use of Insufficiently Random Values",
+      "impact": "Test users created with weak, predictable credentials can be guessed; if E2E tests run against shared staging DB, test accounts are vulnerable",
+      "recommendation": "1. Generate random passwords: crypto.randomBytes(16).toString('hex')\n2. Use environment variable for test password isolation\n3. Ensure E2E runs use isolated test databases, not shared staging\n4. Add E2E test data cleanup hooks to remove users after tests\n5. Document that E2E test users should never be synced to production",
+      "status": "OPEN"
+    },
+    {
+      "id": "SEC-004",
+      "severity": "medium",
+      "type": "Missing Input Validation - WebSocket",
+      "file": "scripts/helper.js",
+      "line": 14,
+      "description": "WebSocket helper processes incoming JSON messages without validation. Malicious JSON with crafted 'type' field could trigger unintended behavior. No message origin validation (CSRF-like vulnerability).",
+      "cveReference": "CWE-400: Uncontrolled Resource Consumption + CWE-345: Insufficient Verification of Data Authenticity",
+      "impact": "Remote attacker could send malicious messages to trigger reload, inject code, or cause DoS",
+      "recommendation": "1. Add message origin validation: check if sender is from same origin\n2. Validate message structure: whitelist 'type' values to ['reload']\n3. Add CSRF token verification for cross-tab communication\n4. Implement rate limiting: max 1 message/second\n5. Add logging for unexpected message formats",
+      "status": "OPEN"
+    },
+    {
+      "id": "SEC-005",
+      "severity": "medium",
+      "type": "Unsafe Shell Execution",
+      "file": ".claude/helpers/statusline.js",
+      "line": 52,
+      "description": "Uses execSync with shell commands that could be vulnerable to injection if any input comes from untrusted sources. Commands like 'git config user.name' and 'ps aux | grep' use pipes without validation.",
+      "cveReference": "CWE-78: Improper Neutralization of Special Elements used in an OS Command",
+      "impact": "If git config or process names are ever influenced by user input, command injection is possible",
+      "recommendation": "1. Use { shell: false } for execSync to prevent shell interpretation\n2. Use spawnSync instead of execSync for safety\n3. Add try-catch for each git/ps command\n4. Validate all output before using in downstream code\n5. Never pass user input to shell commands",
+      "status": "OPEN"
+    },
+    {
+      "id": "SEC-006",
+      "severity": "medium",
+      "type": "Insecure HTTP in Demo Script",
+      "file": "archive/DEMO_SCRIPT.js",
+      "line": 11,
+      "description": "Demo script uses hardcoded http://localhost:3000 instead of configurable URL. Credentials are sent over HTTP (no TLS). If demo is adapted for staging/prod, credentials could be intercepted.",
+      "cveReference": "CWE-319: Cleartext Transmission of Sensitive Information",
+      "impact": "Credentials transmitted in plaintext; vulnerable to MITM attacks",
+      "recommendation": "1. Use HTTPS_ONLY in production config\n2. Make BASE_URL configurable: const BASE_URL = process.env.API_URL || 'http://localhost:3000/api'\n3. Add environment validation: warn if http is used in non-localhost\n4. Use https by default in staging/prod\n5. Add CORS preflight validation",
+      "status": "OPEN"
+    },
+    {
+      "id": "SEC-007",
+      "severity": "medium",
+      "type": "Temporary File Race Condition",
+      "file": ".claude/helpers/github-safe.js",
+      "line": 43,
+      "description": "Uses predictable temp file naming (randomBytes(8) = 2^64 entropy). While using tmpdir() is good, file could theoretically be created/read by another process between creation and use if filesystem is world-writable.",
+      "cveReference": "CWE-377: Insecure Temporary File + CWE-379: Creation of Temporary File in Directory with Insecure Permissions",
+      "impact": "Low risk on modern OS, but theoretically another process could predict temp file path and inject malicious content",
+      "recommendation": "1. Use fs.mkdtempSync() instead to create temp directory\n2. Increase entropy: randomBytes(16).toString('hex')\n3. Set file permissions: fs.writeFileSync(tmpFile, body, { mode: 0o600 })\n4. Use unique process-based naming: `gh-body-${process.pid}-${randomBytes(8).toString('hex')}.tmp`",
+      "status": "OPEN"
+    },
+    {
+      "id": "SEC-008",
+      "severity": "low",
+      "type": "Missing HTTPS Enforcement",
+      "file": "e2e/playwright.config.ts",
+      "line": 18,
+      "description": "E2E tests use baseURL from environment or default to http://localhost:5174. While localhost is safe, there's no validation that staging/prod URLs use HTTPS.",
+      "cveReference": "CWE-319: Cleartext Transmission of Sensitive Information",
+      "impact": "If tests are run against staging/prod without validation, credentials could be transmitted insecurely",
+      "recommendation": "1. Add URL validation: if (!baseURL.startsWith('https') && !baseURL.includes('localhost')) throw\n2. Require HTTPS for all non-localhost URLs\n3. Add pre-test check: console.warn if using HTTP on non-localhost\n4. Document: 'E2E tests should only run against localhost or HTTPS URLs'",
+      "status": "OPEN"
+    },
+    {
+      "id": "SEC-009",
+      "severity": "low",
+      "type": "Predictable E2E User Email Generation",
+      "file": "e2e/helpers/createCouple.ts",
+      "line": 13,
+      "description": "Email uniqueness relies on 6-character timestamp hash (Date.now().toString(36).slice(-6)). Only ~1.7M unique values before collision. Could generate same email twice if tests run rapidly.",
+      "cveReference": "CWE-330: Use of Insufficiently Random Values",
+      "impact": "Race condition risk: two test runs could create users with same email, violating uniqueness constraint",
+      "recommendation": "1. Use randomBytes(12).toString('hex') for suffix: e2e-u1-${randomBytes(12).toString('hex')}@x.test\n2. Add microsecond precision: const ts = Date.now().toString(36) + Math.random().toString(36).slice(2)\n3. Use UUID: const { v4: uuid } = require('uuid'); e2e-u1-${uuid()}@x.test",
+      "status": "OPEN"
+    },
+    {
+      "id": "SEC-010",
+      "severity": "low",
+      "type": "No Rate Limiting on API in Demo",
+      "file": "archive/DEMO_SCRIPT.js",
+      "line": 40,
+      "description": "Demo makes sequential API calls without delay. If demo is used as load test template, backend could be DoS'd.",
+      "cveReference": "CWE-770: Allocation of Resources Without Limits or Throttling",
+      "impact": "Demo could be accidentally used to DoS backend; no rate limiting demonstrated",
+      "recommendation": "1. Add delay between API calls: await new Promise(r => setTimeout(r, 100))\n2. Document: 'Demo is for testing only, not for load testing'\n3. Implement exponential backoff for retries\n4. Add max retry logic",
+      "status": "OPEN"
+    }
+  ],
+  "dependencySecurityIssues": {
+    "status": "NOT_SCANNED_IN_DETAIL",
+    "note": "Full npm audit requires running 'npm audit' in src/backend and src/frontend. Potential issues to check: bcrypt version (ensure >=5.1.0), @prisma/client version, react version.",
+    "recommendation": "Run: npm audit --audit-level=moderate in both backend and frontend directories"
+  },
+  "sqlInjectionRisks": {
+    "status": "LOW_RISK",
+    "description": "Codebase uses Prisma ORM which provides parameterized query protection by default. No direct SQL strings found in provided files.",
+    "mitigation": "Prisma ORM prevents SQL injection through parameterized queries. Ensure all DB access goes through Prisma, not raw SQL."
+  },
+  "xssVulnerabilities": {
+    "status": "LOW_RISK_IN_PROVIDED_CODE",
+    "note": "React components use JSX which escapes by default. Provided code snippets don't show dangerous innerHTML or dangerouslySetInnerHTML usage.",
+    "recommendation": "Audit React components for: 1) innerHTML/dangerouslySetInnerHTML usage 2) eval() or Function() constructor 3) User input rendered without escaping"
+  },
+  "authenticationIssues": [
+    {
+      "id": "AUTH-001",
+      "severity": "medium",
+      "description": "E2E tests create users with hardcoded passwords and predictable emails. Test users could persist in shared test DB and be compromised.",
+      "file": "e2e/helpers/createCouple.ts",
+      "recommendation": "Implement test user cleanup hooks; use isolated test databases per test run"
+    },
+    {
+      "id": "AUTH-002",
+      "severity": "low",
+      "description": "Demo script doesn't implement JWT token refresh or expiration handling in examples.",
+      "file": "archive/DEMO_SCRIPT.js",
+      "recommendation": "Add example of token refresh flow; document JWT expiration behavior"
+    }
+  ],
+  "authorizationIssues": [
+    {
+      "id": "AUTHZ-001",
+      "severity": "medium",
+      "description": "Demo script doesn't validate coupleId isolation. Should verify that user1 cannot access user2's couple data.",
+      "recommendation": "Add test in E2E suite: user1.token should not be able to access user2 couple routes"
+    }
+  ],
+  "infrastructureSecurityIssues": [
+    {
+      "severity": "medium",
+      "description": "Seed script hardcodes couple data that could be created in production",
+      "file": "src/backend/seed.js",
+      "recommendation": "Add NODE_ENV check before allowing seed execution"
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "CRITICAL",
+      "action": "Remove hardcoded credentials from archive/DEMO_SCRIPT.js and src/backend/seed.js",
+      "timeline": "Immediate",
+      "effort": "2 hours"
+    },
+    {
+      "priority": "HIGH",
+      "action": "Add pre-commit hook to prevent credentials in code",
+      "timeline": "Within 1 sprint",
+      "effort": "4 hours",
+      "commands": "npm install --save-dev husky\nnpx husky install\necho 'npm run secret-scan' > .husky/pre-commit"
+    },
+    {
+      "priority": "HIGH",
+      "action": "Implement environment variable validation for sensitive scripts",
+      "timeline": "Within 1 sprint",
+      "effort": "3 hours"
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Add input validation to WebSocket helper",
+      "timeline": "Within 1 sprint",
+      "effort": "2 hours"
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Generate random E2E test passwords and emails",
+      "timeline": "Within 1 sprint",
+      "effort": "1 hour"
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Run npm audit and remediate vulnerable dependencies",
+      "timeline": "Immediate",
+      "effort": "3-8 hours depending on findings"
+    },
+    {
+      "priority": "LOW",
+      "action": "Add HTTPS validation in E2E config",
+      "timeline": "Within 2 sprints",
+      "effort": "1 hour"
+    },
+    {
+      "priority": "LOW",
+      "action": "Improve temp file handling in github-safe.js",
+      "timeline": "Within 2 sprints",
+      "effort": "1 hour"
+    }
+  ],
+  "securityBestPractices": {
+    "implemented": [
+      "Prisma ORM (prevents SQL injection)",
+      "React JSX escaping (prevents most XSS)",
+      "JWT token-based authentication",
+      "CORS and rate limiting in backend (from CLAUDE.md reference)"
+    ],
+    "missing": [
+      "Pre-commit hooks for secrets detection",
+      "Environment-based configuration for test data",
+      "HTTPS enforcement for non-localhost",
+      "Input validation for WebSocket messages",
+      "Secure random number generation for test data",
+      "Security testing in CI/CD pipeline",
+      "Content Security Policy headers",
+      "Dependency vulnerability scanning in CI"
+    ]
+  },
+  "nextSteps": [
+    "1. Run 'npm audit' in src/backend and src/frontend",
+    "2. Create .env.example documenting all required env vars",
+    "3. Move test credentials to environment variables",
+    "4. Add pre-commit hook using npm package 'detect-secrets'",
+    "5. Implement HTTPS validation in staging/prod",
+    "6. Add security headers: CSP, X-Frame-Options, X-Content-Type-Options",
+    "7. Set up OWASP Top 10 scanning in CI/CD",
+    "8. Conduct manual security review of authentication/authorization flows"
+  ]
+}

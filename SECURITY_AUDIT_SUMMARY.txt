@@ -1,0 +1,143 @@
+================================================================================
+MATRIPUNTOS SECURITY AUDIT - EXECUTIVE SUMMARY
+Date: 2026-06-13
+Risk Score: 7.2/10 (MEDIUM-HIGH)
+================================================================================
+
+CRITICAL FINDINGS (2)
+─────────────────────
+1. [CRIT-001] Hardcoded Test Credentials in seed.js
+   Location: src/backend/seed.js (lines 8, 14, 25)
+   Risk: CRITICAL (CVSS 9.1)
+   Issue: 'password123' and 'test-secret-123' hardcoded in database seed
+   Impact: Database compromise if seed runs in production or repo is exposed
+   Fix: Generate test credentials at runtime; never commit hardcoded secrets
+   Effort: 3 hours
+
+2. [CRIT-002] Command Injection in github-safe.js
+   Location: .claude/helpers/github-safe.js (lines 80, 101, 105)
+   Risk: CRITICAL (CVSS 8.8)
+   Issue: Unsafe string concatenation in execSync() allows shell injection
+   Impact: Arbitrary code execution on developer machine; CI/CD compromise
+   Fix: Use execFileSync with array arguments instead of template strings
+   Effort: 2 hours
+
+HIGH FINDINGS (5)
+──────────────────
+1. [HIGH-001] Test Credentials in Archive
+   File: archive/DEMO_SCRIPT.js
+   Issue: alice@test.com, bob@test.com, password123 hardcoded
+   Fix: Use environment variables for credentials
+   Effort: 1 hour
+
+2. [HIGH-002] Unencrypted WebSocket (ws://)
+   File: scripts/helper.js (line 2)
+   Issue: WebSocket uses ws:// instead of wss:// - plaintext transmission
+   Impact: Network eavesdropping, token interception
+   Fix: Use protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
+   Effort: 1 hour
+
+3. [HIGH-003] Sensitive Key Exposure in E2E
+   File: e2e/helpers/createCouple.ts (line 31)
+   Issue: secretKey passed as joinCode reveals architectural details
+   Fix: Mask sensitive data in test logs; never pass secretKey
+   Effort: 1 hour
+
+4. [HIGH-004] XSS Risk in helper.js innerHTML
+   File: scripts/helper.js (lines 56, 59)
+   Issue: innerHTML set via string concatenation; should use textContent
+   Fix: Replace innerHTML with DOM API (createElement, textContent)
+   Effort: 1 hour
+
+5. [HIGH-005] Missing HTTPS in Invitation Links
+   File: src/backend/src/routes/invitations.ts
+   Issue: origin header used without validation; could be HTTP
+   Fix: Validate origin against whitelist; always use HTTPS
+   Effort: 1 hour
+
+MEDIUM FINDINGS (8)
+────────────────────
+1. [MEDIUM-001] No Password Strength Requirements
+2. [MEDIUM-002] Insufficient Argument Validation in github-safe.js
+3. [MEDIUM-003] WebSocket Reconnection DoS Risk
+4. [MEDIUM-004] Open Redirect in authRoutes.ts
+5. [MEDIUM-005] Temp File Handle Leak in github-safe.js
+6. [MEDIUM-006] Plaintext Session Storage
+7. [MEDIUM-007] Missing CSRF Protection Documentation
+8. [MEDIUM-008] WebSocket Rate Limiting Absent
+
+LOW FINDINGS (4) + INFO (3)
+────────────────────────────
+Minor issues and documentation gaps. See full report for details.
+
+REMEDIATION ROADMAP
+───────────────────
+IMMEDIATE (This week):
+  • Fix command injection in github-safe.js (2h)
+  • Remove hardcoded credentials from seed.js (3h)
+
+SHORT TERM (Next 2 weeks):
+  • Enable WSS for WebSocket (1h)
+  • Fix innerHTML XSS in helper.js (1h)
+  • Validate origins in auth routes (2h)
+
+MEDIUM TERM (Next month):
+  • Implement password strength validation (2h)
+  • Add WebSocket auth & rate limiting (3h)
+
+BACKLOG:
+  • Create docs/SECURITY.md (2h)
+  • Add input validation guards (1h)
+
+TOTAL ESTIMATED EFFORT: 20-30 hours
+RECOMMENDED TIMELINE: 2-3 sprints
+
+KEY STRENGTHS
+──────────────
+✓ JWT validation with 32-char minimum secret
+✓ bcrypt cost factor hardened to 12
+✓ Auth middleware with cache invalidation
+✓ Soft-delete filtering for deleted users
+✓ Rate limiting on auth endpoints
+✓ CORS whitelist via environment variables
+✓ Helmet.js security headers configured
+
+SYSTEMIC ISSUES
+─────────────────
+1. Test credentials hardcoded instead of generated
+   → Establish team rule: Never commit plaintext secrets
+   → Use dotenv for test config
+
+2. Shell command injection via string interpolation
+   → Team rule: Never use template strings for commands
+   → Always use array-based APIs (execFileSync)
+
+3. Unencrypted/validated communication channels
+   → Team rule: Production always uses HTTPS/WSS
+   → Never construct URLs from untrusted headers
+   → Always validate origin against whitelist
+
+AFFECTED OWASP TOP 10
+──────────────────────
+A01 (Broken Access Control): MEDIUM - secretKey exposure in E2E, open redirects
+A02 (Cryptographic Failures): HIGH - ws:// unencrypted, plaintext URLs
+A03 (Injection): CRITICAL - command injection, XSS in HTML
+A04 (Insecure Design): MEDIUM - weak password requirements
+A05 (Security Misconfiguration): MEDIUM - WebSocket no auth/rate limiting
+
+COMPLIANCE NOTES
+─────────────────
+GDPR: Session files may contain user data - ensure deletion on account removal
+SOC2: Need to document encryption for temp files, WebSocket auth, rate limiting
+
+NEXT STEPS
+───────────
+1. Review full report at: SECURITY_AUDIT_V3_FINAL.json
+2. Triage findings using provided effort estimates
+3. Create GitHub issues for each finding with priority labels
+4. Implement fixes in order: CRITICAL → HIGH → MEDIUM
+5. Add security tests for each vulnerability type (see full report)
+6. Schedule code review for all security-related changes
+7. Document security architecture in docs/SECURITY.md
+
+================================================================================

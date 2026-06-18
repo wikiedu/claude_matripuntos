@@ -1,0 +1,229 @@
+{
+  "vulnerabilities": [
+    {
+      "severity": "high",
+      "file": "archive/DEMO_SCRIPT.js",
+      "line": 65,
+      "description": "Hardcoded test credentials (alice@test.com / password123). While archived, this pattern demonstrates weak security practices.",
+      "category": "hardcoded_secrets",
+      "fix": "Use environment variables or secure credential management. Remove from version control history."
+    },
+    {
+      "severity": "high",
+      "file": "archive/DEMO_SCRIPT.js",
+      "line": 16,
+      "description": "Hardcoded HTTP API endpoint without HTTPS. Production must enforce HTTPS for all credential/data transmission.",
+      "category": "insecure_transport",
+      "fix": "Use environment variables for API endpoints, enforce HTTPS in production configuration"
+    },
+    {
+      "severity": "medium",
+      "file": ".claude/helpers/github-safe.js",
+      "line": 52,
+      "description": "Command execution via execSync with string concatenation. While temp files mitigate some shell injection, pattern is fragile.",
+      "category": "command_injection_risk",
+      "fix": "Use array-based execution: execSync(cmd, args) instead of string concat"
+    },
+    {
+      "severity": "medium",
+      "file": "scripts/helper.js",
+      "line": 12,
+      "description": "JSON.parse on WebSocket data without try-catch. Malformed JSON will crash application.",
+      "category": "unhandled_error",
+      "fix": "Wrap parse in try-catch, validate message structure before processing"
+    },
+    {
+      "severity": "medium",
+      "file": "src/backend/seed.js",
+      "line": 7,
+      "description": "Hardcoded test password (password123). Even development seeds should not contain weak credentials.",
+      "category": "weak_credentials",
+      "fix": "Generate random secure passwords in seed script"
+    },
+    {
+      "severity": "medium",
+      "file": "e2e/helpers/createCouple.ts",
+      "line": 17,
+      "description": "Weak hardcoded password (pwd12345) for E2E test users. Should be cryptographically random.",
+      "category": "weak_credentials",
+      "fix": "Use crypto.randomBytes() to generate secure test passwords"
+    },
+    {
+      "severity": "medium",
+      "file": ".claude/helpers/session.js",
+      "line": 12,
+      "description": "Session IDs use Date.now() for entropy - predictable and not cryptographically random.",
+      "category": "weak_random",
+      "fix": "Use crypto.randomBytes(16).toString('hex') for session IDs"
+    },
+    {
+      "severity": "low",
+      "file": ".agents/skills/pwa-development/assets/service-worker-workbox.ts",
+      "line": 52,
+      "description": "API calls cached with NetworkFirst strategy. Sensitive user data could leak from browser cache.",
+      "category": "data_exposure",
+      "fix": "Use NetworkOnly for auth/profile endpoints. Implement cache invalidation strategy."
+    },
+    {
+      "severity": "low",
+      "file": "scripts/helper.js",
+      "line": 30,
+      "description": "DOM element access without existence checks. Could throw errors if elements missing.",
+      "category": "missing_validation",
+      "fix": "Add guards: if (indicator) { indicator.innerHTML = ... }"
+    },
+    {
+      "severity": "low",
+      "file": ".claude/helpers/router.js",
+      "line": 23,
+      "description": "RegExp patterns constructed from input without anchors. Could match unintended strings.",
+      "category": "regex_injection",
+      "fix": "Use regex.escape() or add anchors: /^pattern$/i"
+    }
+  ],
+  "riskScore": 42,
+  "summary": {
+    "critical": 0,
+    "high": 2,
+    "medium": 5,
+    "low": 3,
+    "totalVulnerabilities": 10
+  },
+  "recommendations": [
+    {
+      "priority": "critical",
+      "title": "Enforce HTTPS for all production APIs",
+      "description": "Configure backend to reject HTTP connections. Implement HSTS headers. Verify SSL/TLS certificates are valid.",
+      "effort": "low",
+      "impact": "Prevents credential interception and man-in-the-middle attacks"
+    },
+    {
+      "priority": "high",
+      "title": "Remove all hardcoded credentials from codebase",
+      "description": "Even archived files should not contain real or demo credentials. Use secure credential injection.",
+      "effort": "low",
+      "impact": "Eliminates risk of credential exposure via version control"
+    },
+    {
+      "priority": "high",
+      "title": "Implement input validation for all external data",
+      "description": "Use Zod/TypeScript for request validation. Wrap JSON.parse in error handlers. Validate WebSocket messages.",
+      "effort": "medium",
+      "impact": "Prevents injection attacks and application crashes"
+    },
+    {
+      "priority": "medium",
+      "title": "Use cryptographically secure random generation",
+      "description": "Replace Date.now() with crypto.randomBytes(). Generate secure session IDs and tokens.",
+      "effort": "low",
+      "impact": "Eliminates predictability in security tokens"
+    },
+    {
+      "priority": "medium",
+      "title": "Configure service worker cache security",
+      "description": "Use NetworkOnly strategy for sensitive endpoints (/auth/*, /profile/*, /balance/*). Implement cache versioning.",
+      "effort": "low",
+      "impact": "Prevents stale sensitive data from being served from cache"
+    },
+    {
+      "priority": "medium",
+      "title": "Add rate limiting to authentication endpoints",
+      "description": "Implement rate limiting on /login, /register, /forgot-password. Use express-rate-limit or similar.",
+      "effort": "medium",
+      "impact": "Prevents brute force and DoS attacks on auth"
+    },
+    {
+      "priority": "medium",
+      "title": "Implement CSRF protection",
+      "description": "Add CSRF tokens to state-changing requests. Use SameSite cookies. Verify Origin headers.",
+      "effort": "medium",
+      "impact": "Prevents cross-site request forgery attacks"
+    },
+    {
+      "priority": "low",
+      "title": "Add Content Security Policy headers",
+      "description": "Implement CSP to restrict script/image/style sources. Start with report-only mode.",
+      "effort": "low",
+      "impact": "Defense-in-depth against XSS and injection attacks"
+    },
+    {
+      "priority": "low",
+      "title": "Implement security logging and monitoring",
+      "description": "Log authentication failures, unauthorized access attempts, suspicious API patterns. Never log passwords.",
+      "effort": "medium",
+      "impact": "Enables detection of security incidents"
+    },
+    {
+      "priority": "low",
+      "title": "Add dependency vulnerability scanning",
+      "description": "Use npm audit, Snyk, or similar in CI/CD. Block deployments with critical vulnerabilities.",
+      "effort": "low",
+      "impact": "Early detection of known vulnerabilities in dependencies"
+    }
+  ],
+  "detailedFindings": {
+    "hardcodedSecrets": {
+      "status": "⚠ FOUND",
+      "locations": [
+        "archive/DEMO_SCRIPT.js:65 (alice@test.com, password123)",
+        "src/backend/seed.js:7 (password123)",
+        "e2e/helpers/createCouple.ts:17 (pwd12345)"
+      ],
+      "risk": "Even though in dev/test code, establishes poor security culture"
+    },
+    "sqlInjection": {
+      "status": "✓ NOT FOUND",
+      "details": "Using Prisma ORM with parameterized queries throughout"
+    },
+    "xssVulnerabilities": {
+      "status": "⚠ POTENTIAL",
+      "locations": [
+        "scripts/helper.js:30 uses textContent (safe) but lacks validation",
+        "Service worker processes untrusted WebSocket data without sanitization"
+      ],
+      "risk": "Low risk due to use of textContent, but missing input validation"
+    },
+    "authenticationIssues": {
+      "status": "⚠ FOUND",
+      "issues": [
+        "Session IDs not cryptographically random",
+        "No visible rate limiting on auth endpoints",
+        "Weak test password policies"
+      ]
+    },
+    "insecureTransport": {
+      "status": "✗ FOUND",
+      "details": "Demo script uses http://localhost:3000 without HTTPS enforcement",
+      "risk": "Production environment must enforce HTTPS"
+    },
+    "dependencyVulnerabilities": {
+      "status": "✓ REQUIRES AUDIT",
+      "details": "Run: npm audit in both src/backend and src/frontend",
+      "recommendation": "Integrate npm audit into CI/CD pipeline"
+    }
+  },
+  "securityBestPractices": {
+    "authentication": "✗ No visible rate limiting, ✗ Predictable session IDs, ✓ JWT with refresh tokens",
+    "dataProtection": "✓ bcrypt for passwords, ✗ Weak test credentials, ? No field-level encryption visible",
+    "transport": "✗ HTTP in demo code, ? HTTPS enforcement not documented",
+    "errorHandling": "✗ Missing try-catch in several places",
+    "validation": "✓ Zod on backend, ✗ Insufficient on frontend/helpers",
+    "secrets": "✗ Hardcoded in code, ✓ Not in .env (appears to use env vars for prod)",
+    "logging": "? No visible security event logging"
+  },
+  "nextSteps": [
+    "1. Audit package.json for vulnerable dependencies (npm audit)",
+    "2. Configure HTTPS/HSTS in production environment",
+    "3. Add rate limiting middleware to Express server",
+    "4. Replace Date.now() with crypto.randomBytes() for all tokens",
+    "5. Add input validation using Zod for all external data sources",
+    "6. Implement CSP headers in frontend",
+    "7. Add security logging for auth failures and suspicious activity",
+    "8. Review and update CORS configuration",
+    "9. Implement CSRF protection",
+    "10. Set up automated dependency scanning in CI/CD"
+  ],
+  "auditDate": "2026-06-13",
+  "scanScope": "Helper scripts, E2E helpers, Demo code, Build config, PWA config",
+  "coverageNotes": "This audit covers code provided in the codebase context. Full backend security audit requires reviewing all API routes, database access patterns, and authorization checks. Recommend running additional tools: npm audit, OWASP ZAP, Snyk"
+}

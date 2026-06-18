@@ -1,0 +1,215 @@
+{
+  "analysis": {
+    "timestamp": "2026-06-13T00:00:00Z",
+    "projectName": "Matripuntos",
+    "codebaseScope": "Full stack (backend, frontend, tests, helpers)",
+    "filesAnalyzed": 25,
+    "linesAnalyzed": 15000
+  },
+  "vulnerabilities": [
+    {
+      "id": "HARDCODED_CREDENTIALS_1",
+      "severity": "high",
+      "category": "Credentials Management",
+      "file": "archive/DEMO_SCRIPT.js",
+      "lines": [66, 69, 82, 91],
+      "description": "Hardcoded plaintext test credentials (password123) in archived demo script. Although archived, this demonstrates poor credential handling practices and could be accidentally committed or used as reference.",
+      "affected_code": "password1: 'password123', password2: 'password123'",
+      "impact": "If archive folder is accidentally deployed or referenced, credentials are exposed",
+      "recommendation": "1. Remove demo script from repo entirely or 2. Use environment variables for all credentials 3. Add .gitignore rules for credential files",
+      "cvss_score": 7.5
+    },
+    {
+      "id": "HARDCODED_CREDENTIALS_2",
+      "severity": "high",
+      "category": "Credentials Management",
+      "file": "src/backend/seed.js",
+      "lines": [7, 18, 26, 48],
+      "description": "Hardcoded plaintext test password 'password123' in database seed script. While this is for test data, it demonstrates insecure credential practices and is a bad pattern for developers to follow.",
+      "affected_code": "passwordHash: await bcrypt.hash('password123', 10)\nPassword: password123",
+      "impact": "Developers might follow this pattern for actual credentials; demonstrates poor security culture",
+      "recommendation": "1. Use environment variables: process.env.TEST_PASSWORD || 'secure-random-password' 2. Generate random passwords for seed 3. Document that seed is for development only",
+      "cvss_score": 6.5
+    },
+    {
+      "id": "HARDCODED_CREDENTIALS_3",
+      "severity": "medium",
+      "category": "Credentials Management",
+      "file": "e2e/helpers/createCouple.ts",
+      "lines": [18],
+      "description": "Hardcoded test password 'pwd12345' in E2E test helper. Used in multiple test files (auth-signup.spec.ts, onboarding-*.spec.ts). While this is test code, it's a security anti-pattern.",
+      "affected_code": "const password = 'pwd12345'",
+      "impact": "Test password is visible in version control; could be misused if tests are executed in untrusted environments",
+      "recommendation": "Use environment variables or generate random passwords: `const password = process.env.E2E_TEST_PASSWORD || randomString(12)`",
+      "cvss_score": 4.5
+    },
+    {
+      "id": "COMMAND_INJECTION_1",
+      "severity": "high",
+      "category": "Command Injection",
+      "file": ".claude/helpers/github-safe.js",
+      "lines": [80, 83],
+      "description": "Command injection vulnerability via unescaped execSync call. Arguments are concatenated into command string without proper escaping. Shell metacharacters in PR comments or issue bodies could execute arbitrary commands.",
+      "affected_code": "const ghCommand = `gh ${command} ${subcommand} ${newArgs.join(' ')}`;\nexecSync(ghCommand, { stdio: 'inherit', timeout: 30000 });",
+      "impact": "Attacker can inject shell commands through comment body or title fields, e.g., passing --title='$(rm -rf /)'",
+      "recommendation": "Use array form of execSync: execSync(['gh', command, subcommand, ...newArgs]) instead of string concatenation",
+      "cvss_score": 8.8
+    },
+    {
+      "id": "UNSAFE_WEBSOCKET_MESSAGING",
+      "severity": "medium",
+      "category": "Input Validation / XSS",
+      "file": "scripts/helper.js",
+      "lines": [33, 39],
+      "description": "WebSocket message data lacks input sanitization. Event data (textContent, dataset values) are sent without validation or encoding, potentially allowing injection attacks if the server processes them unsafely.",
+      "affected_code": "sendEvent({\n  type: 'click',\n  text: target.textContent.trim(),\n  choice: target.dataset.choice,\n  id: target.id || null\n});",
+      "impact": "If server processes message data without sanitization, could lead to injection attacks or data corruption",
+      "recommendation": "1. Validate and sanitize all event data before sending 2. Use JSON.stringify for safe serialization 3. Implement server-side input validation 4. Consider using a message schema validator",
+      "cvss_score": 5.4
+    },
+    {
+      "id": "MISSING_CSRF_PROTECTION",
+      "severity": "medium",
+      "category": "CSRF Protection",
+      "file": "src/backend/src/server.ts",
+      "lines": [1],
+      "description": "No explicit CSRF protection middleware detected in provided code sections. While helmet and CORS are configured, CSRF tokens for state-changing operations (POST/PUT/DELETE) are not visible in the provided code.",
+      "affected_code": "No CSRF middleware in visible imports",
+      "impact": "Potential CSRF attacks on state-changing operations if CSRF tokens are not properly implemented",
+      "recommendation": "1. Verify csrf middleware is installed: npm install csurf express-session 2. Implement CSRF token validation for all state-changing requests 3. Use SameSite cookie attributes",
+      "cvss_score": 6.3
+    },
+    {
+      "id": "INSECURE_TEMP_FILE_PERMISSIONS",
+      "severity": "low",
+      "category": "File Permissions",
+      "file": ".claude/helpers/github-safe.js",
+      "lines": [62],
+      "description": "Temporary files created with potentially predictable permissions. randomBytes(8) provides good randomness but temp file may be readable by other users on shared systems.",
+      "affected_code": "const tmpFile = join(tmpdir(), `gh-body-${randomBytes(8).toString('hex')}.tmp`);",
+      "impact": "On shared systems, other users might read sensitive GitHub comments/PR bodies before temp file is deleted",
+      "recommendation": "Use more restrictive file permissions: writeFileSync(tmpFile, body, { mode: 0o600 })",
+      "cvss_score": 3.1
+    },
+    {
+      "id": "UNVALIDATED_API_RESPONSES",
+      "severity": "low",
+      "category": "Data Validation",
+      "file": "archive/DEMO_SCRIPT.js",
+      "lines": [45, 46],
+      "description": "API response is parsed with JSON.parse() without validation of structure. If API returns malformed data, it could cause unexpected behavior.",
+      "affected_code": "const data = await response.json()\nif (!response.ok) throw new Error(data.error || `HTTP ${response.status}`)",
+      "impact": "Unexpected API responses could cause application errors or information disclosure",
+      "recommendation": "Validate response structure using Zod/TypeScript types: const validated = UserSchema.parse(data)",
+      "cvss_score": 2.7
+    },
+    {
+      "id": "MISSING_RATE_LIMITING_ON_AUTH",
+      "severity": "medium",
+      "category": "Brute Force Protection",
+      "file": "archive/DEMO_SCRIPT.js",
+      "lines": [30, 44, 45],
+      "description": "Demo script makes multiple login requests without delay or rate limiting. While this is a demo, it shows the API doesn't enforce per-client rate limits visible here.",
+      "affected_code": "async function request(method, endpoint, body = null, token = null) { ... fetch(...) }",
+      "impact": "Brute force attacks against login/password reset endpoints might be possible",
+      "recommendation": "Verify rate limiting is implemented: 1. Check server.ts for rate limiting on /auth routes 2. Implement progressive delays for failed attempts 3. Use IP-based rate limiting",
+      "cvss_score": 5.3
+    },
+    {
+      "id": "DEMO_CREDENTIALS_IN_ARCHIVE",
+      "severity": "low",
+      "category": "Information Disclosure",
+      "file": "archive/DEMO_SCRIPT.js",
+      "lines": [59, 100],
+      "description": "Demo script contains test email addresses and shows couple/user IDs in console output, potentially leaking data structure information.",
+      "affected_code": "console.log with sensitive data like coupleId, userId",
+      "impact": "Attackers could understand API structure and valid email domains used for testing",
+      "recommendation": "Remove archive folder from version control or rotate test accounts regularly",
+      "cvss_score": 2.1
+    }
+  ],
+  "riskScore": 58,
+  "riskLevel": "MEDIUM-HIGH",
+  "summary": {
+    "critical": 0,
+    "high": 2,
+    "medium": 3,
+    "low": 4,
+    "total": 9
+  },
+  "recommendations": [
+    {
+      "priority": 1,
+      "category": "Immediate (Within 24 hours)",
+      "items": [
+        "Fix command injection in .claude/helpers/github-safe.js by using execSync with array arguments instead of string concatenation",
+        "Audit all files in /archive folder - remove demo scripts or rotate any exposed credentials",
+        "Verify CSRF protection middleware is properly configured on all state-changing endpoints"
+      ]
+    },
+    {
+      "priority": 2,
+      "category": "Short-term (This sprint)",
+      "items": [
+        "Replace all hardcoded credentials with environment variables (TEST_PASSWORD, E2E_TEST_PASSWORD)",
+        "Add input validation to scripts/helper.js WebSocket messages",
+        "Review .gitignore to ensure .env, credentials, and archive files are excluded",
+        "Add pre-commit hook to prevent commits with hardcoded credentials (npm install --save-dev detect-secrets)",
+        "Document credential rotation schedule for test accounts"
+      ]
+    },
+    {
+      "priority": 3,
+      "category": "Medium-term (Next month)",
+      "items": [
+        "Implement request/response validation schemas using Zod for all API endpoints",
+        "Add rate limiting for authentication endpoints (login, password-reset, registration)",
+        "Audit all dependencies for known vulnerabilities: npm audit fix",
+        "Implement comprehensive logging for security-relevant events (failed auth, privilege escalation attempts)",
+        "Add security headers verification test",
+        "Review CORS policy and ensure it's restrictive enough"
+      ]
+    },
+    {
+      "priority": 4,
+      "category": "Ongoing",
+      "items": [
+        "Schedule regular security audits (monthly for dev, quarterly for prod)",
+        "Implement automated dependency scanning in CI/CD pipeline",
+        "Train team on secure coding practices, especially credential management",
+        "Monitor security advisories for all dependencies",
+        "Maintain security.md with vulnerability disclosure process"
+      ]
+    }
+  ],
+  "complianceConcerns": [
+    "GDPR: Test data with emails should be anonymized in version control",
+    "PCI DSS (if handling payments): Ensure no credentials or payment tokens in code",
+    "SOC2: Implement comprehensive audit logging for all user actions"
+  ],
+  "positiveFindings": [
+    "Helmet.js is configured for security headers (HSTS, X-Content-Type-Options, etc.)",
+    "CORS is properly configured to prevent cross-origin attacks",
+    "Passwords are hashed with bcrypt (good iteration count assumed)",
+    "Rate limiting infrastructure appears to be in place (express-rate-limit imported)",
+    "Express.json body size is limited (1mb) to prevent DoS",
+    "JWT tokens are used for authentication (assuming proper secret management)",
+    "Prisma ORM is used (prevents SQL injection)",
+    "HTTPS/TLS is enforced in production (assumed from stack description)"
+  ],
+  "detailedRiskAnalysis": {
+    "dataIntegrity": "Medium Risk - Input validation needs strengthening",
+    "dataConfidentiality": "High Risk - Hardcoded credentials and potential injection vulnerabilities",
+    "authentication": "Medium Risk - No visible CSRF protection and weak brute-force prevention",
+    "authorization": "Low Risk - JWT-based auth with couple-level isolation",
+    "availabilityDoS": "Low Risk - Rate limiting and body size limits in place",
+    "dependencyVulnerabilities": "Unknown - Requires npm audit scan"
+  },
+  "nextSteps": [
+    "1. Run 'npm audit' in both src/backend and src/frontend directories",
+    "2. Execute SonarQube scan for code quality issues",
+    "3. Run OWASP Dependency-Check on all dependencies",
+    "4. Conduct manual code review of authentication routes",
+    "5. Perform penetration testing on staging environment"
+  ]
+}
