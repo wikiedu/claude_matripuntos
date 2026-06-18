@@ -10,6 +10,8 @@ const mockPrisma: any = {
     updateMany: jest.fn(),
     deleteMany: jest.fn(),
   },
+  // $transaction(callback) ejecuta el callback con el mismo mockPrisma como tx.
+  $transaction: jest.fn((cb: any) => cb(mockPrisma)),
 }
 
 jest.mock('../src/lib/prisma', () => ({ __esModule: true, default: mockPrisma }))
@@ -76,21 +78,43 @@ describe('refreshTokenService', () => {
     expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalled()
   })
 
-  it('rotateRefresh: success rotates token (revokes + creates new)', async () => {
+  it('rotateRefresh: success rotates token (atomic revoke + creates new)', async () => {
     mockPrisma.refreshToken.findUnique.mockResolvedValueOnce({
       id: 't1', userId: 'u1',
       revokedAt: null,
       expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
     })
-    mockPrisma.refreshToken.update.mockResolvedValueOnce({})
+    // Guard atómico gana la carrera: count===1.
+    mockPrisma.refreshToken.updateMany.mockResolvedValueOnce({ count: 1 })
     mockPrisma.refreshToken.create.mockResolvedValueOnce({})
     const r = await rotateRefresh('plaintext')
     expect(r.ok).toBe(true)
     expect(r.userId).toBe('u1')
     expect(r.newPlaintext).toMatch(/^[a-f0-9]{64}$/)
-    expect(mockPrisma.refreshToken.update).toHaveBeenCalledWith(expect.objectContaining({
+    // Revocación atómica con guard revokedAt:null dentro de la transacción.
+    expect(mockPrisma.$transaction).toHaveBeenCalled()
+    expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: 't1', revokedAt: null }),
       data: expect.objectContaining({ revokedAt: expect.any(Date) }),
     }))
+    expect(mockPrisma.refreshToken.create).toHaveBeenCalled()
+  })
+
+  it('rotateRefresh: lost race (concurrent rotation) → reuse_detected, no new token', async () => {
+    mockPrisma.refreshToken.findUnique.mockResolvedValueOnce({
+      id: 't1', userId: 'u1',
+      revokedAt: null,
+      expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+    })
+    // Otra petición concurrente ya revocó este token: el guard devuelve count===0.
+    mockPrisma.refreshToken.updateMany.mockResolvedValueOnce({ count: 0 })
+    // revokeAllForUser (fuera de la tx) revoca la chain restante.
+    mockPrisma.refreshToken.updateMany.mockResolvedValueOnce({ count: 1 })
+    const r = await rotateRefresh('plaintext')
+    expect(r.ok).toBe(false)
+    expect(r.reason).toBe('reuse_detected')
+    // No se emite token nuevo si se pierde la carrera.
+    expect(mockPrisma.refreshToken.create).not.toHaveBeenCalled()
   })
 
   it('revokeAllForUser updates all non-revoked', async () => {

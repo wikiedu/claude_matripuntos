@@ -12,9 +12,13 @@
 // en versión dedicada (riesgo: romper sesiones in-flight).
 
 import crypto from 'crypto'
+import type { Prisma, PrismaClient } from '@prisma/client'
 import prisma from '../lib/prisma.js'
 
 const REFRESH_TTL_DAYS = 30
+
+// Cliente Prisma o el cliente transaccional (tx) que pasa $transaction.
+type PrismaLike = PrismaClient | Prisma.TransactionClient
 
 export function generateRefreshToken(): string {
   return crypto.randomBytes(32).toString('hex')
@@ -26,13 +30,14 @@ export function hashRefreshToken(plaintext: string): string {
 
 export async function issueRefresh(
   userId: string,
-  options?: { rotatedFrom?: string; deviceFingerprint?: string },
+  options?: { rotatedFrom?: string; deviceFingerprint?: string; client?: PrismaLike },
 ): Promise<{ plaintext: string; expiresAt: Date }> {
+  const db = options?.client ?? prisma
   const plaintext = generateRefreshToken()
   const tokenHash = hashRefreshToken(plaintext)
   const expiresAt = new Date(Date.now() + REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000)
 
-  await prisma.refreshToken.create({
+  await db.refreshToken.create({
     data: {
       userId,
       tokenHash,
@@ -71,21 +76,41 @@ export async function rotateRefresh(
     return { ok: false, reason: 'expired' }
   }
 
-  // Revocar el actual + emitir uno nuevo encadenado.
-  await prisma.refreshToken.update({
-    where: { id: existing.id },
-    data: { revokedAt: new Date(), lastUsedAt: new Date() },
+  // Rotación atómica: revocar el actual + emitir uno nuevo encadenado dentro
+  // de una transacción. El guard `revokedAt: null` en el updateMany garantiza
+  // que sólo una de dos peticiones concurrentes con el mismo plaintext gane la
+  // carrera: la que revoca obtiene count===1 y emite el token nuevo; la perdedora
+  // obtiene count===0 (ya rotado) y se trata como reuse (compromise probable).
+  const now = new Date()
+  const result = await prisma.$transaction(async (tx) => {
+    const revoke = await tx.refreshToken.updateMany({
+      where: { id: existing.id, revokedAt: null },
+      data: { revokedAt: now, lastUsedAt: now },
+    })
+
+    if (revoke.count === 0) {
+      // Otra petición ya rotó este token entre el findUnique y aquí.
+      return null
+    }
+
+    const fresh = await issueRefresh(existing.userId, {
+      rotatedFrom: existing.id,
+      deviceFingerprint,
+      client: tx,
+    })
+    return fresh
   })
 
-  const fresh = await issueRefresh(existing.userId, {
-    rotatedFrom: existing.id,
-    deviceFingerprint,
-  })
+  if (!result) {
+    // Carrera perdida → mismo tratamiento que reuse: revocar toda la chain.
+    await revokeAllForUser(existing.userId)
+    return { ok: false, reason: 'reuse_detected' }
+  }
 
   return {
     ok: true,
-    newPlaintext: fresh.plaintext,
-    newExpiresAt: fresh.expiresAt,
+    newPlaintext: result.plaintext,
+    newExpiresAt: result.expiresAt,
     userId: existing.userId,
   }
 }
