@@ -31,7 +31,7 @@ export function CategoryFilterStrip({ value, onChange, className = '' }: Props) 
       <button
         type="button"
         onClick={() => onChange('all')}
-        className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs transition ${chipClass(value === 'all')}`}
+        className={`flex-shrink-0 inline-flex items-center min-h-[44px] px-3.5 py-2 rounded-full text-xs transition ${chipClass(value === 'all')}`}
       >
         Todas
       </button>
@@ -42,7 +42,7 @@ export function CategoryFilterStrip({ value, onChange, className = '' }: Props) 
             key={key}
             type="button"
             onClick={() => onChange(key)}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs transition ${chipClass(active)}`}
+            className={`flex-shrink-0 inline-flex items-center min-h-[44px] px-3.5 py-2 rounded-full text-xs transition ${chipClass(active)}`}
           >
             <span className="mr-1">{CATEGORY_EMOJI[key]}</span>
             {CATEGORY_LABEL[key]}
